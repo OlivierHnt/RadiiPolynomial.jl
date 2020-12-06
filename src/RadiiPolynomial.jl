@@ -12,7 +12,7 @@ include("spaces/spaces.jl")
 ## sequences
 
 include("sequences/sequences.jl")
-    export Sequence, project, rescale, rescale!, banach_algebra_rounding!, norm
+    export Sequence, project, shift, rescale, rescale!, banach_algebra_rounding!, norm
 
 include("sequences/fft.jl")
     export size_fft, fft, ifft!

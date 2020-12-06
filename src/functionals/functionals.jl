@@ -1,3 +1,12 @@
+"""
+    Functional{T<:SequenceSpace,S<:AbstractVector}
+
+Compactly supported functional with effective domain.
+
+Fields:
+- `domain :: T`
+- `coefficients :: S`
+"""
 struct Functional{T<:SequenceSpace,S<:AbstractVector}
     domain :: T
     coefficients :: S
@@ -34,7 +43,12 @@ order(A::Functional) = order(A.domain)
 
 ## project
 
-function project(A::Functional, domain)
+"""
+    project(A::Functional, domain::SequenceSpace)
+
+Return a [`Functional`](@ref) representing `A` with effective `domain`.
+"""
+function project(A::Functional, domain::SequenceSpace)
     CoefType = eltype(A)
     C = Functional(space, Vector{CoefType}(undef, length(domain)))
     if A.domain == domain
@@ -62,6 +76,11 @@ end
 
 ## selectdim
 
+"""
+    selectdim(a::Functional{TensorSpace{T}}, dim::Int, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
+
+Return a [`Functional`](@ref) with effective domain `A.domain[1:dim-1] ⊗ A.domain[dim+1:N]` and whose coefficients are a view of all the data `A.coefficients` where the index for dimension `dim` equals `i`.
+"""
 Base.@propagate_inbounds function Base.selectdim(A::Functional{TensorSpace{T}}, dim::Int, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
     @boundscheck(!isindexof(i, A.domain[dim]) && throw(BoundsError(A.domain[dim], i)))
     A_ = reshape(A.coefficients, size(A.domain))

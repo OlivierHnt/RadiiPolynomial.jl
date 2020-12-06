@@ -1,23 +1,68 @@
+"""
+    UnivariateSpace <: SequenceSpace
+
+Abstract type for sequence spaces.
+"""
 abstract type SequenceSpace end
 
+"""
+    UnivariateSpace <: SequenceSpace
+
+Abstract type for univariate sequence spaces.
+"""
 abstract type UnivariateSpace <: SequenceSpace end
 
+"""
+    Taylor <: UnivariateSpace
+
+Taylor sequence space whose elements are Taylor sequences of a prescribed order.
+
+Fields:
+- `order :: Int`
+"""
 struct Taylor <: UnivariateSpace
     # symmetry :: Symbol
     order :: Int
 end
 
+"""
+    Fourier{T} <: UnivariateSpace
+
+Fourier sequence space whose elements are Fourier sequences of a prescribed order
+and frequency.
+
+Fields:
+- `order :: Int`
+- `frequency :: T`
+"""
 struct Fourier{T} <: UnivariateSpace
     # symmetry :: Symbol
     order :: Int
     frequency :: T
 end
 
+"""
+    Chebyshev <: UnivariateSpace
+
+Chebyshev sequence space whose elements are Chebyshev sequences of a prescribed order.
+
+Fields:
+- `order :: Int`
+"""
 struct Chebyshev <: UnivariateSpace
     # symmetry :: Symbol
     order :: Int
 end
 
+"""
+    TensorSpace{T<:NTuple{N,UnivariateSpace} where {N}} <: SequenceSpace
+
+Multivariate [`SequenceSpace`](@ref) resulting from the tensor product of some
+[`UnivariateSpace`](@ref).
+
+Fields:
+- `spaces :: T`
+"""
 struct TensorSpace{T<:NTuple{N,UnivariateSpace} where {N}} <: SequenceSpace
     spaces :: T
 end

@@ -24,5 +24,7 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/OlivierHnt/RadiiPolynomial.jl",
+    repo = "github.com/OlivierHnt/RadiiPolynomial.jl",
+    target = "build",
+    push_preview = true
 )

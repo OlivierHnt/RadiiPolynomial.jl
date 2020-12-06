@@ -1,3 +1,12 @@
+"""
+    Sequence{T<:SequenceSpace,S<:AbstractVector}
+
+Compactly supported sequence of the given space.
+
+Fields:
+- `space :: T`
+- `coefficients :: S`
+"""
 struct Sequence{T<:SequenceSpace,S<:AbstractVector}
     space :: T
     coefficients :: S
@@ -39,7 +48,12 @@ Base.permutedims(a::Sequence{T}, σ::Vector{Int}) where {T<:TensorSpace} =
 
 ## project
 
-function project(a::Sequence, space)
+"""
+    project(a::Sequence, space::SequenceSpace)
+
+Return a [`Sequence`](@ref) representing `a` in `space`.
+"""
+function project(a::Sequence, space::SequenceSpace)
     CoefType = eltype(a)
     c = Sequence(space, Vector{CoefType}(undef, length(space)))
     if a.space == space
@@ -67,6 +81,11 @@ end
 
 ## selectdim
 
+"""
+    selectdim(a::Sequence{TensorSpace{T}}, dim::Int, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
+
+Return a [`Sequence`](@ref) in the space `a.space[1:dim-1] ⊗ a.space[dim+1:N]` and whose coefficients are a view of all the data `a.coefficients` where the index for dimension `dim` equals `i`.
+"""
 Base.@propagate_inbounds function Base.selectdim(a::Sequence{TensorSpace{T}}, dim::Int, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
     @boundscheck(!isindexof(i, a.space[dim]) && throw(BoundsError(a.space[dim], i)))
     A = reshape(a.coefficients, size(a.space))
@@ -155,6 +174,11 @@ Base.promote_rule(::Type{Sequence{T₁,S₁}}, ::Type{Sequence{T₂,S₂}}) wher
 
 ## shifting
 
+"""
+    shift(a::Sequence{<:Fourier}, from, to)
+
+Return the shifted [`Fourier`](@ref) sequence representing a shifted Fourier series centered at `to` and was originally centered at `from`.
+"""
 function shift(a::Sequence{<:Fourier}, from, to)
     iωΔτ = im*a.space.frequency*(to-from)
     CoefType = float(promote_type(eltype(a), typeof(iωΔτ)))
@@ -228,6 +252,11 @@ end
 
 ## rounding via Banach algebra
 
+"""
+    banach_algebra_rounding!(a::Sequence, ν::Vector)
+
+Return a rounded [`Sequence`](@ref) according to the decay `ν` (c.f. [Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT](https://link.springer.com/article/10.21136/AM.2018.0082-18)).
+"""
 function banach_algebra_rounding!(a::Sequence, ν::Vector)
     @assert length(a.coefficients) == length(ν)
     @inbounds for i ∈ eachindex(a.coefficients)

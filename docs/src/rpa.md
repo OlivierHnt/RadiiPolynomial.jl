@@ -1,4 +1,4 @@
-# Radii polynomial approach
+# Radii polynomial
 
 The solution of many problems in dynamical systems can often be seen as the fixed point of an operator. The *radii polynomial approach* is a strategy in computer-assisted proofs to obtain a rigorous a posteriori error bound on a numerical approximation of the fixed point. More precisely, the Radii Polynomial theorem gives us sufficient conditions for the operator to be a contraction in a closed ball centred at the numerical approximation; this implies the existence and (local) uniqueness of the desired fixed point within this ball.
 
@@ -27,4 +27,4 @@ The solution of many problems in dynamical systems can often be seen as the fixe
     then ``G`` has a unique fixed point ``\tilde{x} \in \overline{B_{r_0}(x_0)}``.
 
 !!! note
-    The Radii Polynomial theorem originates from the [Newton-Kantorovich theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).
+    The Radii Polynomial theorem is related to the [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).

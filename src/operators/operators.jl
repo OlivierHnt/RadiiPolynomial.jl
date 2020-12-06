@@ -1,3 +1,13 @@
+"""
+    Operator{T<:SequenceSpace,S<:SequenceSpace,R<:AbstractMatrix}
+
+Compactly supported operator with effective domain and range.
+
+Fields:
+- `domain :: T`
+- `range :: S`
+- `coefficients :: R`
+"""
 struct Operator{T<:SequenceSpace,S<:SequenceSpace,R<:AbstractMatrix}
     domain :: T
     range :: S
@@ -13,7 +23,12 @@ Operator(domain::T, range::S, coefficients::R) where {T<:SequenceSpace,S<:Sequen
 
 ## project
 
-function project(A::Operator, domain, range)
+"""
+    project(A::Operator, domain::SequenceSpace, range::SequenceSpace)
+
+Return an [`Operator`](@ref) representing `A` with effective `domain` and `range`.
+"""
+function project(A::Operator, domain::SequenceSpace, range::SequenceSpace)
     CoefType = eltype(A)
     C = Operator(domain, range, Matrix{CoefType}(undef, length(range), length(domain)))
     if A.domain == domain && A.range == range

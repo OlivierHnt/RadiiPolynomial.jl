@@ -41,54 +41,83 @@ Fourier{Float64}(2, 1.0) ⨂ Taylor(4):
  (1.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₄
  (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₄
  (1.1492543028346347e-16) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₄</code></pre><p>The internal routines of the multiplication are based on the fast Fourier transform (FFT) which needed to be re-implemented to ensure compatibility with <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>. It is important to keep in mind that the interval representation widens severely with complex number multiplication which conflicts with the FFT algorithm. This has been taken into account by implementing <code>*(a::Sequence...)</code> such that we only perform the FFT aglorithm twice.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
-ERROR: ArgumentError: Package IntervalArithmetic not found in current path:
-- Run `import Pkg; Pkg.add(&quot;IntervalArithmetic&quot;)` to install the IntervalArithmetic package.
 
 julia&gt; space = Taylor(2^12-1)
 Taylor(4095)
 
 julia&gt; a = Sequence(space, [@interval(x) for x ∈ rand(length(space))])
-ERROR: LoadError: UndefVarError: @interval not defined
-in expression starting at none:1
+Taylor(4095):
+
+ ([0.988498, 0.988499]) 𝜙₀
+ ([0.253674, 0.253675]) 𝜙₁
+ ([0.175886, 0.175887]) 𝜙₂
+ ([0.541956, 0.541957]) 𝜙₃
+ ([0.956295, 0.956296]) 𝜙₄
+ ([0.495286, 0.495287]) 𝜙₅
+ ([0.362387, 0.362388]) 𝜙₆
+ ([0.771582, 0.771583]) 𝜙₇
+ ([0.64678, 0.646781]) 𝜙₈
+ ([0.0370414, 0.0370415]) 𝜙₉
+ ⋮
+ ([0.17281, 0.172811]) 𝜙₄₀₈₆
+ ([0.587282, 0.587283]) 𝜙₄₀₈₇
+ ([0.343747, 0.343748]) 𝜙₄₀₈₈
+ ([0.431673, 0.431674]) 𝜙₄₀₈₉
+ ([0.874772, 0.874773]) 𝜙₄₀₉₀
+ ([0.993292, 0.993293]) 𝜙₄₀₉₁
+ ([0.150102, 0.150103]) 𝜙₄₀₉₂
+ ([0.703197, 0.703198]) 𝜙₄₀₉₃
+ ([0.937071, 0.937072]) 𝜙₄₀₉₄
+ ([0.407131, 0.407132]) 𝜙₄₀₉₅
 
 julia&gt; maximum(radius.(a))
-ERROR: UndefVarError: radius not defined
+1.1102230246251565e-16
 
 julia&gt; maximum(radius.(a^3))
-ERROR: UndefVarError: a not defined
+3.988388925790787e-7
 
 julia&gt; maximum(radius.(a^5))
-ERROR: UndefVarError: a not defined</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our series:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
-ERROR: ArgumentError: Package IntervalArithmetic not found in current path:
-- Run `import Pkg; Pkg.add(&quot;IntervalArithmetic&quot;)` to install the IntervalArithmetic package.
+3.2265625</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our series:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
 
 julia&gt; space = Taylor(2^12-1)
 Taylor(4095)
 
 julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)])
-ERROR: LoadError: UndefVarError: @interval not defined
-in expression starting at none:1
+Taylor(4095):
+
+ ([0.280817, 0.280818]) 𝜙₀
+ ([0.170097, 0.170098]) 𝜙₁
+ ([0.0607954, 0.0607955]) 𝜙₂
+ ([0.00107312, 0.00107313]) 𝜙₃
+ ([0.00207934, 0.00207935]) 𝜙₄
+ ([0.000875136, 0.000875137]) 𝜙₅
+ ([4.72221e-05, 4.72222e-05]) 𝜙₆
+ ([3.93036e-05, 3.93037e-05]) 𝜙₇
+ ([1.49513e-05, 1.49514e-05]) 𝜙₈
+ ([4.62956e-07, 4.62957e-07]) 𝜙₉
+ ⋮
+ ([0, 3.45708e-309]) 𝜙₄₀₈₆
+ ([0, 5.19135e-309]) 𝜙₄₀₈₇
+ ([0, 4.20097e-309]) 𝜙₄₀₈₈
+ ([0, 3.34802e-309]) 𝜙₄₀₈₉
+ ([0, 4.39284e-309]) 𝜙₄₀₉₀
+ ([0, 1.98729e-309]) 𝜙₄₀₉₁
+ ([0, 6.40262e-310]) 𝜙₄₀₉₂
+ ([0, 6.25153e-311]) 𝜙₄₀₉₃
+ ([0, 2.10583e-309]) 𝜙₄₀₉₄
+ ([0, 3.5561e-309]) 𝜙₄₀₉₅
 
 julia&gt; maximum(radius.(a^5))
-ERROR: UndefVarError: a not defined</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div><p>However, in <em><a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a></em> the author shows how to rigorously bound convolutions to avoid machine precision limitations. The algorithm can be used via the <code>banach_algebra_rounding!</code> function.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
-ERROR: ArgumentError: Package IntervalArithmetic not found in current path:
-- Run `import Pkg; Pkg.add(&quot;IntervalArithmetic&quot;)` to install the IntervalArithmetic package.
+7.424286042537002e-16</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div><p>However, in <em><a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a></em> the author shows how to rigorously bound convolutions to avoid machine precision limitations. The algorithm can be used via the <code>banach_algebra_rounding!</code> function.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
 
 julia&gt; space = Taylor(2^4-1);
 
 julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)]);
-ERROR: LoadError: UndefVarError: @interval not defined
-in expression starting at none:1
 
 julia&gt; C = norm(a, 4.0)^3;
-ERROR: UndefVarError: a not defined
 
 julia&gt; ν = [@interval(C/4.0^i) for i ∈ 0:3order(space)];
-ERROR: LoadError: UndefVarError: @interval not defined
-in expression starting at none:1
 
 julia&gt; a³ = a^3;
-ERROR: UndefVarError: a not defined
 
-julia&gt; b = banach_algebra_rounding!(a^3, ν);
-ERROR: UndefVarError: a not defined</code></pre><p><img src="../rounding_plot.png" alt="rounding_plot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 6 December 2020 00:40">Sunday 6 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+julia&gt; b = banach_algebra_rounding!(a^3, ν);</code></pre><p><img src="../rounding_plot.png" alt="rounding_plot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 6 December 2020 01:00">Sunday 6 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

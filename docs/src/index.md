@@ -1,6 +1,6 @@
 # Presentation
 
-The [`RadiiPolynomial.jl`](https://OlivierHnt.github.io/RadiiPolynomial.jl) package gives a framework to apply the *Radii Polynomial Theorem*. The library gives an implementation of sequences, linear functionals and linear operators.
+The [`RadiiPolynomial.jl`](https://OlivierHnt.github.io/RadiiPolynomial.jl) package implements the *Radii Polynomial Theorem* (case ``N = 1,2`` at the moment) as well as the Banach algebra, linear functionals and linear operators of sequence spaces.
 
 ```@contents
 Pages = [
@@ -8,8 +8,11 @@ Pages = [
     "spaces/spaces.md",
     "sequences/sequences.md",
     "functionals/functionals.md",
-    "operators/operators.md"
+    "operators/operators.md",
+    "api.md"
     ]
 ```
 
-## Supporting and citing
+## Supporting
+
+## Citation

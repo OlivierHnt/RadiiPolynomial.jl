@@ -2,16 +2,16 @@ using RadiiPolynomial
 using Documenter
 
 makedocs(;
-    modules=[RadiiPolynomial],
-    authors="Olivier Hénot",
-    repo="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/{commit}{path}#L{line}",
-    sitename="RadiiPolynomial.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://OlivierHnt.github.io/RadiiPolynomial.jl",
-        assets=String[],
+    modules = [RadiiPolynomial],
+    authors = "Olivier Hénot",
+    repo = "https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/{commit}{path}#L{line}",
+    sitename = "RadiiPolynomial.jl",
+    format = Documenter.HTML(;
+        prettyurls = get(ENV, "CI", "false") == "true",
+        canonical = "https://OlivierHnt.github.io/RadiiPolynomial.jl",
+        assets = String[],
     ),
-    pages=[
+    pages = [
         "Home" => "index.md",
         "Radii Polynomial" => "rpa.md",
         "Sequence spaces" => [
@@ -19,12 +19,14 @@ makedocs(;
             "sequences/sequences.md",
             "functionals/functionals.md",
             "operators/operators.md"
-            ]
+            ],
+        "API" => "api.md"
     ],
 )
 
 deploydocs(;
     repo = "github.com/OlivierHnt/RadiiPolynomial.jl",
     target = "build",
-    push_preview = true
+    branch = "gh-pages",
+    versions = ["stable" => "v^", "v#.#"]
 )

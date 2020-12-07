@@ -25,8 +25,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo = "github.com/OlivierHnt/RadiiPolynomial.jl",
-    target = "build",
-    branch = "gh-pages",
-    versions = ["stable" => "v^", "v#.#"]
+    repo = "github.com/OlivierHnt/RadiiPolynomial.jl"
 )

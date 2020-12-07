@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Sequences · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/sequences/sequences/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii Polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li class="is-active"><a class="tocitem" href>Sequences</a><ul class="internal"><li><a class="tocitem" href="#Arithmetic"><span>Arithmetic</span></a></li></ul></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Sequence spaces</a></li><li class="is-active"><a href>Sequences</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Sequences</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/sequences/sequences.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Sequences"><a class="docs-heading-anchor" href="#Sequences">Sequences</a><a id="Sequences-1"></a><a class="docs-heading-anchor-permalink" href="#Sequences" title="Permalink"></a></h1><p>A <a href="#RadiiPolynomial.Sequence"><code>Sequence</code></a> is a structure representing a compactly supported sequence of a <a href="../../spaces/spaces/#RadiiPolynomial.SequenceSpace"><code>SequenceSpace</code></a>.</p><article class="docstring"><header><a class="docstring-binding" id="RadiiPolynomial.Sequence" href="#RadiiPolynomial.Sequence"><code>RadiiPolynomial.Sequence</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">Sequence{T&lt;:SequenceSpace,S&lt;:AbstractVector}</code></pre><p>Compactly supported sequence of the given space.</p><p>Fields:</p><ul><li><code>space :: T</code></li><li><code>coefficients :: S</code></li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/e9dcacd15ff6635533c37f9f5053ef1012feb0ca/src/sequences/sequences.jl#LL1-L9">source</a></section></article><h2 id="Arithmetic"><a class="docs-heading-anchor" href="#Arithmetic">Arithmetic</a><a id="Arithmetic-1"></a><a class="docs-heading-anchor-permalink" href="#Arithmetic" title="Permalink"></a></h2><p>The arithmetic operations <code>+,-,*,^</code> are implemented along with the convenient <em>bar operations</em> <code>+̄,-̄,*̄,^̄</code> (<code>+\bar&lt;TAB&gt;, -\bar&lt;TAB&gt;, *\bar&lt;TAB&gt;, ^\bar&lt;TAB&gt;</code>) which are equivalent to</p><pre><code class="language-julia">+̄(a::Sequence...) = project(+(a...), mapreduce(aᵢ -&gt; aᵢ.space, ∪̄, a))
+-̄(a::Sequence...) = project(-(a...), mapreduce(aᵢ -&gt; aᵢ.space, ∪̄, a))
+*̄(a::Sequence...) = project(*(a...), mapreduce(aᵢ -&gt; aᵢ.space, ∪̄, a))
+^̄(a::Sequence, n::Int) = project(^(a, n), a.space)</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Divisions between sequences and other elementary functions (e.g. <code>exp,log,cos,sin</code>) are purposely not supported as, in general, they yield sequences which are not compactly supported.</p></div></div><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial
+
+julia&gt; a = Sequence(Fourier(1, 1.0) ⊗ Taylor(2), [0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0]) # a(x,y) = cos(x) + y^2
+Fourier{Float64}(1, 1.0) ⨂ Taylor(2):
+
+ (0.5) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₀
+ (0.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
+ (0.5) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₂
+ (1.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₂
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₂
+
+julia&gt; a^2 # a(x,y)^2 = cos^2(x) + 2cos(x)y^2 + y^4
+Fourier{Float64}(2, 1.0) ⨂ Taylor(4):
+
+ (0.24999999999999997) 𝜙⁽¹⁾₋₂ ⊗ 𝜙⁽²⁾₀
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₀
+ (0.5) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
+ (0.25000000000000006) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
+ (0.0) 𝜙⁽¹⁾₋₂ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₁
+ (0.0) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₁
+ ⋮
+ (0.0) 𝜙⁽¹⁾₋₂ ⊗ 𝜙⁽²⁾₃
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₃
+ (0.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₃
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₃
+ (0.0) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₃
+ (-1.1492543028346347e-16) 𝜙⁽¹⁾₋₂ ⊗ 𝜙⁽²⁾₄
+ (0.0) 𝜙⁽¹⁾₋₁ ⊗ 𝜙⁽²⁾₄
+ (1.0) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₄
+ (0.0) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₄
+ (1.1492543028346347e-16) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₄</code></pre><p>The internal routines of the multiplication are based on the fast Fourier transform (FFT) which needed to be re-implemented to ensure compatibility with <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>. It is important to keep in mind that the interval representation widens severely with complex number multiplication which conflicts with the FFT algorithm. This has been taken into account by implementing <code>*(a::Sequence, b::Sequence, c::Sequence...)</code> such that we only perform the FFT algorithm twice.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+
+julia&gt; space = Taylor(2^12-1)
+Taylor(4095)
+
+julia&gt; a = Sequence(space, [@interval(x) for x ∈ rand(length(space))])
+Taylor(4095):
+
+ ([0.869656, 0.869657]) 𝜙₀
+ ([0.509499, 0.5095]) 𝜙₁
+ ([0.522509, 0.52251]) 𝜙₂
+ ([0.946471, 0.946472]) 𝜙₃
+ ([0.983238, 0.983239]) 𝜙₄
+ ([0.709335, 0.709336]) 𝜙₅
+ ([0.329252, 0.329253]) 𝜙₆
+ ([0.542844, 0.542845]) 𝜙₇
+ ([0.0777672, 0.0777673]) 𝜙₈
+ ([0.634607, 0.634608]) 𝜙₉
+ ⋮
+ ([0.959868, 0.959869]) 𝜙₄₀₈₆
+ ([0.178259, 0.17826]) 𝜙₄₀₈₇
+ ([0.0272529, 0.027253]) 𝜙₄₀₈₈
+ ([0.88923, 0.889231]) 𝜙₄₀₈₉
+ ([0.896438, 0.896439]) 𝜙₄₀₉₀
+ ([0.710011, 0.710012]) 𝜙₄₀₉₁
+ ([0.893328, 0.893329]) 𝜙₄₀₉₂
+ ([0.927323, 0.927324]) 𝜙₄₀₉₃
+ ([0.286523, 0.286524]) 𝜙₄₀₉₄
+ ([0.769379, 0.76938]) 𝜙₄₀₉₅
+
+julia&gt; maximum(radius.(a))
+1.1102230246251565e-16
+
+julia&gt; maximum(radius.(a^3))
+4.176981747150421e-7
+
+julia&gt; maximum(radius.(a^5))
+3.404296875</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our series:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+
+julia&gt; space = Taylor(2^12-1)
+Taylor(4095)
+
+julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)])
+Taylor(4095):
+
+ ([0.0370376, 0.0370377]) 𝜙₀
+ ([0.0686232, 0.0686233]) 𝜙₁
+ ([0.0435084, 0.0435085]) 𝜙₂
+ ([0.00969143, 0.00969144]) 𝜙₃
+ ([0.00270702, 0.00270703]) 𝜙₄
+ ([0.000675912, 0.000675913]) 𝜙₅
+ ([5.27937e-05, 5.27938e-05]) 𝜙₆
+ ([4.70603e-05, 4.70604e-05]) 𝜙₇
+ ([1.03397e-05, 1.03398e-05]) 𝜙₈
+ ([1.8072e-06, 1.80721e-06]) 𝜙₉
+ ⋮
+ ([0, 3.37843e-309]) 𝜙₄₀₈₆
+ ([0, 1.9481e-309]) 𝜙₄₀₈₇
+ ([0, 2.19396e-309]) 𝜙₄₀₈₈
+ ([0, 2.84439e-309]) 𝜙₄₀₈₉
+ ([0, 1.80093e-309]) 𝜙₄₀₉₀
+ ([0, 1.62273e-309]) 𝜙₄₀₉₁
+ ([0, 5.09367e-309]) 𝜙₄₀₉₂
+ ([0, 9.00517e-310]) 𝜙₄₀₉₃
+ ([0, 5.37967e-309]) 𝜙₄₀₉₄
+ ([0, 5.48312e-309]) 𝜙₄₀₉₅
+
+julia&gt; maximum(radius.(a^5))
+2.3128389714851966e-18</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div><p>However, in <a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a> the author shows how to rigorously bound convolutions to avoid machine precision limitations. The algorithm can be used via the <a href="#RadiiPolynomial.banach_algebra_rounding!"><code>banach_algebra_rounding!</code></a> function.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+
+julia&gt; space = Taylor(2^4-1);
+
+julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)]);
+
+julia&gt; C = norm(a, 4.0)^3;
+
+julia&gt; ν = [@interval(C/4.0^i) for i ∈ 0:3order(space)];
+
+julia&gt; a³ = a^3;
+
+julia&gt; b = banach_algebra_rounding!(a^3, ν);</code></pre><p><img src="../rounding_plot.png" alt="rounding_plot"/></p><article class="docstring"><header><a class="docstring-binding" id="RadiiPolynomial.banach_algebra_rounding!" href="#RadiiPolynomial.banach_algebra_rounding!"><code>RadiiPolynomial.banach_algebra_rounding!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">banach_algebra_rounding!(a::Sequence, ν::Vector)</code></pre><p>Return a rounded <a href="#RadiiPolynomial.Sequence"><code>Sequence</code></a> according to the decay <code>ν</code> (c.f. <a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a>).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/e9dcacd15ff6635533c37f9f5053ef1012feb0ca/src/sequences/sequences.jl#LL255-L259">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 7 December 2020 00:31">Monday 7 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

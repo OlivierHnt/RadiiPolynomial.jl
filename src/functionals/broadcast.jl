@@ -23,7 +23,7 @@ _find_domain(::Nothing, domain::SequenceSpace) = domain
 _find_domain(::Nothing, ::Nothing) = nothing
 function _find_domain(s₁::T, s₂::S) where {T<:SequenceSpace,S<:SequenceSpace}
     @assert s₁ == s₂
-    return convert(promote_type(T,S), domain)
+    return convert(promote_type(T, S), s₁)
 end
 
 @inline function Base.copyto!(dest::Functional, src::Functional)
@@ -43,3 +43,6 @@ end
 
 Base.Broadcast._broadcast_getindex(A::Functional, i::Int) =
     Base.Broadcast._broadcast_getindex(A.coefficients, i)
+
+# to allow A[...] .= f.(...)
+Base.@propagate_inbounds Base.Broadcast.dotview(A::Functional, α) = view(A, α)

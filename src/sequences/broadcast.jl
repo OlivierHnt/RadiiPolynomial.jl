@@ -43,3 +43,6 @@ end
 
 Base.Broadcast._broadcast_getindex(a::Sequence, i::Int) =
     Base.Broadcast._broadcast_getindex(a.coefficients, i)
+
+# to allow a[...] .= f.(...)
+Base.@propagate_inbounds Base.Broadcast.dotview(a::Sequence, α) = view(a, α)

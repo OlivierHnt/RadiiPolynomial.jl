@@ -90,7 +90,7 @@ function _fft_pow2(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NT
 end
 
 _apply_extension!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _extension!(space[1], Val(N₂-N₁+1), apply_extension!(space[2:N₁], A))
+    @inbounds _extension!(space[1], Val(N₂-N₁+1), _apply_extension!(space[2:N₁], A))
 
 _apply_extension!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}) where {T,N} =
     @inbounds _extension!(space[1], Val(N-1), _extension!(space[2], Val(N), A))
@@ -158,8 +158,8 @@ end
 
 function _ifft_pow2!(space::TensorSpace, A::Array)
     _ifft_pow2!(A)
-    axes = _reduction_axes(space)
-    @inbounds B = A[axes...]
+    axes_ = _reduction_axes(space)
+    @inbounds B = A[axes_...]
     _apply_reduction!(space, B)
     return Sequence(space, vec(B))
 end

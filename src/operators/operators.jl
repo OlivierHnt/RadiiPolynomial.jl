@@ -78,22 +78,35 @@ end
 
 ## utilities
 
-Base.size(A::Operator) = (length(A.range), length(A.domain))
-function Base.size(A::Operator, i::Int)
-    i == 1 && return length(A.range)
-    i == 2 && return length(A.domain)
+function Base.firstindex(A::Operator, i::Int)
+    i == 1 && return firstindex(A.range)
+    i == 2 && return firstindex(A.domain)
     return 1
 end
 
-Base.axes(A::Operator) = (eachindex(A.range), eachindex(A.domain))
-function Base.axes(A::Operator, i::Int)
-    i == 1 && return eachindex(A.range)
-    i == 2 && return eachindex(A.domain)
-    return 1:1
+function Base.lastindex(A::Operator, i::Int)
+    i == 1 && return lastindex(A.range)
+    i == 2 && return lastindex(A.domain)
+    return 1
 end
+
+Base.length(A::Operator) = length(A.coefficients)
+
+Base.size(A::Operator) = size(A.coefficients)
+Base.size(A::Operator, i::Int) = size(A.coefficients, i)
+
+Base.iterate(A::Operator) = iterate(A.coefficients)
+Base.iterate(A::Operator, i::Int) = iterate(A.coefficients, i)
 
 Base.eltype(A::Operator) = eltype(A.coefficients)
 Base.eltype(::Type{Operator{T,S,R}}) where {T<:SequenceSpace,S<:SequenceSpace,R<:AbstractMatrix} = eltype(R)
+
+## domain, range, coefficients, order
+
+domain(A::Operator) = A.domain
+range(A::Operator) = A.range
+coefficients(A::Operator) = A.coefficients
+order(A::Operator) = (order(A.domain), order(A.range))
 
 ## getindex, view, setindex!
 

@@ -37,8 +37,10 @@ Base.iterate(A::Functional, i::Int) = iterate(A.coefficients, i)
 Base.eltype(A::Functional) = eltype(A.coefficients)
 Base.eltype(::Type{Functional{T,S}}) where {T<:SequenceSpace,S<:AbstractVector} = eltype(S)
 
-##
+## domain, coefficients, order
 
+domain(A::Functional) = A.domain
+coefficients(A::Functional) = A.coefficients
 order(A::Functional) = order(A.domain)
 
 ## project

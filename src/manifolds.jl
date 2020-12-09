@@ -6,16 +6,16 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
 
     a = [Sequence(Taylor(order), [cⱼ ; ξⱼ ; zeros(T, order-1)]) for (cⱼ,ξⱼ) ∈ zip(c,ξ)]
 
-    Df_ = hessenberg!(Df(c, p))
+    Df_hessenberg = hessenberg!(Df(c, p))
 
     for α ∈ 2:order
         space_ = Taylor(α)
         a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
         αλ = α*λ
         v = f̂(a_, p, α)
-        ldiv!(αλ*I - Df_, v)
+        ldiv!(Df_hessenberg - αλ*I, v)
         @inbounds for j ∈ 1:n
-            a[j][α] = v[j]
+            a[j][α] = -v[j]
         end
     end
 
@@ -37,7 +37,7 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
         end
     end
 
-    Df_ = hessenberg!(Df(c, p))
+    Df_hessenberg = hessenberg!(Df(c, p))
 
     for α ∈ eachindex(space)
         if sum(α) ≥ 2
@@ -45,9 +45,9 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
             a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
             αλ = mapreduce(*, +, α, λ)
             v = f̂(a_, p, α)
-            ldiv!(αλ*I - Df_, v)
+            ldiv!(Df_hessenberg - αλ*I, v)
             @inbounds for j ∈ 1:n
-                a[j][α] = v[j]
+                a[j][α] = -v[j]
             end
         end
     end
@@ -126,10 +126,10 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
         b_ = [Sequence(space_, view(bⱼ, eachindex(space_))) for bⱼ ∈ b]
         αλ = α*λ
         v = f̂(a_, b_, p, α)
-        ldiv!(lu!(αλ*I - D₁f_ - D₂f_*exp(-αλ*τ)), v)
+        ldiv!(lu!(D₁f_ + D₂f_*exp(-αλ*τ) - αλ*I), v)
         @inbounds for j ∈ 1:n
-            a[j][α] = v[j]
-            b[j][α] = v[j]*exp(-αλ*τ)
+            a[j][α] = -v[j]
+            b[j][α] = -v[j]*exp(-αλ*τ)
         end
     end
 
@@ -164,10 +164,10 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
             b_ = [Sequence(space_, view(bⱼ, eachindex(space_))) for bⱼ ∈ b]
             αλ = mapreduce(*, +, α, λ)
             v = f̂(a_, b_, p, α)
-            ldiv!(lu!(αλ*I - D₁f_ - D₂f_*exp(-αλ*τ)), v)
+            ldiv!(lu!(D₁f_ + D₂f_*exp(-αλ*τ) - αλ*I), v)
             @inbounds for j ∈ 1:n
-                a[j][α] = v[j]
-                b[j][α] = v[j]*exp(-αλ*τ)
+                a[j][α] = -v[j]
+                b[j][α] = -v[j]*exp(-αλ*τ)
             end
         end
     end

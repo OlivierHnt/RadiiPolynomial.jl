@@ -37,8 +37,10 @@ Base.iterate(a::Sequence, i::Int) = iterate(a.coefficients, i)
 Base.eltype(a::Sequence) = eltype(a.coefficients)
 Base.eltype(::Type{Sequence{T,S}}) where {T<:SequenceSpace,S<:AbstractVector} = eltype(S)
 
-## order
+## space, coefficients, order
 
+space(a::Sequence) = a.space
+coefficients(a::Sequence) = a.coefficients
 order(a::Sequence) = order(a.space)
 
 ## permutedims

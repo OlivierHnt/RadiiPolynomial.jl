@@ -12,7 +12,7 @@ include("spaces/spaces.jl")
 ## sequences
 
 include("sequences/sequences.jl")
-    export Sequence, project, shift, rescale, rescale!, banach_algebra_rounding!, norm
+    export Sequence, space, coefficients, project, shift, rescale, rescale!, banach_algebra_rounding!, norm
 
 include("sequences/fft.jl")
     export size_fft, fft, ifft!
@@ -31,7 +31,7 @@ include("sequences/broadcast.jl")
 ## functionals
 
 include("functionals/functionals.jl")
-    export Functional, opnorm, Evaluation
+    export Functional, domain, opnorm, Evaluation
 
 include("functionals/arithmetic.jl")
 
@@ -40,9 +40,11 @@ include("functionals/broadcast.jl")
 ## operators
 
 include("operators/operators.jl")
-    export Operator, Derivative, Integral, Shift, Rescale
+    export Operator, range, Derivative, Integral, Shift, Rescale
 
 include("operators/arithmetic.jl")
+
+include("operators/broadcast.jl")
 
 ##
 
@@ -56,6 +58,6 @@ include("manifolds.jl")
     export manifold_ODE_equilibrium, manifold_DDE_equilibrium
 
 include("rpa.jl")
-    export roots_radii_polynomial
+    export roots_radii_polynomial, rpa_finite_dimension, newton
 
 end

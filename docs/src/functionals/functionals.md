@@ -4,10 +4,6 @@ Given a linear functional `A` defined on a sequence space, a [`Functional`](@ref
 
 Consequently, we can conveniently extend a [`Functional`](@ref) when needed.
 
-```@docs
-Functional
-```
-
 ## Action
 
 The action of a [`Functional`](@ref) is performed by the left product of a [`Sequence`](@ref) with a [`Functional`](@ref).

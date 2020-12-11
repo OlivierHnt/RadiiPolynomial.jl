@@ -4,10 +4,6 @@ Given a linear operator `A` defined from a sequence space to an other, an [`Oper
 
 Consequently, we can conveniently extend an [`Operator`](@ref) when needed.
 
-```@docs
-Operator
-```
-
 ## Action
 
 The action of an [`Operator`](@ref) is performed by the left product of a [`Sequence`](@ref) with an [`Operator`](@ref).

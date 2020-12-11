@@ -9,10 +9,11 @@ Pages = [
     "sequences/sequences.md",
     "functionals/functionals.md",
     "operators/operators.md",
+    "example.md",
     "api.md"
     ]
 ```
 
 ## Supporting
 
-## Citation
+## Citing

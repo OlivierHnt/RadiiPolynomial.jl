@@ -1,10 +1,6 @@
 # Sequences
 
-A [`Sequence`](@ref) is a structure representing a compactly supported sequence of a [`SequenceSpace`](@ref).
-
-```@docs
-Sequence
-```
+A [`Sequence`](@ref) is a structure representing an element of a [`SequenceSpace`](@ref), that is it corresponds to a compactly supported sequence. The coefficients of a [`Sequence`](@ref) are organized according to the space indexing.
 
 ## Arithmetic
 
@@ -63,7 +59,3 @@ b = banach_algebra_rounding!(a^3, ν);
 ```
 
 ![rounding_plot](rounding_plot.png)
-
-```@docs
-banach_algebra_rounding!
-```

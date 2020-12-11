@@ -31,23 +31,23 @@ julia&gt; A = Operator(Taylor(1) ⊗ Chebyshev(1), Taylor(2) ⊗ Chebyshev(1), r
 
 julia&gt; A.coefficients
 6×4 Array{Int64,2}:
+ 1  2  1  2
+ 1  3  1  2
+ 3  2  2  1
+ 2  3  1  1
  3  3  3  3
- 3  1  2  2
- 2  2  3  1
- 3  2  3  1
- 1  2  2  3
- 3  1  2  2
+ 1  2  1  1
 
 julia&gt; B = Operator(Taylor(2) ⊗ Chebyshev(0), Taylor(1) ⊗ Chebyshev(2), rand(1:3, length(Taylor(1) ⊗ Chebyshev(2)), length(Taylor(2) ⊗ Chebyshev(0))));
 
 julia&gt; B.coefficients
 6×3 Array{Int64,2}:
- 2  1  3
- 3  3  1
- 1  3  2
- 2  3  1
- 1  2  1
- 1  2  2
+ 2  2  3
+ 3  1  2
+ 3  1  1
+ 1  1  3
+ 3  1  3
+ 2  1  1
 
 julia&gt; C = A + B;
 
@@ -59,14 +59,14 @@ Taylor(2) ⨂ Chebyshev(2)
 
 julia&gt; C.coefficients
 9×6 Array{Int64,2}:
- 5  4  3  3  3  0
- 6  4  1  2  2  0
- 2  2  0  3  1  0
- 4  5  2  3  1  0
- 3  5  1  2  3  0
- 3  1  0  2  2  0
- 1  2  1  0  0  0
- 1  2  2  0  0  0
+ 3  4  3  1  2  0
+ 4  4  2  1  2  0
+ 3  2  0  2  1  0
+ 5  4  1  1  1  0
+ 4  4  3  3  3  0
+ 1  2  0  1  1  0
+ 3  1  3  0  0  0
+ 2  1  1  0  0  0
  0  0  0  0  0  0
 
 julia&gt; C̄ = A +̄ B;
@@ -79,7 +79,7 @@ Taylor(1) ⨂ Chebyshev(1)
 
 julia&gt; C̄.coefficients
 4×2 Array{Int64,2}:
+ 3  4
+ 4  4
  5  4
- 6  4
- 4  5
- 3  5</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../functionals/functionals/">« Functionals</a><a class="docs-footer-nextpage" href="../../example/">Example »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 11 December 2020 23:35">Friday 11 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 4  4</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../functionals/functionals/">« Functionals</a><a class="docs-footer-nextpage" href="../../example/">Example »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 11 December 2020 23:37">Friday 11 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

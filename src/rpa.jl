@@ -1,5 +1,10 @@
+"""
+    roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {T<:Real}
+
+Return the interval of existence garanted by the Radii Polynomial Theorem from the root of the polynomial Y + (Z-1)r.
+"""
 function roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {T<:Real}
-    @info "Applying the Radii Polynomial Theoreom of order 1: p(r) := Y + (Z-1)r" r₀ Y Z
+    @info "Applying the Radii Polynomial Theoreom of order 1: Y + (Z-1)r" r₀ Y Z
     if iszero(Y) # exact solution
         if Z ≥ 1
             @info """VALID ROOT FOUND:
@@ -51,8 +56,13 @@ function roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {
     end
 end
 
+"""
+    roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, r₀::T) where {T<:Real}
+
+Return the interval of existence garanted by the Radii Polynomial Theorem from the root(s) of the polynomial Y + (Z₁-1)r + Z₂r²/2.
+"""
 function roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, r₀::T) where {T<:Real}
-    @info "Applying the Radii Polynomial Theoreom of order 2: p(r) := Y + (Z₁-1)r + Z₂r²/2" r₀ Y Z₁ Z₂
+    @info "Applying the Radii Polynomial Theoreom of order 2: Y + (Z₁-1)r + Z₂r²/2" r₀ Y Z₁ Z₂
     iszero(Z₂) && return roots_radii_polynomial(Y, Z₁, r₀)
     b = Z₁ - one(Z₁)
     Δ = b^2 - 2Z₂*Y
@@ -161,7 +171,63 @@ end
 _make_interval_x_pm_r₀(x::Real, r₀::Real) = x ± r₀
 _make_interval_x_pm_r₀(x::Complex, r₀::Real) = (real(x) ± r₀) + im*(imag(x) ± r₀)
 
-function rpa_finite_dimension(x::T, F::Function, DF::Function, r₀::Real=Inf) where {T}
+#
+
+"""
+    rpa_finite_dimension
+
+Apply the radii polynomial approach for a given operator and an approximation of its fixed point.
+"""
+function rpa_finite_dimension(x::T, G::Function, DG::Function, r₀::Real=Inf) where {T}
+    x_interval = @interval(x)
+    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
+
+    Y = abs(G(x_interval) - x_interval)
+    Z = abs(DG(x_pm_r₀))
+
+    return roots_radii_polynomial(Y, Z, r₀)
+end
+
+function rpa_finite_dimension(x::Vector{T}, G::Function, DG::Function, r₀::Real=Inf) where {T}
+    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
+    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+
+    Y = norm(G(x_interval) - x_interval, Inf)
+    Z = opnorm(DG(x_pm_r₀), Inf)
+
+    return roots_radii_polynomial(Y, Z, r₀)
+end
+
+function rpa_finite_dimension(x::T, G::Function, DG::Function, D²G::Function, r₀::Real=Inf) where {T}
+    x_interval = @interval(x)
+    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
+
+    Y = abs(G(x_interval) - x_interval)
+    Z₁ = abs(DG(x_interval))
+    Z₂ = abs(D²G(x_pm_r₀))
+
+    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
+end
+
+function rpa_finite_dimension(x::Vector{T}, G::Function, DG::Function, D²G::Function, r₀::Real=Inf) where {T}
+    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
+    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+
+    Y = norm(G(x_interval) - x_interval, Inf)
+    Z₁ = opnorm(DG(x_interval), Inf)
+    Z₂ = opnorm(D²G(x_pm_r₀), Inf)
+
+    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
+end
+
+#
+
+"""
+    rpa_finite_dimension_newton
+
+Apply the radii polynomial approach for a given Newton-like operator and an approximation of its fixed point.
+"""
+function rpa_finite_dimension_newton(x::T, F::Function, DF::Function, r₀::Real=Inf) where {T}
     x_interval = @interval(x)
     x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
 
@@ -175,7 +241,7 @@ function rpa_finite_dimension(x::T, F::Function, DF::Function, r₀::Real=Inf) w
     return roots_radii_polynomial(Y, Z, r₀)
 end
 
-function rpa_finite_dimension(x::Vector{T}, F::Function, DF::Function, r₀::Real=Inf) where {T}
+function rpa_finite_dimension_newton(x::Vector{T}, F::Function, DF::Function, r₀::Real=Inf) where {T}
     x_interval = [@interval(xᵢ) for xᵢ ∈ x]
     x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
 
@@ -189,7 +255,7 @@ function rpa_finite_dimension(x::Vector{T}, F::Function, DF::Function, r₀::Rea
     return roots_radii_polynomial(Y, Z, r₀)
 end
 
-function rpa_finite_dimension(x::T, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
+function rpa_finite_dimension_newton(x::T, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
     x_interval = @interval(x)
     x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
 
@@ -205,7 +271,7 @@ function rpa_finite_dimension(x::T, F::Function, DF::Function, D²F::Function, r
     return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
 end
 
-function rpa_finite_dimension(x::Vector{T}, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
+function rpa_finite_dimension_newton(x::Vector{T}, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
     x_interval = [@interval(xᵢ) for xᵢ ∈ x]
     x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
 

@@ -40,7 +40,7 @@ include("functionals/broadcast.jl")
 ## operators
 
 include("operators/operators.jl")
-    export Operator, range, Derivative, Integral, Shift, Rescale
+    export Operator, Derivative, Integral, Shift, Rescale
 
 include("operators/arithmetic.jl")
 
@@ -54,10 +54,13 @@ include("operators/broadcast.jl")
 # include("functionals/cartesian.jl")
 # include("operators/cartesian.jl")
 
+include("ivp.jl")
+    export ivp_ODE
+
 include("manifolds.jl")
     export manifold_ODE_equilibrium, manifold_DDE_equilibrium
 
 include("rpa.jl")
-    export roots_radii_polynomial, rpa_finite_dimension, newton
+    export roots_radii_polynomial, rpa_finite_dimension, rpa_finite_dimension_newton, newton
 
 end

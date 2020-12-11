@@ -23,7 +23,7 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
 end
 
 function manifold_ODE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
-        f̂::Function, Df::Function, p, orders::NTuple{N,Int}) where {T,N}
+        f̂::Function, Df::Function, p, order::NTuple{N,Int}) where {T,N}
 
     @assert length(c) == size(ξ, 1) && size(ξ, 2) == length(λ) == N
     n = length(c)
@@ -79,7 +79,7 @@ function manifold_DDE_equilibrium(c::T, ξ::T, λ::T;
 end
 
 function manifold_DDE_equilibrium(c::T, ξ::Vector{T}, λ::Vector{T};
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, orders::NTuple{N,Int}) where {T,N}
+        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::NTuple{N,Int}) where {T,N}
 
     @assert length(ξ) == length(λ) == N
 
@@ -137,7 +137,7 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
 end
 
 function manifold_DDE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, orders::NTuple{N,Int}) where {T,N}
+        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::NTuple{N,Int}) where {T,N}
 
     @assert length(c) == size(ξ, 1) && size(ξ, 2) == length(λ) == N
     n = length(c)

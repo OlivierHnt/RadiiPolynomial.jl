@@ -104,7 +104,7 @@ Base.eltype(::Type{Operator{T,S,R}}) where {T<:SequenceSpace,S<:SequenceSpace,R<
 ## domain, range, coefficients, order
 
 domain(A::Operator) = A.domain
-range(A::Operator) = A.range
+Base.range(A::Operator) = A.range
 coefficients(A::Operator) = A.coefficients
 order(A::Operator) = (order(A.domain), order(A.range))
 

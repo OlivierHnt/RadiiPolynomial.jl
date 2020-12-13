@@ -314,6 +314,7 @@ end
 struct Derivative end
 
 (::Derivative)(a::Sequence) = differentiate(a)
+Base.:*(::Derivative, a::Sequence) = differentiate(a)
 
 function Operator(domain::Taylor, range::Taylor, ::Derivative, ::Type{T}=Float64) where {T}
     A = Operator(domain, range, Matrix{T}(undef, length(range), length(domain)))
@@ -364,6 +365,7 @@ end
 struct Integral end
 
 (::Integral)(a::Sequence) = integrate(a)
+Base.:*(::Integral, a::Sequence) = integrate(a)
 
 function Operator(domain::Taylor, range::Taylor, ::Integral, ::Type{T}=Float64) where {T}
     A = Operator(domain, range, Matrix{T}(undef, length(range), length(domain)))
@@ -428,6 +430,7 @@ struct Shift{T}
 end
 
 (𝒮::Shift)(a::Sequence) = shift(a, 𝒮.from, 𝒮.to)
+Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.from, 𝒮.to)
 
 function Operator(domain::Fourier{T}, range::Fourier{S}, 𝒮::Shift) where {T,S}
     @assert domain.frequency == range.frequency
@@ -451,6 +454,7 @@ struct Rescale{T}
 end
 
 (ℛ::Rescale)(a::Sequence) = rescale(a, ℛ.γ)
+Base.:*(ℛ::Rescale, a::Sequence) = rescale(a, ℛ.γ)
 
 function Operator(domain::Taylor, range::Taylor, ℛ::Rescale{T}) where {T}
     A = Operator(domain, range, Matrix{T}(undef, length(range), length(domain)))

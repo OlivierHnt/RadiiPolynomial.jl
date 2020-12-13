@@ -92,27 +92,51 @@ order(s::TensorSpace) = map(order, s.spaces)
 
 ##
 
-multiplication_range_space(s₁::Taylor, s₂::Taylor) = Taylor(s₁.order + s₂.order)
-function multiplication_range_space(s₁::Fourier{T}, s₂::Fourier{S}) where {T,S}
+multiplication_range(s₁::Taylor, s₂::Taylor) = Taylor(s₁.order + s₂.order)
+function multiplication_range(s₁::Fourier{T}, s₂::Fourier{S}) where {T,S}
     @assert s₁.frequency == s₂.frequency
     NewType = promote_type(T, S)
     return Fourier{NewType}(s₁.order + s₂.order, convert(NewType, s₁.frequency))
 end
-multiplication_range_space(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(s₁.order + s₂.order)
-multiplication_range_space(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
-    TensorSpace(map(multiplication_range_space, s₁.spaces, s₂.spaces))
+multiplication_range(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(s₁.order + s₂.order)
+multiplication_range(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
+    TensorSpace(map(multiplication_range, s₁.spaces, s₂.spaces))
 
-pow_range_space(s::SequenceSpace, n::Int) = mapreduce(i -> s, multiplication_range_space, 1:n)
+function pow_range(s::SequenceSpace, n::Int)
+    n < 0 && return throw(DomainError(n, "^ is only defined for positive integers."))
+    n == 0 && return s
+    n == 1 && return s
+    return _power_range_by_squaring(s, n)
+end
 
-derivation_range_space(s::Taylor) = s.order == 0 ? Taylor(0) : Taylor(s.order-1)
-derivation_range_space(s::Fourier) = s
-derivation_range_space(s::Chebyshev) = s.order == 0 ? Chebyshev(0) : Chebyshev(s.order-1)
-derivation_range_space(s::TensorSpace) = TensorSpace(map(derivation_range_space, s.spaces))
+function _power_range_by_squaring(s::SequenceSpace, n::Int)
+    n == 2 && return multiplication_range(s, s)
+    t = trailing_zeros(n) + 1
+    n >>= t
+    while (t -= 1) > 0
+        s = multiplication_range(s, s)
+    end
+    new_s = s
+    while n > 0
+        t = trailing_zeros(n) + 1
+        n >>= t
+        while (t -= 1) ≥ 0
+            s = multiplication_range(s, s)
+        end
+        new_s = multiplication_range(new_s, s)
+    end
+    return new_s
+end
 
-integration_range_space(s::Taylor) = Taylor(s.order+1)
-integration_range_space(s::Fourier) = s
-integration_range_space(s::Chebyshev) = Chebyshev(s.order+1)
-integration_range_space(s::TensorSpace) = TensorSpace(map(integration_range_space, s.spaces))
+derivative_range(s::Taylor) = s.order == 0 ? Taylor(0) : Taylor(s.order-1)
+derivative_range(s::Fourier) = s
+derivative_range(s::Chebyshev) = s.order == 0 ? Chebyshev(0) : Chebyshev(s.order-1)
+derivative_range(s::TensorSpace) = TensorSpace(map(derivative_range, s.spaces))
+
+integral_range(s::Taylor) = Taylor(s.order+1)
+integral_range(s::Fourier) = s
+integral_range(s::Chebyshev) = Chebyshev(s.order+1)
+integral_range(s::TensorSpace) = TensorSpace(map(integral_range, s.spaces))
 
 ##
 

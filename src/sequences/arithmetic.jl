@@ -71,7 +71,7 @@ function Base.:*(a::Sequence, b::Sequence)
     (eltype(a) <: Real || eltype(b) <: Real) && return real(*(complex(a), complex(b)))
     npow2 = size_fft(a.space, b.space)
     C = _mul!(_fft_pow2(a, npow2), _fft_pow2(b, npow2))
-    space = multiplication_range_space(a.space, b.space)
+    space = multiplication_range(a.space, b.space)
     return _ifft_pow2!(space, C)
 end
 
@@ -79,7 +79,7 @@ function Base.:*(a::Sequence, b::Sequence, c::Sequence...)
     (eltype(a) <: Real || eltype(b) <: Real || any(cᵢ -> eltype(cᵢ) <: Real, c)) && return real(*(complex(a), complex(b), map(complex, c)...))
     npow2 = size_fft(a.space, b.space, map(cᵢ -> cᵢ.space, c)...)
     C = mapreduce(cᵢ -> _fft_pow2(cᵢ, npow2), _mul!, c; init = _mul!(_fft_pow2(a, npow2), _fft_pow2(b, npow2)))
-    space = mapreduce(cᵢ -> cᵢ.space, multiplication_range_space, c; init = multiplication_range_space(a.space, b.space))
+    space = mapreduce(cᵢ -> cᵢ.space, multiplication_range, c; init = multiplication_range(a.space, b.space))
     return _ifft_pow2!(space, C)
 end
 
@@ -98,7 +98,7 @@ function _pow(a::Sequence, n::Int)
     eltype(a) <: Real && return real(_pow(complex(a), n))
     npow2 = size_fft(a.space, n)
     C = _power_by_squaring!(_fft_pow2(a, npow2), n)
-    space = pow_range_space(a.space, n)
+    space = pow_range(a.space, n)
     return _ifft_pow2!(space, C)
 end
 

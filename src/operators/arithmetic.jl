@@ -142,43 +142,57 @@ Base.inv(A::Operator) = Operator(A.range, A.domain, inv(A.coefficients))
 
 ## arithmetic operations +, -, *, /, \ with field elements
 
-function Base.:+(A::Operator, b)
-    CoefType = promote_type(eltype(A), typeof(b))
-    C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
-    @. C.coefficients = A.coefficients
-    @inbounds for α ∈ eachindex(A.domain ∩ A.range)
-        C[α,α] += b
-    end
-    return C
-end
-
-Base.:+(b, A::Operator) = +(A, b)
-
-function Base.:-(A::Operator, b)
-    CoefType = promote_type(eltype(A), typeof(b))
-    C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
-    @. C.coefficients = A.coefficients
-    @inbounds for α ∈ eachindex(A.domain ∩ A.range)
-        C[α,α] -= b
-    end
-    return C
-end
-
-function Base.:-(b, A::Operator)
-    CoefType = promote_type(eltype(A), typeof(b))
-    C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
-    @. C.coefficients = -A.coefficients
-    @inbounds for α ∈ eachindex(A.domain ∩ A.range)
-        C[α,α] += b
-    end
-    return C
-end
+# function Base.:+(A::Operator, b)
+#     CoefType = promote_type(eltype(A), typeof(b))
+#     C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
+#     @. C.coefficients = A.coefficients
+#     @inbounds for α ∈ eachindex(A.domain ∩ A.range)
+#         C[α,α] += b
+#     end
+#     return C
+# end
+#
+# Base.:+(b, A::Operator) = +(A, b)
+#
+# function Base.:-(A::Operator, b)
+#     CoefType = promote_type(eltype(A), typeof(b))
+#     C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
+#     @. C.coefficients = A.coefficients
+#     @inbounds for α ∈ eachindex(A.domain ∩ A.range)
+#         C[α,α] -= b
+#     end
+#     return C
+# end
+#
+# function Base.:-(b, A::Operator)
+#     CoefType = promote_type(eltype(A), typeof(b))
+#     C = Operator(A.domain, A.range, Matrix{CoefType}(undef, length(A.range), length(A.domain)))
+#     @. C.coefficients = -A.coefficients
+#     @inbounds for α ∈ eachindex(A.domain ∩ A.range)
+#         C[α,α] += b
+#     end
+#     return C
+# end
 
 Base.:*(A::Operator, b) = Operator(A.domain, A.range, *(A.coefficients, b))
 Base.:*(b, A::Operator) = Operator(A.domain, A.range, *(b, A.coefficients))
 
 Base.:/(A::Operator, b) = Operator(A.domain, A.range, /(A.coefficients, b))
 Base.:\(b, A::Operator) = Operator(A.domain, A.range, \(b, A.coefficients))
+
+#
+
+Base.:+(A::Operator, J::UniformScaling) = Operator(A.domain, A.range, +(A.coefficients, J))
+Base.:+(J::UniformScaling, A::Operator) = Operator(A.domain, A.range, +(J, A.coefficients))
+
+Base.:-(A::Operator, J::UniformScaling) = Operator(A.domain, A.range, -(A.coefficients, J))
+Base.:-(J::UniformScaling, A::Operator) = Operator(A.domain, A.range, -(J, A.coefficients))
+
+Base.:*(A::Operator, J::UniformScaling) = Operator(A.domain, A.range, *(A.coefficients, J))
+Base.:*(J::UniformScaling, A::Operator) = Operator(A.domain, A.range, *(J, A.coefficients))
+
+Base.:/(A::Operator, J::UniformScaling) = Operator(A.domain, A.range, /(A.coefficients, J))
+Base.:\(J::UniformScaling, A::Operator) = Operator(A.domain, A.range, \(J, A.coefficients))
 
 ## arithmetic operations +̄, -̄ between operators
 

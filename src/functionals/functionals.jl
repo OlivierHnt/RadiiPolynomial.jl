@@ -291,6 +291,7 @@ struct Evaluation{T}
 end
 
 (ℰ::Evaluation)(a::Sequence) = evaluate(a, ℰ.value)
+Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 
 function Functional(domain::Taylor, ℰ::Evaluation{T}) where {T}
     A = Functional(domain, Vector{T}(undef, length(domain)))
@@ -316,20 +317,21 @@ end
 
 function Functional(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
     A = Functional(domain, Vector{T}(undef, length(domain)))
-    if isone(ℰ.value)
-        A.coefficients .= one(T)
+    ord = order(domain)
+    if ord == 0
+        @inbounds A[0] = one(T)
         return A
-    elseif isone(-ℰ.value)
-        ord = order(domain)
-        @inbounds for i ∈ 0:2:ord-1
-            A[i] = one(T)
-            A[i+1] = -one(T)
-        end
-        if iseven(ord)
-            A[ord] = one(T)
-        end
+    elseif ord == 1
+        @inbounds A[0] = one(T)
+        @inbounds A[1] = ℰ.value
         return A
     else
-        return throw(DomainError(ℰ))
+        @inbounds A[0] = one(T)
+        @inbounds A[1] = ℰ.value
+        x2 = 2ℰ.value
+        @inbounds for j ∈ 2:ord
+            A[j] = x2*A[j-1] - A[j-2]
+        end
+        return A
     end
 end

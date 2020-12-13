@@ -6,8 +6,8 @@ module RadiiPolynomial
 
 include("spaces/spaces.jl")
     export SequenceSpace, UnivariateSpace, Taylor, Fourier, Chebyshev, TensorSpace,
-           order, ⊗, ∪̄, multiplication_range_space, pow_range_space, derivation_range_space,
-           integration_range_space, isindexof
+           order, ⊗, ∪̄, multiplication_range, pow_range, derivative_range,
+           integral_range, isindexof
 
 ## sequences
 

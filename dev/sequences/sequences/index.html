@@ -48,36 +48,36 @@ Taylor(4095)
 julia&gt; a = Sequence(space, [@interval(x) for x ∈ rand(length(space))])
 Taylor(4095):
 
- ([0.274506, 0.274507]) 𝜙₀
- ([0.139316, 0.139317]) 𝜙₁
- ([0.853577, 0.853578]) 𝜙₂
- ([0.778442, 0.778443]) 𝜙₃
- ([0.556114, 0.556115]) 𝜙₄
- ([0.104458, 0.104459]) 𝜙₅
- ([0.203052, 0.203053]) 𝜙₆
- ([0.189973, 0.189974]) 𝜙₇
- ([0.408736, 0.408737]) 𝜙₈
- ([0.754862, 0.754863]) 𝜙₉
+ ([0.516255, 0.516256]) 𝜙₀
+ ([0.254576, 0.254577]) 𝜙₁
+ ([0.77853, 0.778531]) 𝜙₂
+ ([0.264524, 0.264525]) 𝜙₃
+ ([0.0886096, 0.0886097]) 𝜙₄
+ ([0.778626, 0.778627]) 𝜙₅
+ ([0.630325, 0.630326]) 𝜙₆
+ ([0.0717912, 0.0717913]) 𝜙₇
+ ([0.916121, 0.916122]) 𝜙₈
+ ([0.599682, 0.599683]) 𝜙₉
  ⋮
- ([0.118533, 0.118534]) 𝜙₄₀₈₆
- ([0.559579, 0.55958]) 𝜙₄₀₈₇
- ([0.851672, 0.851673]) 𝜙₄₀₈₈
- ([0.790034, 0.790035]) 𝜙₄₀₈₉
- ([0.316664, 0.316665]) 𝜙₄₀₉₀
- ([0.194623, 0.194624]) 𝜙₄₀₉₁
- ([0.116109, 0.11611]) 𝜙₄₀₉₂
- ([0.334057, 0.334058]) 𝜙₄₀₉₃
- ([0.735701, 0.735702]) 𝜙₄₀₉₄
- ([0.341388, 0.341389]) 𝜙₄₀₉₅
+ ([0.502495, 0.502496]) 𝜙₄₀₈₆
+ ([0.553441, 0.553442]) 𝜙₄₀₈₇
+ ([0.936184, 0.936185]) 𝜙₄₀₈₈
+ ([0.391177, 0.391178]) 𝜙₄₀₈₉
+ ([0.0703294, 0.0703295]) 𝜙₄₀₉₀
+ ([0.158431, 0.158432]) 𝜙₄₀₉₁
+ ([0.952166, 0.952167]) 𝜙₄₀₉₂
+ ([0.0764113, 0.0764114]) 𝜙₄₀₉₃
+ ([0.143956, 0.143957]) 𝜙₄₀₉₄
+ ([0.929847, 0.929848]) 𝜙₄₀₉₅
 
 julia&gt; maximum(radius.(a))
 1.1102230246251565e-16
 
 julia&gt; maximum(radius.(a^3))
-4.172325134277344e-7
+4.146713763475418e-7
 
 julia&gt; maximum(radius.(a^5))
-3.412109375</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our series:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+3.4443359375</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our series:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
 
 julia&gt; space = Taylor(2^12-1)
 Taylor(4095)
@@ -85,30 +85,30 @@ Taylor(4095)
 julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)])
 Taylor(4095):
 
- ([0.958302, 0.958303]) 𝜙₀
- ([0.200346, 0.200347]) 𝜙₁
- ([0.0476048, 0.0476049]) 𝜙₂
- ([0.0046661, 0.00466611]) 𝜙₃
- ([0.00246084, 0.00246085]) 𝜙₄
- ([0.00055789, 0.000557891]) 𝜙₅
- ([9.65519e-05, 9.6552e-05]) 𝜙₆
- ([4.03971e-06, 4.03972e-06]) 𝜙₇
- ([2.07687e-06, 2.07688e-06]) 𝜙₈
- ([2.8097e-06, 2.80971e-06]) 𝜙₉
+ ([0.856378, 0.856379]) 𝜙₀
+ ([0.01418, 0.0141801]) 𝜙₁
+ ([0.0184497, 0.0184498]) 𝜙₂
+ ([0.0140177, 0.0140178]) 𝜙₃
+ ([0.000517161, 0.000517162]) 𝜙₄
+ ([0.000164491, 0.000164492]) 𝜙₅
+ ([0.000166263, 0.000166264]) 𝜙₆
+ ([3.14202e-05, 3.14203e-05]) 𝜙₇
+ ([1.14159e-05, 1.1416e-05]) 𝜙₈
+ ([3.30307e-06, 3.30308e-06]) 𝜙₉
  ⋮
- ([0, 5.81381e-310]) 𝜙₄₀₈₆
- ([0, 2.47171e-309]) 𝜙₄₀₈₇
- ([0, 5.38987e-309]) 𝜙₄₀₈₈
- ([0, 3.11486e-309]) 𝜙₄₀₈₉
- ([0, 1.11009e-309]) 𝜙₄₀₉₀
- ([0, 2.47087e-309]) 𝜙₄₀₉₁
- ([0, 4.73608e-309]) 𝜙₄₀₉₂
- ([0, 5.4302e-309]) 𝜙₄₀₉₃
- ([0, 5.53039e-309]) 𝜙₄₀₉₄
- ([0, 9.00549e-312]) 𝜙₄₀₉₅
+ ([0, 4.31317e-310]) 𝜙₄₀₈₆
+ ([0, 2.1503e-309]) 𝜙₄₀₈₇
+ ([0, 7.43932e-310]) 𝜙₄₀₈₈
+ ([0, 2.56453e-309]) 𝜙₄₀₈₉
+ ([0, 4.50443e-309]) 𝜙₄₀₉₀
+ ([0, 3.10793e-309]) 𝜙₄₀₉₁
+ ([0, 4.91155e-309]) 𝜙₄₀₉₂
+ ([0, 3.30447e-309]) 𝜙₄₀₉₃
+ ([0, 1.06608e-309]) 𝜙₄₀₉₄
+ ([0, 4.1541e-309]) 𝜙₄₀₉₅
 
 julia&gt; maximum(radius.(a^5))
-4.895213193598135e-14</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div><p>However, in <a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a> the author shows how to rigorously bound convolutions to avoid machine precision limitations. The algorithm can be used via the <a href="../../api/#RadiiPolynomial.banach_algebra_rounding!"><code>banach_algebra_rounding!</code></a> function.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+1.2736128478587519e-14</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div><p>However, in <a href="https://link.springer.com/article/10.21136/AM.2018.0082-18">Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT</a> the author shows how to rigorously bound convolutions to avoid machine precision limitations. The algorithm can be used via the <a href="../../api/#RadiiPolynomial.banach_algebra_rounding!"><code>banach_algebra_rounding!</code></a> function.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
 
 julia&gt; space = Taylor(2^4-1);
 
@@ -120,4 +120,4 @@ julia&gt; ν = [@interval(C/4.0^i) for i ∈ 0:3order(space)];
 
 julia&gt; a³ = a^3;
 
-julia&gt; b = banach_algebra_rounding!(a^3, ν);</code></pre><p><img src="../rounding_plot.png" alt="rounding_plot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 11 December 2020 23:37">Friday 11 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+julia&gt; b = banach_algebra_rounding!(a^3, ν);</code></pre><p><img src="../rounding_plot.png" alt="rounding_plot"/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 13 December 2020 21:48">Sunday 13 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

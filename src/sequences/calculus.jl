@@ -16,7 +16,7 @@ function differentiate(a::Sequence{<:Fourier})
     CoefType = promote_type(eltype(a), typeof(iω))
     c = Sequence(a.space, Vector{CoefType}(undef, length(a.space)))
     @inbounds c[0] = zero(CoefType)
-    @inbounds for j ∈ 1:order(a.space)
+    @inbounds for j ∈ 1:order(a)
         iωj = iω*j
         c[j] = iωj*a[j]
         c[-j] = -iωj*a[-j]
@@ -26,7 +26,7 @@ end
 
 function differentiate(a::Sequence{Chebyshev})
     CoefType = eltype(a)
-    ord = order(a.order)
+    ord = order(a)
     ord == 0 && return Sequence(a.space, [zero(CoefType)])
     c = Sequence(Chebyshev(ord-1), Vector{CoefType}(undef, ord))
     @inbounds c[0] = zero(CoefType)
@@ -63,7 +63,7 @@ function integrate(a::Sequence{<:Fourier})
     CoefType = promote_type(eltype(a), typeof(iω⁻¹))
     c = Sequence(a.space, Vector{CoefType}(undef, length(a.space)))
     @inbounds c[0] = zero(CoefType)
-    @inbounds for j ∈ 1:order(a.order)
+    @inbounds for j ∈ 1:order(a)
         iω⁻¹j⁻¹ = iω⁻¹/j
         c[j] = -iω⁻¹j⁻¹*a[j]
         c[-j] = iω⁻¹j⁻¹*a[-j]
@@ -73,7 +73,7 @@ end
 
 function integrate(a::Sequence{Chebyshev})
     CoefType = float(eltype(a))
-    ord = order(a.order)
+    ord = order(a)
     if ord == 0
         @inbounds a₀ = convert(CoefType, a[0])
         return Sequence(Chebyshev(1), [a₀, a₀])

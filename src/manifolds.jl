@@ -1,18 +1,18 @@
 function manifold_ODE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
-        f̂::Function, Df::Function, p, order::Int) where {T}
+        f̂, Df, order::Int) where {T}
 
     @assert length(c) == length(ξ)
     n = length(c)
 
     a = [Sequence(Taylor(order), [cⱼ ; ξⱼ ; zeros(T, order-1)]) for (cⱼ,ξⱼ) ∈ zip(c,ξ)]
 
-    Df_hessenberg = hessenberg!(Df(c, p))
+    Df_hessenberg = hessenberg!(Df(c))
 
-    for α ∈ 2:order
+    @inbounds for α ∈ 2:order
         space_ = Taylor(α)
         a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
         αλ = α*λ
-        v = f̂(a_, p, α)
+        v = f̂(a_, α)
         ldiv!(Df_hessenberg - αλ*I, v)
         @inbounds for j ∈ 1:n
             a[j][α] = -v[j]
@@ -23,12 +23,12 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
 end
 
 function manifold_ODE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
-        f̂::Function, Df::Function, p, order::NTuple{N,Int}) where {T,N}
+        f̂, Df, order::NTuple{N,Int}) where {T,N}
 
     @assert length(c) == size(ξ, 1) && size(ξ, 2) == length(λ) == N
     n = length(c)
 
-    space = TensorSpace(map(Taylor, orders))
+    space = TensorSpace(map(Taylor, order))
     a = [Sequence(space, [cⱼ ; zeros(T, length(space)-1)]) for cⱼ ∈ c]
     for i ∈ 1:N
         idx = ntuple(l -> l == i ? 1 : 0, N)
@@ -37,14 +37,14 @@ function manifold_ODE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
         end
     end
 
-    Df_hessenberg = hessenberg!(Df(c, p))
+    Df_hessenberg = hessenberg!(Df(c))
 
-    for α ∈ eachindex(space)
+    @inbounds for α ∈ eachindex(space)
         if sum(α) ≥ 2
             space_ = TensorSpace(map(Taylor, α))
             a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
             αλ = mapreduce(*, +, α, λ)
-            v = f̂(a_, p, α)
+            v = f̂(a_, α)
             ldiv!(Df_hessenberg - αλ*I, v)
             @inbounds for j ∈ 1:n
                 a[j][α] = -v[j]
@@ -58,20 +58,20 @@ end
 ##
 
 function manifold_DDE_equilibrium(c::T, ξ::T, λ::T;
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::Int) where {T}
+        f̂, D₁f, D₂f, τ::Real, order::Int) where {T}
 
     a = Sequence(Taylor(order), [c ; ξ ; zeros(T, order-1)])
     b = Sequence(Taylor(order), [c ; ξ*exp(-λ*τ) ; zeros(T, order-1)])
 
-    D₁f_ = D₁f(c, c, p)
-    D₂f_ = D₂f(c, c, p)
+    D₁f_ = D₁f(c, c)
+    D₂f_ = D₂f(c, c)
 
     @inbounds for α ∈ 2:order
         space_ = Taylor(α)
         a_ = Sequence(space_, view(a, eachindex(space_)))
         b_ = Sequence(space_, view(b, eachindex(space_)))
         αλ = α*λ
-        a[α] = (αλ - D₁f_ - D₂f_*exp(-αλ*τ))\f̂(a_, b_, p, α)
+        a[α] = (αλ - D₁f_ - D₂f_*exp(-αλ*τ))\f̂(a_, b_, α)
         b[α] = a[α]*exp(-αλ*τ)
     end
 
@@ -79,11 +79,11 @@ function manifold_DDE_equilibrium(c::T, ξ::T, λ::T;
 end
 
 function manifold_DDE_equilibrium(c::T, ξ::Vector{T}, λ::Vector{T};
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::NTuple{N,Int}) where {T,N}
+        f̂, D₁f, D₂f, τ::Real, order::NTuple{N,Int}) where {T,N}
 
     @assert length(ξ) == length(λ) == N
 
-    space = TensorSpace(map(Taylor, orders))
+    space = TensorSpace(map(Taylor, order))
     a = Sequence(space, [c ; zeros(T, length(space)-1)])
     b = Sequence(space, [c ; zeros(T, length(space)-1)])
     @inbounds for i ∈ 1:N
@@ -91,8 +91,8 @@ function manifold_DDE_equilibrium(c::T, ξ::Vector{T}, λ::Vector{T};
         b[ntuple(l -> l == i ? 1 : 0, N)] = ξ[i]*exp(-λ[i]*τ)
     end
 
-    D₁f_ = D₁f(c, c, p)
-    D₂f_ = D₂f(c, c, p)
+    D₁f_ = D₁f(c, c)
+    D₂f_ = D₂f(c, c)
 
     @inbounds for α ∈ eachindex(space)
         if sum(α) ≥ 2
@@ -100,7 +100,7 @@ function manifold_DDE_equilibrium(c::T, ξ::Vector{T}, λ::Vector{T};
             a_ = Sequence(space_, view(a, eachindex(space_)))
             b_ = Sequence(space_, view(b, eachindex(space_)))
             αλ = mapreduce(*, +, α, λ)
-            a[α] = (αλ - D₁f_ - D₂f_*exp(-αλ*τ))\f̂(a_, b_, p, α)
+            a[α] = (αλ - D₁f_ - D₂f_*exp(-αλ*τ))\f̂(a_, b_, α)
             b[α] = a[α]*exp(-αλ*τ)
         end
     end
@@ -109,7 +109,7 @@ function manifold_DDE_equilibrium(c::T, ξ::Vector{T}, λ::Vector{T};
 end
 
 function manifold_DDE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::Int) where {T}
+        f̂, D₁f, D₂f, τ::Real, order::Int) where {T}
 
     @assert length(c) == length(ξ)
     n = length(c)
@@ -117,15 +117,15 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
     a = [Sequence(Taylor(order), [cⱼ ; ξⱼ ; zeros(T, order-1)]) for (cⱼ,ξⱼ) ∈ zip(c,ξ)]
     b = [Sequence(Taylor(order), [cⱼ ; ξⱼ*exp(-λ*τ) ; zeros(T, order-1)]) for (cⱼ,ξⱼ) ∈ zip(c,ξ)]
 
-    D₁f_ = D₁f(c, c, p)
-    D₂f_ = D₂f(c, c, p)
+    D₁f_ = D₁f(c, c)
+    D₂f_ = D₂f(c, c)
 
-    for α ∈ 2:order
+    @inbounds for α ∈ 2:order
         space_ = Taylor(α)
         a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
         b_ = [Sequence(space_, view(bⱼ, eachindex(space_))) for bⱼ ∈ b]
         αλ = α*λ
-        v = f̂(a_, b_, p, α)
+        v = f̂(a_, b_, α)
         ldiv!(lu!(D₁f_ + D₂f_*exp(-αλ*τ) - αλ*I), v)
         @inbounds for j ∈ 1:n
             a[j][α] = -v[j]
@@ -137,12 +137,12 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Vector{T}, λ::T;
 end
 
 function manifold_DDE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
-        f̂::Function, D₁f::Function, D₂f::Function, τ::Real, p, order::NTuple{N,Int}) where {T,N}
+        f̂, D₁f, D₂f, τ::Real, order::NTuple{N,Int}) where {T,N}
 
     @assert length(c) == size(ξ, 1) && size(ξ, 2) == length(λ) == N
     n = length(c)
 
-    space = TensorSpace(map(Taylor, orders))
+    space = TensorSpace(map(Taylor, order))
     a = [Sequence(space, [cⱼ ; zeros(T, length(space)-1)]) for cⱼ ∈ c]
     b = [Sequence(space, [cⱼ ; zeros(T, length(space)-1)]) for cⱼ ∈ c]
     for i ∈ 1:N
@@ -154,16 +154,16 @@ function manifold_DDE_equilibrium(c::Vector{T}, ξ::Matrix{T}, λ::Vector{T};
         end
     end
 
-    D₁f_ = D₁f(c, c, p)
-    D₂f_ = D₂f(c, c, p)
+    D₁f_ = D₁f(c, c)
+    D₂f_ = D₂f(c, c)
 
-    for α ∈ eachindex(space)
+    @inbounds for α ∈ eachindex(space)
         if sum(α) ≥ 2
             space_ = TensorSpace(map(Taylor, α))
             a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
             b_ = [Sequence(space_, view(bⱼ, eachindex(space_))) for bⱼ ∈ b]
             αλ = mapreduce(*, +, α, λ)
-            v = f̂(a_, b_, p, α)
+            v = f̂(a_, b_, α)
             ldiv!(lu!(D₁f_ + D₂f_*exp(-αλ*τ) - αλ*I), v)
             @inbounds for j ∈ 1:n
                 a[j][α] = -v[j]

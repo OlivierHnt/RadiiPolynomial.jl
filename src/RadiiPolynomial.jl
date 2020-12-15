@@ -61,6 +61,8 @@ include("manifolds.jl")
     export manifold_ODE_equilibrium, manifold_DDE_equilibrium
 
 include("rpa.jl")
-    export roots_radii_polynomial, rpa_finite_dimension, rpa_finite_dimension_newton, newton
+    export roots_radii_polynomial, FixedPointProblemFiniteDimension,
+           ZeroFindingProblemFiniteDimension, TailProblem, ZeroFindingProblemCategory1,
+           Y, Z₁, Z₂, newton
 
 end

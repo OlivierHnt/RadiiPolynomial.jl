@@ -1,36 +1,36 @@
 """
-    roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {T<:Real}
+    roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, r₀::T) where {T<:Real}
 
-Return the interval of existence garanted by the Radii Polynomial Theorem from the root of the polynomial Y + (Z-1)r.
+Return the interval of existence garanted by the Radii Polynomial Theorem from the root of the polynomial Y + (Z₁-1)r.
 """
-function roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {T<:Real}
-    @info "Applying the Radii Polynomial Theoreom of order 1: Y + (Z-1)r" r₀ Y Z
+function roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, r₀::T) where {T<:Real}
+    @info "Applying the Radii Polynomial Theoreom of order 1: Y + (Z₁-1)r" r₀ Y Z₁
     if iszero(Y) # exact solution
-        if Z ≥ 1
+        if Z₁ ≥ 1
             @info """VALID ROOT FOUND:
-                → Y = 0 and Z ≥ 1
+                → Y = 0 and Z₁ ≥ 1
                 ✔ the radii polynomial is negative in (-∞,0]
                 ⇒ the interval of existence is {0}"""
             return [zero(T)]
         else
             @info """VALID ROOT FOUND:
-                → Y = 0 and 0 ≤ Z < 1
+                → Y = 0 and 0 ≤ Z₁ < 1
                 ✔ the radii polynomial is negative in [0,+∞)
                 ⇒ the interval of existence is [0,r₀]"""
             return [zero(T), r₀]
         end
     else # not exact solution
-        if isone(Z)
+        if isone(Z₁)
             @info """NO VALID ROOT FOUND:
-                → Y ≥ 0 and Z = 1
+                → Y ≥ 0 and Z₁ = 1
                 ✗ the radii polynomial is positive with constant value Y
                 ⇒ the interval of existence is ∅""" Y
             return T[]
         else
-            r₁ = Y/(one(Z) - Z)
-            if Z > 1
+            r₁ = Y/(one(Z₁) - Z₁)
+            if Z₁ > 1
                 @info """NO VALID ROOT FOUND:
-                    → Y ≥ 0 and Z > 1
+                    → Y ≥ 0 and Z₁ > 1
                     ✔ the radii polynomial is negative in (-∞,r₁]
                     ✗ r₁ < 0
                     ⇒ the interval of existence is ∅""" r₁
@@ -38,14 +38,14 @@ function roots_radii_polynomial(Y::Interval{T}, Z::Interval{T}, r₀::T) where {
             else
                 if r₁ ≤ r₀
                     @info """VALID ROOT FOUND:
-                        → Y ≥ 0 and 0 ≤ Z < 1
+                        → Y ≥ 0 and 0 ≤ Z₁ < 1
                         ✔ the radii polynomial is negative in [r₁,+∞)
                         ✔ r₁ ≤ r₀
                         ⇒ the interval of existence is [r₁,r₀]""" r₁
                     return [sup(r₁), r₀]
                 else
                     @info """NO VALID ROOT FOUND:
-                        → Y ≥ 0 and 0 ≤ Z < 1
+                        → Y ≥ 0 and 0 ≤ Z₁ < 1
                         ✔ the radii polynomial is negative in [r₁,+∞)
                         ✗ r₁ > r₀
                         ⇒ the interval of existence is ∅""" r₁
@@ -168,124 +168,103 @@ end
 
 ## RPA finite dimensional case
 
-_make_interval_x_pm_r₀(x::Real, r₀::Real) = x ± r₀
-_make_interval_x_pm_r₀(x::Complex, r₀::Real) = (real(x) ± r₀) + im*(imag(x) ± r₀)
+mutable struct FixedPointProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅}
+    x₀ :: T₁
+    r₀ :: T₂
+    G :: T₃
+    DG :: T₄
+    D²G :: T₅
+end
+
+Y(pb::FixedPointProblemFiniteDimension) = norm(pb.G - pb.x, Inf)
+
+Z₁(pb::FixedPointProblemFiniteDimension) = opnorm(pb.DG, Inf)
+
+Z₂(pb::FixedPointProblemFiniteDimension) = opnorm(pb.D²G, Inf)
 
 #
 
-"""
-    rpa_finite_dimension
-
-Apply the radii polynomial approach for a given operator and an approximation of its fixed point.
-"""
-function rpa_finite_dimension(x::T, G::Function, DG::Function, r₀::Real=Inf) where {T}
-    x_interval = @interval(x)
-    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
-
-    Y = abs(G(x_interval) - x_interval)
-    Z = abs(DG(x_pm_r₀))
-
-    return roots_radii_polynomial(Y, Z, r₀)
+mutable struct ZeroFindingProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅,T₆}
+    x₀ :: T₁
+    r₀ :: T₂
+    F :: T₃
+    DF :: T₄
+    A :: T₅
+    D²F :: T₆
 end
 
-function rpa_finite_dimension(x::Vector{T}, G::Function, DG::Function, r₀::Real=Inf) where {T}
-    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
-    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+Y(pb::ZeroFindingProblemFiniteDimension) = norm(pb.A * pb.F, Inf)
 
-    Y = norm(G(x_interval) - x_interval, Inf)
-    Z = opnorm(DG(x_pm_r₀), Inf)
+Z₁(pb::ZeroFindingProblemFiniteDimension) = opnorm(pb.A * pb.DF - I, Inf)
 
-    return roots_radii_polynomial(Y, Z, r₀)
+Z₂(pb::ZeroFindingProblemFiniteDimension) = opnorm(pb.A * pb.D²F, Inf)
+
+## RPA infinite dimensional case
+
+mutable struct TailProblem{T₁,T₂,T₃,T₄,T₅,T₆,T₇}
+    x₀ :: T₁
+    r₀ :: T₂
+    ν :: T₃
+    ∞f :: T₄
+    Df :: T₅
+    abs_D²f :: T₆
+    ∞C∞ :: T₇
 end
 
-function rpa_finite_dimension(x::T, G::Function, DG::Function, D²G::Function, r₀::Real=Inf) where {T}
-    x_interval = @interval(x)
-    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
+Y(pb::TailProblem{T}) where {T<:Sequence} =
+    pb.∞C∞ * norm(pb.∞f, pb.ν)
 
-    Y = abs(G(x_interval) - x_interval)
-    Z₁ = abs(DG(x_interval))
-    Z₂ = abs(D²G(x_pm_r₀))
+Y(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
+    pb.∞C∞ * norm(norm.(pb.∞f, pb.ν), Inf)
 
-    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
-end
+Z₁(pb::TailProblem{T}) where {T<:Sequence} =
+    pb.∞C∞ * norm(pb.Df, pb.ν)
 
-function rpa_finite_dimension(x::Vector{T}, G::Function, DG::Function, D²G::Function, r₀::Real=Inf) where {T}
-    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
-    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+Z₁(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
+    pb.∞C∞ * opnorm(norm.(pb.Df, pb.ν), Inf)
 
-    Y = norm(G(x_interval) - x_interval, Inf)
-    Z₁ = opnorm(DG(x_interval), Inf)
-    Z₂ = opnorm(D²G(x_pm_r₀), Inf)
+Z₂(pb::TailProblem{T}) where {T<:Sequence} =
+    pb.∞C∞ * pb.abs_D²f
 
-    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
-end
+Z₂(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
+    pb.∞C∞ * opnorm(pb.abs_D²f, Inf)
 
 #
 
-"""
-    rpa_finite_dimension_newton
-
-Apply the radii polynomial approach for a given Newton-like operator and an approximation of its fixed point.
-"""
-function rpa_finite_dimension_newton(x::T, F::Function, DF::Function, r₀::Real=Inf) where {T}
-    x_interval = @interval(x)
-    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
-
-    F_interval = F(x_interval)
-    DF_interval = DF(x_pm_r₀)
-    DF_ = DF(x)
-
-    Y = abs(DF_ \ F_interval)
-    Z = abs(DF_ \ DF_interval - one(T))
-
-    return roots_radii_polynomial(Y, Z, r₀)
+mutable struct ZeroFindingProblemCategory1{T₁,T₂,T₃,T₄,T₅,T₆,T₇,T₈,T₉,T₁₀,T₁₁}
+    x₀ :: T₁
+    r₀ :: T₂
+    ν :: T₃
+    ∞f :: T₄
+    Df :: T₅
+    abs_D²f :: T₆
+    ᴺF :: T₇
+    ᴺDF :: T₈
+    ᴺAᴺ :: T₉
+    ᴺC∞ :: T₁₀
+    ∞C∞ :: T₁₁
 end
 
-function rpa_finite_dimension_newton(x::Vector{T}, F::Function, DF::Function, r₀::Real=Inf) where {T}
-    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
-    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+Y(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence} =
+    norm(pb.ᴺAᴺ * pb.ᴺF, pb.ν) + pb.∞C∞ * norm(pb.∞f, pb.ν)
 
-    F_interval = F(x_interval)
-    DF_interval = DF(x_pm_r₀)
-    DF_ = DF(x)
+Y(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}} =
+    norm(norm.(pb.ᴺAᴺ * pb.ᴺF, pb.ν), Inf) + pb.∞C∞ * norm(norm.(pb.∞f, pb.ν), Inf)
 
-    Y = norm(DF_ \ F_interval, Inf)
-    Z = opnorm(DF_ \ DF_interval - I*one(T), Inf)
-
-    return roots_radii_polynomial(Y, Z, r₀)
+function Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence}
+    Id = Operator(domain(pb.ᴺDF), range(pb.ᴺAᴺ), Matrix(I, size(pb.ᴺAᴺ, 1), size(pb.ᴺDF, 2)))
+    return opnorm(pb.ᴺAᴺ * pb.ᴺDF - Id, pb.ν, pb.ν) + pb.ᴺC∞ * opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞C∞ * norm(pb.Df, pb.ν)
 end
 
-function rpa_finite_dimension_newton(x::T, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
-    x_interval = @interval(x)
-    x_pm_r₀ = _make_interval_x_pm_r₀(x, r₀)
-
-    F_interval = F(x_interval)
-    DF_interval = DF(x_interval)
-    DF_ = DF(x)
-    D²F_ = D²F(x_pm_r₀)
-
-    Y = abs(DF_ \ F_interval)
-    Z₁ = abs(DF_ \ DF_interval - one(T))
-    Z₂ = abs(DF_ \ D²F_)
-
-    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
+function Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}}
+    return error("Not yet implemented.")
 end
 
-function rpa_finite_dimension_newton(x::Vector{T}, F::Function, DF::Function, D²F::Function, r₀::Real=Inf) where {T}
-    x_interval = [@interval(xᵢ) for xᵢ ∈ x]
-    x_pm_r₀ = [_make_interval_x_pm_r₀(xᵢ, r₀) for xᵢ ∈ x]
+Z₂(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence} =
+    (opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞C∞) * pb.abs_D²f
 
-    F_interval = F(x_interval)
-    DF_interval = DF(x_interval)
-    DF_ = DF(x)
-    D²F_ = D²F(x_pm_r₀)
-
-    Y = norm(DF_ \ F_interval, Inf)
-    Z₁ = opnorm(DF_ \ DF_interval - I*one(T), Inf)
-    Z₂ = opnorm(DF_ \ D²F_, Inf)
-
-    return roots_radii_polynomial(Y, Z₁, Z₂, r₀)
-end
+Z₂(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}} =
+    (opnorm(opnorm.(pb.ᴺAᴺ, pb.ν, pb.ν), Inf) + pb.∞C∞) * opnorm(pb.abs_D²f, Inf)
 
 ## Generic newton method
 
@@ -297,30 +276,22 @@ end
 function _newton_verbose(x₀::Number, F_DF, tol, maxiter)
     printstyled("Starting Newton's method ...\n"; color = :blue)
     F, DF = F_DF(x₀)
-    norm_F = norm(F, Inf)
+    norm_F = abs(F)
     printstyled("    → iteration ", 0, ": ||F(x)|| = ", norm_F, "\n"; color = :yellow)
-    norm_F ≤ tol && return x₀
-    x = x₀
-    for i ∈ 1:maxiter
-        x -= DF \ F
-        F, DF = F_DF(x)
-        norm_F = norm(F, Inf)
-        printstyled("    → iteration ", i, ": ||F(x)|| = ", norm_F, "\n"; color = :yellow)
-        norm_F ≤ tol && return x
+    if norm_F ≤ tol
+        printstyled("    ... succes!\n"; color = :green)
+        return x₀
     end
-    printstyled("    ... failure!\n"; color = :red)
-    return x
-end
-
-function _newton_silent(x₀::Number, F_DF, tol, maxiter)
-    printstyled("Starting Newton's method ...\n"; color = :blue)
-    F, DF = F_DF(x₀)
-    norm(F, Inf) ≤ tol && return x₀
     x = x₀
     for i ∈ 1:maxiter
         x -= DF \ F
         F, DF = F_DF(x)
-        norm(F, Inf) ≤ tol && return x
+        norm_F = abs(F)
+        printstyled("    → iteration ", i, ": ||F(x)|| = ", norm_F, "\n"; color = :yellow)
+        if norm_F ≤ tol
+            printstyled("    ... succes!\n"; color = :green)
+            return x
+        end
     end
     printstyled("    ... failure!\n"; color = :red)
     return x
@@ -331,21 +302,38 @@ function _newton_verbose(x₀::Vector, F_DF, tol, maxiter)
     F, DF = F_DF(x₀)
     norm_F = norm(F, Inf)
     printstyled("    → iteration ", 0, ": ||F(x)|| = ", norm_F, "\n"; color = :yellow)
-    norm_F ≤ tol && return x₀
+    if norm_F ≤ tol
+        printstyled("    ... succes!\n"; color = :green)
+        return x₀
+    end
     x = copy(x₀)
     for i ∈ 1:maxiter
         x .-= ldiv!(lu!(DF), F)
         F, DF = F_DF(x)
         norm_F = norm(F, Inf)
         printstyled("    → iteration ", i, ": ||F(x)|| = ", norm_F, "\n"; color = :yellow)
-        norm_F ≤ tol && return x
+        if norm_F ≤ tol
+            printstyled("    ... succes!\n"; color = :green)
+            return x
+        end
     end
     printstyled("    ... failure!\n"; color = :red)
     return x
 end
 
+function _newton_silent(x₀::Number, F_DF, tol, maxiter)
+    F, DF = F_DF(x₀)
+    abs(F) ≤ tol && return x₀
+    x = x₀
+    for i ∈ 1:maxiter
+        x -= DF \ F
+        F, DF = F_DF(x)
+        abs(F) ≤ tol && return x
+    end
+    return x
+end
+
 function _newton_silent(x₀::Vector, F_DF, tol, maxiter)
-    printstyled("Starting Newton's method ...\n"; color = :blue)
     F, DF = F_DF(x₀)
     norm(F, Inf) ≤ tol && return x₀
     x = copy(x₀)
@@ -354,6 +342,5 @@ function _newton_silent(x₀::Vector, F_DF, tol, maxiter)
         F, DF = F_DF(x)
         norm(F, Inf) ≤ tol && return x
     end
-    printstyled("    ... failure!\n"; color = :red)
     return x
 end

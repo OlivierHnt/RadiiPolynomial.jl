@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Initial value problems · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/example/ivp/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li><li><span class="tocitem">Example</span><ul><li class="is-active"><a class="tocitem" href>Initial value problems</a><ul class="internal"><li><a class="tocitem" href="#Scalar-ODE"><span>Scalar ODE</span></a></li><li><a class="tocitem" href="#System-of-ODEs"><span>System of ODEs</span></a></li></ul></li><li><a class="tocitem" href="../manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Example</a></li><li class="is-active"><a href>Initial value problems</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Initial value problems</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/example/ivp.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Initial-value-problems"><a class="docs-heading-anchor" href="#Initial-value-problems">Initial value problems</a><a id="Initial-value-problems-1"></a><a class="docs-heading-anchor-permalink" href="#Initial-value-problems" title="Permalink"></a></h1><h2 id="Scalar-ODE"><a class="docs-heading-anchor" href="#Scalar-ODE">Scalar ODE</a><a id="Scalar-ODE-1"></a><a class="docs-heading-anchor-permalink" href="#Scalar-ODE" title="Permalink"></a></h2><p>In this example, we will rigorously compute the solution of the ODE:</p><p class="math-container">\[\begin{cases}
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Initial value problems · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/example/ivp/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li><li><span class="tocitem">Example</span><ul><li><a class="tocitem" href="../spiderweb/">Spiderweb central configurations</a></li><li class="is-active"><a class="tocitem" href>Initial value problems</a><ul class="internal"><li><a class="tocitem" href="#Scalar-ODE"><span>Scalar ODE</span></a></li><li><a class="tocitem" href="#System-of-ODEs"><span>System of ODEs</span></a></li></ul></li><li><a class="tocitem" href="../manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Example</a></li><li class="is-active"><a href>Initial value problems</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Initial value problems</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/example/ivp.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Initial-value-problems"><a class="docs-heading-anchor" href="#Initial-value-problems">Initial value problems</a><a id="Initial-value-problems-1"></a><a class="docs-heading-anchor-permalink" href="#Initial-value-problems" title="Permalink"></a></h1><h2 id="Scalar-ODE"><a class="docs-heading-anchor" href="#Scalar-ODE">Scalar ODE</a><a id="Scalar-ODE-1"></a><a class="docs-heading-anchor-permalink" href="#Scalar-ODE" title="Permalink"></a></h2><p>In this example, we will rigorously compute the solution of the ODE:</p><p class="math-container">\[\begin{cases}
 \frac{d}{dt}
 u(t)
 = f(u(t))
@@ -16,12 +16,17 @@ Df(u)
 \end{aligned}\]</p><p>A typical code to compute the truncation error looks like this:</p><pre><code class="language-julia">using IntervalArithmetic, RadiiPolynomial
 
 f(u) = u^2
+
+f(u, i::Int) = (u^2)[i]
+
 Df(u) = 2u
+
 abs_D²f(u) = 2
 
 N = 200
 
-solution_interval = ivp_ODE(@interval(1.0); f = (u, i) -&gt; f(u)[i], order = N)
+solution_interval = ivp_ODE(@interval(1.0);
+    f = f, order = N)
 
 ν = @interval(0.8)
 r₀ = 1e-3
@@ -45,12 +50,17 @@ w(0) = u(0).
 \end{cases}\]</p><p>Thus,</p><pre><code class="language-julia">using IntervalArithmetic, RadiiPolynomial
 
 f(u) = u^2
+
+f(u, i::Int) = (u^2)[i]
+
 Df(u) = 2u
+
 abs_D²f(u) = 2
 
 N = 300
 
-solution_interval = ivp_ODE(@interval(1.0); f = (u, i) -&gt; @interval(0.8)*f(u)[i], order = N)
+solution_interval = ivp_ODE(@interval(1.0);
+    f = (u, i) -&gt; @interval(0.8)*f(u, i), order = N)
 
 ν = @interval(1.0)
 r₀ = 1e-3
@@ -96,20 +106,23 @@ Df(u)
 f(u) =
     [-u[2]
       u[1]]
+
+f(u, i::Int) =
+   [-u[2][i]
+     u[1][i]]
+
 Df(u) =
     [zero(u[1]) -one(u[2])
      one(u[1])  zero(u[2])]
+
 abs_D²f(u) =
     [0 0 0 0
      0 0 0 0]
 
-f(u, i::Int) =
-     [-u[2][i]
-       u[1][i]]
-
 N = 10
 
-solution_interval = ivp_ODE([@interval(1.0), @interval(0.0)]; f = f, order = N)
+solution_interval = ivp_ODE([@interval(1.0), @interval(0.0)];
+    f = f, order = N)
 
 ν = @interval(1.0)
 r₀ = Inf
@@ -126,4 +139,4 @@ pb = TailProblem(solution_interval, r₀, ν, ∞f_interval, Df_interval, abs_D�
 
 truncation_error = roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), pb.r₀)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
   2.755731922398591e-8
- Inf</pre><p>Observe that the solution is given by <span>$u(t) = (\cos t, \sin t)$</span> such that the truncation error is <span>$1/(N+1)!$</span> which is slightly smaller than our truncation error.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../operators/operators/">« Operators</a><a class="docs-footer-nextpage" href="../manifolds/">Manifolds »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 01:58">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ Inf</pre><p>Observe that the solution is given by <span>$u(t) = (\cos(t), \sin(t))$</span> such that the truncation error is <span>$1/(N+1)!$</span> which is slightly smaller than our truncation error.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../manifolds/">Manifolds »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 04:36">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

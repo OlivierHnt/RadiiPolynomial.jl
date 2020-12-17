@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Manifolds · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/example/manifolds/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li><li><span class="tocitem">Example</span><ul><li><a class="tocitem" href="../ivp/">Initial value problems</a></li><li class="is-active"><a class="tocitem" href>Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Example</a></li><li class="is-active"><a href>Manifolds</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Manifolds</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/example/manifolds.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Manifolds"><a class="docs-heading-anchor" href="#Manifolds">Manifolds</a><a id="Manifolds-1"></a><a class="docs-heading-anchor-permalink" href="#Manifolds" title="Permalink"></a></h1><p>In this example, we will rigorously compute the stable/unstable manifolds for the equilibria of the Lorenz equations:</p><p class="math-container">\[\frac{d}{dt}
+\begin{pmatrix}
+u_1(t)\\
+u_2(t)\\
+u_3(t)
+\end{pmatrix}
+= f(u(t))
+=
+\begin{pmatrix}
+\sigma(u_2(t) - u_1(t))\\
+u_1(t)(\rho - u_3(t)) - u_2(t)\\
+u_1(t) u_2(t) - \beta u_3(t)
+\end{pmatrix}.\]</p><p>The equilibria are</p><p class="math-container">\[\begin{aligned}
+c_0 &amp;= (0, 0, 0),\\
+c_+ &amp;= (\sqrt{\beta(\rho - 1)}, \sqrt{\beta(\rho - 1)}, \rho - 1),\\
+c_- &amp;= (-\sqrt{\beta(\rho - 1)}, -\sqrt{\beta(\rho - 1)}, \rho - 1).
+\end{aligned}\]</p><p>The first and second derivative of <span>$f$</span> are given by</p><p class="math-container">\[\begin{aligned}
+Df(u)
+&amp;=
+\begin{pmatrix}
+-\sigma  &amp; \sigma &amp; 0     \\
+\rho-u_3 &amp; -1     &amp; -u_1  \\
+u_2      &amp; u_1    &amp; -\beta
+\end{pmatrix},\\
+|D^2 f|(u)
+&amp;=
+\begin{pmatrix}
+0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 \\
+0 &amp; 1 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0
+\end{pmatrix}.
+\end{aligned}\]</p><p>The last ingredient needed is <span>$\hat{f}$</span> which is obtained by keeping only the nonlinear terms of <span>$f$</span>, that is</p><p class="math-container">\[\hat{f}(u)
+=
+\begin{pmatrix}
+0\\
+-u_1 u_3\\
+u_1 u_2
+\end{pmatrix}.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-julia">using LinearAlgebra, RadiiPolynomial
+
+function f(u, p)
+    σ, ρ, β = p
+    return [σ*(u[2] - u[1])
+            u[1]*(ρ - u[3]) - u[2]
+            u[1]*u[2] - β*u[3]]
+end
+
+function Df(u, p)
+    σ, ρ, β = p
+    return [-σ     σ    0
+            ρ-u[3] -1   -u[1]
+            u[2]   u[1] -β]
+end
+
+function abs_D²f(u, p)
+    σ, ρ, β = p
+    return [0 0 0 0 0 0 0 0 0
+            0 0 1 0 0 0 1 0 0
+            0 1 0 1 0 0 0 0 0]
+end
+
+function f̂(u, p, α)
+    σ, ρ, β = p
+    return [0
+            -(u[1]*u[3])[α]
+            (u[1]*u[2])[α]]
+end
+
+## Parameters
+
+σ, ρ, β = -2.2, 1.33, 8/3
+
+## Manifolds c₀
+
+c₀ = [0.0, 0.0, 0.0]
+Λ₀, Ξ₀ = eigen(Df(c₀, [σ, ρ, β]))
+
+λ₀_stable = Λ₀[1]
+ξ₀_stable = Ξ₀[:,1]
+P₀_stable = manifold_ODE_equilibrium(c₀, real(ξ₀_stable), real(λ₀_stable);
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = 20)
+
+λ₀_unstable = Λ₀[2:3]
+ξ₀_unstable = Ξ₀[:,2:3]
+P₀_unstable = manifold_ODE_equilibrium(complex(c₀), ξ₀_unstable, λ₀_unstable;
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = (20, 20))
+
+## Manifolds c₊
+
+c₊ = [sqrt(β*(ρ - 1)), sqrt(β*(ρ - 1)), ρ - 1]
+Λ₊, Ξ₊ = eigen(Df(c₊, [σ, ρ, β]))
+
+λ₊_unstable = Λ₊[3]
+ξ₊_unstable = Ξ₊[:,3]
+P₊_unstable = manifold_ODE_equilibrium(c₊, real(ξ₊_unstable), real(λ₊_unstable);
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = 20)
+
+λ₊_stable = Λ₊[1:2]
+ξ₊_stable = Ξ₊[:,1:2]
+P₊_stable = manifold_ODE_equilibrium(complex(c₊), ξ₊_stable, λ₊_stable;
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = (20, 20))
+
+## Manifolds c₋
+
+c₋ = [-sqrt(β*(ρ - 1)), -sqrt(β*(ρ - 1)), ρ - 1]
+Λ₋, Ξ₋ = eigen(Df(c₋, [σ, ρ, β]))
+
+λ₋_unstable = Λ₋[3]
+ξ₋_unstable = Ξ₋[:,3]
+P₋_unstable = manifold_ODE_equilibrium(c₋, real(ξ₋_unstable), real(λ₋_unstable);
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = 20)
+
+λ₋_stable = Λ₋[1:2]
+ξ₋_stable = Ξ₋[:,1:2]
+P₋_stable = manifold_ODE_equilibrium(complex(c₋), ξ₋_stable, λ₋_stable;
+    f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), Df = u -&gt; Df(u, [σ, ρ, β]), order = (20, 20))</code></pre><pre class="documenter-example-output">3-element Array{Sequence{TensorSpace{Tuple{Taylor,Taylor}},Array{Complex{Float64},1}},1}:
+ Taylor(20) ⨂ Taylor(20):
+
+ (-0.938083151964686 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
+ (-0.32156055217878243 + 0.13328745391937122im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
+ (-0.03772107394362134 - 0.01824448550853633im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
+ (-0.0049342882559692165 - 0.008593613243965816im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
+ (0.0005510229770117385 - 0.0012312909180197452im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
+ (0.00020249701234526646 - 8.549402584176555e-5im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
+ (2.87061831018768e-5 + 1.559423623205309e-5im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
+ (1.2474428835664608e-6 + 4.6740190793350455e-6im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
+ (-3.9735379753166263e-7 + 6.000925460751904e-7im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
+ (-1.0442438776524168e-7 + 1.6888714227379213e-8im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
+ ⋮
+ (-3.006634278330274e-20 - 4.526723820330121e-21im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
+ (-1.2668841060192564e-21 + 3.026613197528543e-21im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
+ (-4.2880945282684514e-21 - 3.7642235050688225e-21im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
+ (-4.306508856658077e-22 + 2.0564304811308575e-21im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
+ (5.662630926820385e-22 + 4.566326261317685e-21im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
+ (-4.660462372519155e-21 + 4.711344024913668e-21im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
+ (3.833285231463892e-21 + 2.621212561629132e-21im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
+ (5.298113735281367e-22 + 7.492018723856638e-22im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
+ (-2.8133580420103376e-22 + 2.4904245527821525e-21im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
+ (1.6004974032751168e-21 - 1.2547261068796802e-21im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀
+ Taylor(20) ⨂ Taylor(20):
+
+ (-0.938083151964686 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
+ (-0.5672943127512345 + 0.168462344483956im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
+ (-0.08338212021717477 - 0.05680315599420105im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
+ (-0.010598351074035898 - 0.029023613183723068im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
+ (0.002945280327556055 - 0.004243735104314922im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
+ (0.0009776083620619297 - 0.00020163163994460736im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
+ (0.00013113633639392637 + 0.00011071291577827898im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
+ (1.4899234092481633e-6 + 2.8822251467732786e-5im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
+ (-3.442979425182026e-6 + 3.354084923422981e-6im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
+ (-7.805864819487217e-7 - 4.442083013288096e-8im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
+ ⋮
+ (-6.811767036880532e-19 - 5.358458975669655e-20im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
+ (-2.498882510865832e-20 + 7.17290125334392e-20im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
+ (-1.0670964514508837e-19 - 8.426783839008762e-20im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
+ (-8.362491962622418e-21 + 5.081618532707473e-20im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
+ (1.8298555187991927e-20 + 1.1447608354875046e-19im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
+ (-1.1723205561082488e-19 + 1.2518233107380068e-19im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
+ (1.0320759032235318e-19 + 6.758701813093208e-20im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
+ (1.4703514956895657e-20 + 2.022963225148455e-20im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
+ (-7.42056333532707e-21 + 6.963898513608542e-20im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
+ (4.582791197249804e-20 - 3.5927254526006223e-20im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀
+ Taylor(20) ⨂ Taylor(20):
+
+ (0.33000000000000007 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
+ (0.7270700565428628 - 0.0im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
+ (-0.07486763885792105 + 0.3154731778498232im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
+ (-0.039057679679741636 - 0.0004316163300924561im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
+ (-0.004808621168157955 - 0.003890041783983871im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
+ (-3.749141264506445e-5 - 0.001019731368505737im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
+ (0.00011408786021083908 - 0.00012983842824111055im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
+ (2.9097359859517998e-5 - 4.798499363459062e-7im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
+ (3.3825058410101946e-6 + 3.426745694125069e-6im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
+ (-4.0297894795067946e-8 + 7.930296344251663e-7im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
+ ⋮
+ (-2.284061808358227e-20 - 4.724454342606439e-19im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
+ (-2.1706601109834745e-19 + 3.231131402909438e-19im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
+ (5.107046607601169e-21 - 6.751427172929394e-20im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
+ (1.9603871486023613e-19 - 2.3718715054204822e-20im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
+ (5.718242502218564e-20 - 3.6200968102003267e-20im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
+ (4.424399958333097e-21 - 5.99175882739673e-20im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
+ (-1.0688090224672233e-20 - 2.152334507123969e-20im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
+ (1.8371315364353883e-20 - 7.810069718289889e-20im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
+ (-4.441080187356476e-21 - 1.3495192033005362e-19im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
+ (-6.698663595410238e-20 + 2.8066947018168217e-21im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀</pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ivp/">« Initial value problems</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 01:58">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

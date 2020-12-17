@@ -10,7 +10,7 @@
 U = -\sum_{i&lt;j} \frac{G m_i m_j}{|\mathbf{r}_i-\mathbf{r}_j|},\]</p><p>for <span>$i = 1,\dots,N$</span>, with <span>$\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N) \in \R^{3N} \, : \, \mathbf{r}_i \neq \mathbf{r}_j , \,  i \neq j\}$</span>, where <span>$G$</span> denotes the gravitational constant.</p><p>In the following, we fix the centre of mass at the origin and scale <span>$G = 1$</span>. Moreover, due to the symmetries of a spiderweb central configuration, it is sufficient to consider the accelerations of the <span>$n$</span> bodies on the positive horizontal axis, and the numbers <span>$r_1,\dots,r_n$</span> also denote the positions of the masses on this semi-axis.</p><p>The configuration of <span>$N$</span> bodies is <em>central</em> at some time <span>$t^*$</span> if <span>$\ddot{\mathbf{r}}(t^*) = \lambda \mathbf{r}(t^*)$</span> for some common <span>$\lambda$</span>, where <span>$\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N) \in \R^{3N} \, : \, \mathbf{r}_i \neq \mathbf{r}_j , \,  i \neq j\}$</span>.</p><p>Then, the original system of ODEs in <span>$\mathbb{R}^{n\ell + 1}$</span> reduces to the following system of equations in <span>$\mathbb{R}^n$</span>:</p><p class="math-container">\[\lambda r_i
 =
 -\sum_{k=1}^{\ell-1} \frac{m_i }{2^{3/2}r_i^2( 1 - \cos \theta_k )^{1/2}} -\frac{ m_0 }{r_i^2} - \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^n \sum_{k=0}^{\ell-1} \frac{m_j( r_i - r_j \cos \theta_k )}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{3/2}},\]</p><p>for <span>$i=1,\dots,n$</span>, with <span>$\theta_k = \frac{2\pi k}{\ell}$</span> and <span>$r = (r_1,\dots,r_n) \in \{ r \in \R^n \, : \, 0 &lt; r_1 &lt; \ldots &lt; r_n\}$</span>.</p><p>Thus, a spiderweb central configuration is a zero of the map <span>$F = (F_1, \dots, F_n): \mathbb{R}^n \to \mathbb{R}^n$</span> given by</p><p class="math-container">\[F_i(r) =
-\lambda \, r_i + \frac{ m_i }{2^{3/2}r_i^2}\zeta_{\ell} + \frac{ m_0}{r_i^2} + \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j( r_i - r_j \cos \theta_k )}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{3/2}} , \qquad i =1,\, \dots,\, n.\]</p><p>The Jacobian matrix <span>$D_r F$</span> is given by</p><p class="math-container">\[\partial_j f_i =
+\lambda \, r_i + \frac{ m_i }{2^{3/2}r_i^2}\zeta_{\ell} + \frac{ m_0}{r_i^2} + \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j( r_i - r_j \cos \theta_k )}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{3/2}} , \qquad i =1,\, \dots,\, n.\]</p><p>The Jacobian matrix <span>$D_r F$</span> is given by</p><p class="math-container">\[\partial_j F_i =
 \begin{cases}
 \displaystyle \lambda - \frac{ m_i }{r_i^3\sqrt{2}}\zeta_{\ell} - \frac{ 2m_0 }{r_i^3}
 -\sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^{n} \frac{m_j}{2}\sum_{k=0}^{\ell-1}
@@ -39,47 +39,8 @@ function newton_spiderweb(x₀::Vector, F_DF::Function; tol::Real, maxiter::Int)
     return x
 end
 
-function F_DF(x::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T}
-    # compute F, DF for Newton&#39;s method
-    sqrt2 = sqrt(2)
-    F = λ*x
-    DF = Matrix{T}(I*λ, n, n)
-    indices = eachindex(x)
-    l_range = 0:l-1
-    @inbounds for j ∈ indices
-        xⱼ² = x[j]^2
-        @inbounds for i ∈ indices
-            xᵢ², xᵢxⱼ = x[i]^2, x[i]*x[j]
-            xᵢ³ = xᵢ²*x[i]
-            if j == 1
-                F[i] += m₀/xᵢ²
-            end
-            if i == j
-                DF[i,j] += -2m₀/xᵢ³
-            end
-            @inbounds for k ∈ l_range
-                θ = 360k/l
-                cosdθ = cosd(θ)
-                cosd2θ = cosd(2θ)
-                if i ≠ j
-                    d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosdθ)
-                    d⁵2 = 2d^5
-                    F[i] += m[j]*(x[i] - x[j]*cosdθ)/d^3
-                    DF[i,i] += -m[j]*(4xᵢ² + xⱼ² - 8xᵢxⱼ*cosdθ + 3xⱼ²*cosd2θ)/d⁵2
-                    DF[i,j] += -m[j]*(-4(xᵢ² + xⱼ²)*cosdθ + xᵢxⱼ*(7 + cosd2θ))/d⁵2
-                elseif i == j &amp;&amp; k &gt; 0
-                    ζ = sqrt2*sqrt(1-cosdθ)
-                    F[i] += m[i]/(2xᵢ²*ζ)
-                    DF[i,j] += -m[i]/(xᵢ³*ζ)
-                end
-            end
-        end
-    end
-    return F, DF
-end
-
-function F_DF(x::Vector{T}, xᵣ::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T&lt;:Interval}
-    # compute F, DF with interval arithmetic for the proof
+function F_DF(x::Vector{T}, xᵣ::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T}
+    @assert length(x) == length(xᵣ)
     π2_l = 2convert(T, π)/l
     sqrt2 = sqrt(convert(T, 2))
     F = λ*x
@@ -106,10 +67,10 @@ function F_DF(x::Vector{T}, xᵣ::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::In
                 if i ≠ j
                     d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosθ)
                     dᵣ = sqrt(xᵣᵢ² + xᵣⱼ² - 2xᵣᵢxᵣⱼ*cosθ)
-                    dᵣ⁵2 = 2pow(dᵣ, 5)
-                    F[i] += m[j]*(x[i] - x[j]*cosθ)/pow(d, 3)
-                    DF[i,i] += -m[j]*(4xᵣᵢ² + xᵣⱼ² - 8xᵣᵢxᵣⱼ*cosθ + 3xᵣⱼ²*cos2θ)/dᵣ⁵2
-                    DF[i,j] += -m[j]*(-4(xᵣᵢ² + xᵣⱼ²)*cosθ + xᵣᵢxᵣⱼ*(7 + cos2θ))/dᵣ⁵2
+                    dᵣ⁵ = dᵣ*dᵣ*dᵣ*dᵣ*dᵣ
+                    F[i] += m[j]*(x[i] - x[j]*cosθ)/(d*d*d)
+                    DF[i,i] += -m[j]*(4xᵣᵢ² + xᵣⱼ² - 8xᵣᵢxᵣⱼ*cosθ + 3xᵣⱼ²*cos2θ)/(2dᵣ⁵)
+                    DF[i,j] += -m[j]*(-4(xᵣᵢ² + xᵣⱼ²)*cosθ + xᵣᵢxᵣⱼ*(7 + cos2θ))/(2dᵣ⁵)
                 elseif i == j &amp;&amp; k &gt; 0
                     ζ = sqrt2*sqrt(1-cosθ)
                     F[i] += m[i]/(2xᵢ²*ζ)
@@ -130,7 +91,7 @@ m = ones(n)/l # vector of masses
 
 # numerical solution
 
-x₀ = newton_spiderweb(float.(1:n), x -&gt; F_DF(x, m₀, m, λ, n, l); tol = 1e-12, maxiter = 50)
+x₀ = newton_spiderweb(float.(1:n), x -&gt; F_DF(x, x, m₀, m, λ, n, l); tol = 1e-12, maxiter = 50)
 
 # proof
 
@@ -149,5 +110,5 @@ A = inv(mid.(DF))
 pb = ZeroFindingProblemFiniteDimension(x₀_interval, r₀, F, DF, A, nothing)
 
 roots_radii_polynomial(Y(pb), Z₁(pb), r₀)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
- 6.707669664793901e-13
- 1.0e-5</pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../operators/operators/">« Operators</a><a class="docs-footer-nextpage" href="../ivp/">Initial value problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 21:58">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 7.139322795684367e-13
+ 1.0e-5</pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../operators/operators/">« Operators</a><a class="docs-footer-nextpage" href="../ivp/">Initial value problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 22:10">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,4 +1,4 @@
-# Example
+# Manifolds
 
 In this example, we will rigorously compute the stable/unstable manifolds for the equilibria of the Lorenz equations:
 
@@ -106,12 +106,12 @@ c₀ = [0.0, 0.0, 0.0]
 λ₀_stable = Λ₀[1]
 ξ₀_stable = Ξ₀[:,1]
 P₀_stable = manifold_ODE_equilibrium(c₀, real(ξ₀_stable), real(λ₀_stable);
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = 20)
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = 20)
 
 λ₀_unstable = Λ₀[2:3]
 ξ₀_unstable = Ξ₀[:,2:3]
 P₀_unstable = manifold_ODE_equilibrium(complex(c₀), ξ₀_unstable, λ₀_unstable;
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = (20, 20))
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = (20, 20))
 
 ## Manifolds c₊
 
@@ -121,12 +121,12 @@ c₊ = [sqrt(β*(ρ - 1)), sqrt(β*(ρ - 1)), ρ - 1]
 λ₊_unstable = Λ₊[3]
 ξ₊_unstable = Ξ₊[:,3]
 P₊_unstable = manifold_ODE_equilibrium(c₊, real(ξ₊_unstable), real(λ₊_unstable);
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = 20)
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = 20)
 
 λ₊_stable = Λ₊[1:2]
 ξ₊_stable = Ξ₊[:,1:2]
 P₊_stable = manifold_ODE_equilibrium(complex(c₊), ξ₊_stable, λ₊_stable;
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = (20, 20))
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = (20, 20))
 
 ## Manifolds c₋
 
@@ -136,10 +136,10 @@ c₋ = [-sqrt(β*(ρ - 1)), -sqrt(β*(ρ - 1)), ρ - 1]
 λ₋_unstable = Λ₋[3]
 ξ₋_unstable = Ξ₋[:,3]
 P₋_unstable = manifold_ODE_equilibrium(c₋, real(ξ₋_unstable), real(λ₋_unstable);
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = 20)
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = 20)
 
 λ₋_stable = Λ₋[1:2]
 ξ₋_stable = Ξ₋[:,1:2]
 P₋_stable = manifold_ODE_equilibrium(complex(c₋), ξ₋_stable, λ₋_stable;
-    f̂ = f̂, Df = Df, p = [σ, ρ, β], order = (20, 20))
+    f̂ = (u, α) -> f̂(u, [σ, ρ, β], α), Df = u -> Df(u, [σ, ρ, β]), order = (20, 20))
 ```

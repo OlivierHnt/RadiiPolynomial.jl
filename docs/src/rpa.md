@@ -35,8 +35,6 @@ then ``G`` has a unique fixed point ``\tilde{x} \in \overline{B_{r_0}(x_0)}``.
 
 If ``X`` is a finite dimensional normed vector space, then every bounds presented above can be readily computed and made rigorous via interval arithmetic (cf. [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl)).
 
-This can be achieved by calling the method [`rpa_finite_dimension`](@ref) where the highest order derivative provided infers which radii polynomial will be used for the proof.
-
 As a rule of thumb, we recommend to use:
 - ``N = 1`` if the uniqueness is not important or can be achieved analytically;
 - ``N = 2`` otherwise.

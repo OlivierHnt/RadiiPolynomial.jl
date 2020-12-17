@@ -3,8 +3,6 @@
 ## Radii polynomial
 
 ```@docs
-rpa_finite_dimension
-rpa_finite_dimension_newton
 roots_radii_polynomial
 ```
 

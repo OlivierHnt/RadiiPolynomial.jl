@@ -20,7 +20,11 @@ makedocs(;
             "functionals/functionals.md",
             "operators/operators.md"
             ],
-        "Example" => "example.md",
+        "Example" => [
+            "example/spiderweb.md",
+            "example/ivp.md",
+            "example/manifolds.md",
+            ],
         "API" => "api.md"
     ],
 )

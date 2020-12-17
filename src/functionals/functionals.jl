@@ -32,16 +32,57 @@ Base.length(A::Functional) = length(A.domain)
 Base.size(A::Functional) = tuple(length(A.domain)) # necessary for broadcasting
 
 Base.iterate(A::Functional) = iterate(A.coefficients)
-Base.iterate(A::Functional, i::Int) = iterate(A.coefficients, i)
+Base.iterate(A::Functional, i) = iterate(A.coefficients, i)
 
 Base.eltype(A::Functional) = eltype(A.coefficients)
 Base.eltype(::Type{Functional{T,S}}) where {T<:SequenceSpace,S<:AbstractVector} = eltype(S)
 
-## domain, coefficients, order
+## domain, coefficients, order, frequency
 
 domain(A::Functional) = A.domain
 coefficients(A::Functional) = A.coefficients
 order(A::Functional) = order(A.domain)
+order(A::Functional{<:TensorSpace}, i::Int) = order(A.domain, i)
+frequency(A::Functional) = frequency(A.domain)
+frequency(A::Functional{<:TensorSpace}, i::Int) = frequency(A.domain, i)
+
+## getindex, view, setindex!
+
+for f ∈ (:getindex, :view)
+    @eval begin
+        Base.@propagate_inbounds function Base.$f(A::Functional, α)
+            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+            return $f(A.coefficients, _findindex(α, A.domain))
+        end
+
+        Base.@propagate_inbounds function Base.$f(A::Functional{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
+            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+            return $f(A.coefficients, _findindex(α, A.domain))
+        end
+
+        Base.@propagate_inbounds function Base.$f(A::Functional{TensorSpace{T}}, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
+            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+            A_ = reshape(a.coefficients, size(A.domain))
+            return $f(A_, _findindex(α, A.domain)...)
+        end
+    end
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::Functional, x, α)
+    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+    return setindex!(A.coefficients, x, _findindex(α, A.domain))
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::Functional{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
+    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+    return setindex!(A.coefficients, x, _findindex(α, A.domain))
+end
+
+Base.@propagate_inbounds function Base.setindex!(A::Functional{TensorSpace{T}}, x, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
+    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
+    A_ = reshape(A.coefficients, size(A.domain))
+    return setindex!(A_, x, _findindex(α, A.domain)...)
+end
 
 ## project
 
@@ -90,43 +131,10 @@ Base.@propagate_inbounds function Base.selectdim(A::Functional{TensorSpace{T}}, 
     return Functional(A.domain[1:dim-1] ⊗ A.domain[dim+1:N], vec(_A_))
 end
 
-## getindex, view, setindex!
+## permutedims
 
-for f ∈ (:getindex, :view)
-    @eval begin
-        Base.@propagate_inbounds function Base.$f(A::Functional, α)
-            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-            return $f(A.coefficients, _findindex(α, A.domain))
-        end
-
-        Base.@propagate_inbounds function Base.$f(A::Functional{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-            return $f(A.coefficients, _findindex(α, A.domain))
-        end
-
-        Base.@propagate_inbounds function Base.$f(A::Functional{TensorSpace{T}}, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-            A_ = reshape(a.coefficients, size(A.domain))
-            return $f(A_, _findindex(α, A.domain)...)
-        end
-    end
-end
-
-Base.@propagate_inbounds function Base.setindex!(A::Functional, x, α)
-    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-    return setindex!(A.coefficients, x, _findindex(α, A.domain))
-end
-
-Base.@propagate_inbounds function Base.setindex!(A::Functional{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-    return setindex!(A.coefficients, x, _findindex(α, A.domain))
-end
-
-Base.@propagate_inbounds function Base.setindex!(A::Functional{TensorSpace{T}}, x, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, A.domain) && throw(BoundsError(A.domain, α)))
-    A_ = reshape(A.coefficients, size(A.domain))
-    return setindex!(A_, x, _findindex(α, A.domain)...)
-end
+Base.permutedims(A::Functional{<:TensorSpace}, σ::AbstractVector{Int}) =
+    Functional(A.domain[σ], vec(permutedims(reshape(A.coefficients, size(A.domain)), σ)))
 
 ## ==, iszero, isapprox
 
@@ -173,37 +181,42 @@ Base.promote_rule(::Type{Functional{T₁,S₁}}, ::Type{Functional{T₂,S₂}}) 
 
 function LinearAlgebra.opnorm(A::Functional{Taylor}, ν::Real=1)
     @assert ν > 0
-    CoefType = float(promote_type(real(eltype(A)), typeof(ν)))
-    @inbounds s = convert(CoefType, abs(A[0]))
-    @inbounds for i ∈ 1:order(A.domain)
-        s = max(s, abs(A[i]) / ν^i)
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs(A[0]) * ν⁻ⁱ
+    @inbounds for i ∈ 1:order(A)
+        ν⁻ⁱ *= ν⁻¹
+        s = max(s, abs(A[i]) * ν⁻ⁱ)
     end
     return s
 end
 
 function LinearAlgebra.opnorm(A::Functional{<:Fourier}, ν::Real=1)
     @assert ν > 0
-    CoefType = float(promote_type(real(eltype(A)), typeof(ν)))
-    @inbounds s = convert(CoefType, abs(A[0]))
-    @inbounds for i ∈ 1:order(A.domain)
-        νⁱ = ν^i
-        s = max(s, abs(A[i]) / νⁱ, abs(A[-i]) / νⁱ)
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs(A[0]) * ν⁻ⁱ
+    @inbounds for i ∈ 1:order(A)
+        ν⁻ⁱ *= ν⁻¹
+        s = max(s, abs(A[i]) * ν⁻ⁱ, abs(A[-i]) * ν⁻ⁱ)
     end
     return s
 end
 
-function LinearAlgebra.opnorm(A::Functional{Chebyshev,T}, ν::S=1) where {T,S<:Real}
+function LinearAlgebra.opnorm(A::Functional{Chebyshev}, ν::Real=1)
     @assert ν > 0
-    CoefType = float(promote_type(real(eltype(A)), typeof(ν)))
-    @inbounds s = convert(CoefType, abs(A[0]))
-    @inbounds for i ∈ 1:order(A.domain)
-        s = max(s, abs(A[i]) / ν^i)
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs(A[0]) * ν⁻ⁱ
+    @inbounds for i ∈ 1:order(A)
+        ν⁻ⁱ *= ν⁻¹
+        s = max(s, abs(A[i]) * ν⁻ⁱ)
     end
     return s
 end
 
-LinearAlgebra.opnorm(A::Functional{TensorSpace{T}}) where {N,T<:NTuple{N,UnivariateSpace}} =
-    opnorm(A, ntuple(i -> 1, N))
+LinearAlgebra.opnorm(A::Functional{TensorSpace{T}}, ν::Real=1) where {N,T<:NTuple{N,UnivariateSpace}} =
+    opnorm(A, ntuple(i -> ν, N))
 
 function LinearAlgebra.opnorm(A::Functional{TensorSpace{T}}, ν::NTuple{N,Real}) where {N,T<:NTuple{N,UnivariateSpace}}
     @assert all(νᵢ -> νᵢ > 0, ν)
@@ -211,48 +224,47 @@ function LinearAlgebra.opnorm(A::Functional{TensorSpace{T}}, ν::NTuple{N,Real})
     return @inbounds _apply_opnorm(A.domain, A_, ν)[1]
 end
 
-_apply_opnorm(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}, ν::NTuple{N₁,Real}) where {N₁,T,N₂} =
-    @inbounds _opnorm(space[1], Val(N₂-N₁+1), _apply_opnorm(space[2:N₁], A, ν[2:N₁]), ν[1])
+_apply_opnorm(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::AbstractArray{T,N₂}, ν::NTuple{N₁,Real}) where {N₁,T,N₂} =
+    @inbounds _opnorm(space[1], Val(N₂-N₁+1), _apply_opnorm(Base.tail(space), A, Base.tail(ν)), ν[1])
 
-_apply_opnorm(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}, ν::NTuple{2,Real}) where {T,N} =
+_apply_opnorm(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::AbstractArray{T,N}, ν::NTuple{2,Real}) where {T,N} =
     @inbounds _opnorm(space[1], Val(N-1), _opnorm(space[2], Val(N), A, ν[2]), ν[1])
 
-function _opnorm(space::Taylor, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
-    CoefType = float(promote_type(real(T), S))
-    @inbounds A_ = convert(Array{CoefType,N}, abs.(selectdim(A, D, 1:1)))
+function _opnorm(space::Taylor, ::Val{D}, A, ν) where {D}
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs.(_selectdim(space, A, D, 0:0)) .* ν⁻ⁱ
     @inbounds for i ∈ 1:order(space)
-        A_view = selectdim(A, D, i+1:i+1)
-        νⁱ = ν^i
-        @. A_ = max(A_, abs(A_view) / νⁱ)
+        ν⁻ⁱ *= ν⁻¹
+        Aᵢ = _selectdim(space, A, D, i:i)
+        @. s = max(s, abs(Aᵢ) * ν⁻ⁱ)
     end
-    return A_
+    return s
 end
 
-function _opnorm(space::Fourier, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
-    CoefType = float(promote_type(real(T), S))
-    ord = order(space)
-    idx₀ = ord+1
-    @inbounds A_ = convert(Array{CoefType,N}, abs.(selectdim(A, D, idx₀:idx₀)))
-    @inbounds for i ∈ 1:ord
-        idx₀₊ᵢ = idx₀+i
-        idx₀₋ᵢ = idx₀-i
-        A₀₊ᵢ_view = selectdim(A, D, idx₀₊ᵢ:idx₀₊ᵢ)
-        A₀₋ᵢ_view = selectdim(A, D, idx₀₋ᵢ:idx₀₋ᵢ)
-        νⁱ = ν^i
-        @. A_ = max(A_, abs(A₀₋ᵢ_view) / νⁱ, abs(A₀₊ᵢ_view) / νⁱ)
+function _opnorm(space::Fourier, ::Val{D}, A, ν) where {D}
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs.(_selectdim(space, A, D, 0:0)) .* ν⁻ⁱ
+    @inbounds for i ∈ 1:order(space)
+        ν⁻ⁱ *= ν⁻¹
+        Aᵢ = _selectdim(space, A, D, i:i)
+        A₋ᵢ = _selectdim(space, A, D, -i:-i)
+        @. s = max(s, abs(A₋ᵢ) * ν⁻ⁱ, abs(Aᵢ) * ν⁻ⁱ)
     end
-    return A_
+    return s
 end
 
-function _opnorm(space::Chebyshev, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
-    CoefType = float(promote_type(real(T), S))
-    @inbounds A_ = convert(Array{CoefType,N}, abs.(selectdim(A, D, 1:1)))
+function _opnorm(space::Chebyshev, ::Val{D}, A, ν) where {D}
+    ν⁻¹ = inv(ν)
+    ν⁻ⁱ = one(ν⁻¹)
+    @inbounds s = abs.(_selectdim(space, A, D, 0:0)) .* ν⁻ⁱ
     @inbounds for i ∈ 1:order(space)
-        A_view = selectdim(A, D, i+1:i+1)
-        νⁱ = ν^i
-        @. A_ = max(A_, abs(A_view) / νⁱ)
+        ν⁻ⁱ *= ν⁻¹
+        Aᵢ = _selectdim(space, A, D, i:i)
+        @. s = max(s, abs(Aᵢ) * ν⁻ⁱ)
     end
-    return A_
+    return s
 end
 
 ## action
@@ -318,20 +330,14 @@ end
 function Functional(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
     A = Functional(domain, Vector{T}(undef, length(domain)))
     ord = order(domain)
-    if ord == 0
-        @inbounds A[0] = one(T)
-        return A
-    elseif ord == 1
-        @inbounds A[0] = one(T)
-        @inbounds A[1] = ℰ.value
-        return A
-    else
-        @inbounds A[0] = one(T)
-        @inbounds A[1] = ℰ.value
-        x2 = 2ℰ.value
-        @inbounds for j ∈ 2:ord
-            A[j] = x2*A[j-1] - A[j-2]
-        end
-        return A
+    @inbounds A[0] = one(T)
+    ord == 0 && return A
+    x2 = 2ℰ.value
+    @inbounds A[1] = x2
+    ord == 1 && return A
+    @inbounds A[2] = x2*A[1] - 2A[0]
+    @inbounds for j ∈ 3:ord
+        A[j] = x2*A[j-1] - A[j-2]
     end
+    return A
 end

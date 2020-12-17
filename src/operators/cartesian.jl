@@ -1,299 +1,276 @@
 ## utilities
 
-Base.size(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
-    (N₂, N₁)
-Base.size(A::Operator{CartesianSpace{T},<:SequenceSpace}) where {N,T<:NTuple{N,SequenceSpace}} =
-    (1, N)
-Base.size(A::Operator{<:SequenceSpace,CartesianSpace{T}}) where {N,T<:NTuple{N,SequenceSpace}} =
-    (N, 1)
-function Base.size(A::Operator{CartesianSpace{T},CartesianSpace{S}}, i::Int) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
-    i == 1 && return N₂
-    i == 2 && return N₁
-    return 1
-end
-function Base.size(A::Operator{CartesianSpace{T},<:SequenceSpace}, i::Int) where {N,T<:NTuple{N,SequenceSpace}}
-    i == 2 && return N
-    return 1
-end
-function Base.size(A::Operator{<:SequenceSpace,CartesianSpace{T}}, i::Int) where {N,T<:NTuple{N,SequenceSpace}}
-    i == 1 && return N
-    return 1
-end
+eachcomponent(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
+    (view(A, i, j) for i ∈ Base.OneTo(N₂), j ∈ Base.OneTo(N₁))
 
-Base.length(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
-    N₁*N₂
-Base.length(A::Operator{CartesianSpace{T},<:SequenceSpace}) where {N,T<:NTuple{N,SequenceSpace}} = N
-Base.length(A::Operator{<:SequenceSpace,CartesianSpace{T}}) where {N,T<:NTuple{N,SequenceSpace}} = N
+eachcomponent(A::Operator{CartesianSpace{T},<:SequenceSpace}) where {N,T<:NTuple{N,SequenceSpace}} =
+    (view(A, j) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(N))
 
-Base.iterate(A::Operator{<:CartesianSpace,<:CartesianSpace}) = (view(A, 1, 1), 2)
-Base.iterate(A::Operator{<:CartesianSpace,<:SequenceSpace}) = (view(A, 1), 2)
-Base.iterate(A::Operator{<:SequenceSpace,<:CartesianSpace}) = (view(A, 1), 2)
+eachcomponent(A::Operator{<:SequenceSpace,CartesianSpace{T}}) where {N,T<:NTuple{N,SequenceSpace}} =
+    (view(A, i) for i ∈ Base.OneTo(N), j ∈ Base.OneTo(1))
 
-function Base.iterate(A::Operator{CartesianSpace{T},CartesianSpace{S}}, i::Int) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
-    if 1 ≤ i ≤ N₁*N₂
-        col_, row_ = divrem(i, N₂)
-        col_ == 0 && return (view(A, row_, 1), i+1)
-        row_ == 0 && return (view(A, N₂, col_), i+1)
-        return (view(A, row_, col_), i+1)
-    else
-        return nothing
-    end
-end
-Base.iterate(A::Operator{CartesianSpace{T},<:SequenceSpace}, i::Int) where {N,T<:NTuple{N,SequenceSpace}} =
-    1 ≤ i ≤ N ? (view(A, i), i+1) : nothing
-Base.iterate(A::Operator{<:SequenceSpace,CartesianSpace{T}}, i::Int) where {N,T<:NTuple{N,SequenceSpace}} =
-    1 ≤ i ≤ N ? (view(A, i), i+1) : nothing
+Base.eachcol(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
+    (view(A, :, j) for j ∈ Base.OneTo(N₁))
 
-## getindex, view, setindex!
+Base.eachrow(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
+    (view(A, i, :) for i ∈ Base.OneTo(N₂))
+
+## getindex, view, setindex! - TODO: add methods, e.g. for AbstractUnitRange
 
 for f ∈ (:getindex, :view)
     @eval begin
-        Base.@propagate_inbounds function Base.$f(A::Operator{<:CartesianSpace,<:CartesianSpace}, i::Int, j::Int)
-            if i == j == 1
-                return Operator(A.domain[1], A.range[1], $f(A.coefficients, 1:length(A.range[1]), 1:length(A.domain[1])))
-            elseif i == 1
-                len = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-                indices = len+1:len+length(A.domain[j])
-                return Operator(A.domain[j], A.range[1], $f(A.coefficients, 1:length(A.range[1]), indices))
-            elseif j == 1
-                len = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-                indices = len+1:len+length(A.range[i])
-                return Operator(A.domain[1], A.range[i], $f(A.coefficients, indices, 1:length(A.domain[1])))
-            else
-                len₁ = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-                indices₁ = len₁+1:len₁+length(A.range[i])
-                len₂ = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-                indices₂ = len₂+1:len₂+length(A.domain[j])
-                return Operator(A.domain[j], A.range[i], $f(A.coefficients, indices₁, indices₂))
-            end
+        Base.@propagate_inbounds function Base.$f(A::Operator{CartesianSpace{T},CartesianSpace{S}}, i::Int, j::Int) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
+            @boundscheck(i < 1 || N₂ < i || j < 1 || N₁ < j && throw(BoundsError((A.codomain, A.domain), (i, j))))
+            domain, codomain = A.domain[j], A.codomain[i]
+            skip₁ = i == 1 ? 0 : mapreduce(k -> length(A.codomain[k]), +, 1:i-1)
+            skip₂ = j == 1 ? 0 : mapreduce(k -> length(A.domain[k]), +, 1:j-1)
+            return Operator(domain, codomain, view(A.coefficients, 1+skip₁:length(codomain)+skip₁, 1+skip₂:length(domain)+skip₂))
         end
 
-        Base.@propagate_inbounds function Base.$f(A::Operator{<:CartesianSpace,<:SequenceSpace}, j::Int)
-            if j == 1
-                return Operator(A.domain[1], A.range, $f(A.coefficients, 1:length(A.range), 1:length(A.domain[1])))
-            else
-                len = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-                indices = len+1:len+length(A.domain[j])
-                return Operator(A.domain[j], A.range, $f(A.coefficients, 1:length(A.range), indices))
-            end
+        Base.@propagate_inbounds function Base.$f(A::Operator{CartesianSpace{T},<:CartesianSpace}, ::Colon, j::Int) where {N,T<:NTuple{N,SequenceSpace}}
+            @boundscheck(j < 1 || N < j && throw(BoundsError(A.domain, j)))
+            domain = A.domain[j]
+            skip = j == 1 ? 0 : mapreduce(k -> length(A.domain[k]), +, 1:j-1)
+            return Operator(domain, A.codomain, view(A.coefficients, :, 1+skip:length(domain)+skip))
         end
 
-        Base.@propagate_inbounds function Base.$f(A::Operator{<:SequenceSpace,<:CartesianSpace}, i::Int)
-            if i == 1
-                return Operator(A.domain, A.range[1], $f(A.coefficients, 1:length(A.range[1]), 1:length(A.domain)))
-            else
-                len = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-                indices = len+1:len+length(A.range[i])
-                return Operator(A.domain, A.range[i], $f(A.coefficients, indices, 1:length(A.domain)))
-            end
+        Base.@propagate_inbounds function Base.$f(A::Operator{<:CartesianSpace,CartesianSpace{T}}, i::Int, ::Colon) where {N,T<:NTuple{N,SequenceSpace}}
+            @boundscheck(i < 1 || N < i && throw(BoundsError(A.codomain, i)))
+            codomain = A.codomain[i]
+            skip = i == 1 ? 0 : mapreduce(k -> length(A.codomain[k]), +, 1:i-1)
+            return Operator(A.domain, codomain, view(A.coefficients, 1+skip:length(codomain)+skip, :))
         end
+
+        Base.@propagate_inbounds Base.$f(A::Operator{<:CartesianSpace,<:CartesianSpace}, ::Colon, ::Colon) =
+            Operator(A.domain, A.codomain, view(A.coefficients, :, :))
+
+        Base.@propagate_inbounds function Base.$f(A::Operator{CartesianSpace{T},<:SequenceSpace}, j::Int) where {N,T<:NTuple{N,SequenceSpace}}
+            @boundscheck(j < 1 || N < j && throw(BoundsError(A.domain, j)))
+            domain = A.domain[j]
+            skip = j == 1 ? 0 : mapreduce(k -> length(A.domain[k]), +, 1:j-1)
+            return Operator(domain, A.codomain, view(A.coefficients, :, 1+skip:length(domain)+skip))
+        end
+
+        Base.@propagate_inbounds Base.$f(A::Operator{<:CartesianSpace,<:SequenceSpace}, ::Colon) =
+            Operator(A.domain, A.codomain, view(A.coefficients, :, :))
+
+        Base.@propagate_inbounds function Base.$f(A::Operator{<:SequenceSpace,CartesianSpace{T}}, i::Int) where {N,T<:NTuple{N,SequenceSpace}}
+            @boundscheck(i < 1 || N < i && throw(BoundsError(A.codomain, i)))
+            codomain = A.codomain[i]
+            skip = i == 1 ? 0 : mapreduce(k -> length(A.codomain[k]), +, 1:i-1)
+            return Operator(A.domain, codomain, view(A.coefficients, 1+skip:length(codomain)+skip, :))
+        end
+
+        Base.@propagate_inbounds Base.$f(A::Operator{<:SequenceSpace,<:CartesianSpace}, ::Colon) =
+            Operator(A.domain, A.codomain, view(A.coefficients, :, :))
     end
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::Operator{<:CartesianSpace,<:CartesianSpace}, x::Operator, i::Int, j::Int)
-    @assert A.domain[j] == x.domain && A.range[i] == x.range
-    if i == j == 1
-        return setindex!(A.coefficients, x.coefficients, 1:length(A.range[1]), 1:length(A.domain[1]))
-    elseif i == 1
-        len = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-        indices = len+1:len+length(A.domain[j])
-        return setindex!(A.coefficients, x.coefficients, 1:length(A.range[1]), indices)
-    elseif j == 1
-        len = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-        indices = len+1:len+length(A.range[i])
-        return setindex!(A.coefficients, x.coefficients, indices, 1:length(A.domain[1]))
-    else
-        len₁ = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-        indices₁ = len₁+1:len₁+length(A.range[i])
-        len₂ = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-        indices₂ = len₂+1:len₂+length(A.domain[j])
-        return setindex!(A.coefficients, x.coefficients, indices₁, indices₂)
-    end
+Base.@propagate_inbounds function Base.setindex!(A::Operator{CartesianSpace{T},CartesianSpace{S}}, x::Operator, i::Int, j::Int) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
+    @boundscheck(i < 1 || N₂ < i || j < 1 || N₁ < j && throw(BoundsError((A.codomain, A.domain), (i, j))))
+    domain, codomain = A.domain[j], A.codomain[i]
+    domain == x.domain || codomain == x.codomain || return throw(ArgumentError)
+    skip₁ = i == 1 ? 0 : mapreduce(k -> length(A.codomain[k]), +, 1:i-1)
+    skip₂ = j == 1 ? 0 : mapreduce(k -> length(A.domain[k]), +, 1:j-1)
+    return setindex!(A.coefficients, x.coefficients, 1+skip₁:length(codomain)+skip₁, 1+skip₂:length(domain)+skip₂)
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::Operator{<:CartesianSpace,<:SequenceSpace}, x::Operator, j::Int)
-    @assert A.domain[j] == x.domain
-    if j == 1
-        return setindex!(A.coefficients, x.coefficients, 1:length(A.range), 1:length(A.domain[1]))
-    else
-        len = mapreduce(k -> length(A.domain[k]), +, 1:j-1)
-        indices = len+1:len+length(A.domain[j])
-        return setindex!(A.coefficients, x.coefficients, 1:length(A.range), indices)
-    end
+Base.@propagate_inbounds function Base.setindex!(A::Operator{CartesianSpace{T},<:SequenceSpace}, x::Operator, j::Int) where {N,T<:NTuple{N,SequenceSpace}}
+    @boundscheck(j < 1 || N < j && throw(BoundsError(A.domain, j)))
+    domain = A.domain[j]
+    domain == x.domain || A.codomain == x.codomain || return throw(ArgumentError)
+    skip = j == 1 ? 0 : mapreduce(k -> length(A.domain[k]), +, 1:j-1)
+    return setindex!(A.coefficients, x.coefficients, :, 1+skip:length(domain)+skip)
 end
 
-Base.@propagate_inbounds function Base.setindex!(A::Operator{<:SequenceSpace,<:CartesianSpace}, x::Operator, i::Int)
-    @assert A.range[i] == x.range
-    if i == 1
-        return setindex!(A.coefficients, x.coefficients, 1:length(A.range[1]), 1:length(A.domain))
-    else
-        len = mapreduce(k -> length(A.range[k]), +, 1:i-1)
-        indices = len+1:len+length(A.range[i])
-        return setindex!(A.coefficients, x.coefficients, indices, 1:length(A.domain))
-    end
+Base.@propagate_inbounds function Base.setindex!(A::Operator{<:SequenceSpace,CartesianSpace{T}}, x::Operator, j::Int) where {N,T<:NTuple{N,SequenceSpace}}
+    @boundscheck(i < 1 || N < i && throw(BoundsError(A.codomain, i)))
+    codomain = A.codomain[i]
+    A.domain == x.domain || codomain == x.codomain || return throw(ArgumentError)
+    skip = i == 1 ? 0 : mapreduce(k -> length(A.codomain[k]), +, 1:i-1)
+    return setindex!(A.coefficients, x.coefficients, 1+skip:length(codomain)+skip, :)
 end
 
-## opnorm - WARNING: not type stable for cartesian spaces with different space, e.g. Taylor × Chebyshev
-# MWE of type instability:
-# struct BigA{T,S,R}
-#     x :: T
-#     y :: S
-#     mat :: R
-# end
-# struct A{T,S,R}
-#     x :: T
-#     y :: S
-#     value :: R
-# end
-# f(a::A) = 2a.value
-# Base.length(a::BigA) = length(a.mat)
-# Base.iterate(a::BigA) = (A(a.x[1], a.y[1], a.mat[1]), 2)
-# function Base.iterate(a::BigA, i::Int)
-#     if 1 ≤ i ≤ length(a)
-#         col_, row_ = divrem(i, size(a.mat, 1))
-#         col_ == 0 && return (A(a.x[row_], a.y[1], a.mat[i]), i+1)
-#         row_ == 0 && return (A(a.x[size(a.mat, 1)], a.y[col_], a.mat[i]), i+1)
-#         return (A(a.x[row_], a.y[col_], a.mat[i]), i+1)
-#     else
-#         nothing
-#     end
-# end
-# a = BigA((1, π), (1//3, false), [1. 2. ; 3. 4.])
-# @code_warntype map(f, a)
-# MWE of type instability - perhaps more clear:
-# struct BigA{T,S,R}
-#     x :: T
-#     y :: S
-#     mat :: R
-# end
-# struct A{T,S,R}
-#     x :: T
-#     y :: S
-#     value :: R
-# end
-# f(a::A{T,S,R}) where {T,S,R} = (2a.value)::R
-# Base.getindex(a::BigA, i::Int, j::Int) = A(a.x[j], a.y[i], getindex(a.mat, i, j))
-# map(i -> f(a[1,i]), 1:length(a.x))
-# map(t -> f(a[t[1],t[2]]), Iterators.product(1:length(a.y), 1:length(a.x)))
+## opnorm
 
-LinearAlgebra.opnorm(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}} =
-    opnorm(reshape(map(opnorm, A), N₂, N₁), Inf)
+LinearAlgebra.opnorm(A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    opnorm(map(opnorm, eachcomponent(A)), Inf)
 LinearAlgebra.opnorm(A::Operator{<:CartesianSpace,<:SequenceSpace}) =
-    norm(map(opnorm, A), 1)
+    opnorm(map(opnorm, eachcomponent(A)), Inf)
 LinearAlgebra.opnorm(A::Operator{<:SequenceSpace,<:CartesianSpace}) =
-    norm(map(opnorm, A), Inf)
+    opnorm(map(opnorm, eachcomponent(A)), Inf)
 
 function LinearAlgebra.opnorm(A::Operator{CartesianSpace{T},CartesianSpace{S}}, ν, μ, p::Real=Inf) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
     @assert N₁ == length(ν) && N₂ == length(μ)
-    return opnorm(reshape(map((Aᵢ, tᵢ) -> opnorm(Aᵢ, tᵢ[1], tᵢ[2]), A, Iterators.product(ν, μ)), N₂, N₁), p)
+    return opnorm(map((Aᵢ, tᵢ) -> opnorm(Aᵢ, tᵢ[1], tᵢ[2]), eachcomponent(A), Iterators.product(ν, μ)), p)
 end
 function LinearAlgebra.opnorm(A::Operator{CartesianSpace{T},<:SequenceSpace}, ν, μ, p::Real=Inf) where {N,T<:NTuple{N,SequenceSpace}}
     @assert N == length(ν)
-    return opnorm(transpose(map((Aᵢ, νᵢ) -> opnorm(Aᵢ, νᵢ, μ), A, ν)), p)
+    return opnorm(map((Aᵢ, νᵢ) -> opnorm(Aᵢ, νᵢ, μ), eachcomponent(A), ν), p)
 end
 function LinearAlgebra.opnorm(A::Operator{<:SequenceSpace,CartesianSpace{T}}, ν, μ, p::Real=Inf) where {N,T<:NTuple{N,SequenceSpace}}
     @assert N == length(μ)
-    return norm(map((Aᵢ, μᵢ) -> opnorm(Aᵢ, ν, μᵢ), A, μ), p)
+    return opnorm(map((Aᵢ, μᵢ) -> opnorm(Aᵢ, ν, μᵢ), eachcomponent(A), μ), p)
 end
 
-## action - WARNING: not type stable for Taylor × Chebyshev
+## action
 
-function (A::Operator{CartesianSpace{T},CartesianSpace{S}})(b::Sequence{CartesianSpace{R}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace},N₃,R<:NTuple{N₃,SequenceSpace}}
-    @assert N₁ == N₃
+function Base.:*(A::Operator{<:CartesianSpace,<:CartesianSpace}, b::Sequence{<:CartesianSpace})
+    @assert length(A.domain.spaces) == length(b.space.spaces)
+    return mapreduce((Aⱼ, bⱼ) -> Aⱼ * bⱼ, +, eachcol(A), eachcomponent(b))
+end
+
+function Base.:*(A::Operator{<:CartesianSpace,<:SequenceSpace}, b::Sequence{<:CartesianSpace})
+    @assert length(A.domain.spaces) == length(b.space.spaces)
+    return mapreduce((Aⱼ, bⱼ) -> Aⱼ * bⱼ, +, eachcomponent(A), eachcomponent(b))
+end
+
+function Base.:*(A::Operator{<:SequenceSpace,<:CartesianSpace}, b::Sequence{<:SequenceSpace})
     CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(A.range, Vector{CoefType}(undef, length(A.range)))
-    c.coefficients .= zero(CoefType)
-    @inbounds for j ∈ 1:N₁, i ∈ 1:N₂
-        c[i] += view(A, i, j)(view(b, j))
-    end
+    c = Sequence(A.codomain, Vector{CoefType}(undef, length(A.codomain)))
+    foreach((Cᵢ, Aᵢ) -> Cᵢ.coefficients .= (Aᵢ * b).coefficients, eachcomponent(c), eachcomponent(A))
     return c
 end
 
-function (A::Operator{CartesianSpace{T},<:SequenceSpace})(b::Sequence{CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace}}
-    @assert N₁ == N₂
-    return mapreduce((Aⱼ, bⱼ) -> Aⱼ(bⱼ), +, A, b)
-end
-
-(A::Operator{<:SequenceSpace,<:CartesianSpace})(b::Sequence{<:SequenceSpace}) =
-    Sequence(A.range, mapreduce(Aᵢ -> Aᵢ(b).coefficients, vcat, A))
-
 ## arithmetic
 
-for f ∈ (:+, :-)
-    @eval begin
-        Base.$f(A::Operator{CartesianSpace{T₁},CartesianSpace{S₁},R₁}, B::Operator{CartesianSpace{T₂},CartesianSpace{S₂},R₂}) where {N₁,T₁<:NTuple{N₁,SequenceSpace},N₂,S₁<:NTuple{N₂,SequenceSpace},R₁,T₂<:NTuple{N₁,SequenceSpace},S₂<:NTuple{N₂,SequenceSpace},R₂} =
-            Operator(A.domain ∪ B.domain, A.range ∪ B.range, mapreduce(j -> mapreduce(i -> $f(A[i,j], B[i,j]).coefficients, vcat, 1:N₂), hcat, 1:N₁))
-
-        function Base.$f(A::Operator{CartesianSpace{T},CartesianSpace{S},R}, B::Matrix) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace},R}
-            @assert (N₂, N₁) == size(B)
-            C = mapreduce(j -> mapreduce(i -> $f(A[i,j], B[i,j]), vcat, 1:N₂), hcat, 1:N₁)
-            v = mapreduce(j -> mapreduce(i -> C[i,j].coefficients, vcat, 1:N₂), hcat, 1:N₁)
-            domain = CartesianSpace(ntuple(j -> mapreduce(i -> C[i,j].domain, ∪, 1:N₂), N₁))
-            range = CartesianSpace(ntuple(i -> mapreduce(j -> C[i,j].range, ∪, 1:N₁), N₂))
-            return Operator(domain, range, v)
-        end
-
-        function Base.$f(B::Matrix, A::Operator{CartesianSpace{T},CartesianSpace{S},R}) where {N₁,T<:NTuple{N₁,SequenceSpace},N₂,S<:NTuple{N₂,SequenceSpace},R}
-            @assert (N₂, N₁) == size(B)
-            C = mapreduce(j -> mapreduce(i -> $f(B[i,j], A[i,j]), vcat, 1:N₂), hcat, 1:N₁)
-            v = mapreduce(j -> mapreduce(i -> C[i,j].coefficients, vcat, 1:N₂), hcat, 1:N₁)
-            domain = CartesianSpace(ntuple(j -> mapreduce(i -> C[i,j].domain, ∪, 1:N₂), N₁))
-            range = CartesianSpace(ntuple(i -> mapreduce(j -> C[i,j].range, ∪, 1:N₁), N₂))
-            return Operator(domain, range, v)
-        end
+function Base.:+(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+    domain, codomain = A.domain ∪ B.domain, A.codomain ∪ B.codomain
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, length(codomain), length(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients + B.coefficients
+        return C
+    else
+        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ + Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
+        return C
     end
 end
 
-Base.:+(B::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) = +(A, B)
+function Base.:-(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+    domain, codomain = A.domain ∪ B.domain, A.codomain ∪ B.codomain
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, length(codomain), length(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients - B.coefficients
+        return C
+    else
+        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ - Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
+        return C
+    end
+end
 
-function Base.:+(A::Operator{CartesianSpace{T},CartesianSpace{S},R₁}, B::UniformScaling{R₂}) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R₁,R₂}
-    NewType = promote_type(R₁, R₂)
-    C = Operator{CartesianSpace{T},CartesianSpace{S},NewType}(A.domain, A.range, undef)
-    C.coefficients .= A.coefficients
-    @inbounds for i ∈ 1:N
-        C[i,i] += B.λ
+#
+
+function +̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+    domain, codomain = A.domain ∪̄ B.domain, A.codomain ∪̄ B.codomain
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, length(codomain), length(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients + B.coefficients
+        return C
+    else
+        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ +̄ Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
+        return C
+    end
+end
+
+function -̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+    domain, codomain = A.domain ∪̄ B.domain, A.codomain ∪̄ B.codomain
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, length(codomain), length(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients - B.coefficients
+        return C
+    else
+        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ -̄ Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
+        return C
+    end
+end
+
+#
+
+function +̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, b)
+    @assert length(A.domain.spaces) == length(A.codomain.spaces)
+    CoefType = promote_type(eltype(A), typeof(b))
+    C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, length(A.codomain), length(A.domain)))
+    @. C.coefficients = A.coefficients
+    @inbounds for i ∈ eachindex(A.domain.spaces)
+        Cᵢ = view(C, i, i)
+        Cᵢ.coefficients .= (Cᵢ +̄ b).coefficients
     end
     return C
 end
 
-function Base.:-(A::Operator{CartesianSpace{T},CartesianSpace{S},R₁}, B::UniformScaling{R₂}) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R₁,R₂}
-    NewType = promote_type(R₁, R₂)
-    C = Operator{CartesianSpace{T},CartesianSpace{S},NewType}(A.domain, A.range, undef)
-    C.coefficients .= A.coefficients
-    @inbounds for i ∈ 1:N
-        C[i,i] -= B.λ
+function +̄(b, A::Operator{<:CartesianSpace,<:CartesianSpace})
+    @assert length(A.domain.spaces) == length(A.codomain.spaces)
+    CoefType = promote_type(eltype(A), typeof(b))
+    C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, length(A.codomain), length(A.domain)))
+    @. C.coefficients = A.coefficients
+    @inbounds for i ∈ eachindex(A.domain.spaces)
+        Cᵢ = view(C, i, i)
+        Cᵢ.coefficients .= (b +̄ Cᵢ).coefficients
     end
     return C
 end
 
-function Base.:-(B::UniformScaling{R₂}, A::Operator{CartesianSpace{T},CartesianSpace{S},R₁}) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R₁,R₂}
-    NewType = promote_type(R₁, R₂)
-    C = Operator{CartesianSpace{T},CartesianSpace{S},NewType}(A.domain, A.range, undef)
+function -̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, b)
+    @assert length(A.domain.spaces) == length(A.codomain.spaces)
+    CoefType = promote_type(eltype(A), typeof(b))
+    C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, length(A.codomain), length(A.domain)))
+    @. C.coefficients = A.coefficients
+    @inbounds for i ∈ eachindex(A.domain.spaces)
+        Cᵢ = view(C, i, i)
+        Cᵢ.coefficients .= (Cᵢ -̄ b).coefficients
+    end
+    return C
+end
+
+function -̄(b, A::Operator{<:CartesianSpace,<:CartesianSpace})
+    @assert length(A.domain.spaces) == length(A.codomain.spaces)
+    CoefType = promote_type(eltype(A), typeof(b))
+    C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, length(A.codomain), length(A.domain)))
     @. C.coefficients = -A.coefficients
-    @inbounds for i ∈ 1:N
-        C[i,i] += B.λ
+    @inbounds for i ∈ eachindex(A.domain.spaces)
+        Cᵢ = view(C, i, i)
+        Cᵢ.coefficients .= (b +̄ Cᵢ).coefficients
     end
     return C
 end
+
+#
+
++̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling) =
+    +̄(A, J.λ)
++̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    +̄(J.λ, A)
+
+-̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling) =
+    -̄(A, J.λ)
+-̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    -̄(J.λ, A)
 
 ## eigen
 
 function LinearAlgebra.eigen(A::Operator{<:CartesianSpace,<:CartesianSpace})
     Λ, Ξ = eigen(A.coefficients)
-    @inbounds Ξ_ = map(i -> Sequence(A.domain, Ξ[:,i]), 1:length(Λ))
+    @inbounds Ξ_ = map(i -> Sequence(A.domain, Ξ[:,i]), axes(Ξ, 2))
     return Λ, Ξ_
 end
 
-#
+##
 
-Base.:+(A::Operator{CartesianSpace{T},CartesianSpace{S},R}, 𝒟::Derivative) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R} =
-    Operator(A.domain, A.range, mapreduce(j -> mapreduce(i -> i == j ? A[i,j].coefficients : (A[i,j] + 𝒟).coefficients, vcat, 1:N), hcat, 1:N))
+function Operator(domain::CartesianSpace, codomain::CartesianSpace, A::AbstractMatrix{T}) where {T<:Sequence}
+    @assert length(codomain.spaces) == size(A, 1) && length(domain.spaces) == size(A, 2)
+    C = Operator(domain, codomain, Matrix{eltype(T)}(undef, length(codomain), length(domain)))
+    foreach((Cᵢ, Aᵢ) -> Cᵢ.coefficients .= Operator(Cᵢ.domain, Cᵢ.codomain, Aᵢ).coefficients, eachcomponent(C), A)
+    return C
+end
 
-Base.:+(𝒟::Derivative, A::Operator{CartesianSpace{T},CartesianSpace{S},R}) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R} =
-    Operator(A.domain, A.range, mapreduce(j -> mapreduce(i -> i == j ? A[i,j].coefficients : (𝒟 + A[i,j]).coefficients, vcat, 1:N), hcat, 1:N))
+## calculus
 
-Base.:-(A::Operator{CartesianSpace{T},CartesianSpace{S},R}, 𝒟::Derivative) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R} =
-    Operator(A.domain, A.range, mapreduce(j -> mapreduce(i -> i == j ? A[i,j].coefficients : (A[i,j] - 𝒟).coefficients, vcat, 1:N), hcat, 1:N))
+Operator(domain::CartesianSpace, codomain::CartesianSpace, 𝒟::Derivative) =
+    Operator(domain, codomain, mapreduce((s₁, s₂) -> Operator(s₁, s₂, 𝒟).coefficients, (x, y) -> cat(x, y; dims=(1,2)),  domain.spaces, codomain.spaces))
 
-Base.:-(𝒟::Derivative, A::Operator{CartesianSpace{T},CartesianSpace{S},R}) where {N,T<:NTuple{N,SequenceSpace},S<:NTuple{N,SequenceSpace},R} =
-    Operator(A.domain, A.range, mapreduce(j -> mapreduce(i -> i == j ? -A[i,j].coefficients : (𝒟 - A[i,j]).coefficients, vcat, 1:N), hcat, 1:N))
+Operator(domain::CartesianSpace, codomain::CartesianSpace, ℐ::Integral) =
+    Operator(domain, codomain, mapreduce((s₁, s₂) -> Operator(s₁, s₂, ℐ).coefficients, (x, y) -> cat(x, y; dims=(1,2)),  domain.spaces, codomain.spaces))

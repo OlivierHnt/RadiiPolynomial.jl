@@ -67,7 +67,7 @@ struct TensorSpace{T<:NTuple{N,UnivariateSpace} where {N}} <: SequenceSpace
     spaces :: T
 end
 
-# TensorSpace(spaces::UnivariateSpace...) = TensorSpace(spaces)
+TensorSpace(spaces::UnivariateSpace...) = TensorSpace(spaces)
 
 ⊗(s₁::UnivariateSpace, s₂::UnivariateSpace) = TensorSpace((s₁, s₂))
 ⊗(s₁::UnivariateSpace, s₂::TensorSpace) = TensorSpace((s₁, s₂.spaces...))
@@ -81,7 +81,10 @@ end
 Base.@propagate_inbounds Base.getindex(s::TensorSpace, c::Colon) = TensorSpace(getindex(s.spaces, c))
 Base.@propagate_inbounds Base.getindex(s::TensorSpace, i::Int) = getindex(s.spaces, i)
 Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractRange) = TensorSpace(getindex(s.spaces, u))
-Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::Vector{Int}) = TensorSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractVector{Int}) = TensorSpace(getindex(s.spaces, u))
+
+Base.front(s::TensorSpace) = TensorSpace(Base.front(s.spaces))
+Base.tail(s::TensorSpace) = TensorSpace(Base.tail(s.spaces))
 
 ## order
 
@@ -89,6 +92,13 @@ order(s::Taylor) = s.order
 order(s::Fourier) = s.order
 order(s::Chebyshev) = s.order
 order(s::TensorSpace) = map(order, s.spaces)
+order(s::TensorSpace, i::Int) = order(s.spaces[i])
+
+## frequency
+
+frequency(s::Fourier) = s.frequency
+frequency(s::TensorSpace) = map(frequency, s.spaces)
+frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
 
 ##
 
@@ -102,15 +112,12 @@ multiplication_range(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(s₁.order + 
 multiplication_range(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     TensorSpace(map(multiplication_range, s₁.spaces, s₂.spaces))
 
-function pow_range(s::SequenceSpace, n::Int)
+function multiplication_range(s::SequenceSpace, n::Int)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers."))
     n == 0 && return s
     n == 1 && return s
-    return _power_range_by_squaring(s, n)
-end
-
-function _power_range_by_squaring(s::SequenceSpace, n::Int)
     n == 2 && return multiplication_range(s, s)
+    # power by squaring
     t = trailing_zeros(n) + 1
     n >>= t
     while (t -= 1) > 0
@@ -128,15 +135,25 @@ function _power_range_by_squaring(s::SequenceSpace, n::Int)
     return new_s
 end
 
-derivative_range(s::Taylor) = s.order == 0 ? Taylor(0) : Taylor(s.order-1)
-derivative_range(s::Fourier) = s
-derivative_range(s::Chebyshev) = s.order == 0 ? Chebyshev(0) : Chebyshev(s.order-1)
-derivative_range(s::TensorSpace) = TensorSpace(map(derivative_range, s.spaces))
+function derivative_range(s::Taylor, n::Int=1)
+    @assert n ≥ 1
+    s.order < n && return Taylor(0)
+    return Taylor(s.order-n)
+end
+derivative_range(s::Fourier, n::Int=1) = s
+function derivative_range(s::Chebyshev, n::Int=1)
+    @assert n ≥ 1
+    s.order < n && return Chebyshev(0)
+    return Chebyshev(s.order-n)
+end
+derivative_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dims::Int, n::Int) where {N} =
+    TensorSpace(tuple(s.spaces[1:dims-1]..., derivative_range(s.spaces[dims], n), s.spaces[dims+1:N]...))
 
-integral_range(s::Taylor) = Taylor(s.order+1)
-integral_range(s::Fourier) = s
-integral_range(s::Chebyshev) = Chebyshev(s.order+1)
-integral_range(s::TensorSpace) = TensorSpace(map(integral_range, s.spaces))
+integral_range(s::Taylor, n::Int=1) = Taylor(s.order+n)
+integral_range(s::Fourier, n::Int=1) = s
+integral_range(s::Chebyshev, n::Int=1) = Chebyshev(s.order+n)
+integral_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dims::Int, n::Int) where {N} =
+    TensorSpace(tuple(s.spaces[1:dims-1]..., integral_range(s.spaces[dims], n), s.spaces[dims+1:N]...))
 
 ##
 
@@ -202,11 +219,6 @@ Base.size(s::UnivariateSpace) = tuple(length(s))
 Base.size(s::TensorSpace) = map(length, s.spaces)
 Base.size(s::TensorSpace, i::Int) = length(s.spaces[i])
 
-# Base.ndims(s::UnivariateSpace) = 1
-# Base.ndims(::Type{T}) where {T<:UnivariateSpace} = 1
-# Base.ndims(s::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} = N
-# Base.ndims(::Type{TensorSpace{T}}) where {N,T<:NTuple{N,UnivariateSpace}} = N
-
 Base.firstindex(s::Taylor) = 0
 Base.firstindex(s::Fourier) = -s.order
 Base.firstindex(s::Chebyshev) = 0
@@ -220,20 +232,20 @@ Base.lastindex(s::TensorSpace) = map(lastindex, s.spaces)
 Base.eachindex(s::Taylor) = firstindex(s):lastindex(s)
 Base.eachindex(s::Fourier) = firstindex(s):lastindex(s)
 Base.eachindex(s::Chebyshev) = firstindex(s):lastindex(s)
-Base.eachindex(s::TensorSpace) = vec(collect(Iterators.product(map(eachindex, s.spaces)...))) # MultiIndices(axes(s))
+Base.eachindex(s::TensorSpace) = vec(collect(Iterators.product(map(eachindex, s.spaces)...)))
 
 Base.axes(s::UnivariateSpace) = tuple(eachindex(s))
 Base.axes(s::TensorSpace) = map(eachindex, s.spaces)
 Base.axes(s::TensorSpace, i::Int) = eachindex(s.spaces[i])
 
-## used e.g. Sequence + Number
+## index for the constant term
 
 _constant_index(s::UnivariateSpace) = 0
 _constant_index(s::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} = ntuple(i -> 0, N)
 
 ##
 
-isindexof(c::Colon, space::SequenceSpace) = true # fallback
+isindexof(c::Colon, space::SequenceSpace) = true
 
 isindexof(i::Int, space::Taylor) = 0 ≤ i ≤ space.order
 isindexof(i::Int, space::Fourier) = -space.order ≤ i ≤ space.order
@@ -244,37 +256,13 @@ isindexof(α::NTuple{N,Int}, space::TensorSpace{<:NTuple{N,UnivariateSpace}}) wh
 isindexof(u::AbstractRange, space::Taylor) = 0 ≤ minimum(u) && maximum(u) ≤ space.order
 isindexof(u::AbstractRange, space::Fourier) = -space.order ≤ minimum(u) && maximum(u) ≤ space.order
 isindexof(u::AbstractRange, space::Chebyshev) = 0 ≤ minimum(u) && maximum(u) ≤ space.order
-isindexof(u::Vector{NTuple{N,Int}}, space::TensorSpace) where {N} = all(α -> isindexof(α, space), u)
+isindexof(u::AbstractVector{NTuple{N,Int}}, space::TensorSpace) where {N} = all(α -> isindexof(α, space), u)
 isindexof(u::NTuple{N,Any}, space::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     all(t -> isindexof(t[1], t[2]), zip(u, space.spaces))
 
 ## internal functions to retrieve linear index
 
-# type for lazy multidimensional indexing. Much slower than generating the indices at once
-
-# struct MultiIndices{T}
-#     indices :: T
-# end
-#
-# Base.@propagate_inbounds function Base.getindex(inds::MultiIndices, i::Int)
-#     @boundscheck(i ≤ length(inds) && throw(BoundsError(inds, i)))
-#     return Base._ind2sub(inds.indices, i)
-# end
-#
-# Base.length(inds::MultiIndices) = mapreduce(length, *, inds.indices)
-#
-# Base.iterate(inds::MultiIndices) = inds[1], 2
-#
-# function Base.iterate(inds::MultiIndices, state::Int)
-#     state ≤ length(inds) && return inds[state], state + 1
-#     return nothing
-# end
-#
-#     export MultiIndices
-
-#
-
-_findindex(c::Colon, space::SequenceSpace) = c # fallback
+_findindex(c::Colon, space::SequenceSpace) = c
 
 _findindex(i::Int, space::Taylor) = i + 1
 _findindex(i::Int, space::Fourier) = i + space.order + 1
@@ -293,7 +281,7 @@ end
 _findindex(u::AbstractRange, space::Taylor) = u .+ 1
 _findindex(u::AbstractRange, space::Fourier) = u .+ (space.order + 1)
 _findindex(u::AbstractRange, space::Chebyshev) = u .+ 1
-function _findindex(u::Vector{NTuple{N,Int}}, space::TensorSpace) where {N}
+function _findindex(u::AbstractVector{NTuple{N,Int}}, space::TensorSpace) where {N}
     v = Vector{Int}(undef, length(u))
     @inbounds for (i,αᵢ) ∈ enumerate(u)
         v[i] = _findindex(αᵢ, space)
@@ -324,11 +312,5 @@ pretty_string(space::UnivariateSpace) = string(space)
 
 pretty_string(space::TensorSpace{Tuple{}}) = string(Tuple{}())
 
-function pretty_string(space::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N}
-    @inbounds s = pretty_string(space.spaces[1])
-    @inbounds for i ∈ 2:N
-        s *= " ⨂ "
-        s *= pretty_string(space.spaces[i])
-    end
-    return s
-end
+pretty_string(space::TensorSpace) =
+    mapreduce(sᵢ -> string(" ⨂ ", pretty_string(sᵢ)), *, Base.tail(space.spaces); init = pretty_string(space.spaces[1]))

@@ -14,7 +14,7 @@ A [`Fourier`](@ref) sequence space is a truncated Fourier space of a prescribed 
 
 ## Chebyshev
 
-A [`Chebyshev`](@ref) sequence space is a truncated Chebyshev space of a prescribed order ``n``. The ordered basis under consideration is ``\{\phi_0, \dots, \phi_n\}`` where ``\phi_k(\cos(\theta)) \doteqdot \cos(k\theta)`` for ``k = 0, \dots, n``.
+A [`Chebyshev`](@ref) sequence space is a truncated Chebyshev space of a prescribed order ``n``. The ordered basis under consideration is ``\{\phi_0, \dots, \phi_n\}`` where ``\phi_0 \doteqdot 1`` and ``\phi_k(\cos(\theta)) \doteqdot 2\cos(k\theta)`` for ``k = 1, \dots, n``.
 
 ## Tensor space
 

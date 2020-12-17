@@ -1,7 +1,64 @@
+# convolution based on fft routines
+# NOTE: for multiply and power with Chebyshev sequences of the form (a_0, a_1, ...) must be rescaled to (a_0, 2a_1, ...)
+
+function multiply(a::Sequence, b::Sequence)
+    (eltype(a) <: Real || eltype(b) <: Real) && return real(multiply(complex(a), complex(b)))
+    npow2 = fft_size(a.space, b.space)
+    C = _mul!(_fft_pow2(a, npow2), _fft_pow2(b, npow2))
+    space = multiplication_range(a.space, b.space)
+    return _ifft_pow2!(space, C)
+end
+
+function multiply(a::Sequence, b::Sequence, c::Sequence...)
+    (eltype(a) <: Real || eltype(b) <: Real || any(cᵢ -> eltype(cᵢ) <: Real, c)) && return real(multiply(complex(a), complex(b), map(complex, c)...))
+    npow2 = fft_size(a.space, b.space, map(cᵢ -> cᵢ.space, c)...)
+    C = mapreduce(cᵢ -> _fft_pow2(cᵢ, npow2), _mul!, c; init = _mul!(_fft_pow2(a, npow2), _fft_pow2(b, npow2)))
+    space = mapreduce(cᵢ -> cᵢ.space, multiplication_range, c; init = multiplication_range(a.space, b.space))
+    return _ifft_pow2!(space, C)
+end
+
+_mul!(A::Array{T,N}, B::Array{T,N}) where {T<:Complex,N} = @. A *= B
+
+# power based on fft routines
+
+function power(a::Sequence, n::Int)
+    n < 0 && return throw(DomainError(n, "^ is only defined for positive integers."))
+    n == 0 && return one(a)
+    n == 1 && return copy(a)
+    return _pow(a, n)
+end
+
+function _pow(a::Sequence, n::Int)
+    eltype(a) <: Real && return real(_pow(complex(a), n))
+    npow2 = fft_size(a.space, n)
+    C = _power_by_squaring!(_fft_pow2(a, npow2), n)
+    space = multiplication_range(a.space, n)
+    return _ifft_pow2!(space, C)
+end
+
+function _power_by_squaring!(A::Array{T,N}, n::Int) where {T<:Complex,N}
+    n == 2 && return @. A *= A
+    t = trailing_zeros(n) + 1
+    n >>= t
+    while (t -= 1) > 0
+        @. A *= A
+    end
+    C = copy(A)
+    while n > 0
+        t = trailing_zeros(n) + 1
+        n >>= t
+        while (t -= 1) ≥ 0
+            @. A *= A
+        end
+        @. C *= A
+    end
+    return C
+end
+
 ## NOTE: perhaps promote to float type in _extension functions for Chebyshev? -> to allow fft on Chebyshev sequence of integers
 # NOTE:
 # function f(x)
-#     s = max( size_fft(x[1].space, x[2].space, x[3].space), size_fft(x[1].space, x[3].space, x[3].space) )
+#     s = max( fft_size(x[1].space, x[2].space, x[3].space), fft_size(x[1].space, x[3].space, x[3].space) )
 #     fft(x[1], s), fft(x[2], s), fft(x[3], s)
 #
 #     x[1]*x[2]*x[3]
@@ -15,22 +72,22 @@ _size_dfs(space::Taylor) = length(space)
 _size_dfs(space::Fourier) = length(space)
 _size_dfs(space::Chebyshev) = 2space.order+1
 
-size_fft(s₁::UnivariateSpace, s₂::UnivariateSpace) =
+fft_size(s₁::UnivariateSpace, s₂::UnivariateSpace) =
     nextpow(2, _size_dfs(s₁) + _size_dfs(s₂))
 
-size_fft(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
+fft_size(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     map((s₁_, s₂_) -> nextpow(2, _size_dfs(s₁_) + _size_dfs(s₂_)), s₁.spaces, s₂.spaces)
 
-size_fft(s₁::UnivariateSpace, s₂::UnivariateSpace, s₃::UnivariateSpace...) =
+fft_size(s₁::UnivariateSpace, s₂::UnivariateSpace, s₃::UnivariateSpace...) =
     nextpow(2, _size_dfs(s₁) + _size_dfs(s₂) + mapreduce(s₃_ -> _size_dfs(s₃_), +, s₃))
 
-size_fft(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₃::TensorSpace{<:NTuple{N,UnivariateSpace}}...) where {N} =
+fft_size(s₁::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₂::TensorSpace{<:NTuple{N,UnivariateSpace}}, s₃::TensorSpace{<:NTuple{N,UnivariateSpace}}...) where {N} =
     ntuple(i -> nextpow(2, _size_dfs(s₁[i]) + _size_dfs(s₂[i]) + mapreduce(s₃_ -> _size_dfs(s₃_[i]), +, s₃)), Val(N))
 
-size_fft(space::UnivariateSpace, n::Integer) =
+fft_size(space::UnivariateSpace, n::Integer) =
     nextpow(2, n * _size_dfs(space))
 
-size_fft(space::TensorSpace, n::Integer) =
+fft_size(space::TensorSpace, n::Integer) =
     map(sᵢ -> nextpow(2, n * _size_dfs(sᵢ)), space.spaces)
 
 function fft(a::Sequence{T}, n::Int) where {T<:UnivariateSpace}
@@ -90,7 +147,7 @@ function _fft_pow2(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NT
 end
 
 _apply_extension!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _extension!(space[1], Val(N₂-N₁+1), _apply_extension!(space[2:N₁], A))
+    @inbounds _extension!(space[1], Val(N₂-N₁+1), _apply_extension!(Base.tail(space), A))
 
 _apply_extension!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}) where {T,N} =
     @inbounds _extension!(space[1], Val(N-1), _extension!(space[2], Val(N), A))
@@ -165,7 +222,7 @@ function _ifft_pow2!(space::TensorSpace, A::Array)
 end
 
 _apply_reduction!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _reduction!(space[1], Val(N₂-N₁+1), _apply_reduction!(space[2:N₁], A))
+    @inbounds _reduction!(space[1], Val(N₂-N₁+1), _apply_reduction!(Base.tail(space), A))
 
 _apply_reduction!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}) where {T,N} =
     @inbounds _reduction!(space[1], Val(N-1), _reduction!(space[2], Val(N), A))

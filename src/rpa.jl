@@ -65,8 +65,8 @@ function roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interva
     @info "Applying the Radii Polynomial Theoreom of order 2: Y + (Z₁-1)r + Z₂r²/2" r₀ Y Z₁ Z₂
     iszero(Z₂) && return roots_radii_polynomial(Y, Z₁, r₀)
     b = Z₁ - one(Z₁)
-    Δ = b^2 - 2Z₂*Y
-    if Δ < 0 # complex roots
+    Δ = b*b - 2Z₂*Y
+    if inf(Δ) < 0 # complex roots
         d_ = - b - sqrt(complex(Δ))
         r₁_ = d_/Z₂
         r₂_ = 2Y/d_
@@ -166,17 +166,41 @@ function roots_radii_polynomial(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interva
     end
 end
 
+##
+
+"""
+"""
+function Y end
+
+"""
+"""
+function Z₁ end
+
+"""
+"""
+function Z₂ end
+
 ## RPA finite dimensional case
 
+"""
+    FixedPointProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅}
+
+Fields:
+- `x₀ :: T₁`
+- `G :: T₂`
+- `DG :: T₃`
+- `D²G :: T₄`
+- `r₀ :: T₅`
+"""
 mutable struct FixedPointProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅}
     x₀ :: T₁
-    r₀ :: T₂
-    G :: T₃
-    DG :: T₄
-    D²G :: T₅
+    G :: T₂
+    DG :: T₃
+    D²G :: T₄
+    r₀ :: T₅
 end
 
-Y(pb::FixedPointProblemFiniteDimension) = norm(pb.G - pb.x, Inf)
+Y(pb::FixedPointProblemFiniteDimension) = norm(pb.G - pb.x₀, Inf)
 
 Z₁(pb::FixedPointProblemFiniteDimension) = opnorm(pb.DG, Inf)
 
@@ -184,13 +208,22 @@ Z₂(pb::FixedPointProblemFiniteDimension) = opnorm(pb.D²G, Inf)
 
 #
 
-mutable struct ZeroFindingProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅,T₆}
-    x₀ :: T₁
-    r₀ :: T₂
-    F :: T₃
-    DF :: T₄
-    A :: T₅
-    D²F :: T₆
+"""
+    ZeroFindingProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅}
+
+Fields:
+- `F :: T₁`
+- `DF :: T₂`
+- `A :: T₃`
+- `D²F :: T₄`
+- `r₀ :: T₅`
+"""
+mutable struct ZeroFindingProblemFiniteDimension{T₁,T₂,T₃,T₄,T₅}
+    F :: T₁
+    DF :: T₂
+    A :: T₃
+    D²F :: T₄
+    r₀ :: T₅
 end
 
 Y(pb::ZeroFindingProblemFiniteDimension) = norm(pb.A * pb.F, Inf)
@@ -201,70 +234,97 @@ Z₂(pb::ZeroFindingProblemFiniteDimension) = opnorm(pb.A * pb.D²F, Inf)
 
 ## RPA infinite dimensional case
 
-mutable struct TailProblem{T₁,T₂,T₃,T₄,T₅,T₆,T₇}
-    x₀ :: T₁
-    r₀ :: T₂
-    ν :: T₃
-    ∞f :: T₄
-    Df :: T₅
-    abs_D²f :: T₆
-    ∞C∞ :: T₇
+"""
+    TailProblem{T₁,T₂,T₃,T₄,T₅,T₆}
+
+Fields:
+- `∞f :: T₁`
+- `Df :: T₂`
+- `D²_abs_f :: T₃`
+- `∞L∞_bound :: T₄`
+- `ν :: T₅`
+- `r₀ :: T₆`
+"""
+mutable struct TailProblem{T₁,T₂,T₃,T₄,T₅,T₆}
+    ∞f :: T₁
+    Df :: T₂
+    D²_abs_f :: T₃
+    ∞L∞_bound :: T₄
+    ν :: T₅
+    r₀ :: T₆
 end
 
+prove(pb::TailProblem) =
+    roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), pb.r₀)
+
 Y(pb::TailProblem{T}) where {T<:Sequence} =
-    pb.∞C∞ * norm(pb.∞f, pb.ν)
+    pb.∞L∞_bound * norm(pb.∞f, pb.ν)
 
 Y(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
-    pb.∞C∞ * norm(norm.(pb.∞f, pb.ν), Inf)
+    pb.∞L∞_bound * norm(norm.(pb.∞f, pb.ν), Inf)
 
 Z₁(pb::TailProblem{T}) where {T<:Sequence} =
-    pb.∞C∞ * norm(pb.Df, pb.ν)
+    pb.∞L∞_bound * norm(pb.Df, pb.ν)
 
 Z₁(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
-    pb.∞C∞ * opnorm(norm.(pb.Df, pb.ν), Inf)
+    pb.∞L∞_bound * opnorm(norm.(pb.Df, pb.ν), Inf)
 
 Z₂(pb::TailProblem{T}) where {T<:Sequence} =
-    pb.∞C∞ * pb.abs_D²f
+    pb.∞L∞_bound * pb.D²_abs_f
 
 Z₂(pb::TailProblem{T}) where {T<:AbstractVector{<:Sequence}} =
-    pb.∞C∞ * opnorm(pb.abs_D²f, Inf)
+    pb.∞L∞_bound * opnorm(pb.D²_abs_f, Inf)
 
 #
 
-mutable struct ZeroFindingProblemCategory1{T₁,T₂,T₃,T₄,T₅,T₆,T₇,T₈,T₉,T₁₀,T₁₁}
-    x₀ :: T₁
-    r₀ :: T₂
-    ν :: T₃
-    ∞f :: T₄
-    Df :: T₅
-    abs_D²f :: T₆
-    ᴺF :: T₇
-    ᴺDF :: T₈
-    ᴺAᴺ :: T₉
-    ᴺC∞ :: T₁₀
-    ∞C∞ :: T₁₁
+"""
+    ZeroFindingProblemCategory1{T₁,T₂,T₃,T₄,T₅,T₆,T₇,T₈,T₉,T₁₀}
+
+Fields:
+- `∞f :: T₁`
+- `Df :: T₂`
+- `D²_abs_f :: T₃`
+- `ᴺF :: T₄`
+- `ᴺDF :: T₅`
+- `ᴺAᴺ :: T₆`
+- `ᴺL∞_bound :: T₇`
+- `∞L⁻¹∞_bound :: T₈`
+- `ν :: T₉`
+- `r₀ :: T₁₀`
+"""
+mutable struct ZeroFindingProblemCategory1{T₁,T₂,T₃,T₄,T₅,T₆,T₇,T₈,T₉,T₁₀}
+    ∞f :: T₁
+    Df :: T₂
+    D²_abs_f :: T₃
+    ᴺF :: T₄
+    ᴺDF :: T₅
+    ᴺAᴺ :: T₆
+    ᴺL∞_bound :: T₇
+    ∞L⁻¹∞_bound :: T₈
+    ν :: T₉
+    r₀ :: T₁₀
 end
+
+prove(pb::ZeroFindingProblemCategory1) =
+    roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), pb.r₀)
 
 Y(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence} =
-    norm(pb.ᴺAᴺ * pb.ᴺF, pb.ν) + pb.∞C∞ * norm(pb.∞f, pb.ν)
+    norm(pb.ᴺAᴺ * pb.ᴺF, pb.ν) + pb.∞L⁻¹∞_bound * norm(pb.∞f, pb.ν)
 
 Y(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}} =
-    norm(norm.(pb.ᴺAᴺ * pb.ᴺF, pb.ν), Inf) + pb.∞C∞ * norm(norm.(pb.∞f, pb.ν), Inf)
+    norm(norm.(pb.ᴺAᴺ * pb.ᴺF, pb.ν), Inf) + pb.∞L⁻¹∞_bound * norm(norm.(pb.∞f, pb.ν), Inf)
 
-function Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence}
-    Id = Operator(domain(pb.ᴺDF), range(pb.ᴺAᴺ), Matrix(I, size(pb.ᴺAᴺ, 1), size(pb.ᴺDF, 2)))
-    return opnorm(pb.ᴺAᴺ * pb.ᴺDF - Id, pb.ν, pb.ν) + pb.ᴺC∞ * opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞C∞ * norm(pb.Df, pb.ν)
-end
+Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence} =
+    opnorm(pb.ᴺAᴺ * pb.ᴺDF -̄ I, pb.ν, pb.ν) + pb.ᴺL∞_bound * opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞L⁻¹∞_bound * norm(pb.Df, pb.ν)
 
-function Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}}
-    return error("Not yet implemented.")
-end
+Z₁(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}} =
+    opnorm(opnorm.(pb.ᴺAᴺ * pb.ᴺDF -̄ I, pb.ν, pb.ν), Inf) + pb.ᴺL∞_bound * opnorm(opnorm.(pb.ᴺAᴺ, pb.ν, pb.ν), Inf) + pb.∞L⁻¹∞_bound * opnorm(norm.(pb.Df, pb.ν), Inf)
 
 Z₂(pb::ZeroFindingProblemCategory1{T}) where {T<:Sequence} =
-    (opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞C∞) * pb.abs_D²f
+    (opnorm(pb.ᴺAᴺ, pb.ν, pb.ν) + pb.∞L⁻¹∞_bound) * pb.D²_abs_f
 
 Z₂(pb::ZeroFindingProblemCategory1{T}) where {T<:AbstractVector{<:Sequence}} =
-    (opnorm(opnorm.(pb.ᴺAᴺ, pb.ν, pb.ν), Inf) + pb.∞C∞) * opnorm(pb.abs_D²f, Inf)
+    (opnorm(opnorm.(pb.ᴺAᴺ, pb.ν, pb.ν), Inf) + pb.∞L⁻¹∞_bound) * opnorm(pb.D²_abs_f, Inf)
 
 ## Generic newton method
 

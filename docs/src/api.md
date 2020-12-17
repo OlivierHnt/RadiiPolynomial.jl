@@ -3,7 +3,14 @@
 ## Radii polynomial
 
 ```@docs
+Y
+Z₁
+Z₂
 roots_radii_polynomial
+FixedPointProblemFiniteDimension
+ZeroFindingProblemFiniteDimension
+TailProblem
+ZeroFindingProblemCategory1
 ```
 
 ## Spaces
@@ -24,7 +31,6 @@ Sequence
 project(::Sequence, ::SequenceSpace)
 selectdim(::Sequence{TensorSpace{T}}, ::Int, ::Int) where {N,T<:NTuple{N,UnivariateSpace}}
 shift
-banach_algebra_rounding!
 ```
 
 ## Functionals

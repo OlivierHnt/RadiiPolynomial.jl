@@ -13,17 +13,17 @@ makedocs(;
     ),
     pages = [
         "Home" => "index.md",
-        "Radii polynomial" => "rpa.md",
+        "Radii polynomial" => "radii_polynomial.md",
         "Sequence spaces" => [
             "spaces/spaces.md",
             "sequences/sequences.md",
             "functionals/functionals.md",
             "operators/operators.md"
             ],
-        "Example" => [
-            "example/spiderweb.md",
-            "example/ivp.md",
-            "example/manifolds.md",
+        "Examples" => [
+            "examples/spiderweb.md",
+            "examples/ivp.md",
+            "examples/manifolds.md",
             ],
         "API" => "api.md"
     ],

@@ -2,69 +2,57 @@ using RadiiPolynomial
 using Test
 
 @testset "RadiiPolynomial.jl" begin
-    @testset "Arithmetic for Taylor sequences" begin
-        # 1D
-        a = Sequence(Taylor(5), rand(6))
-        b = Sequence(Taylor(5), rand(6))
-        @test a^2 ≈ a*a
-        @test a^5 ≈ a*a*a*a*a
-        @test a*b ≈ b*a
+    @testset "Taylor sequences" begin
+        f(x) = -1.0 + x
+        a = Sequence(Taylor(1), [-1.0, 1.0])
 
-        @test a + b == b + a
-        @test iszero(a - a)
+        @test a*a == a^2 == Sequence(Taylor(2), [1.0, -2.0, 1.0])
+        @test a + a == 2a == Sequence(Taylor(1), [-2.0, 2.0])
 
-        # ND
-        a_ = Sequence(Taylor(5)⊗Taylor(2), rand(6*3))
-        b_ = Sequence(Taylor(5)⊗Taylor(2), rand(6*3))
-        @test a_^2 ≈ a_*a_
-        @test a_^5 ≈ a_*a_*a_*a_*a_
-        @test a_*b_ ≈ b_*a_
+        @test norm(a) == 2.0
 
-        @test a_ + b_ == b_ + a_
-        @test iszero(a_ - a_)
+        @test differentiate(integrate(a)) ≈ a
+
+        @test all(x -> f(x) ≈ a(x), -1.0:0.2:1.0)
     end
 
-    @testset "Arithmetic for Fourier sequences" begin
-        # 1D
-        a = Sequence(Fourier(5, 1.), rand(11))
-        b = Sequence(Fourier(5, 1.), rand(11))
-        @test a^2 ≈ a*a
-        @test a^5 ≈ a*a*a*a*a
-        @test a*b ≈ b*a
+    @testset "Fourier sequences" begin
+        f(x) = cos(x)
+        a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
 
-        @test a + b == b + a
-        @test iszero(a - a)
+        @test a*a == a^2 == Sequence(Fourier(2, 1.0), [0.25, 0.0, 0.5, 0.0, 0.25])
+        @test a + a == 2a == Sequence(Fourier(1, 1.0), [1.0, 0.0, 1.0])
 
-        # ND
-        a_ = Sequence(Fourier(5, 1.)⊗Fourier(2, 0.5), rand(11*5))
-        b_ = Sequence(Fourier(5, 1.)⊗Fourier(2, 0.5), rand(11*5))
-        @test a_^2 ≈ a_*a_
-        @test a_^5 ≈ a_*a_*a_*a_*a_
-        @test a_*b_ ≈ b_*a_
+        @test norm(a) == 1.0
 
-        @test a_ + b_ == b_ + a_
-        @test iszero(a_ - a_)
+        @test differentiate(integrate(a)) ≈ a
+
+        @test all(x -> f(x) ≈ a(x), -1.0:0.2:1.0)
     end
 
-    @testset "Arithmetic for Chebyshev sequences" begin
-        # 1D
-        a = Sequence(Chebyshev(5), rand(6))
-        b = Sequence(Chebyshev(5), rand(6))
-        @test a^2 ≈ a*a
-        @test a^5 ≈ a*a*a*a*a
-        @test a*b ≈ b*a
+    @testset "Chebyshev sequences" begin
+        f(x) = 1.0 + x + (2x^2 - 1.0)
+        a = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
 
-        @test a + b == b + a
-        @test iszero(a - a)
+        @test a*a == a^2 == Sequence(Chebyshev(4), [2.0, 1.5, 1.25, 0.5, 0.25])
+        @test a + a == 2a == Sequence(Chebyshev(2), [2.0, 1.0, 1.0])
 
-        # ND
-        a_ = Sequence(Chebyshev(5)⊗Chebyshev(2), rand(6*3))
-        b_ = Sequence(Chebyshev(5)⊗Chebyshev(2), rand(6*3))
-        @test a_^2 ≈ a_*a_
-        @test a_^5 ≈ a_*a_*a_*a_*a_
-        @test a_*b_ ≈ b_*a_
+        @test norm(a) == 2.0
 
-        @test a_ + b_ == b_ + a_
-        @test iszero(a_ - a_)
+        @test differentiate(integrate(a)) ≈ a
+
+        @test all(x -> f(x) ≈ a(x), -1.0:0.2:1.0)
+    end
+
+    @testset "Multivariate sequences" begin
+        a = Sequence(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), rand(2*3*3))
+        selectdim(a, 2, 0) .= 0.0
+
+        @test a*a == a^2
+        @test a + a == 2a
+
+        @test differentiate(integrate(a, 1), 1) ≈ a
+        @test differentiate(integrate(a, 2), 2) ≈ a
+        @test differentiate(integrate(a, 3), 3) ≈ a
     end
 end

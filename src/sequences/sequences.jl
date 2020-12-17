@@ -32,21 +32,57 @@ Base.length(a::Sequence) = length(a.space)
 Base.size(a::Sequence) = tuple(length(a.space)) # necessary for broadcasting
 
 Base.iterate(a::Sequence) = iterate(a.coefficients)
-Base.iterate(a::Sequence, i::Int) = iterate(a.coefficients, i)
+Base.iterate(a::Sequence, i) = iterate(a.coefficients, i)
 
 Base.eltype(a::Sequence) = eltype(a.coefficients)
 Base.eltype(::Type{Sequence{T,S}}) where {T<:SequenceSpace,S<:AbstractVector} = eltype(S)
 
-## space, coefficients, order
+## space, coefficients, order, frequency
 
 space(a::Sequence) = a.space
 coefficients(a::Sequence) = a.coefficients
 order(a::Sequence) = order(a.space)
+order(a::Sequence{<:TensorSpace}, i::Int) = order(a.space, i)
+frequency(a::Sequence) = frequency(a.space)
+frequency(a::Sequence{<:TensorSpace}, i::Int) = frequency(a.space, i)
 
-## permutedims
+## getindex, view, setindex!
 
-Base.permutedims(a::Sequence{T}, σ::Vector{Int}) where {T<:TensorSpace} =
-    Sequence(a.space[σ], vec(permutedims(reshape(a.coefficients, size(a.space)), σ)))
+for f ∈ (:getindex, :view)
+    @eval begin
+        Base.@propagate_inbounds function Base.$f(a::Sequence, α)
+            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+            return $f(a.coefficients, _findindex(α, a.space))
+        end
+
+        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
+            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+            return $f(a.coefficients, _findindex(α, a.space))
+        end
+
+        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
+            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+            A = reshape(a.coefficients, size(a.space))
+            return $f(A, _findindex(α, a.space)...)
+        end
+    end
+end
+
+Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
+    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+    return setindex!(a.coefficients, x, _findindex(α, a.space))
+end
+
+Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
+    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+    return setindex!(a.coefficients, x, _findindex(α, a.space))
+end
+
+Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
+    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+    A = reshape(a.coefficients, size(a.space))
+    return setindex!(A, x, _findindex(α, a.space)...)
+end
 
 ## project
 
@@ -95,43 +131,13 @@ Base.@propagate_inbounds function Base.selectdim(a::Sequence{TensorSpace{T}}, di
     return Sequence(a.space[1:dim-1] ⊗ a.space[dim+1:N], vec(A_))
 end
 
-## getindex, view, setindex!
+# to simplify syntax:
+Base.@propagate_inbounds _selectdim(space::UnivariateSpace, A, dim, i) = selectdim(A, dim, _findindex(i, space))
 
-for f ∈ (:getindex, :view)
-    @eval begin
-        Base.@propagate_inbounds function Base.$f(a::Sequence, α)
-            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-            return $f(a.coefficients, _findindex(α, a.space))
-        end
+## permutedims
 
-        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-            return $f(a.coefficients, _findindex(α, a.space))
-        end
-
-        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-            A = reshape(a.coefficients, size(a.space))
-            return $f(A, _findindex(α, a.space)...)
-        end
-    end
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-    return setindex!(a.coefficients, x, _findindex(α, a.space))
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-    return setindex!(a.coefficients, x, _findindex(α, a.space))
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-    A = reshape(a.coefficients, size(a.space))
-    return setindex!(A, x, _findindex(α, a.space)...)
-end
+Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{Int}) =
+    Sequence(a.space[σ], vec(permutedims(reshape(a.coefficients, size(a.space)), σ)))
 
 ## ==, iszero, isapprox
 
@@ -196,18 +202,18 @@ end
 
 ## rescaling
 
-function rescale(a::Sequence{<:UnivariateSpace}, γ)
+function rescale(a::Sequence{Taylor}, γ)
     CoefType = promote_type(eltype(a), typeof(γ))
     c = Sequence(a.space, Vector{CoefType}(undef, length(a.space)))
     @. c.coefficients = a.coefficients
     return rescale!(c, γ)
 end
 
-function rescale(a::Sequence{<:TensorSpace}, γ; dims=:)
+function rescale(a::Sequence{<:TensorSpace}, γ, dims=:)
     CoefType = promote_type(eltype(a), eltype(γ))
     c = Sequence(a.space, Vector{CoefType}(undef, length(a.space)))
     @. c.coefficients = a.coefficients
-    return rescale!(c, γ; dims = dims)
+    return rescale!(c, γ, dims)
 end
 
 function rescale!(a::Sequence{Taylor}, γ)
@@ -218,7 +224,7 @@ function rescale!(a::Sequence{Taylor}, γ)
     return a
 end
 
-function rescale!(a::Sequence{<:TensorSpace}, γ; dims=:)
+function rescale!(a::Sequence{<:TensorSpace}, γ, dims=:)
     A = reshape(a.coefficients, size(a.space))
     _rescale!(a.space, dims, A, γ)
     return a
@@ -230,50 +236,32 @@ _rescale!(space, ::Colon, A, γ) = _apply_rescale!(space, A, γ)
 _rescale!(space, dims::NTuple{N,Int}, A, γ) where {N} = @inbounds _apply_rescale!(space[[dims...]], dims, A, γ)
 _rescale!(space, dims::Vector{Int}, A, γ) = @inbounds _apply_rescale!(space[dims], (dims...,), A, γ)
 
-_apply_rescale!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}, γ::NTuple{N₁,Any}) where {N₁,T,N₂} =
-    @inbounds _rescale!(space[1], Val(N₂-N₁+1), _apply_rescale!(space[2:N₁], A, γ[2:N₁]), γ[1])
+_apply_rescale!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::AbstractArray{T,N₂}, γ::NTuple{N₁,Any}) where {N₁,T,N₂} =
+    @inbounds _rescale!(space[1], Val(N₂-N₁+1), _apply_rescale!(Base.tail(space), A, Base.tail(γ)), γ[1])
 
-_apply_rescale!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}, γ::NTuple{2,Any}) where {T,N} =
+_apply_rescale!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::AbstractArray{T,N}, γ::NTuple{2,Any}) where {T,N} =
     @inbounds _rescale!(space[1], Val(N-1), _rescale!(space[2], Val(N), A, γ[2]), γ[1])
 
-_apply_rescale!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, dims::NTuple{N₁,Int}, A::Array{T,N₂}, γ::NTuple{N₁,Any}) where {N₁,T,N₂} =
-    @inbounds _rescale!(space[1], Val(dims[1]), _apply_rescale!(space[2:N₁], dims[2:N₁], A, γ[2:N₁]), γ[1])
+_apply_rescale!(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, dims::NTuple{N₁,Int}, A::AbstractArray{T,N₂}, γ::NTuple{N₁,Any}) where {N₁,T,N₂} =
+    @inbounds _rescale!(space[1], Val(dims[1]), _apply_rescale!(Base.tail(space), Base.tail(dims), A, Base.tail(γ)), γ[1])
 
-_apply_rescale!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, dims::NTuple{2,Int}, A::Array{T,N}, γ::NTuple{2,Any}) where {T,N} =
+_apply_rescale!(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, dims::NTuple{2,Int}, A::AbstractArray{T,N}, γ::NTuple{2,Any}) where {T,N} =
     @inbounds _rescale!(space[1], Val(dims[1]), _rescale!(space[2], Val(dims[2]), A, γ[2]), γ[1])
 
-function _rescale!(space::Taylor, ::Val{D}, A::Array, γ) where {D}
+function _rescale!(space::Taylor, ::Val{D}, A, γ) where {D}
     isone(γ) && return A
     @inbounds for i ∈ 1:order(space)
-        A_view = selectdim(A, D, i+1)
-        γⁱ = γ^i
-        @. A_view *= γⁱ
+        _selectdim(space, A, D, i) .*= γ^i
     end
     return A
-end
-
-## rounding via Banach algebra
-
-"""
-    banach_algebra_rounding!(a::Sequence, ν::Vector)
-
-Return a rounded [`Sequence`](@ref) according to the decay `ν` (c.f. [Computing Discrete Convolutions with Verified Accuracy Via Banach Algebras and the FFT](https://link.springer.com/article/10.21136/AM.2018.0082-18)).
-"""
-function banach_algebra_rounding!(a::Sequence, ν::Vector)
-    @assert length(a.coefficients) == length(ν)
-    @inbounds for i ∈ eachindex(a.coefficients)
-        ν[i] ≥ sup(abs(a.coefficients[i])) && continue
-        a.coefficients[i] = @interval(-ν[i], ν[i])
-    end
-    return a
 end
 
 ## norm
 
 function LinearAlgebra.norm(a::Sequence{Taylor}, ν::Real=1)
     @assert ν > 0
-    ord = order(a.space)
-    @inbounds s = convert(promote_type(real(eltype(a)), typeof(ν)), abs(a[ord]))
+    ord = order(a)
+    @inbounds s = abs(a[ord]) * one(ν)
     @inbounds for i ∈ ord-1:-1:0
         s = muladd(s, ν, abs(a[i]))
     end
@@ -282,10 +270,10 @@ end
 
 function LinearAlgebra.norm(a::Sequence{<:Fourier}, ν::Real=1)
     @assert ν > 0
-    ord = order(a.space)
-    @inbounds s = convert(promote_type(real(eltype(a)), typeof(ν)), abs(a[-ord])+abs(a[ord]))
+    ord = order(a)
+    @inbounds s = (abs(a[-ord]) + abs(a[ord])) * one(ν)
     @inbounds for i ∈ ord-1:-1:1
-        s = muladd(s, ν, abs(a[-i])+abs(a[i]))
+        s = muladd(s, ν, abs(a[-i]) + abs(a[i]))
     end
     @inbounds s = muladd(s, ν, abs(a[0]))
     return s
@@ -293,16 +281,16 @@ end
 
 function LinearAlgebra.norm(a::Sequence{Chebyshev}, ν::Real=1)
     @assert ν > 0
-    ord = order(a.space)
-    @inbounds s = convert(promote_type(real(eltype(a)), typeof(ν)), abs(a[ord]))
+    ord = order(a)
+    @inbounds s = abs(a[ord]) * one(ν)
     @inbounds for i ∈ ord-1:-1:0
         s = muladd(s, ν, abs(a[i]))
     end
     return s
 end
 
-LinearAlgebra.norm(a::Sequence{TensorSpace{T}}) where {N,T<:NTuple{N,UnivariateSpace}} =
-    norm(a, ntuple(i -> 1, N))
+LinearAlgebra.norm(a::Sequence{TensorSpace{T}}, ν::Real=1) where {N,T<:NTuple{N,UnivariateSpace}} =
+    norm(a, ntuple(i -> ν, Val(N)))
 
 function LinearAlgebra.norm(a::Sequence{TensorSpace{T}}, ν::NTuple{N,Real}) where {N,T<:NTuple{N,UnivariateSpace}}
     @assert all(νᵢ -> νᵢ > 0, ν)
@@ -310,43 +298,40 @@ function LinearAlgebra.norm(a::Sequence{TensorSpace{T}}, ν::NTuple{N,Real}) whe
     return @inbounds _apply_norm(a.space, A, ν)[1]
 end
 
-_apply_norm(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::Array{T,N₂}, ν::NTuple{N₁,Real}) where {N₁,T,N₂} =
-    @inbounds _norm(space[1], Val(N₂-N₁+1), _apply_norm(space[2:N₁], A, ν[2:N₁]), ν[1])
+_apply_norm(space::TensorSpace{<:NTuple{N₁,UnivariateSpace}}, A::AbstractArray{T,N₂}, ν::NTuple{N₁,Real}) where {N₁,T,N₂} =
+    @inbounds _norm(space[1], Val(N₂-N₁+1), _apply_norm(Base.tail(space), A, Base.tail(ν)), ν[1])
 
-_apply_norm(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::Array{T,N}, ν::NTuple{2,Real}) where {T,N} =
+_apply_norm(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, A::AbstractArray{T,N}, ν::NTuple{2,Real}) where {T,N} =
     @inbounds _norm(space[1], Val(N-1), _norm(space[2], Val(N), A, ν[2]), ν[1])
 
-function _norm(space::Taylor, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
+function _norm(space::Taylor, ::Val{D}, A, ν) where {D}
     ord = order(space)
-    @inbounds s = convert(Array{promote_type(real(T), S),N}, abs.(selectdim(A, D, ord+1:ord+1)))
-    @inbounds for i ∈ ord:-1:1
-        Aᵢ = selectdim(A, D, i:i)
+    @inbounds s = abs.(_selectdim(space, A, D, ord:ord)) .* one(ν)
+    @inbounds for i ∈ ord-1:-1:0
+        Aᵢ = _selectdim(space, A, D, i:i)
         @. s = muladd(s, ν, abs(Aᵢ))
     end
     return s
 end
 
-function _norm(space::Fourier, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
+function _norm(space::Fourier, ::Val{D}, A, ν) where {D}
     ord = order(space)
-    idx₀ = ord+1
-    @inbounds s = convert(Array{promote_type(real(T), S),N}, abs.(selectdim(A, D, 1:1))+abs.(selectdim(A, D, idx₀+ord:idx₀+ord)))
+    @inbounds s = (abs.(_selectdim(space, A, D, -ord:-ord)) + abs.(_selectdim(space, A, D, ord:ord))) .* one(ν)
     @inbounds for i ∈ ord-1:-1:1
-        idxᵢ = idx₀+i
-        idx₋ᵢ = idx₀-i
-        A₋ᵢ = selectdim(A, D, idx₋ᵢ:idx₋ᵢ)
-        Aᵢ = selectdim(A, D, idxᵢ:idxᵢ)
-        @. s = muladd(s, ν, abs(A₋ᵢ)+abs(Aᵢ))
+        A₋ᵢ = _selectdim(space, A, D, -i:-i)
+        Aᵢ = _selectdim(space, A, D, i:i)
+        @. s = muladd(s, ν, abs(A₋ᵢ) + abs(Aᵢ))
     end
-    @inbounds A₀ = selectdim(A, D, idx₀:idx₀)
+    @inbounds A₀ = _selectdim(space, A, D, 0:0)
     @. s = muladd(s, ν, abs(A₀))
     return s
 end
 
-function _norm(space::Chebyshev, ::Val{D}, A::Array{T,N}, ν::S) where {D,T,N,S<:Real}
+function _norm(space::Chebyshev, ::Val{D}, A, ν) where {D}
     ord = order(space)
-    @inbounds s = convert(Array{promote_type(real(T), S),N}, abs.(selectdim(A, D, ord+1:ord+1)))
-    @inbounds for i ∈ ord:-1:1
-        Aᵢ = selectdim(A, D, i:i)
+    @inbounds s = abs.(_selectdim(space, A, D, ord:ord)) .* one(ν)
+    @inbounds for i ∈ ord-1:-1:0
+        Aᵢ = _selectdim(space, A, D, i:i)
         @. s = muladd(s, ν, abs(Aᵢ))
     end
     return s

@@ -18,9 +18,22 @@ Base.@propagate_inbounds Base.getindex(s::CartesianSpace, i::Int) = getindex(s.s
 Base.@propagate_inbounds Base.getindex(s::CartesianSpace, u::AbstractRange) = CartesianSpace(getindex(s.spaces, u))
 Base.@propagate_inbounds Base.getindex(s::CartesianSpace, u::Vector{Int}) = CartesianSpace(getindex(s.spaces, u))
 
+Base.front(s::CartesianSpace) = CartesianSpace(Base.front(s.spaces))
+Base.tail(s::CartesianSpace) = CartesianSpace(Base.tail(s.spaces))
+
 ## order
 
 order(s::CartesianSpace) = map(order, s.spaces)
+
+## frequency
+
+frequency(s::CartesianSpace) = map(frequency, s.spaces)
+
+##
+
+derivative_range(s::CartesianSpace) = CartesianSpace(map(derivative_range, s.spaces))
+
+integral_range(s::CartesianSpace) = CartesianSpace(map(derivative_range, s.spaces))
 
 ##
 
@@ -41,13 +54,17 @@ Base.:(==)(s₁::CartesianSpace{<:NTuple{N,SequenceSpace}}, s₂::CartesianSpace
 
 ## characterization of spaces
 
-Base.length(s::CartesianSpace{Tuple{}}) = 0 # fallback
 Base.length(s::CartesianSpace) = mapreduce(length, +, s.spaces)
 
 Base.size(s::CartesianSpace) = tuple(length(s))
 
-# Base.ndims(s::CartesianSpace{<:NTuple{N,SequenceSpace}}) where {N} = N
-# Base.ndims(::Type{CartesianSpace{T}}) where {N,T<:NTuple{N,SequenceSpace}} = N
+# Base.firstindex(s::CartesianSpace) = 1
+#
+# Base.lastindex(s::CartesianSpace) = length(s)
+#
+# Base.eachindex(s::CartesianSpace) = Base.OneTo(lastindex(s))
+#
+# Base.axes(s::CartesianSpace) = tuple(eachindex(s))
 
 ## promotion
 
@@ -63,11 +80,5 @@ Base.show(io::IO, space::CartesianSpace) = print(io, pretty_string(space))
 
 pretty_string(space::CartesianSpace{Tuple{}}) = string(Tuple{}())
 
-function pretty_string(space::CartesianSpace{<:NTuple{N,SequenceSpace}}) where {N}
-    @inbounds s = pretty_string(space.spaces[1])
-    @inbounds for i ∈ 2:N
-        s *= " ⨉ "
-        s *= pretty_string(space.spaces[i])
-    end
-    return s
-end
+pretty_string(space::CartesianSpace) =
+    mapreduce(sᵢ -> string(" ⨉ ", pretty_string(sᵢ)), *, Base.tail(space.spaces); init = pretty_string(space.spaces[1]))

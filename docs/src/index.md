@@ -1,6 +1,6 @@
 # Presentation
 
-The [`RadiiPolynomial.jl`](https://github.com/OlivierHnt/RadiiPolynomial.jl) package implements the *Radii Polynomial Theorem* (case ``N = 1,2`` at the moment) as well as the Banach algebra, linear functionals and linear operators of sequence spaces.
+The [`RadiiPolynomial.jl`](https://github.com/OlivierHnt/RadiiPolynomial.jl) package implements the *[Radii Polynomial Theorem](@ref radii_polynomial_thm)*, a powerful tool for computer-assisted proofs.
 
 ## Supporting
 

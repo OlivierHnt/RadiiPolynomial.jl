@@ -1,292 +1,144 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spiderweb central configurations · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/example/spiderweb/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li><li><span class="tocitem">Example</span><ul><li class="is-active"><a class="tocitem" href>Spiderweb central configurations</a></li><li><a class="tocitem" href="../ivp/">Initial value problems</a></li><li><a class="tocitem" href="../manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Example</a></li><li class="is-active"><a href>Spiderweb central configurations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spiderweb central configurations</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/example/spiderweb.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Spiderweb-central-configurations"><a class="docs-heading-anchor" href="#Spiderweb-central-configurations">Spiderweb central configurations</a><a id="Spiderweb-central-configurations-1"></a><a class="docs-heading-anchor-permalink" href="#Spiderweb-central-configurations" title="Permalink"></a></h1><p>In this example we will prove the existence and local uniqueness of a class of relative equilibria called <em>central configurations</em> in the <span>$n$</span>-body problem.</p><pre><code class="language-julia-repl">julia&gt; using LinearAlgebra, IntervalArithmetic, RadiiPolynomial
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spiderweb central configurations · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/example/spiderweb/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li><a class="tocitem" href="../../operators/operators/">Operators</a></li></ul></li><li><span class="tocitem">Example</span><ul><li class="is-active"><a class="tocitem" href>Spiderweb central configurations</a></li><li><a class="tocitem" href="../ivp/">Initial value problems</a></li><li><a class="tocitem" href="../manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Example</a></li><li class="is-active"><a href>Spiderweb central configurations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spiderweb central configurations</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/example/spiderweb.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Spiderweb-central-configurations"><a class="docs-heading-anchor" href="#Spiderweb-central-configurations">Spiderweb central configurations</a><a id="Spiderweb-central-configurations-1"></a><a class="docs-heading-anchor-permalink" href="#Spiderweb-central-configurations" title="Permalink"></a></h1><p>In this example we will prove the existence and local uniqueness of a class of relative equilibria called <em>central configurations</em> in the <span>$n$</span>-body problem.</p><pre><code class="language-julia">using LinearAlgebra, IntervalArithmetic, RadiiPolynomial
 
-julia&gt; function newton(x₀::Vector, F_DF::Function, tol::Real, maxiter::Int)
-           F, DF = F_DF(x₀)
-           norm(F, Inf) ≤ tol &amp;&amp; return x₀
-           x = copy(x₀)
-           for i ∈ 1:maxiter
-               x .-= ldiv!(lu!(DF), F)
-               sort!(x)
-               F, DF = F_DF(x)
-               norm(F, Inf) ≤ tol &amp;&amp; return x
-           end
-           return x
-       end
-newton (generic function with 1 method)
+function newton(x₀::Vector, F_DF::Function, tol::Real, maxiter::Int)
+    F, DF = F_DF(x₀)
+    norm(F, Inf) ≤ tol &amp;&amp; return x₀
+    x = copy(x₀)
+    for i ∈ 1:maxiter
+        x .-= ldiv!(lu!(DF), F)
+        sort!(x)
+        F, DF = F_DF(x)
+        norm(F, Inf) ≤ tol &amp;&amp; return x
+    end
+    return x
+end
 
-julia&gt; function F_DF(x::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T}
-           # compute the map F whose zero gives a spiderweb central configuration
-           # and its jacobian DF
-           sqrt2 = sqrt(2)
-           F = λ*x
-           DF = Matrix{T}(I*λ, n, n)
-           indices = eachindex(x)
-           l_range = 0:l-1
-           @inbounds for j ∈ indices
-               xⱼ² = x[j]^2
-               @inbounds for i ∈ indices
-                   xᵢ², xᵢxⱼ = x[i]^2, x[i]*x[j]
-                   xᵢ³ = xᵢ²*x[i]
-                   if j == 1
-                       F[i] += m₀/xᵢ²
-                   end
-                   if i == j
-                       DF[i,j] += -2m₀/xᵢ³
-                   end
-                   @inbounds for k ∈ l_range
-                       θ = 360k/l
-                       cosdθ = cosd(θ)
-                       cosd2θ = cosd(2θ)
-                       if i ≠ j
-                           d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosdθ)
-                           d⁵2 = 2d^5
-                           F[i] += m[j]*(x[i] - x[j]*cosdθ)/d^3
-                           DF[i,i] += -m[j]*(4xᵢ² + xⱼ² - 8xᵢxⱼ*cosdθ + 3xⱼ²*cosd2θ)/d⁵2
-                           DF[i,j] += -m[j]*(-4(xᵢ² + xⱼ²)*cosdθ + xᵢxⱼ*(7 + cosd2θ))/d⁵2
-                       elseif i == j &amp;&amp; k &gt; 0
-                           ζ = sqrt2*sqrt(1-cosdθ)
-                           F[i] += m[i]/(2xᵢ²*ζ)
-                           DF[i,j] += -m[i]/(xᵢ³*ζ)
-                       end
-                   end
-               end
-           end
-           return F, DF
-       end
-F_DF (generic function with 1 method)
+function F_DF(x::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T}
+    # compute the map F whose zero gives a spiderweb central configuration
+    # and its jacobian DF
+    sqrt2 = sqrt(2)
+    F = λ*x
+    DF = Matrix{T}(I*λ, n, n)
+    indices = eachindex(x)
+    l_range = 0:l-1
+    @inbounds for j ∈ indices
+        xⱼ² = x[j]^2
+        @inbounds for i ∈ indices
+            xᵢ², xᵢxⱼ = x[i]^2, x[i]*x[j]
+            xᵢ³ = xᵢ²*x[i]
+            if j == 1
+                F[i] += m₀/xᵢ²
+            end
+            if i == j
+                DF[i,j] += -2m₀/xᵢ³
+            end
+            @inbounds for k ∈ l_range
+                θ = 360k/l
+                cosdθ = cosd(θ)
+                cosd2θ = cosd(2θ)
+                if i ≠ j
+                    d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosdθ)
+                    d⁵2 = 2d^5
+                    F[i] += m[j]*(x[i] - x[j]*cosdθ)/d^3
+                    DF[i,i] += -m[j]*(4xᵢ² + xⱼ² - 8xᵢxⱼ*cosdθ + 3xⱼ²*cosd2θ)/d⁵2
+                    DF[i,j] += -m[j]*(-4(xᵢ² + xⱼ²)*cosdθ + xᵢxⱼ*(7 + cosd2θ))/d⁵2
+                elseif i == j &amp;&amp; k &gt; 0
+                    ζ = sqrt2*sqrt(1-cosdθ)
+                    F[i] += m[i]/(2xᵢ²*ζ)
+                    DF[i,j] += -m[i]/(xᵢ³*ζ)
+                end
+            end
+        end
+    end
+    return F, DF
+end
 
-julia&gt; function F_DF_D²F(x::Vector{T}, xᵣ::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T&lt;:Interval}
-           # compute with interval arithmetic the map F, its jacobian DF and the hessian D²F
-           π2_l = 2convert(T, π)/l
-           sqrt2 = sqrt(convert(T, 2))
-           F = λ*x
-           DF = Matrix{T}(I*λ, n, n)
-           D²F = zeros(T, n, n*n)
-           Dⱼ²Fᵢ = zeros(T, n, n)
-           indices = eachindex(x)
-           l_range = 0:l-1
-           @inbounds for j ∈ indices
-               xⱼ² = pow(x[j], 2)
-               xᵣⱼ² = pow(xᵣ[j], 2)
-               @inbounds for i ∈ indices
-                   xᵢ², xᵢxⱼ = pow(x[i], 2), x[i]*x[j]
-                   xᵢ³ = xᵢ²*x[i]
-                   xᵣᵢ², xᵣᵢxᵣⱼ = pow(xᵣ[i], 2), xᵣ[i]*xᵣ[j]
-                   xᵣᵢ⁴ = xᵣᵢ²*xᵣᵢ²
-                   if j == 1
-                       F[i] += m₀/xᵢ²
-                   end
-                   if i == j
-                       DF[i,j] += -2m₀/xᵢ³
-                       Dⱼ²Fᵢ[i,j] = 6m₀/xᵣᵢ⁴
-                   end
-                   @inbounds for k ∈ l_range
-                       θ = k*π2_l
-                       cosθ = cos(θ)
-                       cos2θ = cos(2θ)
-                       if i ≠ j
-                           d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosθ)
-                           d⁵2 = 2pow(d, 5)
-                           F[i] += m[j]*(x[i] - x[j]*cosθ)/pow(d, 3)
-                           DF[i,i] += -m[j]*(4xᵢ² + xⱼ² - 8xᵢxⱼ*cosθ + 3xⱼ²*cos2θ)/d⁵2
-                           DF[i,j] += -m[j]*(-4(xᵢ² + xⱼ²)*cosθ + xᵢxⱼ*(7 + cos2θ))/d⁵2
-                           dᵣ = sqrt(xᵣᵢ² + xᵣⱼ² - 2xᵣᵢxᵣⱼ*cosθ)
-                           dᵣ⁷2 = 2pow(dᵣ, 7)
-                           Dⱼ²Fᵢ[i,i] += 3m[j]*(xᵣ[i] - xᵣ[j]*cosθ)*(4xᵣᵢ² - xᵣⱼ² - 8xᵣᵢxᵣⱼ*cosθ + 5xᵣⱼ²*cos2θ)/dᵣ⁷2
-                           Dⱼ²Fᵢ[i,j] += -3m[j]*(xᵣ[j]*(8xᵣⱼ² + 23xᵣᵢ²)*cosθ - xᵣ[i]*(20xᵣⱼ² + 2xᵣᵢ² + (4xᵣⱼ² + 6xᵣᵢ²)*cos2θ - xᵣᵢxᵣⱼ*cos(3θ)))/(2dᵣ⁷2)
-                       elseif i == j &amp;&amp; k &gt; 0
-                           ζ = sqrt2*sqrt(1-cosθ)
-                           F[i] += m[i]/(2xᵢ²*ζ)
-                           DF[i,j] += -m[i]/(xᵢ³*ζ)
-                           Dⱼ²Fᵢ[i,j] += 3m[i]/(xᵣᵢ⁴*ζ)
-                       end
-                   end
-               end
-           end
-           @inbounds for k ∈ indices
-               s = (k-1)*n
-               view(D²F, n*s+1:n+1:n*s+n*n) .= view(Dⱼ²Fᵢ, k, :)
-               Dⱼ²Fᵢ_view = view(Dⱼ²Fᵢ, :, k)
-               view(D²F, k, 1+s:n+s) .= Dⱼ²Fᵢ_view
-               view(D²F, :, k+s) .= Dⱼ²Fᵢ_view
-           end
-           return F, DF, D²F
-       end
-F_DF_D²F (generic function with 1 method)
+function F_DF_D²F(x::Vector{T}, xᵣ::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T&lt;:Interval}
+    # compute with interval arithmetic the map F, its jacobian DF and the hessian D²F
+    π2_l = 2convert(T, π)/l
+    sqrt2 = sqrt(convert(T, 2))
+    F = λ*x
+    DF = Matrix{T}(I*λ, n, n)
+    D²F = zeros(T, n, n*n)
+    Dⱼ²Fᵢ = zeros(T, n, n)
+    indices = eachindex(x)
+    l_range = 0:l-1
+    @inbounds for j ∈ indices
+        xⱼ² = pow(x[j], 2)
+        xᵣⱼ² = pow(xᵣ[j], 2)
+        @inbounds for i ∈ indices
+            xᵢ², xᵢxⱼ = pow(x[i], 2), x[i]*x[j]
+            xᵢ³ = xᵢ²*x[i]
+            xᵣᵢ², xᵣᵢxᵣⱼ = pow(xᵣ[i], 2), xᵣ[i]*xᵣ[j]
+            xᵣᵢ⁴ = xᵣᵢ²*xᵣᵢ²
+            if j == 1
+                F[i] += m₀/xᵢ²
+            end
+            if i == j
+                DF[i,j] += -2m₀/xᵢ³
+                Dⱼ²Fᵢ[i,j] = 6m₀/xᵣᵢ⁴
+            end
+            @inbounds for k ∈ l_range
+                θ = k*π2_l
+                cosθ = cos(θ)
+                cos2θ = cos(2θ)
+                if i ≠ j
+                    d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosθ)
+                    d⁵2 = 2pow(d, 5)
+                    F[i] += m[j]*(x[i] - x[j]*cosθ)/pow(d, 3)
+                    DF[i,i] += -m[j]*(4xᵢ² + xⱼ² - 8xᵢxⱼ*cosθ + 3xⱼ²*cos2θ)/d⁵2
+                    DF[i,j] += -m[j]*(-4(xᵢ² + xⱼ²)*cosθ + xᵢxⱼ*(7 + cos2θ))/d⁵2
+                    dᵣ = sqrt(xᵣᵢ² + xᵣⱼ² - 2xᵣᵢxᵣⱼ*cosθ)
+                    dᵣ⁷2 = 2pow(dᵣ, 7)
+                    Dⱼ²Fᵢ[i,i] += 3m[j]*(xᵣ[i] - xᵣ[j]*cosθ)*(4xᵣᵢ² - xᵣⱼ² - 8xᵣᵢxᵣⱼ*cosθ + 5xᵣⱼ²*cos2θ)/dᵣ⁷2
+                    Dⱼ²Fᵢ[i,j] += -3m[j]*(xᵣ[j]*(8xᵣⱼ² + 23xᵣᵢ²)*cosθ - xᵣ[i]*(20xᵣⱼ² + 2xᵣᵢ² + (4xᵣⱼ² + 6xᵣᵢ²)*cos2θ - xᵣᵢxᵣⱼ*cos(3θ)))/(2dᵣ⁷2)
+                elseif i == j &amp;&amp; k &gt; 0
+                    ζ = sqrt2*sqrt(1-cosθ)
+                    F[i] += m[i]/(2xᵢ²*ζ)
+                    DF[i,j] += -m[i]/(xᵢ³*ζ)
+                    Dⱼ²Fᵢ[i,j] += 3m[i]/(xᵣᵢ⁴*ζ)
+                end
+            end
+        end
+    end
+    @inbounds for k ∈ indices
+        s = (k-1)*n
+        view(D²F, n*s+1:n+1:n*s+n*n) .= view(Dⱼ²Fᵢ, k, :)
+        Dⱼ²Fᵢ_view = view(Dⱼ²Fᵢ, :, k)
+        view(D²F, k, 1+s:n+s) .= Dⱼ²Fᵢ_view
+        view(D²F, :, k+s) .= Dⱼ²Fᵢ_view
+    end
+    return F, DF, D²F
+end
 
-julia&gt; n = 18 # number of circles
-18
+n = 18 # number of circles
+l = 100 # number of masses per circle
 
-julia&gt; l = 100 # number of masses per circle
-100
+m₀ = 0.0 # central mass
+m = ones(n)/l # vector of masses
+λ = -1.0
 
-julia&gt; m₀ = 0.0 # central mass
-0.0
+# numerical solution
 
-julia&gt; m = ones(n)/l # vector of masses
-18-element Array{Float64,1}:
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
- 0.01
+x₀ = newton(float.(1:n), x -&gt; F_DF(x, m₀, m, λ, n, l), 1e-12, 50)
 
-julia&gt; λ = -1.0
--1.0
+# proof
 
-julia&gt; # numerical solution
-       
-       x₀ = newton(float.(1:n), x -&gt; F_DF(x, m₀, m, λ, n, l), 1e-12, 50)
-18-element Array{Float64,1}:
- 0.5648332456634676
- 0.8597443843002717
- 1.0875770734494414
- 1.2816519720827095
- 1.4548963766994638
- 1.6139569985868671
- 1.7628382490161647
- 1.90423579185838
- 2.0401279501569314
- 2.172079126980161
- 2.3014219271161136
- 2.429389651353418
- 2.5572391644302352
- 2.6864019597439417
- 2.8187284898420697
- 2.9569928107154304
- 3.106243788124799
- 3.279221987426044
+m₀_interval = @interval(0.0)
+m_interval = [@interval(1/l) for _ ∈ 1:n]
+λ_interval = @interval(-1.0)
 
-julia&gt; # proof
-       
-       m₀_interval = @interval(0.0)
-[0, 0]
+x₀_interval = [@interval(xᵢ) for xᵢ ∈ x₀]
 
-julia&gt; m_interval = [@interval(1/l) for _ ∈ 1:n]
-18-element Array{IntervalArithmetic.Interval{Float64},1}:
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
- [0.00999999, 0.0100001]
+r₀ = 1e-5
+xᵣ_interval = [xᵢ ± r₀ for xᵢ ∈ x₀]
 
-julia&gt; λ_interval = @interval(-1.0)
-[-1, -1]
+F, DF, D²F = F_DF_D²F(x₀_interval, xᵣ_interval, m₀_interval, m_interval, λ_interval, n, l)
+A = inv(mid.(DF))
 
-julia&gt; x₀_interval = [@interval(xᵢ) for xᵢ ∈ x₀]
-18-element Array{IntervalArithmetic.Interval{Float64},1}:
- [0.564833, 0.564834]
- [0.859744, 0.859745]
- [1.08757, 1.08758]
- [1.28165, 1.28166]
- [1.45489, 1.4549]
- [1.61395, 1.61396]
- [1.76283, 1.76284]
- [1.90423, 1.90424]
- [2.04012, 2.04013]
- [2.17207, 2.17208]
- [2.30142, 2.30143]
- [2.42938, 2.42939]
- [2.55723, 2.55724]
- [2.6864, 2.68641]
- [2.81872, 2.81873]
- [2.95699, 2.957]
- [3.10624, 3.10625]
- [3.27922, 3.27923]
+pb = ZeroFindingProblemFiniteDimension(x₀_interval, r₀, F, DF, A, D²F)
 
-julia&gt; r₀ = 1e-5
-1.0e-5
-
-julia&gt; xᵣ_interval = [xᵢ ± r₀ for xᵢ ∈ x₀]
-18-element Array{IntervalArithmetic.Interval{Float64},1}:
- [0.564823, 0.564844]
- [0.859734, 0.859755]
- [1.08756, 1.08759]
- [1.28164, 1.28167]
- [1.45488, 1.45491]
- [1.61394, 1.61397]
- [1.76282, 1.76285]
- [1.90422, 1.90425]
- [2.04011, 2.04014]
- [2.17206, 2.17209]
- [2.30141, 2.30144]
- [2.42937, 2.4294]
- [2.55722, 2.55725]
- [2.68639, 2.68642]
- [2.81871, 2.81874]
- [2.95698, 2.95701]
- [3.10623, 3.10626]
- [3.27921, 3.27924]
-
-julia&gt; F, DF, D²F = F_DF_D²F(x₀_interval, xᵣ_interval, m₀_interval, m_interval, λ_interval, n, l)
-(IntervalArithmetic.Interval{Float64}[[-8.76159e-14, 9.88225e-14], [-1.49414e-13, 1.45484e-13], [-2.31773e-13, 2.37459e-13], [-3.56245e-13, 2.8175e-13], [-4.34604e-13, 4.02825e-13], [-5.44671e-13, 5.48177e-13], [-6.03591e-13, 6.9721e-13], [-7.6937e-13, 8.15287e-13], [-9.32662e-13, 1.0812e-12], [-1.23982e-12, 1.06767e-12], [-1.18781e-12, 1.26842e-12], [-1.25608e-12, 1.42599e-12], [-1.58305e-12, 1.18348e-12], [-1.26182e-12, 1.33921e-12], [-1.32847e-12, 1.25585e-12], [-1.13841e-12, 1.22122e-12], [-9.78246e-13, 8.44977e-13], [-5.39808e-13, 6.30713e-13]], IntervalArithmetic.Interval{Float64}[[-15.822, -15.8219] [4.52486, 4.52487] … [0.00969323, 0.00969324] [0.00775297, 0.00775298]; [4.52486, 4.52487] [-19.5382, -19.5381] … [0.0160888, 0.0160889] [0.0127483, 0.0127484]; … ; [0.00969323, 0.00969324] [0.0160888, 0.0160889] … [-15.2522, -15.2521] [3.87343, 3.87344]; [0.00775297, 0.00775298] [0.0127483, 0.0127484] … [3.87343, 3.87344] [-8.73732, -8.73731]], IntervalArithmetic.Interval{Float64}[[11.4224, 11.6993] [30.9519, 31.6524] … [0, 0] [-0.00973198, -0.00972506]; [30.9519, 31.6524] [-36.7119, -35.9965] … [0, 0] [-0.0166356, -0.0166237]; … ; [0.0193608, 0.0193691] [0, 0] … [22.175, 95.67] [-96.1471, -22.6675]; [0.0152989, 0.0153049] [0, 0] … [-96.1471, -22.6675] [0.0390675, 0.0390686]])
-
-julia&gt; A = inv(mid.(DF))
-18×18 Array{Float64,2}:
- -0.0708673   -0.0216577   -0.0131085   …  -0.00185472  -0.00169679
- -0.0216577   -0.0661525   -0.0255065      -0.00294261  -0.00268738
- -0.0131085   -0.0255065   -0.0625853      -0.00389256  -0.00354795
- -0.00940599  -0.0167705   -0.0269684      -0.00481344  -0.00437751
- -0.00732947  -0.0125712   -0.0186042      -0.005756    -0.00522132
- -0.00599748  -0.0100634   -0.014348    …  -0.00675679  -0.00611098
- -0.00506922  -0.00838675  -0.0117059      -0.00785067  -0.00707564
- -0.00438479  -0.00718353  -0.00988954     -0.00907739  -0.00814745
- -0.00385882  -0.00627633  -0.00855787     -0.010488    -0.00936647
- -0.0034413   -0.00556634  -0.007536       -0.0121539   -0.010787
- -0.00310093  -0.00499385  -0.00672401  …  -0.0141822   -0.012488
- -0.00281704  -0.00452053  -0.00606025     -0.0167454   -0.0145912
- -0.00257539  -0.00412051  -0.00550436     -0.0201463   -0.017299
- -0.00236569  -0.00377549  -0.00502847     -0.0249803   -0.0209789
- -0.00218011  -0.00347173  -0.00461212     -0.0326447   -0.0263864
- -0.00201205  -0.00319789  -0.00423884  …  -0.0476607   -0.0354053
- -0.00185472  -0.00294261  -0.00389256     -0.10266     -0.0547239
- -0.00169679  -0.00268738  -0.00354795     -0.0547239   -0.145922
-
-julia&gt; pb = ZeroFindingProblemFiniteDimension(x₀_interval, r₀, F, DF, A, D²F)
-ZeroFindingProblemFiniteDimension{Array{IntervalArithmetic.Interval{Float64},1},Float64,Array{IntervalArithmetic.Interval{Float64},1},Array{IntervalArithmetic.Interval{Float64},2},Array{Float64,2},Array{IntervalArithmetic.Interval{Float64},2}}(IntervalArithmetic.Interval{Float64}[[0.564833, 0.564834], [0.859744, 0.859745], [1.08757, 1.08758], [1.28165, 1.28166], [1.45489, 1.4549], [1.61395, 1.61396], [1.76283, 1.76284], [1.90423, 1.90424], [2.04012, 2.04013], [2.17207, 2.17208], [2.30142, 2.30143], [2.42938, 2.42939], [2.55723, 2.55724], [2.6864, 2.68641], [2.81872, 2.81873], [2.95699, 2.957], [3.10624, 3.10625], [3.27922, 3.27923]], 1.0e-5, IntervalArithmetic.Interval{Float64}[[-8.76159e-14, 9.88225e-14], [-1.49414e-13, 1.45484e-13], [-2.31773e-13, 2.37459e-13], [-3.56245e-13, 2.8175e-13], [-4.34604e-13, 4.02825e-13], [-5.44671e-13, 5.48177e-13], [-6.03591e-13, 6.9721e-13], [-7.6937e-13, 8.15287e-13], [-9.32662e-13, 1.0812e-12], [-1.23982e-12, 1.06767e-12], [-1.18781e-12, 1.26842e-12], [-1.25608e-12, 1.42599e-12], [-1.58305e-12, 1.18348e-12], [-1.26182e-12, 1.33921e-12], [-1.32847e-12, 1.25585e-12], [-1.13841e-12, 1.22122e-12], [-9.78246e-13, 8.44977e-13], [-5.39808e-13, 6.30713e-13]], IntervalArithmetic.Interval{Float64}[[-15.822, -15.8219] [4.52486, 4.52487] … [0.00969323, 0.00969324] [0.00775297, 0.00775298]; [4.52486, 4.52487] [-19.5382, -19.5381] … [0.0160888, 0.0160889] [0.0127483, 0.0127484]; … ; [0.00969323, 0.00969324] [0.0160888, 0.0160889] … [-15.2522, -15.2521] [3.87343, 3.87344]; [0.00775297, 0.00775298] [0.0127483, 0.0127484] … [3.87343, 3.87344] [-8.73732, -8.73731]], [-0.07086725163300348 -0.021657650645747616 … -0.0018547164110668658 -0.0016967909489712229; -0.02165765064574762 -0.06615246115466278 … -0.00294260985597611 -0.0026873832512270095; … ; -0.001854716411066866 -0.0029426098559761104 … -0.10265992375922414 -0.054723899769196074; -0.0016967909489712233 -0.00268738325122701 … -0.054723899769196074 -0.1459221245173584], IntervalArithmetic.Interval{Float64}[[11.4224, 11.6993] [30.9519, 31.6524] … [0, 0] [-0.00973198, -0.00972506]; [30.9519, 31.6524] [-36.7119, -35.9965] … [0, 0] [-0.0166356, -0.0166237]; … ; [0.0193608, 0.0193691] [0, 0] … [22.175, 95.67] [-96.1471, -22.6675]; [0.0152989, 0.0153049] [0, 0] … [-96.1471, -22.6675] [0.0390675, 0.0390686]])
-
-julia&gt; error = roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), r₀)
-┌ Info: Applying the Radii Polynomial Theoreom of order 2: Y + (Z₁-1)r + Z₂r²/2
-│   r₀ = 1.0e-5
-│   Y = [0, 3.41173e-13]
-│   Z₁ = [0, 1.78965e-11]
-└   Z₂ = [32.0527, 372.127]
-┌ Info: VALID ROOTS FOUND:
-│ → Y ≥ 0, 0 ≤ Z₁ &lt; 1 and Z₂ ≥ 0
-│ ✔ the radii polynomial is negative in [r₁,r₂]
-│ ✗ r₂ &gt; r₀ or r₂ × Z₂ ≥ 1
-│ ✔ r₀ × Z₂ &lt; 1
-│ ✔ r₁ ≤ r₀
-│ ⇒ the interval of existence is [r₁,r₀]
-│   r₁ = [-5.58344e-13, 4.51929e-12]
-└   r₂ = [-∞, ∞]
-2-element Array{Float64,1}:
- 4.519283972123128e-12
- 1.0e-5</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../operators/operators/">« Operators</a><a class="docs-footer-nextpage" href="../ivp/">Initial value problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 04:36">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+error = roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), r₀)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
+ 4.572642768609189e-12
+ 1.0e-5</pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../operators/operators/">« Operators</a><a class="docs-footer-nextpage" href="../ivp/">Initial value problems »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 04:41">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

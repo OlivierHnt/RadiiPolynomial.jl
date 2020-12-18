@@ -13,7 +13,7 @@ Df(u)
 |D^2 f|(u)
 &amp;=
 2.
-\end{aligned}\]</p><p>A typical code to compute the truncation error looks like this:</p><pre><code class="language-julia">using IntervalArithmetic, RadiiPolynomial
+\end{aligned}\]</p><p>A typical code to compute the truncation error looks like this:</p><pre><code class="language-julia">using RadiiPolynomial, IntervalArithmetic
 
 f(u) = u^2
 
@@ -25,8 +25,7 @@ abs_D²f(u) = 2
 
 N = 200
 
-solution_interval = ivp_ODE(@interval(1.0);
-    f = f, order = N)
+solution_interval = ivp_ODE(@interval(1.0); f = f, order = N)
 
 ν = @interval(0.8)
 r₀ = 1e-3
@@ -38,9 +37,9 @@ abs_D²f_interval = abs_D²f(norm(solution_interval, ν) + r₀)
 
 ∞C∞ = @interval(1/(N+1))
 
-pb = TailProblem(solution_interval, r₀, ν, ∞f_interval, Df_interval, abs_D²f_interval, ∞C∞)
+pb = TailProblem(∞f_interval, Df_interval, abs_D²f_interval, ∞C∞, ν, r₀)
 
-roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), pb.r₀)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
+prove(pb)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
  8.368306048112118e-13
  0.001</pre><p>Observe that the solution is given by the Taylor series <span>$u(t) = \sum_{i=0}^{+\infty} t^i$</span> which imposes <span>$\nu &lt; 1$</span>. This leads to numerical instability for large values of <span>$N$</span> (e.g. <span>$N = 300$</span>).</p><p>Another strategy is to rescale the ODE via <span>$t \mapsto s(t) \doteqdot Lt$</span> for some <span>$L&gt;0$</span> such that the sequence is in <span>$\ell^1$</span>; that is, we consider <span>$w(s) \doteqdot u(s/L)$</span> which solves</p><p class="math-container">\[\begin{cases}
 \frac{d}{ds}
@@ -72,7 +71,7 @@ Df(u)
 0 &amp; 0 &amp; 0 &amp; 0\\
 0 &amp; 0 &amp; 0 &amp; 0
 \end{pmatrix}
-\end{aligned}\]</p><p>This leads to:</p><pre><code class="language-julia">using IntervalArithmetic, RadiiPolynomial
+\end{aligned}\]</p><p>This leads to:</p><pre><code class="language-julia">using RadiiPolynomial, IntervalArithmetic
 
 f(u) =
     [-u[2]
@@ -92,8 +91,7 @@ abs_D²f(u) =
 
 N = 10
 
-solution_interval = ivp_ODE([@interval(1.0), @interval(0.0)];
-    f = f, order = N)
+solution_interval = ivp_ODE([@interval(1.0), @interval(0.0)]; f = f, order = N)
 
 ν = @interval(1.0)
 r₀ = Inf
@@ -106,8 +104,8 @@ abs_D²f_interval = abs_D²f(norm(solution_interval, ν) + r₀)
 
 ∞C∞ = @interval(1/(N+1))
 
-pb = TailProblem(solution_interval, r₀, ν, ∞f_interval, Df_interval, abs_D²f_interval, ∞C∞)
+pb = TailProblem(∞f_interval, Df_interval, abs_D²f_interval, ∞C∞, ν, r₀)
 
-roots_radii_polynomial(Y(pb), Z₁(pb), Z₂(pb), pb.r₀)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
+prove(pb)</code></pre><pre class="documenter-example-output">2-element Array{Float64,1}:
   2.755731922398591e-8
- Inf</pre><p>Observe that the solution is given by <span>$u(t) = (\cos(t), \sin(t))$</span> such that the theoretical truncation error is <span>$1/(N+1)!$</span> which is slightly smaller than our truncation error.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../manifolds/">Manifolds »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 22:10">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ Inf</pre><p>Observe that the solution is given by <span>$u(t) = (\cos(t), \sin(t))$</span> such that the theoretical truncation error is <span>$1/(N+1)!$</span> which is slightly smaller than our truncation error.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../manifolds/">Manifolds »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 18 December 2020 20:29">Friday 18 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

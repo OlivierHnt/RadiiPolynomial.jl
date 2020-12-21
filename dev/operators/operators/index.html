@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Operators · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/operators/operators/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../rpa/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li class="is-active"><a class="tocitem" href>Operators</a><ul class="internal"><li><a class="tocitem" href="#Action"><span>Action</span></a></li><li><a class="tocitem" href="#Arithmetic"><span>Arithmetic</span></a></li></ul></li></ul></li><li><span class="tocitem">Example</span><ul><li><a class="tocitem" href="../../example/spiderweb/">Spiderweb central configurations</a></li><li><a class="tocitem" href="../../example/ivp/">Initial value problems</a></li><li><a class="tocitem" href="../../example/manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Sequence spaces</a></li><li class="is-active"><a href>Operators</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Operators</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/operators/operators.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Operators"><a class="docs-heading-anchor" href="#Operators">Operators</a><a id="Operators-1"></a><a class="docs-heading-anchor-permalink" href="#Operators" title="Permalink"></a></h1><p>Given a linear operator <code>A</code> defined from a sequence space to an other, an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> is a structure representing the restriction of <code>A</code> to an <em>effective domain</em> and <em>effective codomain</em> of <code>A</code>. The <em>effective domain</em> and <em>effective codomain</em> of an operator are defined as sequence spaces with the property that the operator and its restriction to the <em>effective domain</em> and <em>effective codomain</em> coincide.</p><p>Consequently, we can conveniently extend an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> when needed.</p><h2 id="Action"><a class="docs-heading-anchor" href="#Action">Action</a><a id="Action-1"></a><a class="docs-heading-anchor-permalink" href="#Action" title="Permalink"></a></h2><p>The action of an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> is performed by the left product of a <a href="../../api/#RadiiPolynomial.Sequence"><code>Sequence</code></a> with an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a>.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Operators · RadiiPolynomial.jl</title><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/operators/operators/"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">RadiiPolynomial.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../radii_polynomial/">Radii polynomial</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../spaces/spaces/">Spaces</a></li><li><a class="tocitem" href="../../sequences/sequences/">Sequences</a></li><li><a class="tocitem" href="../../functionals/functionals/">Functionals</a></li><li class="is-active"><a class="tocitem" href>Operators</a><ul class="internal"><li><a class="tocitem" href="#Action"><span>Action</span></a></li><li><a class="tocitem" href="#Arithmetic"><span>Arithmetic</span></a></li></ul></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../../examples/spiderweb/">Spiderweb central configurations</a></li><li><a class="tocitem" href="../../examples/ivp/">Initial value problems</a></li><li><a class="tocitem" href="../../examples/manifolds/">Manifolds</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Sequence spaces</a></li><li class="is-active"><a href>Operators</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Operators</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/operators/operators.md#L" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Operators"><a class="docs-heading-anchor" href="#Operators">Operators</a><a id="Operators-1"></a><a class="docs-heading-anchor-permalink" href="#Operators" title="Permalink"></a></h1><p>Given a linear operator <code>A</code> defined from a sequence space to an other, an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> is a structure representing the restriction of <code>A</code> to an <em>effective domain</em> and <em>effective codomain</em> of <code>A</code>. The <em>effective domain</em> and <em>effective codomain</em> of an operator are defined as sequence spaces with the property that the operator and its restriction to the <em>effective domain</em> and <em>effective codomain</em> coincide.</p><p>Consequently, we can conveniently extend an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> when needed.</p><h2 id="Action"><a class="docs-heading-anchor" href="#Action">Action</a><a id="Action-1"></a><a class="docs-heading-anchor-permalink" href="#Action" title="Permalink"></a></h2><p>The action of an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a> is performed by the left product of a <a href="../../api/#RadiiPolynomial.Sequence"><code>Sequence</code></a> with an <a href="../../api/#RadiiPolynomial.Operator"><code>Operator</code></a>.</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial
 
 julia&gt; A = Operator(Taylor(2), Taylor(3), [1.0 2.0 3.0 ; 4.0 5.0 6.0 ; 7.0 8.0 9.0 ; 10.0 11.0 12.0]);
 
@@ -31,23 +31,23 @@ julia&gt; A = Operator(Taylor(1) ⊗ Chebyshev(1), Taylor(2) ⊗ Chebyshev(1), r
 
 julia&gt; A.coefficients
 6×4 Array{Int64,2}:
- 2  3  1  3
- 2  3  1  1
- 2  3  2  3
- 2  2  3  1
- 3  1  2  2
- 2  3  2  1
+ 3  2  1  3
+ 2  1  2  2
+ 3  3  3  2
+ 2  2  1  3
+ 3  3  1  3
+ 2  2  2  2
 
 julia&gt; B = Operator(Taylor(2) ⊗ Chebyshev(0), Taylor(1) ⊗ Chebyshev(2), rand(1:3, length(Taylor(1) ⊗ Chebyshev(2)), length(Taylor(2) ⊗ Chebyshev(0))));
 
 julia&gt; B.coefficients
 6×3 Array{Int64,2}:
- 3  1  3
- 1  3  3
- 1  3  1
- 2  2  3
- 1  2  3
- 2  2  3
+ 2  3  3
+ 2  1  1
+ 3  3  2
+ 2  2  2
+ 2  3  3
+ 2  3  2
 
 julia&gt; C = A + B;
 
@@ -59,14 +59,14 @@ Taylor(2) ⨂ Chebyshev(2)
 
 julia&gt; C.coefficients
 9×6 Array{Int64,2}:
- 5  4  3  1  3  0
- 3  6  3  1  1  0
- 2  3  0  2  3  0
- 3  5  1  3  1  0
- 5  3  3  2  2  0
- 2  3  0  2  1  0
- 1  2  3  0  0  0
- 2  2  3  0  0  0
+ 5  5  3  1  3  0
+ 4  2  1  2  2  0
+ 3  3  0  3  2  0
+ 5  5  2  1  3  0
+ 5  5  2  1  3  0
+ 2  2  0  2  2  0
+ 2  3  3  0  0  0
+ 2  3  2  0  0  0
  0  0  0  0  0  0
 
 julia&gt; C̄ = A +̄ B;
@@ -79,7 +79,7 @@ Taylor(1) ⨂ Chebyshev(1)
 
 julia&gt; C̄.coefficients
 4×2 Array{Int64,2}:
- 5  4
- 3  6
- 3  5
- 5  3</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../functionals/functionals/">« Functionals</a><a class="docs-footer-nextpage" href="../../example/spiderweb/">Spiderweb central configurations »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 20 December 2020 00:11">Sunday 20 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 5  5
+ 4  2
+ 5  5
+ 5  5</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../functionals/functionals/">« Functionals</a><a class="docs-footer-nextpage" href="../../examples/spiderweb/">Spiderweb central configurations »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 21 December 2020 20:45">Monday 21 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

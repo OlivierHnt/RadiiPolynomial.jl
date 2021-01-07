@@ -48,36 +48,36 @@ Taylor(255)
 julia&gt; a = Sequence(space, [@interval(x) for x ∈ rand(length(space))])
 Taylor(255):
 
- ([0.675712, 0.675713]) 𝜙₀
- ([0.136579, 0.13658]) 𝜙₁
- ([0.842097, 0.842098]) 𝜙₂
- ([0.849879, 0.84988]) 𝜙₃
- ([0.947038, 0.947039]) 𝜙₄
- ([0.691503, 0.691504]) 𝜙₅
- ([0.692172, 0.692173]) 𝜙₆
- ([0.906426, 0.906427]) 𝜙₇
- ([0.580348, 0.580349]) 𝜙₈
- ([0.641336, 0.641337]) 𝜙₉
+ ([0.694269, 0.69427]) 𝜙₀
+ ([0.148034, 0.148035]) 𝜙₁
+ ([0.979418, 0.979419]) 𝜙₂
+ ([0.401173, 0.401174]) 𝜙₃
+ ([0.0352036, 0.0352037]) 𝜙₄
+ ([0.166627, 0.166628]) 𝜙₅
+ ([0.170506, 0.170507]) 𝜙₆
+ ([0.861287, 0.861288]) 𝜙₇
+ ([0.256228, 0.256229]) 𝜙₈
+ ([0.498741, 0.498742]) 𝜙₉
  ⋮
- ([0.548862, 0.548863]) 𝜙₂₄₆
- ([0.467804, 0.467805]) 𝜙₂₄₇
- ([0.95715, 0.957151]) 𝜙₂₄₈
- ([0.695675, 0.695676]) 𝜙₂₄₉
- ([0.231815, 0.231816]) 𝜙₂₅₀
- ([0.498928, 0.498929]) 𝜙₂₅₁
- ([0.703152, 0.703153]) 𝜙₂₅₂
- ([0.864263, 0.864264]) 𝜙₂₅₃
- ([0.676102, 0.676103]) 𝜙₂₅₄
- ([0.117358, 0.117359]) 𝜙₂₅₅
+ ([0.440334, 0.440335]) 𝜙₂₄₆
+ ([0.734992, 0.734993]) 𝜙₂₄₇
+ ([0.889784, 0.889785]) 𝜙₂₄₈
+ ([0.904101, 0.904102]) 𝜙₂₄₉
+ ([0.520708, 0.520709]) 𝜙₂₅₀
+ ([0.979308, 0.979309]) 𝜙₂₅₁
+ ([0.0114981, 0.0114982]) 𝜙₂₅₂
+ ([0.764415, 0.764416]) 𝜙₂₅₃
+ ([0.498447, 0.498448]) 𝜙₂₅₄
+ ([0.380901, 0.380902]) 𝜙₂₅₅
 
 julia&gt; maximum(radius.(a))
 1.1102230246251565e-16
 
 julia&gt; maximum(radius.(a^3))
-1.0277290130034089e-10
+9.458744898438454e-11
 
 julia&gt; maximum(radius.(a^5))
-2.1904706954956055e-6</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our sequence:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
+1.7583370208740234e-6</code></pre><p>The above shows a considerable loss of accuracy. Although, in practice series exhibit a decay which prevents such a large error to occur. Indeed, if we add a small decay to our sequence:</p><pre><code class="language-julia-repl">julia&gt; using RadiiPolynomial, IntervalArithmetic
 
 julia&gt; space = Taylor(2^8-1)
 Taylor(255)
@@ -85,27 +85,27 @@ Taylor(255)
 julia&gt; a = Sequence(space, [@interval(rand()/4.0^i) for i ∈ eachindex(space)])
 Taylor(255):
 
- ([0.442912, 0.442913]) 𝜙₀
- ([0.116117, 0.116118]) 𝜙₁
- ([0.0269768, 0.0269769]) 𝜙₂
- ([0.014383, 0.0143831]) 𝜙₃
- ([0.00374517, 0.00374518]) 𝜙₄
- ([0.000854357, 0.000854358]) 𝜙₅
- ([0.000184907, 0.000184908]) 𝜙₆
- ([4.04328e-05, 4.04329e-05]) 𝜙₇
- ([7.3038e-06, 7.30381e-06]) 𝜙₈
- ([1.3153e-06, 1.31531e-06]) 𝜙₉
+ ([0.321441, 0.321442]) 𝜙₀
+ ([0.0905678, 0.0905679]) 𝜙₁
+ ([0.0463177, 0.0463178]) 𝜙₂
+ ([0.00869946, 0.00869947]) 𝜙₃
+ ([0.00177149, 0.0017715]) 𝜙₄
+ ([3.64643e-05, 3.64644e-05]) 𝜙₅
+ ([6.48656e-05, 6.48657e-05]) 𝜙₆
+ ([3.18506e-05, 3.18507e-05]) 𝜙₇
+ ([1.49935e-05, 1.49936e-05]) 𝜙₈
+ ([2.97844e-06, 2.97845e-06]) 𝜙₉
  ⋮
- ([7.48015e-150, 7.48016e-150]) 𝜙₂₄₆
- ([1.58068e-149, 1.58069e-149]) 𝜙₂₄₇
- ([6.87179e-151, 6.8718e-151]) 𝜙₂₄₈
- ([6.93901e-151, 6.93902e-151]) 𝜙₂₄₉
- ([2.85682e-151, 2.85683e-151]) 𝜙₂₅₀
- ([6.77288e-152, 6.77289e-152]) 𝜙₂₅₁
- ([3.57737e-154, 3.57738e-154]) 𝜙₂₅₂
- ([2.88377e-153, 2.88378e-153]) 𝜙₂₅₃
- ([4.99473e-154, 4.99474e-154]) 𝜙₂₅₄
- ([2.6764e-154, 2.67641e-154]) 𝜙₂₅₅
+ ([7.1496e-149, 7.14961e-149]) 𝜙₂₄₆
+ ([9.04971e-150, 9.04972e-150]) 𝜙₂₄₇
+ ([3.08826e-150, 3.08827e-150]) 𝜙₂₄₈
+ ([1.61644e-151, 1.61645e-151]) 𝜙₂₄₉
+ ([9.32335e-152, 9.32336e-152]) 𝜙₂₅₀
+ ([6.40644e-152, 6.40645e-152]) 𝜙₂₅₁
+ ([1.15009e-152, 1.1501e-152]) 𝜙₂₅₂
+ ([9.05814e-154, 9.05815e-154]) 𝜙₂₅₃
+ ([7.95507e-154, 7.95508e-154]) 𝜙₂₅₄
+ ([2.74256e-155, 2.74257e-155]) 𝜙₂₅₅
 
 julia&gt; maximum(radius.(a^5))
-1.8558176765119907e-16</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 6 January 2021 23:01">Wednesday 6 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+1.3072267461028742e-16</code></pre><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>The intervals precision can be adjusted via <code>setprecision</code> (cf. <a href="https://github.com/JuliaIntervals/IntervalArithmetic.jl">IntervalArithmetic.jl</a>).</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../spaces/spaces/">« Spaces</a><a class="docs-footer-nextpage" href="../../functionals/functionals/">Functionals »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 7 January 2021 00:07">Thursday 7 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -36,7 +36,7 @@ D^2 |f|(u)
 0\\
 -u_1 u_3\\
 u_1 u_2
-\end{pmatrix}.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-julia">using RadiiPolynomial, LinearAlgebra
+\end{pmatrix}.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-Julia">using RadiiPolynomial, LinearAlgebra
 
 function f(u, p)
     σ, ρ, β = p
@@ -116,76 +116,7 @@ P₋_unstable = manifold_ODE_equilibrium(c₋, real(ξ₋_unstable), real(λ₋_
 λ₋_stable = Λ₋[1:2]
 ξ₋_stable = Ξ₋[:,1:2]
 P₋_stable = manifold_ODE_equilibrium(complex(c₋), ξ₋_stable, λ₋_stable;
-    Df = Df₋, f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), order = (20, 20))</code></pre><pre class="documenter-example-output">3-element Array{Sequence{TensorSpace{Tuple{Taylor,Taylor}},Array{Complex{Float64},1}},1}:
- Taylor(20) ⨂ Taylor(20):
-
- (-0.938083151964686 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
- (-0.32156055217878243 + 0.13328745391937122im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
- (-0.03772107394362133 - 0.018244485508536343im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
- (-0.004934288255969215 - 0.008593613243965816im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
- (0.0005510229770117388 - 0.001231290918019743im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
- (0.00020249701234526668 - 8.549402584176469e-5im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
- (2.870618310187644e-5 + 1.5594236232053677e-5im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
- (1.2474428835665587e-6 + 4.674019079335825e-6im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
- (-3.97353797531496e-7 + 6.000925460753574e-7im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
- (-1.0442438776534048e-7 + 1.688871422778322e-8im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
- ⋮
- (-2.6026631981277713e-20 - 2.295984906630725e-21im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
- (4.802751657367675e-21 + 3.6103704998762856e-21im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
- (-4.593898621961497e-22 - 1.1939708159763688e-21im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
- (-5.42622992027853e-23 + 2.628321986104705e-22im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
- (3.376460225577767e-23 - 3.744523179289637e-23im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
- (-9.807394190580203e-24 + 1.9027674588291515e-24im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
- (1.6825535445405996e-24 + 3.1293269322844663e-25im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀
- Taylor(20) ⨂ Taylor(20):
-
- (-0.938083151964686 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
- (-0.5672943127512345 + 0.168462344483956im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
- (-0.08338212021717475 - 0.05680315599420099im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
- (-0.010598351074035903 - 0.029023613183723068im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
- (0.0029452803275560567 - 0.0042437351043149146im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
- (0.00097760836206193 - 0.00020163163994460346im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
- (0.00013113633639392388 + 0.00011071291577828161im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
- (1.489923409247767e-6 + 2.8822251467737444e-5im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
- (-3.4429794251811754e-6 + 3.3540849234243074e-6im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
- (-7.805864819500783e-7 - 4.4420830130122065e-8im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
- ⋮
- (-5.870696809363775e-19 - 1.0014371257698665e-20im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
- (1.160876863352425e-19 + 7.662485166884644e-20im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
- (-1.2411454031240397e-20 - 2.7844653369560344e-20im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
- (-1.04972907439369e-21 + 6.4939848692616606e-21im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
- (8.170381258257418e-22 - 9.727225193394117e-22im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
- (-2.5237224333681965e-22 + 5.616724811017616e-23im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
- (4.4856486490712917e-23 + 7.418550550035013e-24im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀
- Taylor(20) ⨂ Taylor(20):
-
- (0.33000000000000007 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
- (0.7270700565428628 - 0.0im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
- (-0.07486763885792111 + 0.31547317784982315im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
- (-0.03905767967974159 - 0.00043161633009249973im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
- (-0.0048086211681579475 - 0.003890041783983879im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
- (-3.749141264506055e-5 - 0.0010197313685057295im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
- (0.00011408786021084397 - 0.00012983842824110513im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
- (2.9097359859517418e-5 - 4.798499363364838e-7im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
- (3.382505841012388e-6 + 3.4267456941296156e-6im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
- (-4.029789479476572e-8 + 7.930296344195119e-7im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
- ⋮
- (9.54233467612476e-21 - 5.96162129057873e-19im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
- (-7.699497216567322e-20 + 1.1618847644086073e-19im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
- (2.8679612376953554e-20 - 1.2655969557683824e-20im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
- (-6.378551395302985e-21 - 9.29442011000999e-22im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
- (9.880095261863751e-22 + 9.149067998738378e-22im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
- (-8.103073415232211e-23 - 2.314278057227001e-22im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
- (-1.971986558427294e-23 + 4.4022112732136396e-23im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
- (-0.0 - 0.0im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀</pre><h2 id="Unstable-manifolds-of-equilibria-in-DDEs"><a class="docs-heading-anchor" href="#Unstable-manifolds-of-equilibria-in-DDEs">Unstable manifolds of equilibria in DDEs</a><a id="Unstable-manifolds-of-equilibria-in-DDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Unstable-manifolds-of-equilibria-in-DDEs" title="Permalink"></a></h2><p>In this example, we will rigorously compute the unstable manifolds for the equilibria of the Ikeda equation:</p><p class="math-container">\[\frac{d}{dt}
+    Df = Df₋, f̂ = (u, α) -&gt; f̂(u, [σ, ρ, β], α), order = (20, 20))</code></pre><h2 id="Unstable-manifolds-of-equilibria-in-DDEs"><a class="docs-heading-anchor" href="#Unstable-manifolds-of-equilibria-in-DDEs">Unstable manifolds of equilibria in DDEs</a><a id="Unstable-manifolds-of-equilibria-in-DDEs-1"></a><a class="docs-heading-anchor-permalink" href="#Unstable-manifolds-of-equilibria-in-DDEs" title="Permalink"></a></h2><p>In this example, we will rigorously compute the unstable manifolds for the equilibria of the Ikeda equation:</p><p class="math-container">\[\frac{d}{dt}
 u(t) = f(u(t), u(t-\tau)) = u(t-\tau) - u(t-\tau)^3.\]</p><p>The equilibria are</p><p class="math-container">\[\begin{aligned}
 c_0 &amp;= 0,\\
 c_1 &amp;= 1,\\
@@ -193,7 +124,7 @@ c_{-1} &amp;= -1.
 \end{aligned}\]</p><p>The first and second derivative of <span>$f$</span> are given by</p><p class="math-container">\[\begin{aligned}
 Df(u, v) &amp;= (0, 1-3v^2),\\
 D^2 |f|(u, v) &amp;= \begin{pmatrix} 0 &amp; 0\\ 0 &amp; 6v \end{pmatrix}.
-\end{aligned}\]</p><p>It follows that the characteristic equation reads</p><p class="math-container">\[\Psi(\lambda) = (1-3v^2)e^{-\lambda \tau} - \lambda.\]</p><p>Lastly,</p><p class="math-container">\[\hat{f}(u, v) = -v^3.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-julia">using RadiiPolynomial, LinearAlgebra
+\end{aligned}\]</p><p>It follows that the characteristic equation reads</p><p class="math-container">\[\Psi(\lambda) = (1-3v^2)e^{-\lambda \tau} - \lambda.\]</p><p>Lastly,</p><p class="math-container">\[\hat{f}(u, v) = -v^3.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-Julia">using RadiiPolynomial, LinearAlgebra
 
 f(u, v) = v - v^3
 
@@ -226,26 +157,4 @@ c₁ = complex(1.0)
 λ₁ = [λ₁₊, conj(λ₁₊)]
 ξ₁ = complex([0.9, 0.9])
 P₁ = manifold_DDE_equilibrium(c₁, ξ₁, λ₁;
-    Ψ = λ -&gt; Ψ(c₁, τ, λ), f̂ = (u, αλ, α) -&gt; exp(-αλ*τ)*f̂(u, u, α), order = (20, 20))</code></pre><pre class="documenter-example-output">Taylor(20) ⨂ Taylor(20):
-
- (1.0 + 0.0im) 𝜙⁽¹⁾₀ ⊗ 𝜙⁽²⁾₀
- (0.9 + 0.0im) 𝜙⁽¹⁾₁ ⊗ 𝜙⁽²⁾₀
- (-0.16551059955776692 - 0.2812362818838867im) 𝜙⁽¹⁾₂ ⊗ 𝜙⁽²⁾₀
- (0.04641357675509692 + 0.06898207915186254im) 𝜙⁽¹⁾₃ ⊗ 𝜙⁽²⁾₀
- (-0.0053856326505584955 - 0.0068156211662983085im) 𝜙⁽¹⁾₄ ⊗ 𝜙⁽²⁾₀
- (0.002854586492753303 + 0.0012268725505505168im) 𝜙⁽¹⁾₅ ⊗ 𝜙⁽²⁾₀
- (-0.000692522327236305 + 0.0005579208088165307im) 𝜙⁽¹⁾₆ ⊗ 𝜙⁽²⁾₀
- (-0.00010454479196726399 - 0.00011400779449904246im) 𝜙⁽¹⁾₇ ⊗ 𝜙⁽²⁾₀
- (1.186294260666458e-5 - 1.7888266891736405e-5im) 𝜙⁽¹⁾₈ ⊗ 𝜙⁽²⁾₀
- (3.1167526663404018e-6 - 6.097337382457427e-8im) 𝜙⁽¹⁾₉ ⊗ 𝜙⁽²⁾₀
- ⋮
- (-3.1638424472069623e-13 - 2.0833725291568125e-13im) 𝜙⁽¹⁾₁₁ ⊗ 𝜙⁽²⁾₂₀
- (1.1316750844964055e-13 - 2.4176762754964286e-13im) 𝜙⁽¹⁾₁₂ ⊗ 𝜙⁽²⁾₂₀
- (3.6973288613250503e-14 + 1.7185227924923377e-13im) 𝜙⁽¹⁾₁₃ ⊗ 𝜙⁽²⁾₂₀
- (-4.008064688398182e-14 + 9.505964877360089e-14im) 𝜙⁽¹⁾₁₄ ⊗ 𝜙⁽²⁾₂₀
- (1.3083971795368128e-14 - 5.5557187257507386e-14im) 𝜙⁽¹⁾₁₅ ⊗ 𝜙⁽²⁾₂₀
- (1.2260253371078612e-14 - 1.6484969574716668e-14im) 𝜙⁽¹⁾₁₆ ⊗ 𝜙⁽²⁾₂₀
- (-6.370904535208439e-15 + 8.50037391166481e-15im) 𝜙⁽¹⁾₁₇ ⊗ 𝜙⁽²⁾₂₀
- (-2.12566549861467e-15 + 1.264276328188422e-15im) 𝜙⁽¹⁾₁₈ ⊗ 𝜙⁽²⁾₂₀
- (1.1095618323512253e-15 - 4.2096143537254723e-16im) 𝜙⁽¹⁾₁₉ ⊗ 𝜙⁽²⁾₂₀
- (1.9365777871884165e-16 + 2.2542015007419538e-32im) 𝜙⁽¹⁾₂₀ ⊗ 𝜙⁽²⁾₂₀</pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ivp/">« Initial value problems</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 7 January 2021 00:07">Thursday 7 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    Ψ = λ -&gt; Ψ(c₁, τ, λ), f̂ = (u, αλ, α) -&gt; exp(-αλ*τ)*f̂(u, u, α), order = (20, 20))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ivp/">« Initial value problems</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 8 January 2021 02:29">Friday 8 January 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

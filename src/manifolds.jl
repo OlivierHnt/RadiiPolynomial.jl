@@ -10,7 +10,7 @@ function manifold_ODE_equilibrium(c::AbstractVector{T}, ξ::AbstractVector{T}, �
 
     @inbounds for α ∈ 2:order
         space_ = Taylor(α)
-        a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
+        a_ = [Sequence(space_, view(aⱼ, allindices(space_))) for aⱼ ∈ a]
         αλ = α*λ
         v = f̂(a_, α)
         ldiv!(Df_hessenberg - αλ*I, v)
@@ -29,7 +29,7 @@ function manifold_ODE_equilibrium(c::AbstractVector{T}, ξ::AbstractMatrix{T}, �
     n = length(c)
 
     space = TensorSpace(map(Taylor, order))
-    a = [Sequence(space, [cⱼ ; zeros(T, length(space)-1)]) for cⱼ ∈ c]
+    a = [Sequence(space, [cⱼ ; zeros(T, dimension(space)-1)]) for cⱼ ∈ c]
     for i ∈ 1:N
         idx = ntuple(l -> l == i ? 1 : 0, N)
         @inbounds for j ∈ 1:n
@@ -39,10 +39,10 @@ function manifold_ODE_equilibrium(c::AbstractVector{T}, ξ::AbstractMatrix{T}, �
 
     Df_hessenberg = hessenberg(Df)
 
-    @inbounds for α ∈ eachindex(space)
+    @inbounds for α ∈ allindices(space)
         if sum(α) ≥ 2
             space_ = TensorSpace(map(Taylor, α))
-            a_ = [Sequence(space_, view(aⱼ, eachindex(space_))) for aⱼ ∈ a]
+            a_ = [Sequence(space_, view(aⱼ, allindices(space_))) for aⱼ ∈ a]
             αλ = mapreduce(*, +, α, λ)
             v = f̂(a_, α)
             ldiv!(Df_hessenberg - αλ*I, v)
@@ -64,7 +64,7 @@ function manifold_DDE_equilibrium(c::T, ξ::T, λ::T;
 
     @inbounds for α ∈ 2:order
         space_ = Taylor(α)
-        a_ = Sequence(space_, view(a, eachindex(space_)))
+        a_ = Sequence(space_, view(a, allindices(space_)))
         αλ = α*λ
         a[α] = -Ψ(αλ)\f̂(a_, αλ, α)
     end
@@ -78,15 +78,15 @@ function manifold_DDE_equilibrium(c::T, ξ::AbstractVector{T}, λ::AbstractVecto
     @assert length(ξ) == length(λ) == N
 
     space = TensorSpace(map(Taylor, order))
-    a = Sequence(space, [c ; zeros(T, length(space)-1)])
+    a = Sequence(space, [c ; zeros(T, dimension(space)-1)])
     @inbounds for i ∈ 1:N
         a[ntuple(l -> l == i ? 1 : 0, N)] = ξ[i]
     end
 
-    @inbounds for α ∈ eachindex(space)
+    @inbounds for α ∈ allindices(space)
         if sum(α) ≥ 2
             space_ = TensorSpace(map(Taylor, α))
-            a_ = Sequence(space_, view(a, eachindex(space_)))
+            a_ = Sequence(space_, view(a, allindices(space_)))
             αλ = mapreduce(*, +, α, λ)
             a[α] = -Ψ(αλ)\f̂(a_, αλ, α)
         end
@@ -105,7 +105,7 @@ function manifold_DDE_equilibrium(c::AbstractVector{T}, ξ::AbstractVector{T}, �
 
     @inbounds for α ∈ 2:order
         space_ = Taylor(α)
-        a_ = [Sequence(space_, view(a[j], eachindex(space_))) for j ∈ indices]
+        a_ = [Sequence(space_, view(a[j], allindices(space_))) for j ∈ indices]
         αλ = α*λ
         v = f̂(a_, αλ, α)
         ldiv!(lu!(Ψ(αλ)), v)
@@ -124,7 +124,7 @@ function manifold_DDE_equilibrium(c::AbstractVector{T}, ξ::AbstractMatrix{T}, �
     indices = eachindex(c)
 
     space = TensorSpace(map(Taylor, order))
-    a = [Sequence(space, [c[j] ; zeros(T, length(space)-1)]) for j ∈ indices]
+    a = [Sequence(space, [c[j] ; zeros(T, dimension(space)-1)]) for j ∈ indices]
     for i ∈ 1:N
         idx = ntuple(l -> l == i ? 1 : 0, N)
         @inbounds for j ∈ indices
@@ -132,10 +132,10 @@ function manifold_DDE_equilibrium(c::AbstractVector{T}, ξ::AbstractMatrix{T}, �
         end
     end
 
-    @inbounds for α ∈ eachindex(space)
+    @inbounds for α ∈ allindices(space)
         if sum(α) ≥ 2
             space_ = TensorSpace(map(Taylor, α))
-            a_ = [Sequence(space_, view(a[j], eachindex(space_))) for j ∈ indices]
+            a_ = [Sequence(space_, view(a[j], allindices(space_))) for j ∈ indices]
             αλ = mapreduce(*, +, α, λ)
             v = f̂(a_, αλ, α)
             ldiv!(lu!(Ψ(αλ)), v)

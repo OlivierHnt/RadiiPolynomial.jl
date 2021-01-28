@@ -1,49 +1,30 @@
 # API
 
-## Radii polynomial
-
 ```@docs
-Y
-Z₁
-Z₂
 roots_radii_polynomial
 FixedPointProblemFiniteDimension
 ZeroFindingProblemFiniteDimension
-TailProblem
 ZeroFindingProblemCategory1
+TailProblem
+Y
+Z₁
+Z₂
 ```
 
-## Spaces
-
 ```@docs
+VectorSpace
+SingleSpace
+ParameterSpace
 SequenceSpace
 UnivariateSpace
 Taylor
 Fourier
 Chebyshev
 TensorSpace
+CartesianSpace
 ```
-
-## Sequences
 
 ```@docs
 Sequence
-project(::Sequence, ::SequenceSpace)
-selectdim(::Sequence{TensorSpace{T}}, ::Int, ::Int) where {N,T<:NTuple{N,UnivariateSpace}}
-shift
-```
-
-## Functionals
-
-```@docs
-Functional
-project(::Functional, ::SequenceSpace)
-selectdim(::Functional{TensorSpace{T}}, ::Int, ::Int) where {N,T<:NTuple{N,UnivariateSpace}}
-```
-
-## Operators
-
-```@docs
 Operator
-project(::Operator, ::SequenceSpace, ::SequenceSpace)
 ```

@@ -5,15 +5,11 @@
 [![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions)
 [![Coverage](https://codecov.io/gh/OlivierHnt/RadiiPolynomial.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/OlivierHnt/RadiiPolynomial.jl)
 
-The solution of many problems in dynamical systems can be seen as the fixed point of some operator. The *radii polynomial approach* is a strategy in computer-assisted proofs to obtain a rigorous a posteriori error bound on a numerical approximation of the fixed point. More precisely, the Radii Polynomial Theorem gives us sufficient conditions for the operator to be a contraction in a closed ball centred at the numerical approximation; this implies the existence and uniqueness of the desired fixed point within this ball.
+The solution of many problems in dynamical systems can be seen as the fixed point of an operator. The *radii polynomial approach* is a strategy in computer-assisted proofs to obtain a rigorous a posteriori error bound on a numerical approximation of the fixed point. More precisely, the Radii Polynomial Theorem gives us sufficient conditions for the operator to be a contraction in a closed ball centred at the numerical approximation; this implies the existence and uniqueness of the desired fixed point within this ball.
 
 For Newton-like operators, the Radii Polynomial Theorem is an instance of the [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).
 
 The *radii polynomial approach* is a *functional analytic approach* as opposed to a *topological approach* (e.g. [CAPD](http://capd.ii.uj.edu.pl/index.php) library).
-
-## Motivation
-
-The goal of this package is to improve the readability of computer-assisted proofs with the *radii polynomial approach*. The library develops a "standard" to apply the *Radii Polynomial Theorem*. Additionally, the package is intended to be as self-contained as possible (e.g. dependencies are kept to a bear minimum).
 
 ## Installation
 

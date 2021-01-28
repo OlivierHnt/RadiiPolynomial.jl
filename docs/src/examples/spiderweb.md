@@ -127,29 +127,36 @@ end
 n = 18 # number of circles
 l = 100 # number of masses per circle
 
-m₀ = 0.0 # central mass
-m = ones(n)/l # vector of masses
-λ = -1.0
-
 # numerical solution
+
+m₀ = 0.0 # central mass
+m = fill(1/l, n) # vector of masses
+λ = -1.0
 
 x₀ = newton_spiderweb(float.(1:n), x -> F_DF(x, x, m₀, m, λ, n, l); tol = 1e-12, maxiter = 50)
 
 # proof
 
 m₀_interval = @interval(0.0)
-m_interval = [@interval(1/l) for _ ∈ 1:n]
+m_interval = fill(@interval(1/l), n)
 λ_interval = @interval(-1.0)
 
 x₀_interval = [@interval(xᵢ) for xᵢ ∈ x₀]
 
-r₀ = 1e-5
+r₀ = 1e-12
 xᵣ_interval = [xᵢ ± r₀ for xᵢ ∈ x₀]
 
 F, DF = F_DF(x₀_interval, xᵣ_interval, m₀_interval, m_interval, λ_interval, n, l)
 A = inv(mid.(DF))
 
-pb = ZeroFindingProblemFiniteDimension(F, DF, A, nothing, r₀)
+pb = ZeroFindingProblemFiniteDimension(;
+    x₀ = x₀,
+    F = F,
+    DF = DF,
+    A = A,
+    D²F = nothing,
+    p = Inf,
+    r₀ = r₀)
 
-roots_radii_polynomial(Y(pb), Z₁(pb), r₀)
+prove(pb, 1)
 ```

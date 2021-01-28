@@ -14,16 +14,10 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "Radii polynomial" => "radii_polynomial.md",
-        "Sequence spaces" => [
-            "spaces/spaces.md",
-            "sequences/sequences.md",
-            "functionals/functionals.md",
-            "operators/operators.md"
-            ],
+        "Sequence spaces" => "sequence_spaces.md",
         "Examples" => [
             "examples/spiderweb.md",
-            "examples/ivp.md",
-            "examples/manifolds.md",
+            "examples/manifolds.md"
             ],
         "API" => "api.md"
     ],

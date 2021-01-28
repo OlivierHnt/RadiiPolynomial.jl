@@ -5,7 +5,7 @@ function ivp_ODE(u₀::T; f, order::Int) where {T}
 
     @inbounds for α ∈ 1:order
         space_ = Taylor(α-1)
-        u_ = Sequence(space_, view(u, eachindex(space_)))
+        u_ = Sequence(space_, view(u, allindices(space_)))
         v = f(u_, α-1)
         u[α] = f(u_, α-1) / α
     end
@@ -20,7 +20,7 @@ function ivp_ODE(u₀::AbstractVector{T}; f, order::Int) where {T}
 
     @inbounds for α ∈ 1:order
         space_ = Taylor(α-1)
-        u_ = [Sequence(space_, view(u⁽ʲ⁾, eachindex(space_))) for u⁽ʲ⁾ ∈ u]
+        u_ = [Sequence(space_, view(u⁽ʲ⁾, allindices(space_))) for u⁽ʲ⁾ ∈ u]
         v = f(u_, α-1)
         ldiv!(α, v)
         @inbounds for j ∈ 1:n

@@ -86,33 +86,27 @@ function Operator(domain::Chebyshev, codomain::Chebyshev, ℐ::Integral, ::Type{
     return A
 end
 
-# cartesian space
-
-# TODO: fix type instability due to cat
-Operator(domain::CartesianSpace, codomain::CartesianSpace, ℐ::Integral) =
-    Operator(domain, codomain, mapreduce((s₁, s₂) -> Operator(s₁, s₂, ℐ).coefficients, (x, y) -> cat(x, y; dims=(1,2)),  domain.spaces, codomain.spaces))
-
 ##
 
 # sequence space
 
-function integrate(s::Taylor, n::Int=1)
+function integral_range(s::Taylor, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
     return Taylor(s.order+n)
 end
 
-function integrate(s::Fourier, n::Int=1)
+function integral_range(s::Fourier, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
     return s
 end
 
-function integrate(s::Chebyshev, n::Int=1)
+function integral_range(s::Chebyshev, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
     return Chebyshev(s.order+n)
 end
 
-integrate(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
-    TensorSpace(tuple(s.spaces[1:dim-1]..., integrate(s.spaces[dim], n), s.spaces[dim+1:N]...))
+integral_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
+    TensorSpace((s.spaces[1:dim-1]..., integral_range(s[dim], n), s.spaces[dim+1:N]...))
 
 function integrate(a::Sequence{Taylor}, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
@@ -198,7 +192,7 @@ end
 function integrate(a::Sequence{<:TensorSpace}, dim::Int, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
     A = reshape(a.coefficients, dimensions(a.space))
-    return Sequence(integrate(a.space, dim, n), vec(_integrate(a.space[dim], Val(dim), A, n)))
+    return Sequence(integral_range(a.space, dim, n), vec(_integrate(a.space[dim], Val(dim), A, n)))
 end
 
 function _integrate(space::Taylor, ::Val{D}, A::AbstractArray{T,N}, n) where {D,T,N}
@@ -282,24 +276,4 @@ function _integrate(space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}, n) where 
         @inbounds selectdim(C, D, ord+2) .= selectdim(A, D, ord+1) ./ (2(ord+1))
         return C
     end
-end
-
-# cartesian space
-
-integrate(s::CartesianSpace{<:NTuple{N,UnivariateSpace}}, n::Int=1) where {N} =
-    CartesianSpace(map(sᵢ -> integrate(sᵢ, n), s.spaces))
-
-integrate(s::CartesianSpace{<:Tuple{N₁,TensorSpace{<:NTuple{N₂,UnivariateSpace}}}}, dim::Int, n::Int=1) where {N₁,N₂} =
-    CartesianSpace(map(sᵢ -> integrate(sᵢ, dim, n), s.spaces))
-
-# TODO: fix type instability
-
-function integrate(a::Sequence{CartesianSpace{T}}, n::Int=1) where {N,T<:NTuple{N,UnivariateSpace}}
-    space = integrate(a.space, n)
-    return Sequence(space, mapreduce(aᵢ -> integrate(aᵢ, n).coefficients, vcat, eachcomponent(a)))
-end
-
-function integrate(a::Sequence{CartesianSpace{T}}, dim::Int, n::Int=1) where {N₁,N₂,T<:Tuple{N₁,TensorSpace{<:NTuple{N₂,UnivariateSpace}}}}
-    space = integrate(a.space, dim, n)
-    return Sequence(space, mapreduce(aᵢ -> integrate(aᵢ, dim, n).coefficients, vcat, eachcomponent(a)))
 end

@@ -92,8 +92,8 @@ end
 function f̂(u, p, α)
     σ, ρ, β = p
     return [0
-            -(u[1]*u[3])[α]
-            (u[1]*u[2])[α]]
+            -(component(u, 1)*component(u, 3))[α]
+            (component(u, 1)*component(u, 2))[α]]
 end
 
 ## Parameters
@@ -198,17 +198,17 @@ We can now proceed to compute the manifolds and give a rigorous a posteriori err
 ```Julia
 using RadiiPolynomial, LinearAlgebra
 
-f(u, v) = v - v^3
+f(u, ϕ) = ϕ - ϕ^3
 
-Df(u, v) = [0, 1-3v^3]
+Df(u, ϕ) = [0, 1-3ϕ^2]
 
-D²_abs_f(u, v) =
+D²_abs_f(u, ϕ) =
     [0 0
-     0 6v]
+     0 6ϕ]
 
-Ψ(v, τ, λ) = (1-3v^3)*exp(-λ*τ) - λ
+Ψ(c, τ, λ) = (1-3c^2)*exp(-λ*τ) - λ
 
-f̂(u, v, α) = -(v^3)[α]
+f̂(u, ϕ, α) = -(ϕ^3)[α]
 
 ## Delay
 
@@ -225,7 +225,7 @@ P₀ = manifold_DDE_equilibrium(c₀, ξ₀, λ₀;
 ## Manifolds c₁
 
 c₁ = complex(1.0)
-λ₁₊ = newton(0.32056+1.15780im, λ -> (λ + 2exp(-λ*τ), 1 - 2*τ*exp(-λ*τ)))
+λ₁₊ = newton(0.32056+1.15780im, λ -> (λ + 2exp(-λ*τ), 1 - 2τ*exp(-λ*τ)))
 λ₁ = [λ₁₊, conj(λ₁₊)]
 ξ₁ = complex([0.9, 0.9])
 P₁ = manifold_DDE_equilibrium(c₁, ξ₁, λ₁;

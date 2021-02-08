@@ -2,7 +2,7 @@
 
 ## Parameter space
 
- Given a field ``\mathbb{K}``, a [`ParameterSpace`](@ref) corresponds to ``\mathbb{K}^d`` where the value of ``d`` is set by its field `dimension`. This is the main space for unfolding parameters.
+ Given a field ``\mathbb{K}``, a [`ParameterSpace`](@ref) corresponds to ``\mathbb{K}``. This is the main space for unfolding parameters.
 
 ## Sequence space
 
@@ -37,14 +37,7 @@ A [`Sequence`](@ref) is a structure representing an element of a [`SequenceSpace
 
 ## Arithmetic
 
-The arithmetic operations `+,-,*,^` are implemented along with the convenient *bar operations* `+̄,-̄,*̄,^̄` (`+\bar<TAB>, -\bar<TAB>, *\bar<TAB>, ^\bar<TAB>`) which are equivalent to
-
-```julia
-+̄(a::Sequence...) = project(+(a...), mapreduce(aᵢ -> aᵢ.space, ∪̄, a))
--̄(a::Sequence...) = project(-(a...), mapreduce(aᵢ -> aᵢ.space, ∪̄, a))
-*̄(a::Sequence...) = project(*(a...), mapreduce(aᵢ -> aᵢ.space, ∪̄, a))
-^̄(a::Sequence, n::Int) = project(^(a, n), a.space)
-```
+The arithmetic operations `+,-,*,^` are implemented along with the convenient *bar operations* `+̄,-̄,*̄,^̄` (`+\bar<TAB>, -\bar<TAB>, *\bar<TAB>, ^\bar<TAB>`).
 
 !!! note
     Divisions between sequences and other elementary functions (e.g. `exp`, `log`, `cos`, `sin`)
@@ -109,9 +102,9 @@ The arithmetic operations `+,-,*` are implemented along with the convenient *bar
 
 ```Julia
 using RadiiPolynomial
-A = Operator(Taylor(1) ⊗ Chebyshev(1), Taylor(2) ⊗ Chebyshev(1), rand(1:3, length(Taylor(2) ⊗ Chebyshev(1)), length(Taylor(1) ⊗ Chebyshev(1))));
+A = Operator(Taylor(1) ⊗ Chebyshev(1), Taylor(2) ⊗ Chebyshev(1), rand(1:3, dimension(Taylor(2) ⊗ Chebyshev(1)), dimension(Taylor(1) ⊗ Chebyshev(1))));
 A.coefficients
-B = Operator(Taylor(2) ⊗ Chebyshev(0), Taylor(1) ⊗ Chebyshev(2), rand(1:3, length(Taylor(1) ⊗ Chebyshev(2)), length(Taylor(2) ⊗ Chebyshev(0))));
+B = Operator(Taylor(2) ⊗ Chebyshev(0), Taylor(1) ⊗ Chebyshev(2), rand(1:3, dimension(Taylor(1) ⊗ Chebyshev(2)), dimension(Taylor(2) ⊗ Chebyshev(0))));
 B.coefficients
 C = A + B;
 C.domain

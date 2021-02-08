@@ -13,7 +13,6 @@ Z₂
 
 ```@docs
 VectorSpace
-SingleSpace
 ParameterSpace
 SequenceSpace
 UnivariateSpace

@@ -1,22 +1,26 @@
-## standard norm/opnorm
+## fallback methods for standard norm/opnorm
 
 LinearAlgebra.norm(a::Sequence, p::Real=1) = norm(a.coefficients, p)
 
 LinearAlgebra.opnorm(A::Operator, p::Real=1) = opnorm(A.coefficients, p)
 
-# cartesian space
+## CARTESIAN SPACE
 
-LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, p::Real=2) = norm(map(norm, eachcomponent(a)), p)
+# standard norm/opnorm
+
+LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, p::Real=2) =
+    norm(map(norm, eachcomponent(a)), p)
 
 LinearAlgebra.opnorm(A::Operator{<:CartesianSpace,<:CartesianSpace}, p::Real=2) =
     opnorm(map(opnorm, eachcomponent(A)), p)
-LinearAlgebra.opnorm(A::Operator{<:CartesianSpace,<:SingleSpace}, p::Real=2) =
+LinearAlgebra.opnorm(A::Operator{<:CartesianSpace,<:VectorSpace}, p::Real=2) =
     opnorm(map(opnorm, eachcomponent(A)), p)
-LinearAlgebra.opnorm(A::Operator{<:SingleSpace,<:CartesianSpace}, p::Real=2) =
+LinearAlgebra.opnorm(A::Operator{<:VectorSpace,<:CartesianSpace}, p::Real=2) =
     opnorm(map(opnorm, eachcomponent(A)), p)
 
+## SEQUENCE SPACE
 
-## weighted ℓ¹ norm/opnorm for sequence space
+# weighted ℓ¹
 
 checkweight(ν) = ν > 0
 checkweight(ν::Tuple) = all(checkweight, ν)

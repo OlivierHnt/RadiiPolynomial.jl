@@ -19,13 +19,11 @@ end
 Sequence(space::T, coefficients::S) where {T<:VectorSpace,S<:AbstractVector} =
     Sequence{T,S}(space, coefficients)
 
-## space, coefficients
+## space, coefficients, order, frequency
 
 space(a::Sequence) = a.space
-space(a::Sequence, i::Int) = a.space[i]
-coefficients(a::Sequence) = a.coefficients
 
-## order, frequency
+coefficients(a::Sequence) = a.coefficients
 
 order(a::Sequence) = order(a.space)
 order(a::Sequence, i::Int) = order(a.space, i)
@@ -55,23 +53,25 @@ Base.eltype(::Type{Sequence{T,S}}) where {T,S} = eltype(S)
 
 for f ∈ (:getindex, :view)
     @eval Base.@propagate_inbounds function Base.$f(a::Sequence, α)
-        @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+        @boundscheck(isindexof(α, a.space) || throw(BoundsError(a.space, α)))
         return $f(a.coefficients, _findindex(α, a.space))
     end
 end
 
 Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
+    @boundscheck(isindexof(α, a.space) || throw(BoundsError(a.space, α)))
     return setindex!(a.coefficients, x, _findindex(α, a.space))
 end
 
 ## ==, iszero, isapprox
 
-Base.:(==)(a::Sequence, b::Sequence) = a.space == b.space && a.coefficients == b.coefficients
+Base.:(==)(a::Sequence, b::Sequence) =
+    a.space == b.space && a.coefficients == b.coefficients
 
 Base.iszero(a::Sequence) = iszero(a.coefficients)
 
-Base.isapprox(a::Sequence, b::Sequence; kwargs...) = a.space == b.space && isapprox(a.coefficients, b.coefficients; kwargs...)
+Base.isapprox(a::Sequence, b::Sequence; kwargs...) =
+    a.space == b.space && isapprox(a.coefficients, b.coefficients; kwargs...)
 
 ## copy, similiar
 
@@ -150,55 +150,27 @@ Base.@propagate_inbounds Base.Broadcast.dotview(a::Sequence, α) = view(a, α)
 
 ## SEQUENCE SPACE
 
-# getindex, view, setindex!
-
-for f ∈ (:getindex, :view)
-    @eval begin
-        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-            return $f(a.coefficients, _findindex(α, a.space))
-        end
-
-        Base.@propagate_inbounds function Base.$f(a::Sequence{TensorSpace{T}}, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-            @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-            A = reshape(a.coefficients, dimensions(a.space))
-            return $f(A, _findindex(α, a.space)...)
-        end
-    end
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-    return setindex!(a.coefficients, x, _findindex(α, a.space))
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::Tuple) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(α, a.space) && throw(BoundsError(a.space, α)))
-    A = reshape(a.coefficients, dimensions(a.space))
-    return setindex!(A, x, _findindex(α, a.space)...)
-end
-
 # selectdim
 
 Base.@propagate_inbounds function Base.selectdim(a::Sequence{TensorSpace{T}}, dim::Int, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
-    @boundscheck(!isindexof(i, a.space[dim]) && throw(BoundsError(a.space[dim], i)))
+    @boundscheck(!isindexof(i, a.space.spaces[dim]) && throw(BoundsError(a.space.spaces[dim], i)))
     A = reshape(a.coefficients, dimensions(a.space))
-    A_ = selectdim(A, dim, _findindex(i, a.space[dim]))
-    space = TensorSpace(tuple(a.space.spaces[1:dim-1]..., a.space.spaces[dim+1:N]...))
+    A_ = selectdim(A, dim, _findindex(i, a.space.spaces[dim]))
+    space = TensorSpace((a.space.spaces[1:dim-1]..., a.space.spaces[dim+1:N]...))
     return Sequence(space, vec(A_))
 end
 Base.@propagate_inbounds function Base.selectdim(a::Sequence{TensorSpace{T}}, dim::Int, i::Int) where {T<:NTuple{2,UnivariateSpace}}
-    @boundscheck(!isindexof(i, a.space[dim]) && throw(BoundsError(a.space[dim], i)))
+    @boundscheck(!isindexof(i, a.space.spaces[dim]) && throw(BoundsError(a.space.spaces[dim], i)))
     A = reshape(a.coefficients, dimensions(a.space))
-    A_ = selectdim(A, dim, _findindex(i, a.space[dim]))
-    space = dim == 1 ? a.space[2] : a.space[dim-1]
+    A_ = selectdim(A, dim, _findindex(i, a.space.spaces[dim]))
+    space = dim == 1 ? a.space.spaces[2] : a.space.spaces[dim-1]
     return Sequence(space, vec(A_))
 end
 
 # permutedims
 
 Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{Int}) =
-    Sequence(a.space[σ], vec(permutedims(reshape(a.coefficients, dimensions(a.space)), σ)))
+    Sequence(a.space.spaces[σ], vec(permutedims(reshape(a.coefficients, dimensions(a.space)), σ)))
 
 # one
 
@@ -244,16 +216,16 @@ end
 
 ## CARTESIAN SPACE
 
-function Sequence(space::CartesianSpace, a::AbstractVector{T}) where {T<:Sequence}
+function Sequence(space::CartesianProductSpace, a::AbstractVector{T}) where {T<:Sequence}
     length(space.spaces) == length(a) || return throw(DimensionMismatch)
     c = Sequence(space, Vector{eltype(T)}(undef, dimension(space)))
     foreach((cᵢ, aᵢ) -> cᵢ.coefficients .= project(aᵢ, cᵢ.space).coefficients, eachcomponent(c), a)
     return c
 end
 
-Sequence(a::AbstractVector{<:Sequence}) = Sequence(space(a), coefficients(a))
+Sequence(a::AbstractVector{<:Sequence}) = sequence(space(a), coefficients(a))
 
-space(a::AbstractVector{<:Sequence}) = CartesianSpace(ntuple(i -> space(a[i]), length(a)))
+space(a::AbstractVector{<:Sequence}) = CartesianProductSpace(ntuple(i -> space(a[i]), length(a)))
 
 function coefficients(a::AbstractVector{T}) where {T<:Sequence}
     v = Vector{eltype(T)}(undef, sum(length, a))
@@ -266,24 +238,24 @@ function coefficients(a::AbstractVector{T}) where {T<:Sequence}
     return v
 end
 
-# components
+#
 
-eachcomponent(a::Sequence{CartesianSpace{T}}) where {N,T<:NTuple{N,SingleSpace}} =
-    (@inbounds(component(a, i)) for i ∈ Base.OneTo(N))
+eachcomponent(a::Sequence{<:CartesianSpace}) =
+    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nb_cartesian_product(a.space)))
 
-Base.@propagate_inbounds function component(a::Sequence{CartesianSpace{T}}, i::Int) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(i < 1 || N < i && throw(BoundsError(a.space, i)))
+# tools for component
+
+_skip_component(s::CartesianSpace, ::Colon) = 0
+_skip_component(s::CartesianPowerSpace, i::Int) = i == 1 ? 0 : (i-1)*dimension(s.space)
+_skip_component(s::CartesianPowerSpace, u::UnitRange) = first(u) == 1 ? 0 : (first(u)-1)*dimension(s.space)
+_skip_component(s::CartesianProductSpace, i::Int) = i == 1 ? 0 : mapreduce(j -> dimension(s.spaces[j]), +, 1:i-1)
+_skip_component(s::CartesianProductSpace, u::UnitRange) = first(u) == 1 ? 0 : mapreduce(j -> dimension(s.spaces[j]), +, 1:first(u)-1)
+
+#
+
+Base.@propagate_inbounds function component(a::Sequence{<:CartesianSpace}, i)
+    @boundscheck(isindexof(i, a.space) || throw(BoundsError(a.space, i)))
     space = a.space[i]
-    skip = i == 1 ? 0 : mapreduce(j -> dimension(a.space[j]), +, 1:i-1)
+    skip = _skip_component(a.space, i)
     return Sequence(space, view(a.coefficients, 1+skip:dimension(space)+skip))
 end
-
-Base.@propagate_inbounds function components(a::Sequence{CartesianSpace{T}}, u::UnitRange) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(minimum(u) < 1 || N < maximum(u) && throw(BoundsError(a.space, u)))
-    space = a.space[u]
-    skip = first(u) == 1 ? 0 : mapreduce(j -> dimension(a.space[j]), +, 1:first(u)-1)
-    return Sequence(space, view(a.coefficients, 1+skip:dimension(space)+skip))
-end
-
-Base.@propagate_inbounds components(a::Sequence{CartesianSpace{T}}, ::Colon) where {N,T<:NTuple{N,SingleSpace}} =
-    Sequence(a.space, view(a.coefficients, :))

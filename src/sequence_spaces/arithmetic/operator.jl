@@ -3,10 +3,34 @@
 Base.:+(A::Operator) = Operator(A.domain, A.codomain, +(A.coefficients))
 Base.:-(A::Operator) = Operator(A.domain, A.codomain, -(A.coefficients))
 
+Base.:*(A::Operator, b) = Operator(A.domain, A.codomain, *(A.coefficients, b))
+Base.:*(b, A::Operator) = Operator(A.domain, A.codomain, *(b, A.coefficients))
+
+Base.:/(A::Operator, b) = Operator(A.domain, A.codomain, /(A.coefficients, b))
+Base.:/(b, A::Operator) = Operator(A.domain, A.codomain, /(b, A.coefficients))
+
+Base.:\(A::Operator, b) = Operator(A.domain, A.codomain, \(A.coefficients, b))
+Base.:\(b, A::Operator) = Operator(A.domain, A.codomain, \(b, A.coefficients))
+
 Base.:∘(A::Operator, B::Operator) = *(A, B)
+
 function Base.:*(A::Operator, B::Operator)
-    @assert A.domain == B.codomain
-    return Operator(B.domain, A.codomain, *(A.coefficients, B.coefficients))
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(B.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(B.domain)))
+    if A.domain == B.codomain
+        mul!(C.coefficients, A.coefficients, B.coefficients)
+        return C
+    elseif A.domain ⊆ B.codomain
+        @inbounds mul!(C.coefficients, A.coefficients, view(B, allindices(A.domain), :))
+        return C
+    elseif B.codomain ⊆ A.domain
+        @inbounds mul!(C.coefficients, view(A, :, allindices(B.codomain)), B.coefficients)
+        return C
+    else
+        indices = allindices(A.domain ∩ B.codomain)
+        @inbounds mul!(C.coefficients, view(A, :, indices), view(B, indices, :))
+        return C
+    end
 end
 
 function Base.:^(A::Operator, n::Int)
@@ -33,404 +57,297 @@ function Base.:^(A::Operator, n::Int)
 end
 
 function Base.:\(A::Operator, B::Operator)
-    @assert A.codomain == B.codomain
+    A.codomain == B.codomain || return throw(DimensionMismatch)
     return Operator(B.domain, A.domain, \(A.coefficients, B.coefficients))
 end
 
 Base.inv(A::Operator) = Operator(A.codomain, A.domain, inv(A.coefficients))
 
-Base.:*(A::Operator, b) = Operator(A.domain, A.codomain, *(A.coefficients, b))
-Base.:*(b, A::Operator) = Operator(A.domain, A.codomain, *(b, A.coefficients))
+function Base.:+(A::Operator, B::Operator)
+    domain, codomain = addition_range(A.domain, B.domain), addition_range(A.codomain, B.codomain)
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients + B.coefficients
+        return C
+    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
+        @. C.coefficients = B.coefficients
+        indices_A_domain = allindices(A.domain)
+        indices_A_codomain = allindices(A.codomain)
+        @inbounds view(C, indices_A_codomain, indices_A_domain) .+= view(A, indices_A_codomain, indices_A_domain)
+        return C
+    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
+        @. C.coefficients = A.coefficients
+        indices_B_domain = allindices(B.domain)
+        indices_B_codomain = allindices(B.codomain)
+        @inbounds view(C, indices_B_codomain, indices_B_domain) .+= view(B, indices_B_codomain, indices_B_domain)
+        return C
+    else
+        C.coefficients .= zero(CoefType)
+        @inbounds for β ∈ allindices(A.domain), α ∈ allindices(A.codomain)
+            C[α,β] = A[α,β]
+        end
+        @inbounds for β ∈ allindices(B.domain), α ∈ allindices(B.codomain)
+            C[α,β] += B[α,β]
+        end
+        return C
+    end
+end
 
-Base.:/(A::Operator, b) = Operator(A.domain, A.codomain, /(A.coefficients, b))
-Base.:/(b, A::Operator) = Operator(A.domain, A.codomain, /(b, A.coefficients))
+function Base.:-(A::Operator, B::Operator)
+    domain, codomain = addition_range(A.domain, B.domain), addition_range(A.codomain, B.codomain)
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients - B.coefficients
+        return C
+    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
+        @. C.coefficients = -B.coefficients
+        indices_A_domain = allindices(A.domain)
+        indices_A_codomain = allindices(A.codomain)
+        @inbounds view(C, indices_A_codomain, indices_A_domain) .+= view(A, indices_A_codomain, indices_A_domain)
+        return C
+    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
+        @. C.coefficients = A.coefficients
+        indices_B_domain = allindices(B.domain)
+        indices_B_codomain = allindices(B.codomain)
+        @inbounds view(C, indices_B_codomain, indices_B_domain) .-= view(B, indices_B_codomain, indices_B_domain)
+        return C
+    else
+        C.coefficients .= zero(CoefType)
+        @inbounds for β ∈ allindices(A.domain), α ∈ allindices(A.codomain)
+            C[α,β] = A[α,β]
+        end
+        @inbounds for β ∈ allindices(B.domain), α ∈ allindices(B.codomain)
+            C[α,β] -= B[α,β]
+        end
+        return C
+    end
+end
 
-Base.:\(A::Operator, b) = Operator(A.domain, A.codomain, \(A.coefficients, b))
-Base.:\(b, A::Operator) = Operator(A.domain, A.codomain, \(b, A.coefficients))
+function +̄(A::Operator, B::Operator)
+    domain, codomain = addition_bar_range(A.domain, B.domain), addition_bar_range(A.codomain, B.codomain)
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients + B.coefficients
+        return C
+    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
+        @. C.coefficients = A.coefficients
+        indices_A_domain = allindices(A.domain)
+        indices_A_codomain = allindices(A.codomain)
+        @inbounds view(C, indices_A_codomain, indices_A_domain) .+= view(B, indices_A_codomain, indices_A_domain)
+        return C
+    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
+        @. C.coefficients = B.coefficients
+        indices_B_domain = allindices(B.domain)
+        indices_B_codomain = allindices(B.codomain)
+        @inbounds view(C, indices_B_codomain, indices_B_domain) .+= view(A, indices_B_codomain, indices_B_domain)
+        return C
+    else
+        C.coefficients .= zero(CoefType)
+        @inbounds for β ∈ allindices(addition_bar_range(A.domain, domain)), α ∈ allindices(addition_bar_range(A.codomain, codomain))
+            C[α,β] = A[α,β]
+        end
+        @inbounds for β ∈ allindices(addition_bar_range(B.domain, domain)), α ∈ allindices(addition_bar_range(B.codomain, codomain))
+            C[α,β] += B[α,β]
+        end
+        return C
+    end
+end
+
+function -̄(A::Operator, B::Operator)
+    domain, codomain = addition_bar_range(A.domain, B.domain), addition_bar_range(A.codomain, B.codomain)
+    CoefType = promote_type(eltype(A), eltype(B))
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+    if A.domain == B.domain && A.codomain == B.codomain
+        @. C.coefficients = A.coefficients - B.coefficients
+        return C
+    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
+        @. C.coefficients = A.coefficients
+        indices_A_domain = allindices(A.domain)
+        indices_A_codomain = allindices(A.codomain)
+        @inbounds view(C, indices_A_codomain, indices_A_domain) .-= view(B, indices_A_codomain, indices_A_domain)
+        return C
+    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
+        @. C.coefficients = -B.coefficients
+        indices_B_domain = allindices(B.domain)
+        indices_B_codomain = allindices(B.codomain)
+        @inbounds view(C, indices_B_codomain, indices_B_domain) .+= view(A, indices_B_codomain, indices_B_domain)
+        return C
+    else
+        C.coefficients .= zero(CoefType)
+        @inbounds for β ∈ allindices(addition_bar_range(A.domain, domain)), α ∈ allindices(addition_bar_range(A.codomain, codomain))
+            C[α,β] = A[α,β]
+        end
+        @inbounds for β ∈ allindices(addition_bar_range(B.domain, domain)), α ∈ allindices(addition_bar_range(B.codomain, codomain))
+            C[α,β] -= B[α,β]
+        end
+        return C
+    end
+end
 
 ## sequence space
 
-function Base.:+(A::Operator{<:SequenceSpace,<:SequenceSpace}, B::Operator{<:SequenceSpace,<:SequenceSpace})
-    domain, codomain = +(A.domain, B.domain), +(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients + B.coefficients
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain == B.codomain
-        @. C.coefficients = B.coefficients
-        indices = allindices(A.domain)
-        @inbounds view(C, :, indices) .+= view(A, :, indices)
-        return C
-    elseif B.domain ⊆ A.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(B.domain)
-        @inbounds view(C, :, indices) .+= view(B, :, indices)
-        return C
-    elseif A.domain == B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = B.coefficients
-        indices = allindices(A.codomain)
-        @inbounds view(C, indices, :) .+= view(A, indices, :)
-        return C
-    elseif A.domain == B.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(B.codomain)
-        @inbounds view(C, indices, :) .+= view(B, indices, :)
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = B.coefficients
-        indices_domain = allindices(A.domain)
-        indices_codomain = allindices(A.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(A, indices_codomain, indices_domain)
-        return C
-    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = A.coefficients
-        indices_domain = allindices(B.domain)
-        indices_codomain = allindices(B.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(B, indices_codomain, indices_domain)
-        return C
-    else
-        C.coefficients .= zero(CoefType)
-        indices_A_domain = allindices(A.domain)
-        indices_A_codomain = allindices(A.codomain)
-        @inbounds for β ∈ indices_A_domain, α ∈ indices_A_codomain
-            C[α,β] = A[α,β]
-        end
-        indices_B_domain = allindices(B.domain)
-        indices_B_codomain = allindices(B.codomain)
-        @inbounds for β ∈ indices_B_domain, α ∈ indices_B_codomain
-            C[α,β] += B[α,β]
-        end
-        return C
-    end
-end
-
-function Base.:-(A::Operator{<:SequenceSpace,<:SequenceSpace}, B::Operator{<:SequenceSpace,<:SequenceSpace})
-    domain, codomain = +(A.domain, B.domain), +(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients - B.coefficients
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain == B.codomain
-        @. C.coefficients = -B.coefficients
-        indices = allindices(A.domain)
-        @inbounds view(C, :, indices) .+= view(A, :, indices)
-        return C
-    elseif B.domain ⊆ A.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(B.domain)
-        @inbounds view(C, :, indices) .-= view(B, :, indices)
-        return C
-    elseif A.domain == B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = -B.coefficients
-        indices = allindices(A.codomain)
-        @inbounds view(C, indices, :) .+= view(A, indices, :)
-        return C
-    elseif A.domain == B.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(B.codomain)
-        @inbounds view(C, indices, :) .-= view(B, indices, :)
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = -B.coefficients
-        indices_domain = allindices(A.domain)
-        indices_codomain = allindices(A.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(A, indices_codomain, indices_domain)
-        return C
-    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = A.coefficients
-        indices_domain = allindices(B.domain)
-        indices_codomain = allindices(B.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .-= view(B, indices_codomain, indices_domain)
-        return C
-    else
-        C.coefficients .= zero(CoefType)
-        indices_A_domain = allindices(A.domain)
-        indices_A_codomain = allindices(A.codomain)
-        @inbounds for β ∈ indices_A_domain, α ∈ indices_A_codomain
-            C[α,β] = A[α,β]
-        end
-        indices_B_domain = allindices(B.domain)
-        indices_B_codomain = allindices(B.codomain)
-        @inbounds for β ∈ indices_B_domain, α ∈ indices_B_codomain
-            C[α,β] -= B[α,β]
-        end
-        return C
-    end
-end
-
-function Base.:*(A::Operator{<:SequenceSpace,<:SequenceSpace}, B::Operator{<:SequenceSpace,<:SequenceSpace})
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(B.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(B.domain)))
-    if A.domain == B.codomain
-        mul!(C.coefficients, A.coefficients, B.coefficients)
-        return C
-    elseif A.domain ⊆ B.codomain
-        @inbounds mul!(C.coefficients, A.coefficients, view(B, allindices(A.domain), :))
-        return C
-    elseif B.codomain ⊆ A.domain
-        @inbounds mul!(C.coefficients, view(A, :, allindices(B.codomain)), B.coefficients)
-        return C
-    else
-        indices = ∩(allindices(A.domain), allindices(B.codomain))
-        @inbounds mul!(C.coefficients, view(A, :, indices), view(B, indices, :))
-        return C
-    end
-end
-
-#
-
-function +̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, B::Operator{<:SequenceSpace,<:SequenceSpace})
-    domain, codomain = +̄(A.domain, B.domain), +̄(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients + B.coefficients
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(A.domain)
-        @inbounds view(C, :, indices) .+= view(B, :, indices)
-        return C
-    elseif B.domain ⊆ A.domain && A.codomain == B.codomain
-        @. C.coefficients = B.coefficients
-        indices = allindices(B.domain)
-        @inbounds view(C, :, indices) .+= view(A, :, indices)
-        return C
-    elseif A.domain == B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(A.codomain)
-        @inbounds view(C, indices, :) .+= view(B, indices, :)
-        return C
-    elseif A.domain == B.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = B.coefficients
-        indices = allindices(B.codomain)
-        @inbounds view(C, indices, :) .+= view(A, indices, :)
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = A.coefficients
-        indices_domain = allindices(A.domain)
-        indices_codomain = allindices(A.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(B, indices_codomain, indices_domain)
-        return C
-    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = B.coefficients
-        indices_domain = allindices(B.domain)
-        indices_codomain = allindices(B.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(A, indices_codomain, indices_domain)
-        return C
-    else
-        C.coefficients .= zero(CoefType)
-        indices_A_domain = allindices(+̄(A.domain, domain))
-        indices_A_codomain = allindices(+̄(A.codomain, codomain))
-        @inbounds for β ∈ indices_A_domain, α ∈ indices_A_codomain
-            C[α,β] = A[α,β]
-        end
-        indices_B_domain = allindices(+̄(B.domain, domain))
-        indices_B_codomain = allindices(+̄(B.codomain, codomain))
-        @inbounds for β ∈ indices_B_domain, α ∈ indices_B_codomain
-            C[α,β] += B[α,β]
-        end
-        return C
-    end
-end
-
-function -̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, B::Operator{<:SequenceSpace,<:SequenceSpace})
-    domain, codomain = +̄(A.domain, B.domain), +̄(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients - B.coefficients
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(A.domain)
-        @inbounds view(C, :, indices) .-= view(B, :, indices)
-        return C
-    elseif B.domain ⊆ A.domain && A.codomain == B.codomain
-        @. C.coefficients = -B.coefficients
-        indices = allindices(B.domain)
-        @inbounds view(C, :, indices) .+= view(A, :, indices)
-        return C
-    elseif A.domain == B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = A.coefficients
-        indices = allindices(A.codomain)
-        @inbounds view(C, indices, :) .-= view(B, indices, :)
-        return C
-    elseif A.domain == B.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = -B.coefficients
-        indices = allindices(B.codomain)
-        @inbounds view(C, indices, :) .+= view(A, indices, :)
-        return C
-    elseif A.domain ⊆ B.domain && A.codomain ⊆ B.codomain
-        @. C.coefficients = A.coefficients
-        indices_domain = allindices(A.domain)
-        indices_codomain = allindices(A.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .-= view(B, indices_codomain, indices_domain)
-        return C
-    elseif B.domain ⊆ A.domain && B.codomain ⊆ A.codomain
-        @. C.coefficients = -B.coefficients
-        indices_domain = allindices(B.domain)
-        indices_codomain = allindices(B.codomain)
-        @inbounds view(C, indices_codomain, indices_domain) .+= view(A, indices_codomain, indices_domain)
-        return C
-    else
-        C.coefficients .= zero(CoefType)
-        indices_A_domain = allindices(+̄(A.domain, domain))
-        indices_A_codomain = allindices(+̄(A.codomain, codomain))
-        @inbounds for β ∈ indices_A_domain, α ∈ indices_A_codomain
-            C[α,β] = A[α,β]
-        end
-        indices_B_domain = allindices(+̄(B.domain, domain))
-        indices_B_codomain = allindices(+̄(B.codomain, codomain))
-        @inbounds for β ∈ indices_B_domain, α ∈ indices_B_codomain
-            C[α,β] -= B[α,β]
-        end
-        return C
-    end
-end
-
-function +̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, b)
-    CoefType = promote_type(eltype(A), typeof(b))
+function +̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, J::UniformScaling)
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = A.coefficients
     @inbounds for α ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[α,α] += b
+        C[α,α] += J.λ
     end
     return C
 end
 
-+̄(b, A::Operator{<:SequenceSpace,<:SequenceSpace}) = +̄(A, b)
++̄(J::UniformScaling, A::Operator{<:SequenceSpace,<:SequenceSpace}) = +̄(A, J)
 
-function -̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, b)
-    CoefType = promote_type(eltype(A), typeof(b))
+function -̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, J::UniformScaling)
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = A.coefficients
     @inbounds for α ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[α,α] -= b
+        C[α,α] -= J.λ
     end
     return C
 end
 
-function -̄(b, A::Operator{<:SequenceSpace,<:SequenceSpace})
-    CoefType = promote_type(eltype(A), typeof(b))
+function -̄(J::UniformScaling, A::Operator{<:SequenceSpace,<:SequenceSpace})
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = -A.coefficients
     @inbounds for α ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[α,α] += b
+        C[α,α] += J.λ
     end
     return C
 end
-
-+̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, J::UniformScaling) = +̄(A, J.λ)
-+̄(J::UniformScaling, A::Operator{<:SequenceSpace,<:SequenceSpace}) = +̄(J.λ, A)
-
--̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, J::UniformScaling) = -̄(A, J.λ)
--̄(J::UniformScaling, A::Operator{<:SequenceSpace,<:SequenceSpace}) = -̄(J.λ, A)
 
 ## cartesian space
 
-function Base.:+(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
-    domain, codomain = +(A.domain, B.domain), +(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients + B.coefficients
-        return C
-    else
-        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ + Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
-        return C
+for (f, f̄) ∈ ((:+, :+̄), (:-, :-̄))
+    @eval begin
+        function Base.$f(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+            domain, codomain = addition_range(A.domain, B.domain), addition_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for j ∈ 1:nb_cartesian_product(domain), i ∈ 1:nb_cartesian_product(codomain)
+                    component(C, i, j).coefficients .= $f(component(A, i, j), component(B, i, j)).coefficients
+                end
+                return C
+            end
+        end
+
+        function Base.$f(A::Operator{<:CartesianSpace,<:VectorSpace}, B::Operator{<:CartesianSpace,<:VectorSpace})
+            domain, codomain = addition_range(A.domain, B.domain), addition_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for j ∈ 1:nb_cartesian_product(domain)
+                    component(C, j).coefficients .= $f(component(A, j), component(B, j)).coefficients
+                end
+                return C
+            end
+        end
+
+        function Base.$f(A::Operator{<:VectorSpace,<:CartesianSpace}, B::Operator{<:VectorSpace,<:CartesianSpace})
+            domain, codomain = addition_range(A.domain, B.domain), addition_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for i ∈ 1:nb_cartesian_product(codomain)
+                    component(C, i).coefficients .= $f(component(A, i), component(B, i)).coefficients
+                end
+                return C
+            end
+        end
+
+        function $f̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
+            domain, codomain = addition_bar_range(A.domain, B.domain), addition_bar_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for j ∈ 1:nb_cartesian_product(domain), i ∈ 1:nb_cartesian_product(codomain)
+                    component(C, i, j).coefficients .= $f̄(component(A, i, j), component(B, i, j)).coefficients
+                end
+                return C
+            end
+        end
+
+        function $f̄(A::Operator{<:CartesianSpace,<:VectorSpace}, B::Operator{<:CartesianSpace,<:VectorSpace})
+            domain, codomain = addition_bar_range(A.domain, B.domain), addition_bar_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for j ∈ 1:nb_cartesian_product(domain)
+                    component(C, j).coefficients .= $f̄(component(A, j), component(B, j)).coefficients
+                end
+                return C
+            end
+        end
+
+        function $f̄(A::Operator{<:VectorSpace,<:CartesianSpace}, B::Operator{<:VectorSpace,<:CartesianSpace})
+            domain, codomain = addition_bar_range(A.domain, B.domain), addition_bar_range(A.codomain, B.codomain)
+            CoefType = promote_type(eltype(A), eltype(B))
+            C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
+            if A.domain == B.domain && A.codomain == B.codomain
+                @. C.coefficients = $f(A.coefficients, B.coefficients)
+                return C
+            else
+                @inbounds for i ∈ 1:nb_cartesian_product(codomain)
+                    component(C, i).coefficients .= $f̄(component(A, i), component(B, i)).coefficients
+                end
+                return C
+            end
+        end
     end
 end
 
-function Base.:-(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
-    domain, codomain = +(A.domain, B.domain), +(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients - B.coefficients
-        return C
-    else
-        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ - Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
-        return C
-    end
-end
-
-#
-
-function +̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
-    domain, codomain = +̄(A.domain, B.domain), +̄(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients + B.coefficients
-        return C
-    else
-        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ +̄ Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
-        return C
-    end
-end
-
-function -̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, B::Operator{<:CartesianSpace,<:CartesianSpace})
-    domain, codomain = +̄(A.domain, B.domain), +̄(A.codomain, B.codomain)
-    CoefType = promote_type(eltype(A), eltype(B))
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == B.domain && A.codomain == B.codomain
-        @. C.coefficients = A.coefficients - B.coefficients
-        return C
-    else
-        foreach((Cᵢ, Aᵢ, Bᵢ) -> Cᵢ.coefficients .= (Aᵢ -̄ Bᵢ).coefficients, eachcomponent(C), eachcomponent(A), eachcomponent(B))
-        return C
-    end
-end
-
-function +̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, b)
-    length(A.domain.spaces) == length(A.codomain.spaces) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(A), typeof(b))
+function +̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling)
+    nb_cartesian_product(A.domain) == nb_cartesian_product(A.codomain) || return throw(DimensionMismatch)
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = A.coefficients
     @inbounds for i ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[i,i] += b
+        C[i,i] += J.λ
     end
     return C
 end
 
-function +̄(b, A::Operator{<:CartesianSpace,<:CartesianSpace})
-    length(A.domain.spaces) == length(A.codomain.spaces) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(A), typeof(b))
++̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) = +̄(A, J::UniformScaling)
+
+function -̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling)
+    nb_cartesian_product(A.domain) == nb_cartesian_product(A.codomain) || return throw(DimensionMismatch)
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = A.coefficients
     @inbounds for i ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[i,i] += b
+        C[i,i] -= J.λ
     end
     return C
 end
 
-function -̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, b)
-    length(A.domain.spaces) == length(A.codomain.spaces) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(A), typeof(b))
-    C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
-    @. C.coefficients = A.coefficients
-    @inbounds for i ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[i,i] -= b
-    end
-    return C
-end
-
-function -̄(b, A::Operator{<:CartesianSpace,<:CartesianSpace})
-    length(A.domain.spaces) == length(A.codomain.spaces) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(A), typeof(b))
+function -̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace})
+    nb_cartesian_product(A.domain) == nb_cartesian_product(A.codomain) || return throw(DimensionMismatch)
+    CoefType = promote_type(eltype(A), eltype(J))
     C = Operator(A.domain, A.codomain, Matrix{CoefType}(undef, dimension(A.codomain), dimension(A.domain)))
     @. C.coefficients = -A.coefficients
     @inbounds for i ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        C[i,i] += b
+        C[i,i] += J.λ
     end
     return C
 end
-
-+̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling) = +̄(A, J.λ)
-+̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) = +̄(J.λ, A)
-
--̄(A::Operator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling) = -̄(A, J.λ)
--̄(J::UniformScaling, A::Operator{<:CartesianSpace,<:CartesianSpace}) = -̄(J.λ, A)

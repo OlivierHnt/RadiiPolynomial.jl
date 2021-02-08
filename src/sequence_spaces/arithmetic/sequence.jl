@@ -11,22 +11,22 @@ Base.:\(b, a::Sequence) = Sequence(a.space, \(b, a.coefficients))
 
 ## parameter space
 
-Base.:+(a::Sequence{<:ParameterSpace}, b::Sequence{<:ParameterSpace}) =
-    Sequence(+(a.space, b.space), +(a.coefficients, b.coefficients))
+Base.:+(a::Sequence{ParameterSpace}, b::Sequence{ParameterSpace}) =
+    Sequence(ParameterSpace(), +(a.coefficients, b.coefficients))
 
-Base.:-(a::Sequence{<:ParameterSpace}, b::Sequence{<:ParameterSpace}) =
-    Sequence(+(a.space, b.space), -(a.coefficients, b.coefficients))
+Base.:-(a::Sequence{ParameterSpace}, b::Sequence{ParameterSpace}) =
+    Sequence(ParameterSpace(), -(a.coefficients, b.coefficients))
 
-+̄(a::Sequence{<:ParameterSpace}, b::Sequence{<:ParameterSpace}) =
-    Sequence(+̄(a.space, b.space), +(a.coefficients, b.coefficients))
++̄(a::Sequence{ParameterSpace}, b::Sequence{ParameterSpace}) =
+    +(a, b)
 
--̄(a::Sequence{<:ParameterSpace}, b::Sequence{<:ParameterSpace}) =
-    Sequence(+̄(a.space, b.space), -(a.coefficients, b.coefficients))
+-̄(a::Sequence{ParameterSpace}, b::Sequence{ParameterSpace}) =
+    -(a, b)
 
 ## sequence space
 
 function Base.:+(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space = +(a.space, b.space)
+    space = addition_range(a.space, b.space)
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
     if a.space == b.space
@@ -57,7 +57,7 @@ function Base.:+(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
 end
 
 function Base.:-(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space = +(a.space, b.space)
+    space = addition_range(a.space, b.space)
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
     if a.space == b.space
@@ -82,6 +82,68 @@ function Base.:-(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
         end
         @inbounds for α ∈ allindices(b.space)
             c[α] -= b[α]
+        end
+        return c
+    end
+end
+
+function +̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
+    space = addition_bar_range(a.space, b.space)
+    CoefType = promote_type(eltype(a), eltype(b))
+    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
+    if a.space == b.space
+        @. c.coefficients = a.coefficients + b.coefficients
+        return c
+    elseif a.space ⊆ b.space
+        @. c.coefficients = a.coefficients
+        @inbounds for α ∈ allindices(a.space)
+            c[α] += b[α]
+        end
+        return c
+    elseif b.space ⊆ a.space
+        @. c.coefficients = b.coefficients
+        @inbounds for α ∈ allindices(b.space)
+            c[α] += a[α]
+        end
+        return c
+    else
+        c.coefficients .= zero(CoefType)
+        @inbounds for α ∈ allindices(addition_bar_range(a.space, space))
+            c[α] = a[α]
+        end
+        @inbounds for α ∈ allindices(addition_bar_range(b.space, space))
+            c[α] += b[α]
+        end
+        return c
+    end
+end
+
+function -̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
+    space = addition_bar_range(a.space, b.space)
+    CoefType = promote_type(eltype(a), eltype(b))
+    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
+    if a.space == b.space
+        @. c.coefficients = a.coefficients - b.coefficients
+        return c
+    elseif a.space ⊆ b.space
+        @. c.coefficients = a.coefficients
+        @inbounds for α ∈ allindices(a.space)
+            c[α] -= b[α]
+        end
+        return c
+    elseif b.space ⊆ a.space
+        @. c.coefficients = -b.coefficients
+        @inbounds for α ∈ allindices(b.space)
+            c[α] += a[α]
+        end
+        return c
+    else
+        c.coefficients .= zero(CoefType)
+        @inbounds for α ∈ allindices(addition_bar_range(a.space, space))
+            c[α] = a[α]
+        end
+        @inbounds for α ∈ allindices(addition_bar_range(b.space, space))
+            c[α] += b[α]
         end
         return c
     end
@@ -112,6 +174,11 @@ function Base.:-(b, a::Sequence{<:SequenceSpace})
     @inbounds c[_constant_index(a.space)] += b
     return c
 end
+
++̄(a::Sequence{<:SequenceSpace}, b) = +(a, b)
++̄(b, a::Sequence{<:SequenceSpace}) = +(b, a)
+-̄(a::Sequence{<:SequenceSpace}, b) = -(a, b)
+-̄(b, a::Sequence{<:SequenceSpace}) = -(b, a)
 
 # tools for convolution
 
@@ -162,9 +229,16 @@ _geometric_decay(a::Sequence{TensorSpace{T}}) where {N,T<:NTuple{N,UnivariateSpa
     ntuple(i -> _geometric_decay(a, i), Val(N))
 
 function _geometric_decay(a::Sequence{TensorSpace{T}}, i::Int) where {N,T<:NTuple{N,UnivariateSpace}}
-    idx = ntuple(j -> j == i ? allindices(space(a, j)) : _constant_index(space(a, j)):_constant_index(space(a, j)), Val(N))
+    idx = ntuple(Val(N)) do j
+        if j == i
+            return allindices(a.space[j])
+        else
+            cst_idx = _constant_index(a.space[j])
+            return cst_idx:cst_idx
+        end
+    end
     @inbounds A = view(a, idx)
-    return _geometric_decay(Sequence(space(a, i), vec(A)))
+    return _geometric_decay(Sequence(a.space[i], A))
 end
 
 function _banach_rounding_order(decay::T, bound::T) where {T<:AbstractFloat}
@@ -259,7 +333,7 @@ end
 
 function _mul(a, b, decay, bound, banach_rounding_order)
     CoefType = promote_type(eltype(a), eltype(b))
-    space = *(a.space, b.space)
+    space = convolution_range(a.space, b.space)
     c = Sequence(space, zeros(CoefType, dimension(space)))
     _add_mul!(c, a, b, banach_rounding_order)
     real(CoefType) <: Interval && return _banach_rounding!(c, decay, bound, banach_rounding_order)
@@ -478,7 +552,7 @@ end
 
 function _sqr(a, decay, bound, banach_rounding_order)
     CoefType = eltype(a)
-    space = *(a.space, a.space)
+    space = convolution_range(a.space, a.space)
     c = Sequence(space, zeros(CoefType, dimension(space)))
     _add_sqr!(c, a, banach_rounding_order)
     real(CoefType) <: Interval && return _banach_rounding!(c, decay, bound, banach_rounding_order)
@@ -549,75 +623,6 @@ end
 
 #
 
-function +̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space = +̄(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients + b.coefficients
-        return c
-    elseif a.space ⊆ b.space
-        @. c.coefficients = a.coefficients
-        @inbounds for α ∈ allindices(a.space)
-            c[α] += b[α]
-        end
-        return c
-    elseif b.space ⊆ a.space
-        @. c.coefficients = b.coefficients
-        @inbounds for α ∈ allindices(b.space)
-            c[α] += a[α]
-        end
-        return c
-    else
-        c.coefficients .= zero(CoefType)
-        @inbounds for α ∈ allindices(+̄(a.space, space))
-            c[α] = a[α]
-        end
-        @inbounds for α ∈ allindices(+̄(b.space, space))
-            c[α] += b[α]
-        end
-        return c
-    end
-end
-
-function -̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space = +̄(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients - b.coefficients
-        return c
-    elseif a.space ⊆ b.space
-        @. c.coefficients = a.coefficients
-        @inbounds for α ∈ allindices(a.space)
-            c[α] -= b[α]
-        end
-        return c
-    elseif b.space ⊆ a.space
-        @. c.coefficients = -b.coefficients
-        @inbounds for α ∈ allindices(b.space)
-            c[α] += a[α]
-        end
-        return c
-    else
-        c.coefficients .= zero(CoefType)
-        @inbounds for α ∈ allindices(+̄(a.space, space))
-            c[α] = a[α]
-        end
-        @inbounds for α ∈ allindices(+̄(b.space, space))
-            c[α] += b[α]
-        end
-        return c
-    end
-end
-
-+̄(a::Sequence{<:SequenceSpace}, b) = +(a, b)
-+̄(b, a::Sequence{<:SequenceSpace}) = +(b, a)
--̄(a::Sequence{<:SequenceSpace}, b) = -(a, b)
--̄(b, a::Sequence{<:SequenceSpace}) = -(b, a)
-
-#
-
 function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     decay = min(_geometric_decay(a), _geometric_decay(b))
     return _mul_bar(a, b, decay)
@@ -631,7 +636,7 @@ end
 
 function _mul_bar(a, b, decay, bound, banach_rounding_order)
     CoefType = promote_type(eltype(a), eltype(b))
-    space = *̄(a.space, b.space)
+    space = convolution_bar_range(a.space, b.space)
     c = Sequence(space, zeros(CoefType, dimension(space)))
     _add_mul!(c, a, b, banach_rounding_order)
     real(CoefType) <: Interval && return _banach_rounding!(c, decay, bound, banach_rounding_order)
@@ -674,7 +679,8 @@ end
 
 function _sqr_bar(a, decay, bound, banach_rounding_order)
     CoefType = eltype(a)
-    c = Sequence(a.space, zeros(CoefType, dimension(a.space)))
+    space = convolution_bar_range(a.space, a.space)
+    c = Sequence(space, zeros(CoefType, dimension(a.space)))
     _add_sqr!(c, a, banach_rounding_order)
     real(CoefType) <: Interval && return _banach_rounding!(c, decay, bound, banach_rounding_order)
     return c
@@ -682,188 +688,96 @@ end
 
 ## cartesian space
 
-function Base.:+(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
-    space = +(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients + b.coefficients
-        return c
-    else
-        foreach((cᵢ, aᵢ, bᵢ) -> cᵢ.coefficients .= (aᵢ + bᵢ).coefficients, eachcomponent(c), eachcomponent(a), eachcomponent(b))
-        return c
+for (f, f̄) ∈ ((:+, :+̄), (:-, :-̄))
+    @eval begin
+        function Base.$f(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
+            space = addition_range(a.space, b.space)
+            CoefType = promote_type(eltype(a), eltype(b))
+            c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
+            if a.space == b.space
+                @. c.coefficients = $f(a.coefficients, b.coefficients)
+                return c
+            else
+                @inbounds for i ∈ 1:nb_cartesian_product(space)
+                    component(c, i).coefficients .= $f(component(a, i), component(b, i)).coefficients
+                end
+                return c
+            end
+        end
+
+        function $f̄(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
+            space = addition_bar_range(a.space, b.space)
+            CoefType = promote_type(eltype(a), eltype(b))
+            c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
+            if a.space == b.space
+                @. c.coefficients = $f(a.coefficients, b.coefficients)
+                return c
+            else
+                @inbounds for i ∈ 1:nb_cartesian_product(space)
+                    component(c, i).coefficients .= $f̄(component(a, i), component(b, i)).coefficients
+                end
+                return c
+            end
+        end
+
+        function Base.$f(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
+            new_space = addition_range(space(a), space(b))
+            CoefType = promote_type(eltype(a), eltype(T))
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f(component(a, i), b[i]).coefficients
+            end
+            return c
+        end
+
+        function Base.$f(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
+            new_space = addition_range(space(a), space(b))
+            CoefType = promote_type(eltype(a), eltype(T))
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f(b[i], component(a, i)).coefficients
+            end
+            return c
+        end
+
+        function $f̄(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
+            new_space = addition_bar_range(space(a), space(b))
+            CoefType = promote_type(eltype(a), eltype(T))
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f̄(component(a, i), b[i]).coefficients
+            end
+            return c
+        end
+
+        function $f̄(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
+            new_space = addition_bar_range(space(a), space(b))
+            CoefType = promote_type(eltype(a), eltype(T))
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f̄(b[i], component(a, i)).coefficients
+            end
+            return c
+        end
+
+        function Base.$f(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T}
+            new_space = space(a)
+            CoefType = promote_type(eltype(a), T)
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f(component(a, i), b[i]).coefficients
+            end
+            return c
+        end
+
+        function Base.$f(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T}
+            new_space = space(a)
+            CoefType = promote_type(eltype(a), T)
+            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+            @inbounds for i ∈ 1:nb_cartesian_product(space)
+                component(c, i).coefficients .= $f(b[i], component(a, i)).coefficients
+            end
+            return c
+        end
     end
-end
-
-function Base.:-(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
-    space = +(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients - b.coefficients
-        return c
-    else
-        foreach((cᵢ, aᵢ, bᵢ) -> cᵢ.coefficients .= (aᵢ - bᵢ).coefficients, eachcomponent(c), eachcomponent(a), eachcomponent(b))
-        return c
-    end
-end
-
-#
-
-function +̄(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
-    space = +̄(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients + b.coefficients
-        return c
-    else
-        foreach((cᵢ, aᵢ, bᵢ) -> cᵢ.coefficients .= (aᵢ +̄ bᵢ).coefficients, eachcomponent(c), eachcomponent(a), eachcomponent(b))
-        return c
-    end
-end
-
-function -̄(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
-    space = +̄(a.space, b.space)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == b.space
-        @. c.coefficients = a.coefficients - b.coefficients
-        return c
-    else
-        foreach((cᵢ, aᵢ, bᵢ) -> cᵢ.coefficients .= (aᵢ -̄ bᵢ).coefficients, eachcomponent(c), eachcomponent(a), eachcomponent(b))
-        return c
-    end
-end
-
-#
-
-function Base.:+(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
-    new_space = +(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:+(a::Sequence{<:CartesianSpace}, b::AbstractVector)
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:+(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
-    new_space = +(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:+(b::AbstractVector, a::Sequence{<:CartesianSpace})
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
-    new_space = +(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector)
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
-    new_space = +(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function Base.:-(b::AbstractVector, a::Sequence{<:CartesianSpace})
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-#
-
-function +̄(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
-    new_space = +̄(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +̄(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function +̄(a::Sequence{<:CartesianSpace}, b::AbstractVector)
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +̄(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function +̄(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
-    new_space = +̄(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +̄(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function +̄(b::AbstractVector, a::Sequence{<:CartesianSpace})
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= +̄(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function -̄(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Sequence}
-    new_space = +̄(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -̄(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function -̄(a::Sequence{<:CartesianSpace}, b::AbstractVector)
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -̄(aᵢ, bᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function -̄(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Sequence}
-    new_space = +̄(space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(T))
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -̄(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
-end
-
-function -̄(b::AbstractVector, a::Sequence{<:CartesianSpace})
-    length(a.space.spaces) == length(b) || return throw(DimensionMismatch)
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    foreach((cᵢ, aᵢ, bᵢ) -> cᵢ .= -̄(bᵢ, aᵢ), eachcomponent(c), eachcomponent(a), b)
-    return c
 end

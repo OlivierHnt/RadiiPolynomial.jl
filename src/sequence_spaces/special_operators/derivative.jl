@@ -75,35 +75,29 @@ function Operator(domain::Chebyshev, codomain::Chebyshev, 𝒟::Derivative, ::Ty
     return A
 end
 
-# cartesian space
-
-# TODO: fix type instability due to cat
-Operator(domain::CartesianSpace, codomain::CartesianSpace, 𝒟::Derivative) =
-    Operator(domain, codomain, mapreduce((s₁, s₂) -> Operator(s₁, s₂, 𝒟).coefficients, (x, y) -> cat(x, y; dims=(1,2)),  domain.spaces, codomain.spaces))
-
 ##
 
 # sequence space
 
-function differentiate(s::Taylor, n::Int=1)
+function derivative_range(s::Taylor, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
     s.order < n && return Taylor(0)
     return Taylor(s.order-n)
 end
 
-function differentiate(s::Fourier, n::Int=1)
+function derivative_range(s::Fourier, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
     return s
 end
 
-function differentiate(s::Chebyshev, n::Int=1)
+function derivative_range(s::Chebyshev, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
     s.order < n && return Chebyshev(0)
     return Chebyshev(s.order-n)
 end
 
-differentiate(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
-    TensorSpace(tuple(s.spaces[1:dim-1]..., differentiate(s.spaces[dim], n), s.spaces[dim+1:N]...))
+derivative_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
+    TensorSpace((s.spaces[1:dim-1]..., derivative_range(s[dim], n), s.spaces[dim+1:N]...))
 
 function differentiate(a::Sequence{Taylor}, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
@@ -165,7 +159,7 @@ end
 function differentiate(a::Sequence{<:TensorSpace}, dim::Int, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
     A = reshape(a.coefficients, dimensions(a.space))
-    return Sequence(differentiate(a.space, dim, n), vec(_differentiate(a.space[dim], Val(dim), A, n)))
+    return Sequence(derivative_range(a.space, dim, n), vec(_differentiate(a.space[dim], Val(dim), A, n)))
 end
 
 function _differentiate(space::Taylor, ::Val{D}, A::AbstractArray{T,N}, n) where {D,T,N}
@@ -220,24 +214,4 @@ function _differentiate(space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}, n) wh
         @. Cᵢ *= 2
     end
     return C
-end
-
-# cartesian space
-
-differentiate(s::CartesianSpace{<:NTuple{N,UnivariateSpace}}, n::Int=1) where {N} =
-    CartesianSpace(map(sᵢ -> differentiate(sᵢ, n), s.spaces))
-
-differentiate(s::CartesianSpace{<:Tuple{N₁,TensorSpace{<:NTuple{N₂,UnivariateSpace}}}}, dim::Int, n::Int=1) where {N₁,N₂} =
-    CartesianSpace(map(sᵢ -> differentiate(sᵢ, dim, n), s.spaces))
-
-# TODO: fix type instability
-
-function differentiate(a::Sequence{CartesianSpace{T}}, n::Int=1) where {N,T<:NTuple{N,UnivariateSpace}}
-    space = differentiate(a.space, n)
-    return Sequence(space, mapreduce(aᵢ -> differentiate(aᵢ, n).coefficients, vcat, eachcomponent(a)))
-end
-
-function differentiate(a::Sequence{CartesianSpace{T}}, dim::Int, n::Int=1) where {N₁,N₂,T<:Tuple{N₁,TensorSpace{<:NTuple{N₂,UnivariateSpace}}}}
-    space = differentiate(a.space, dim, n)
-    return Sequence(space, mapreduce(aᵢ -> differentiate(aᵢ, dim, n).coefficients, vcat, eachcomponent(a)))
 end

@@ -18,7 +18,7 @@ Base.:*(ℰ::Evaluation, A::Operator) = evaluate(A, ℰ.value)
 # sequence space
 
 function Operator(domain::Taylor, ℰ::Evaluation{T}) where {T}
-    A = Operator(domain, ParameterSpace(1), Matrix{T}(undef, 1, dimension(domain)))
+    A = Operator(domain, ParameterSpace(), Matrix{T}(undef, 1, dimension(domain)))
     @inbounds A[1,0] = one(T)
     @inbounds for i ∈ 1:order(domain)
         A[1,i] = ℰ.value ^ i
@@ -29,7 +29,7 @@ end
 function Operator(domain::Fourier, ℰ::Evaluation)
     iωx = im*domain.frequency*ℰ.value
     CoefType = float(typeof(iωx))
-    A = Operator(domain, ParameterSpace(1), Matrix{CoefType}(undef, 1, dimension(domain)))
+    A = Operator(domain, ParameterSpace(), Matrix{CoefType}(undef, 1, dimension(domain)))
     @inbounds A[1,0] = one(CoefType)
     @inbounds for j ∈ 1:order(domain)
         eiωxj = exp(iωx*j)
@@ -40,7 +40,7 @@ function Operator(domain::Fourier, ℰ::Evaluation)
 end
 
 function Operator(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
-    A = Operator(domain, ParameterSpace(1), Matrix{T}(undef, 1, dimension(domain)))
+    A = Operator(domain, ParameterSpace(), Matrix{T}(undef, 1, dimension(domain)))
     ord = order(domain)
     @inbounds A[1,0] = one(T)
     ord == 0 && return A
@@ -53,7 +53,6 @@ function Operator(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
     end
     return A
 end
-
 
 ##
 
@@ -109,7 +108,7 @@ function evaluate(a::Sequence{<:TensorSpace}, x, dims=:)
 end
 
 _evaluate(space::TensorSpace{<:NTuple{N,UnivariateSpace}}, dims::Int, A::AbstractArray{T,N}, x) where {N,T} =
-    Sequence(TensorSpace(tuple(space.spaces[1:dims-1]..., space.spaces[dims+1:N]...)), vec(_evaluate(space[dims], Val(dims), A, x)))
+    Sequence(TensorSpace((space.spaces[1:dims-1]..., space.spaces[dims+1:N]...)), vec(_evaluate(space[dims], Val(dims), A, x)))
 function _evaluate(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, dims::Int, A::AbstractArray{T,2}, x) where {T}
     space_ = dims == 1 ? space[2] : space[dims-1]
     return Sequence(space_, vec(_evaluate(space[dims], Val(dims), A, x)))
@@ -170,11 +169,3 @@ function _evaluate(space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}, x::S) wher
     @. result = x * t - s + A₀
     return result
 end
-
-# cartesian space
-
-(a::Sequence{<:CartesianSpace})(x) = evaluate(a, x)
-(a::Sequence{<:CartesianSpace})(x...) = evaluate(a, x)
-
-# TODO: fix type instability
-evaluate(a::Sequence{<:CartesianSpace}, x) = map(aᵢ -> evaluate(aᵢ, x), eachcomponent(a))

@@ -1,14 +1,14 @@
 module RadiiPolynomial
 
-    using IntervalArithmetic, LinearAlgebra
+    using IntervalArithmetic, LinearAlgebra, Printf
 
 ## hack _setindex from Base for type stability of high dimensional arrays
 @inline Base._setindex(v, i::Int, args...) =
     ntuple(dim -> ifelse(i == dim, v, args[dim]), length(args))
 
 ## hack intersect from Base for performance
-@inline Base.intersect(a::Iterators.ProductIterator{<:NTuple{N,AbstractRange}}, b::Iterators.ProductIterator{<:NTuple{N,AbstractRange}}) where {N} =
-    Iterators.product(map(intersect, a.iterators, b.iterators)...)
+@inline Base.intersect(a::Base.Iterators.ProductIterator{<:NTuple{N,AbstractRange}}, b::Base.Iterators.ProductIterator{<:NTuple{N,AbstractRange}}) where {N} =
+    Base.Iterators.ProductIterator(map(intersect, a.iterators, b.iterators))
 
 ## from TaylorSeries.jl to show superscript and subscript
 
@@ -19,15 +19,10 @@ superscriptify(n::Int) = join([superscript_digits[i+1] for i ∈ reverse(digits(
 
 ## Sequence spaces
 
-include("sequence_spaces/spaces/abstract_space.jl")
-    export VectorSpace, SingleSpace
-include("sequence_spaces/spaces/parameter_space.jl")
-    export ParameterSpace
-include("sequence_spaces/spaces/sequence_space.jl")
-    export SequenceSpace, UnivariateSpace, Taylor, Fourier, Chebyshev, TensorSpace,
-           order, frequency, ⊗
-include("sequence_spaces/spaces/cartesian_space.jl")
-    export CartesianSpace, ×
+include("sequence_spaces/space.jl")
+    export VectorSpace, CartesianSpace, CartesianPowerSpace, CartesianProductSpace,
+           ×, nb_cartesian_product, ParameterSpace, SequenceSpace, UnivariateSpace,
+           Taylor, Fourier, Chebyshev, TensorSpace, order, frequency, ⊗
 
     export dimension, dimensions, startindex, endindex, allindices, isindexof
 
@@ -38,11 +33,12 @@ include("sequence_spaces/sequence.jl")
 include("sequence_spaces/operator.jl")
     export Operator, domain, codomain
 
-    export coefficients, eachcomponent, eachcol, eachrow, component, components
+    export coefficients, eachcomponent, eachcol, eachrow, component
 
 #
 
 include("sequence_spaces/arithmetic/space.jl")
+    export addition_range, addition_bar_range, convolution_range, convolution_bar_range
 include("sequence_spaces/arithmetic/sequence.jl")
 include("sequence_spaces/arithmetic/operator.jl")
 include("sequence_spaces/arithmetic/action.jl")
@@ -56,9 +52,9 @@ include("sequence_spaces/arithmetic/fft.jl")
 include("sequence_spaces/special_operators/projection.jl")
     export project
 include("sequence_spaces/special_operators/derivative.jl")
-    export Derivative, differentiate
+    export Derivative, derivative_range, differentiate
 include("sequence_spaces/special_operators/integral.jl")
-    export Integral, integrate
+    export Integral, integral_range, integrate
 include("sequence_spaces/special_operators/evaluation.jl")
     export Evaluation, evaluate
 include("sequence_spaces/special_operators/rescale.jl")
@@ -69,11 +65,12 @@ include("sequence_spaces/special_operators/shift.jl")
 #
 
 include("sequence_spaces/norm.jl")
-    export norm_weighted_ℓ¹, opnorm_weighted_ℓ¹, norm, opnorm
+    export norm, opnorm, norm_weighted_ℓ¹, opnorm_weighted_ℓ¹
 
 #
 
 include("sequence_spaces/linear_algebra.jl")
+    export eigvals, eigvecs, eigen
 
 ## Radii polynomial
 
@@ -83,6 +80,8 @@ include("rpa/finite.jl")
     export FixedPointProblemFiniteDimension, ZeroFindingProblemFiniteDimension
 include("rpa/infinite.jl")
     export TailProblem, ZeroFindingProblemCategory1
+include("rpa/newton.jl")
+    export newton
 
     export Y, Z₁, Z₂, prove
 

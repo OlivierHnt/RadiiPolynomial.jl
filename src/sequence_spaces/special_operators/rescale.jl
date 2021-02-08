@@ -14,7 +14,7 @@ Base.:*(ℛ::Rescale, A::Operator) = rescale(A, ℛ.γ)
 function Operator(domain::Taylor, codomain::Taylor, ℛ::Rescale{T}) where {T}
     A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
     A.coefficients .= zero(T)
-    @inbounds for i ∈ ∩(allindices(domain), allindices(codomain))
+    @inbounds for i ∈ 0:min(domain.order, codomain.order)
         A[i,i] = ℛ.γ ^ i
     end
     return A
@@ -23,7 +23,7 @@ end
 function Operator(domain::TensorSpace{NTuple{N,Taylor}}, codomain::TensorSpace{NTuple{N,Taylor}}, ℛ::Rescale{NTuple{N,T}}) where {N,T}
     A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
     A.coefficients .= zero(T)
-    @inbounds for α ∈ ∩(allindices(domain), allindices(codomain))
+    @inbounds for α ∈ allindices(domain ∩ codomain)
         A[α,α] = mapreduce(^, *, ℛ.γ, α)
     end
     return A

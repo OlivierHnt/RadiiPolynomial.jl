@@ -21,15 +21,13 @@ end
 Operator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Factorization}} =
     Operator{T,S,R}(domain, codomain, coefficients)
 
-## domain, codomain, coefficients
+## domain, codomain, coefficients, order, frequency
 
 domain(A::Operator) = A.domain
-domain(A::Operator, j::Int) = A.domain[j]
-codomain(A::Operator) = A.codomain
-codomain(A::Operator, i::Int) = A.codomain[i]
-coefficients(A::Operator) = A.coefficients
 
-## order, frequency
+codomain(A::Operator) = A.codomain
+
+coefficients(A::Operator) = A.coefficients
 
 order(A::Operator) = (order(A.domain), order(A.codomain))
 order(A::Operator, i::Int, j::Int) = (order(A.domain, j), order(A.codomain, i))
@@ -66,23 +64,25 @@ Base.eltype(::Type{Operator{T,S,R}}) where {T,S,R} = eltype(R)
 
 for f ∈ (:getindex, :view)
     @eval Base.@propagate_inbounds function Base.$f(A::Operator, α, β)
-        @boundscheck(!isindexof(α, A.codomain) && !isindexof(β, A.domain) && throw(BoundsError((A.codomain, A.domain), (α, β))))
+        @boundscheck(isindexof(α, A.codomain) && isindexof(β, A.domain) || throw(BoundsError((A.codomain, A.domain), (α, β))))
         return $f(A.coefficients, _findindex(α, A.codomain), _findindex(β, A.domain))
     end
 end
 
 Base.@propagate_inbounds function Base.setindex!(A::Operator, x, α, β)
-    @boundscheck(!isindexof(α, A.codomain) && !isindexof(β, A.domain) && throw(BoundsError((A.codomain, A.domain), (α, β))))
+    @boundscheck(isindexof(α, A.codomain) && isindexof(β, A.domain) || throw(BoundsError((A.codomain, A.domain), (α, β))))
     return setindex!(A.coefficients, x, _findindex(α, A.codomain), _findindex(β, A.domain))
 end
 
 ## ==, iszero, isapprox
 
-Base.:(==)(A::Operator, B::Operator) = A.codomain == B.codomain && A.domain == B.domain && A.coefficients == B.coefficients
+Base.:(==)(A::Operator, B::Operator) =
+    A.codomain == B.codomain && A.domain == B.domain && A.coefficients == B.coefficients
 
 Base.iszero(A::Operator) = iszero(A.coefficients)
 
-Base.isapprox(A::Operator, B::Operator; kwargs...) = A.codomain == B.codomain && A.domain == B.domain && isapprox(A.coefficients, B.coefficients; kwargs...)
+Base.isapprox(A::Operator, B::Operator; kwargs...) =
+    A.codomain == B.codomain && A.domain == B.domain && isapprox(A.coefficients, B.coefficients; kwargs...)
 
 ## copy, similar
 
@@ -93,16 +93,6 @@ Base.similar(A::Operator) = Operator(A.domain, A.codomain, similar(A.coefficient
 ## zero, one
 
 Base.zero(A::Operator) = Operator(A.domain, A.codomain, zero.(A.coefficients))
-
-function Base.one(A::Operator)
-    length(A.domain.spaces) == length(A.codomain.spaces) || return throw(DimensionMismatch)
-    CoefType = eltype(A)
-    B = zero(A)
-    @inbounds for α ∈ ∩(allindices(A.domain), allindices(A.codomain))
-        B[α,α] = one(CoefType)
-    end
-    return B
-end
 
 ## float, complex, real, imag, conj, conj!
 
@@ -212,71 +202,46 @@ end
 
 ## CARTESIAN SPACE
 
-function Operator(domain::CartesianSpace, codomain::CartesianSpace, A::AbstractMatrix{T}) where {T<:Sequence}
+function Operator(domain::CartesianProductSpace, codomain::CartesianProductSpace, A::AbstractMatrix{T}) where {T<:Sequence}
     length(codomain.spaces) == size(A, 1) && length(domain.spaces) == size(A, 2) || return throw(DimensionMismatch)
     C = Operator(domain, codomain, Matrix{eltype(T)}(undef, dimension(codomain), dimension(domain)))
     foreach((Cᵢ, Aᵢ) -> Cᵢ.coefficients .= Operator(Cᵢ.domain, Cᵢ.codomain, Aᵢ).coefficients, eachcomponent(C), A)
     return C
 end
 
-# components
+#
 
-eachcomponent(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SingleSpace},N₂,S<:NTuple{N₂,SingleSpace}} =
-    (@inbounds(component(A, i, j)) for i ∈ Base.OneTo(N₂), j ∈ Base.OneTo(N₁))
+Base.eachcol(A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, :, j)) for j ∈ Base.OneTo(nb_cartesian_product(A.domain)))
+Base.eachrow(A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, i, :)) for i ∈ Base.OneTo(nb_cartesian_product(A.codomain)))
 
-eachcomponent(A::Operator{CartesianSpace{T},<:SingleSpace}) where {N,T<:NTuple{N,SingleSpace}} =
-    (@inbounds(component(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(N))
+eachcomponent(A::Operator{<:CartesianSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, i, j)) for i ∈ Base.OneTo(nb_cartesian_product(A.codomain)), j ∈ Base.OneTo(nb_cartesian_product(A.domain)))
+eachcomponent(A::Operator{<:CartesianSpace,<:VectorSpace}) =
+    (@inbounds(component(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(nb_cartesian_product(A.domain)))
+eachcomponent(A::Operator{<:VectorSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, i)) for i ∈ Base.OneTo(nb_cartesian_product(A.codomain)), j ∈ Base.OneTo(1))
 
-eachcomponent(A::Operator{<:SingleSpace,CartesianSpace{T}}) where {N,T<:NTuple{N,SingleSpace}} =
-    (@inbounds(component(A, i)) for i ∈ Base.OneTo(N), j ∈ Base.OneTo(1))
+#
 
-Base.eachcol(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SingleSpace},N₂,S<:NTuple{N₂,SingleSpace}} =
-    (@inbounds(components(A, :, j)) for j ∈ Base.OneTo(N₁))
-
-Base.eachrow(A::Operator{CartesianSpace{T},CartesianSpace{S}}) where {N₁,T<:NTuple{N₁,SingleSpace},N₂,S<:NTuple{N₂,SingleSpace}} =
-    (@inbounds(components(A, i, :)) for i ∈ Base.OneTo(N₂))
-
-Base.@propagate_inbounds function component(A::Operator{CartesianSpace{T},CartesianSpace{S}}, i::Int, j::Int) where {N₁,T<:NTuple{N₁,SingleSpace},N₂,S<:NTuple{N₂,SingleSpace}}
-    @boundscheck(i < 1 || N₂ < i || j < 1 || N₁ < j && throw(BoundsError((A.codomain, A.domain), (i, j))))
+Base.@propagate_inbounds function component(A::Operator{<:CartesianSpace,<:CartesianSpace}, i, j)
+    @boundscheck(isindexof(i, A.codomain) && isindexof(j, A.domain) || throw(BoundsError((A.codomain, A.domain), (i, j))))
     domain, codomain = A.domain[j], A.codomain[i]
-    skip₁ = i == 1 ? 0 : mapreduce(k -> dimension(A.codomain[k]), +, 1:i-1)
-    skip₂ = j == 1 ? 0 : mapreduce(k -> dimension(A.domain[k]), +, 1:j-1)
+    skip₁, skip₂ = _skip_component(A.codomain, i), _skip_component(A.domain, j)
     return Operator(domain, codomain, view(A.coefficients, 1+skip₁:dimension(codomain)+skip₁, 1+skip₂:dimension(domain)+skip₂))
 end
 
-Base.@propagate_inbounds function components(A::Operator{CartesianSpace{T},<:CartesianSpace}, ::Colon, j::Int) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(j < 1 || N < j && throw(BoundsError(A.domain, j)))
+Base.@propagate_inbounds function component(A::Operator{<:CartesianSpace,<:VectorSpace}, j)
+    @boundscheck(isindexof(j, A.domain) || throw(BoundsError(A.domain, j)))
     domain = A.domain[j]
-    skip = j == 1 ? 0 : mapreduce(k -> dimension(A.domain[k]), +, 1:j-1)
+    skip = _skip_component(A.domain, j)
     return Operator(domain, A.codomain, view(A.coefficients, :, 1+skip:dimension(domain)+skip))
 end
 
-Base.@propagate_inbounds function components(A::Operator{<:CartesianSpace,CartesianSpace{T}}, i::Int, ::Colon) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(i < 1 || N < i && throw(BoundsError(A.codomain, i)))
+Base.@propagate_inbounds function component(A::Operator{<:VectorSpace,<:CartesianSpace}, i)
+    @boundscheck(isindexof(i, A.codomain) || throw(BoundsError(A.codomain, i)))
     codomain = A.codomain[i]
-    skip = i == 1 ? 0 : mapreduce(k -> dimension(A.codomain[k]), +, 1:i-1)
+    skip = _skip_component(A.codomain, i)
     return Operator(A.domain, codomain, view(A.coefficients, 1+skip:dimension(codomain)+skip, :))
 end
-
-Base.@propagate_inbounds components(A::Operator{<:CartesianSpace,<:CartesianSpace}, ::Colon, ::Colon) =
-    Operator(A.domain, A.codomain, view(A.coefficients, :, :))
-
-Base.@propagate_inbounds function component(A::Operator{CartesianSpace{T},<:SingleSpace}, j::Int) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(j < 1 || N < j && throw(BoundsError(A.domain, j)))
-    domain = A.domain[j]
-    skip = j == 1 ? 0 : mapreduce(k -> dimension(A.domain[k]), +, 1:j-1)
-    return Operator(domain, A.codomain, view(A.coefficients, :, 1+skip:dimension(domain)+skip))
-end
-
-Base.@propagate_inbounds components(A::Operator{<:CartesianSpace,<:SingleSpace}, ::Colon) =
-    Operator(A.domain, A.codomain, view(A.coefficients, :, :))
-
-Base.@propagate_inbounds function component(A::Operator{<:SingleSpace,CartesianSpace{T}}, i::Int) where {N,T<:NTuple{N,SingleSpace}}
-    @boundscheck(i < 1 || N < i && throw(BoundsError(A.codomain, i)))
-    codomain = A.codomain[i]
-    skip = i == 1 ? 0 : mapreduce(k -> dimension(A.codomain[k]), +, 1:i-1)
-    return Operator(A.domain, codomain, view(A.coefficients, 1+skip:dimension(codomain)+skip, :))
-end
-
-Base.@propagate_inbounds components(A::Operator{<:SingleSpace,<:CartesianSpace}, ::Colon) =
-    Operator(A.domain, A.codomain, view(A.coefficients, :, :))

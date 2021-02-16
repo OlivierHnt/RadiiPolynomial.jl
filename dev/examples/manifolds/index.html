@@ -62,8 +62,8 @@ end
 function f̂(u, p, α)
     σ, ρ, β = p
     return [0
-            -(u[1]*u[3])[α]
-            (u[1]*u[2])[α]]
+            -(component(u, 1)*component(u, 3))[α]
+            (component(u, 1)*component(u, 2))[α]]
 end
 
 ## Parameters
@@ -126,17 +126,17 @@ Df(u, v) &amp;= (0, 1-3v^2),\\
 D^2 |f|(u, v) &amp;= \begin{pmatrix} 0 &amp; 0\\ 0 &amp; 6v \end{pmatrix}.
 \end{aligned}\]</p><p>It follows that the characteristic equation reads</p><p class="math-container">\[\Psi(\lambda) = (1-3v^2)e^{-\lambda \tau} - \lambda.\]</p><p>Lastly,</p><p class="math-container">\[\hat{f}(u, v) = -v^3.\]</p><p>We can now proceed to compute the manifolds and give a rigorous a posteriori error bound</p><pre><code class="language-Julia">using RadiiPolynomial, LinearAlgebra
 
-f(u, v) = v - v^3
+f(u, ϕ) = ϕ - ϕ^3
 
-Df(u, v) = [0, 1-3v^3]
+Df(u, ϕ) = [0, 1-3ϕ^2]
 
-D²_abs_f(u, v) =
+D²_abs_f(u, ϕ) =
     [0 0
-     0 6v]
+     0 6ϕ]
 
-Ψ(v, τ, λ) = (1-3v^3)*exp(-λ*τ) - λ
+Ψ(c, τ, λ) = (1-3c^2)*exp(-λ*τ) - λ
 
-f̂(u, v, α) = -(v^3)[α]
+f̂(u, ϕ, α) = -(ϕ^3)[α]
 
 ## Delay
 
@@ -153,8 +153,8 @@ P₀ = manifold_DDE_equilibrium(c₀, ξ₀, λ₀;
 ## Manifolds c₁
 
 c₁ = complex(1.0)
-λ₁₊ = newton(0.32056+1.15780im, λ -&gt; (λ + 2exp(-λ*τ), 1 - 2*τ*exp(-λ*τ)))
+λ₁₊ = newton(0.32056+1.15780im, λ -&gt; (λ + 2exp(-λ*τ), 1 - 2τ*exp(-λ*τ)))
 λ₁ = [λ₁₊, conj(λ₁₊)]
 ξ₁ = complex([0.9, 0.9])
 P₁ = manifold_DDE_equilibrium(c₁, ξ₁, λ₁;
-    Ψ = λ -&gt; Ψ(c₁, τ, λ), f̂ = (u, αλ, α) -&gt; exp(-αλ*τ)*f̂(u, u, α), order = (20, 20))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 16 February 2021 01:46">Tuesday 16 February 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    Ψ = λ -&gt; Ψ(c₁, τ, λ), f̂ = (u, αλ, α) -&gt; exp(-αλ*τ)*f̂(u, u, α), order = (20, 20))</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 16 February 2021 22:50">Tuesday 16 February 2021</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

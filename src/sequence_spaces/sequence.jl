@@ -142,7 +142,7 @@ end
     return dest
 end
 
-Base.Broadcast._broadcast_getindex(a::Sequence, i::Int) =
+Base.@propagate_inbounds Base.Broadcast._broadcast_getindex(a::Sequence, i::Int) =
     Base.Broadcast._broadcast_getindex(a.coefficients, i)
 
 # to allow a[...] .= f.(...)
@@ -163,7 +163,7 @@ Base.@propagate_inbounds function Base.selectdim(a::Sequence{TensorSpace{T}}, di
     @boundscheck(!isindexof(i, a.space.spaces[dim]) && throw(BoundsError(a.space.spaces[dim], i)))
     A = reshape(a.coefficients, dimensions(a.space))
     A_ = selectdim(A, dim, _findindex(i, a.space.spaces[dim]))
-    space = dim == 1 ? a.space.spaces[2] : a.space.spaces[dim-1]
+    space = dim == 1 ? a.space.spaces[2] : a.space.spaces[1]
     return Sequence(space, vec(A_))
 end
 
@@ -245,17 +245,46 @@ eachcomponent(a::Sequence{<:CartesianSpace}) =
 
 # tools for component
 
-_skip_component(s::CartesianSpace, ::Colon) = 0
-_skip_component(s::CartesianPowerSpace, i::Int) = i == 1 ? 0 : (i-1)*dimension(s.space)
-_skip_component(s::CartesianPowerSpace, u::UnitRange) = first(u) == 1 ? 0 : (first(u)-1)*dimension(s.space)
-_skip_component(s::CartesianProductSpace, i::Int) = i == 1 ? 0 : mapreduce(j -> dimension(s.spaces[j]), +, 1:i-1)
-_skip_component(s::CartesianProductSpace, u::UnitRange) = first(u) == 1 ? 0 : mapreduce(j -> dimension(s.spaces[j]), +, 1:first(u)-1)
+_isindexof_component(i::Int, s::CartesianSpace) = (1 ≤ i) & (i ≤ nb_cartesian_product(s))
+_isindexof_component(u::AbstractRange, s::CartesianSpace) = (1 ≤ first(u)) & (last(u) ≤ nb_cartesian_product(s))
+_isindexof_component(::Colon, ::CartesianSpace) = true
+_isindexof_component(u::AbstractVector{Int}, s::CartesianSpace) = all(i -> isindexof(i, s), u)
+
+_findindex_component(c::Colon, s::CartesianSpace) = 1:dimension(s)
+
+function _findindex_component(i::Int, s::CartesianPowerSpace)
+    dim = dimension(s.space)
+    i == 1 && return 1:dim
+    x = (i-1)*dim
+    return 1+x:dim+x
+end
+
+function _findindex_component(u::UnitRange{Int}, s::CartesianPowerSpace)
+    dim = dimension(s.space)*length(u)
+    i = first(u)
+    i == 1 && return 1:dim
+    x = (i-1)*dim
+    return 1+x:dim+x
+end
+
+function _findindex_component(i::Int, s::CartesianProductSpace)
+    dim = dimensions(s, i)
+    i == 1 && return 1:dim
+    x = mapreduce(j -> dimensions(s, j), +, 1:i-1)
+    return 1+x:dim+x
+end
+
+function _findindex_component(u::UnitRange{Int}, s::CartesianProductSpace)
+    dim = mapreduce(j -> dimensions(s, j), +, u)
+    i = first(u)
+    i == 1 && return 1:dim
+    x = mapreduce(j -> dimensions(s, j), +, 1:i-1)
+    return 1+x:dim+x
+end
 
 #
 
 Base.@propagate_inbounds function component(a::Sequence{<:CartesianSpace}, i)
-    @boundscheck(isindexof(i, a.space) || throw(BoundsError(a.space, i)))
-    space = a.space[i]
-    skip = _skip_component(a.space, i)
-    return Sequence(space, view(a.coefficients, 1+skip:dimension(space)+skip))
+    @boundscheck(_isindexof_component(i, a.space) || throw(BoundsError(a.space, i)))
+    return Sequence(a.space[i], view(a.coefficients, _findindex_component(i, a.space)))
 end

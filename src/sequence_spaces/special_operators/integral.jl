@@ -2,38 +2,31 @@ struct Integral
     n :: Int
 end
 
-(ℐ::Integral)(a) = integrate(a, ℐ.n)
-
-# signature needed to resolve ambiguity due to *(b, a::Sequence)
-Base.:*(ℐ::Integral, a::Sequence) = *(ℐ, a)
-# signature needed to resolve ambiguity due to *(b, A::Operator)
-Base.:*(ℐ::Integral, A::Operator) = *(ℐ, A)
-
 Base.:*(ℐ₁::Integral, ℐ₂::Integral) = Integral(ℐ₁.n + ℐ₂.n)
 Base.:^(ℐ::Integral, n::Int) = Integral(ℐ.n * n)
 
-+̄(ℐ::Integral, A::Operator{<:SequenceSpace,<:SequenceSpace}) = +(Operator(domain(A), codomain(A), ℐ, eltype(A)), A)
-+̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, ℐ::Integral) = +(A, Operator(domain(A), codomain(A), ℐ, eltype(A)))
--̄(ℐ::Integral, A::Operator{<:SequenceSpace,<:SequenceSpace}) = -(Operator(domain(A), codomain(A), ℐ, eltype(A)), A)
--̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, ℐ::Integral) = -(A, Operator(domain(A), codomain(A), ℐ, eltype(A)))
-*̄(ℐ::Integral, A::Operator{<:SequenceSpace,<:SequenceSpace}) = *(Operator(codomain(A), codomain(A), ℐ, eltype(A)), A)
-*̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, ℐ::Integral) = *(A, Operator(domain(A), domain(A), ℐ, eltype(A)))
+## arithmetic
 
-# sequence space
++̄(ℐ::Integral, A::Operator) = +(project(ℐ, domain(A), codomain(A), eltype(A)), A)
++̄(A::Operator, ℐ::Integral) = +(A, project(ℐ, domain(A), codomain(A), eltype(A)))
+-̄(ℐ::Integral, A::Operator) = -(project(ℐ, domain(A), codomain(A), eltype(A)), A)
+-̄(A::Operator, ℐ::Integral) = -(A, project(ℐ, domain(A), codomain(A), eltype(A)))
+*̄(ℐ::Integral, A::Operator) = *(project(ℐ, codomain(A), codomain(A), eltype(A)), A)
+*̄(A::Operator, ℐ::Integral) = *(A, project(ℐ, domain(A), domain(A), eltype(A)))
 
-function Operator(domain::Taylor, codomain::Taylor, ℐ::Integral, ::Type{T}=Float64) where {T}
-    A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(T)
+#
+
+function project(ℐ::Integral, domain::Taylor, codomain::Taylor, ::Type{T}=Float64) where {T}
+    A = Operator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     @inbounds for i ∈ 0:min(order(domain), order(codomain)-ℐ.n)
         A[i+ℐ.n,i] = one(T)/(prod(i+1:i+ℐ.n))
     end
     return A
 end
 
-function Operator(domain::Fourier{T}, codomain::Fourier{S}, ℐ::Integral, ::Type{R}=complex(float(promote_type(T, S)))) where {T,S,R}
-    @assert frequency(domain) == frequency(codomain)
-    A = Operator(domain, codomain, Matrix{R}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(R)
+function project(ℐ::Integral, domain::Fourier{T}, codomain::Fourier{S}, ::Type{R}=complex(float(promote_type(T, S)))) where {T,S,R}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    A = Operator(domain, codomain, zeros(R, dimension(codomain), dimension(domain)))
     iⁿω⁻ⁿ = convert(R, (im*inv(frequency(domain)))^ℐ.n)
     if isodd(ℐ.n)
         @inbounds for j ∈ 1:min(order(domain), order(codomain))
@@ -52,43 +45,46 @@ function Operator(domain::Fourier{T}, codomain::Fourier{S}, ℐ::Integral, ::Typ
     end
 end
 
-function Operator(domain::Chebyshev, codomain::Chebyshev, ℐ::Integral, ::Type{T}=Float64) where {T}
+function project(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev, ::Type{T}=Float64) where {T}
     @assert ℐ.n == 1 # TODO: lift restriction
-    A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(T)
+    A = Operator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
+    order_domain = order(domain)
+    order_codomain = order(codomain)
     # first two columns
     @inbounds A[0,0] = one(T)
-    if domain.order ≥ 1
+    if order_domain ≥ 1
         @inbounds A[0,1] = -one(T)/2
-        if codomain.order ≥ 2
+        if order_codomain ≥ 2
             @inbounds A[2,1] = one(T)/4
         end
     end
-    if codomain.order ≥ 1
+    if order_codomain ≥ 1
         @inbounds A[1,0] = one(T)/2
     end
     # first row
-    @inbounds for i ∈ 2:2:domain.order-1
+    @inbounds for i ∈ 2:2:order_domain-1
         A[0,i] = 2/(1-i^2)
         A[0,i+1] = 2/(i*(i+2))
     end
-    if iseven(domain.order)
-        @inbounds A[0,domain.order] = 2/(1-domain.order^2)
+    if iseven(order_domain)
+        @inbounds A[0,order_domain] = 2/(1-order_domain^2)
     end
     # remaining
-    @inbounds for i ∈ 2:min(domain.order, codomain.order+1)
+    @inbounds for i ∈ 2:min(order_domain, order_codomain+1)
         A[i-1,i] = -inv(2(i-1))
     end
-    @inbounds for i ∈ 2:min(domain.order, codomain.order-1)
+    @inbounds for i ∈ 2:min(order_domain, order_codomain-1)
         A[i+1,i] = inv(2(i+1))
     end
     #
     return A
 end
 
-##
+## action
 
-# sequence space
+(ℐ::Integral)(a::Sequence) = *(ℐ, a)
+# signature needed to resolve ambiguity due to *(b, a::Sequence)
+Base.:*(ℐ::Integral, a::Sequence) = integrate(a, ℐ.n)
 
 function integral_range(s::Taylor, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
@@ -106,7 +102,7 @@ function integral_range(s::Chebyshev, n::Int=1)
 end
 
 integral_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
-    TensorSpace((s.spaces[1:dim-1]..., integral_range(s[dim], n), s.spaces[dim+1:N]...))
+    TensorSpace((s.spaces[1:dim-1]..., integral_range(s.spaces[dim], n), s.spaces[dim+1:N]...))
 
 function integrate(a::Sequence{Taylor}, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
@@ -191,8 +187,9 @@ end
 
 function integrate(a::Sequence{<:TensorSpace}, dim::Int, n::Int=1)
     n > 0 || return throw(DomainError(n, "integrate is only defined for strictly positive integers"))
-    A = reshape(a.coefficients, dimensions(a.space))
-    return Sequence(integral_range(a.space, dim, n), vec(_integrate(a.space[dim], Val(dim), A, n)))
+    space_a = space(a)
+    A = reshape(coefficients(a), dimensions(space_a))
+    return Sequence(integral_range(space_a, dim, n), vec(_integrate(space_a[dim], Val(dim), A, n)))
 end
 
 function _integrate(space::Taylor, ::Val{D}, A::AbstractArray{T,N}, n) where {D,T,N}

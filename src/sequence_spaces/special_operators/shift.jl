@@ -3,43 +3,97 @@ struct Shift{T}
     to :: T
 end
 
-(𝒮::Shift)(a) = *(𝒮, a)
+## arithmetic
 
-# signature needed to resolve ambiguity due to *(b, a::Sequence)
-Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.from, 𝒮.to)
-# signature needed to resolve ambiguity due to *(b, A::Operator)
-Base.:*(𝒮::Shift, A::Operator) = shift(A, 𝒮.from, 𝒮.to)
+function +̄(𝒮::Shift, A::Operator{Fourier{T},Fourier{S}}) where {T,S}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    eiωΔτ = cis(frequency(domain)*one(S)*(𝒮.to-𝒮.from))
+    CoefType = typeof(eiωΔτ)
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    eiωΔτj = one(CoefType)
+    @inbounds C[0,0] += eiωΔτj
+    @inbounds for j ∈ 1:min(order(domain), order(codomain))
+        eiωΔτj *= eiωΔτ
+        C[-j,-j] += conj(eiωΔτj)
+        C[j,j] += eiωΔτj
+    end
+    return C
+end
 
-# sequence space
++̄(A::Operator{Fourier{T},Fourier{S}}, 𝒮::Shift) where {T,S} = +̄(𝒮, A)
 
-function Operator(domain::Fourier{T}, codomain::Fourier{S}, 𝒮::Shift) where {T,S}
-    @assert domain.frequency == codomain.frequency
-    iωΔτ = im*domain.frequency*one(S)*(𝒮.to-𝒮.from)
-    CoefType = float(typeof(iωΔτ))
-    A = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(CoefType)
-    @inbounds A[0,0] = one(CoefType)
-    @inbounds for j ∈ 1:min(domain.order, codomain.order)
-        eiωΔτj = exp(iωΔτ*j)
+function -̄(𝒮::Shift, A::Operator{Fourier{T},Fourier{S}}) where {T,S}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    eiωΔτ = cis(frequency(domain)*one(S)*(𝒮.to-𝒮.from))
+    CoefType = typeof(eiωΔτ)
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = -A.coefficients
+    eiωΔτj = one(CoefType)
+    @inbounds C[0,0] += eiωΔτj
+    @inbounds for j ∈ 1:min(order(domain), order(codomain))
+        eiωΔτj *= eiωΔτ
+        C[-j,-j] += conj(eiωΔτj)
+        C[j,j] += eiωΔτj
+    end
+    return C
+end
+
+function -̄(A::Operator{Fourier{T},Fourier{S}}, 𝒮::Shift) where {T,S}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    eiωΔτ = cis(frequency(domain)*one(S)*(𝒮.to-𝒮.from))
+    CoefType = typeof(eiωΔτ)
+    C = Operator(domain, codomain, Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    eiωΔτj = one(CoefType)
+    @inbounds C[0,0] -= eiωΔτj
+    @inbounds for j ∈ 1:min(order(domain), order(codomain))
+        eiωΔτj *= eiωΔτ
+        C[-j,-j] -= conj(eiωΔτj)
+        C[j,j] -= eiωΔτj
+    end
+    return C
+end
+
+#
+
+function project(𝒮::Shift, domain::Fourier{T}, codomain::Fourier{S}) where {T,S}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    eiωΔτ = cis(frequency(domain)*one(S)*(𝒮.to-𝒮.from))
+    CoefType = typeof(eiωΔτ)
+    A = Operator(domain, codomain, zeros(CoefType, dimension(codomain), dimension(domain)))
+    eiωΔτj = one(CoefType)
+    @inbounds A[0,0] = eiωΔτj
+    @inbounds for j ∈ 1:min(order(domain), order(codomain))
+        eiωΔτj *= eiωΔτ
         A[-j,-j] = conj(eiωΔτj)
         A[j,j] = eiωΔτj
     end
     return A
 end
 
-##
+## action
 
-# sequence space
+(𝒮::Shift)(a::Sequence) = *(𝒮, a)
+# signature needed to resolve ambiguity due to *(b, a::Sequence)
+Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.from, 𝒮.to)
 
 function shift(a::Sequence{<:Fourier}, from, to)
-    iωΔτ = im*a.space.frequency*(to-from)
-    CoefType = float(promote_type(eltype(a), typeof(iωΔτ)))
-    c = Sequence(a.space, Vector{CoefType}(undef, dimension(a.space)))
-    @inbounds c[0] = a[0]
-    @inbounds for j ∈ 1:order(a.space)
-        eiωΔτj = exp(iωΔτ*j)
-        c[-j] = a[-j]*conj(eiωΔτj)
-        c[j] = a[j]*eiωΔτj
+    eiωΔτ = cis(frequency(a)*(to-from))
+    CoefType = promote_type(eltype(a), typeof(eiωΔτ))
+    c = Sequence(space(a), Vector{CoefType}(undef, length(a)))
+    @. c.coefficients = a.coefficients
+    return shift!(c, from, to)
+end
+
+function shift!(a::Sequence{<:Fourier}, from, to)
+    from == to && return a
+    eiωΔτ = cis(frequency(a)*(to-from))
+    eiωΔτj = one(eiωΔτ)
+    @inbounds for j ∈ 1:order(a)
+        eiωΔτj *= eiωΔτ
+        a[-j] *= conj(eiωΔτj)
+        a[j] *= eiωΔτj
     end
-    return c
+    return a
 end

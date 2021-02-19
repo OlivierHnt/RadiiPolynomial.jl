@@ -141,7 +141,7 @@ function _find_domain_codomain(s₁::T, s₂::S) where {T<:NTuple{2,VectorSpace}
 end
 
 @inline function Base.copyto!(dest::Operator, src::Operator)
-    (dest.domain == src.domain && dest.codomain == src.codomain) || return throw(ArgumentError)
+    dest.domain == src.domain && dest.codomain == src.codomain || return throw(ArgumentError)
     copyto!(dest.coefficients, src.coefficients)
     return dest
 end
@@ -155,7 +155,7 @@ end
     return dest
 end
 
-Base.Broadcast._broadcast_getindex(A::Operator, I::CartesianIndex{2}) =
+Base.@propagate_inbounds Base.Broadcast._broadcast_getindex(A::Operator, I::CartesianIndex{2}) =
     Base.Broadcast._broadcast_getindex(A.coefficients, I)
 
 # to allow A[...] .= f.(...)
@@ -226,22 +226,16 @@ eachcomponent(A::Operator{<:VectorSpace,<:CartesianSpace}) =
 #
 
 Base.@propagate_inbounds function component(A::Operator{<:CartesianSpace,<:CartesianSpace}, i, j)
-    @boundscheck(isindexof(i, A.codomain) && isindexof(j, A.domain) || throw(BoundsError((A.codomain, A.domain), (i, j))))
-    domain, codomain = A.domain[j], A.codomain[i]
-    skip₁, skip₂ = _skip_component(A.codomain, i), _skip_component(A.domain, j)
-    return Operator(domain, codomain, view(A.coefficients, 1+skip₁:dimension(codomain)+skip₁, 1+skip₂:dimension(domain)+skip₂))
+    @boundscheck(_isindexof_component(i, A.codomain) && _isindexof_component(j, A.domain) || throw(BoundsError((A.codomain, A.domain), (i, j))))
+    return Operator(A.domain[j], A.codomain[i], view(A.coefficients, _findindex_component(i, A.codomain), _findindex_component(j, A.domain)))
 end
 
 Base.@propagate_inbounds function component(A::Operator{<:CartesianSpace,<:VectorSpace}, j)
-    @boundscheck(isindexof(j, A.domain) || throw(BoundsError(A.domain, j)))
-    domain = A.domain[j]
-    skip = _skip_component(A.domain, j)
-    return Operator(domain, A.codomain, view(A.coefficients, :, 1+skip:dimension(domain)+skip))
+    @boundscheck(_isindexof_component(j, A.domain) || throw(BoundsError(A.domain, j)))
+    return Operator(A.domain[j], A.codomain, view(A.coefficients, :, _findindex_component(j, A.domain)))
 end
 
 Base.@propagate_inbounds function component(A::Operator{<:VectorSpace,<:CartesianSpace}, i)
-    @boundscheck(isindexof(i, A.codomain) || throw(BoundsError(A.codomain, i)))
-    codomain = A.codomain[i]
-    skip = _skip_component(A.codomain, i)
-    return Operator(A.domain, codomain, view(A.coefficients, 1+skip:dimension(codomain)+skip, :))
+    @boundscheck(_isindexof_component(i, A.codomain) || throw(BoundsError(A.codomain, i)))
+    return Operator(A.domain, A.codomain[i], view(A.coefficients, _findindex_component(i, A.codomain), :))
 end

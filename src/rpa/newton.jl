@@ -7,31 +7,32 @@ end
 
 function _newton_silent(x₀::Number, F_DF, tol, maxiter)
     F, DF = F_DF(x₀)
-    abs(F) ≤ tol && return x₀
+    abs(F) ≤ tol && return x₀, true
     x = x₀
     for i ∈ 1:maxiter
         x -= DF \ F
         F, DF = F_DF(x)
-        abs(F) ≤ tol && return x
+        abs(F) ≤ tol && return x, true
     end
-    return x
+    return x, false
 end
 
 function _newton_silent(x₀, F_DF, tol, maxiter)
     F, DF = F_DF(x₀)
-    norm(F) ≤ tol && return x₀
+    norm(F) ≤ tol && return x₀, true
     x = copy(x₀)
     for i ∈ 1:maxiter
         x .-= ldiv!(lu!(DF), F)
         F, DF = F_DF(x)
-        norm(F) ≤ tol && return x
+        norm(F) ≤ tol && return x, true
     end
-    return x
+    return x, false
 end
 
 function _display_newton_infos(tol, maxiter)
     println(string("\n Newton's method: tol = ", tol, ", maxiter = ", maxiter))
-    println("                       |f(x)|             |AF(x)|")
+    println("      iteration        |f(x)|             |AF(x)|")
+    println("-------------------------------------------------")
 end
 
 function _display_newton_iteration(i, nF, nAF)
@@ -45,7 +46,7 @@ function _newton_verbose(x₀::Number, F_DF, tol, maxiter)
     AF = DF \ F
     nAF = abs(AF)
     _display_newton_iteration(0, nF, nAF)
-    nF ≤ tol && return x₀
+    nF ≤ tol && return x₀, true
     x = x₀
     for i ∈ 1:maxiter
         x -= AF
@@ -54,9 +55,9 @@ function _newton_verbose(x₀::Number, F_DF, tol, maxiter)
         AF = DF \ F
         nAF = abs(AF)
         _display_newton_iteration(i, nF, nAF)
-        nF ≤ tol && return x
+        nF ≤ tol && return x, true
     end
-    return x
+    return x, false
 end
 
 function _newton_verbose(x₀, F_DF, tol, maxiter)
@@ -66,7 +67,7 @@ function _newton_verbose(x₀, F_DF, tol, maxiter)
     ldiv!(lu!(DF), F)
     nAF = norm(F)
     _display_newton_iteration(0, nF, nAF)
-    nF ≤ tol && return x₀
+    nF ≤ tol && return x₀, true
     x = copy(x₀)
     for i ∈ 1:maxiter
         x .-= F
@@ -75,7 +76,7 @@ function _newton_verbose(x₀, F_DF, tol, maxiter)
         ldiv!(lu!(DF), F)
         nAF = norm(F)
         _display_newton_iteration(i, nF, nAF)
-        nF ≤ tol && return x
+        nF ≤ tol && return x, true
     end
-    return x
+    return x, false
 end

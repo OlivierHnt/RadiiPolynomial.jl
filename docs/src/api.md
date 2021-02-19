@@ -20,7 +20,8 @@ Taylor
 Fourier
 Chebyshev
 TensorSpace
-CartesianSpace
+CartesianPowerSpace
+CartesianProductSpace
 ```
 
 ```@docs

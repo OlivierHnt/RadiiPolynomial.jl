@@ -13,7 +13,7 @@ function initialize_manifold_parameterization(c, ξ::AbstractVector, order::NTup
     CoefType = promote_type(typeof(c), eltype(ξ))
     space = TensorSpace(map(Taylor, order))
     P = Sequence(space, zeros(CoefType, dimension(space)))
-    P[0] = c
+    P.coefficients[1] = c
     for (i, ξᵢ) ∈ enumerate(ξ)
         P[ntuple(j -> ifelse(j == i, 1, 0) , Val(N))] = ξᵢ
     end
@@ -44,7 +44,7 @@ function initialize_manifold_parameterization(c::AbstractVector, ξ::AbstractMat
     end
     for i ∈ 1:n
         Pᵢ = component(P, i)
-        Pᵢ[0] = c[i]
+        Pᵢ.coefficients[1] = c[i]
         for j ∈ 1:N
             Pᵢ[r[j]] = ξ[i,j]
         end

@@ -2,44 +2,289 @@ struct Evaluation{T}
     value :: T
 end
 
-(ℰ::Evaluation)(a) = *(ℰ, a)
+## arithmetic
 
-# signature needed to resolve ambiguity due to *(b, a::Sequence)
-Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
-# signature needed to resolve ambiguity due to *(b, A::Operator)
-Base.:*(ℰ::Evaluation, A::Operator) = evaluate(A, ℰ.value)
+for (f̄, f) ∈ ((:+̄, :+), (:-̄, :-))
+    @eval begin
+        function $f̄(ℰ::Evaluation{T}, A::Operator{Taylor,ParameterSpace}) where {T}
+            CoefType = promote_type(T, eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            xⁱ = one(CoefType)
+            @inbounds C[1,0] = $f(xⁱ, A[1,0])
+            @inbounds for i ∈ 1:order(domain(A))
+                xⁱ *= ℰ.value
+                C[1,i] = $f(xⁱ, A[1,i])
+            end
+            return C
+        end
 
-+̄(ℰ::Evaluation, A::Operator) = +(Operator(domain(A), codomain(A), ℰ), A)
-+̄(A::Operator, ℰ::Evaluation) = +(A, Operator(domain(A), codomain(A), ℰ))
--̄(ℰ::Evaluation, A::Operator) = -(Operator(domain(A), codomain(A), ℰ), A)
--̄(A::Operator, ℰ::Evaluation) = -(A, Operator(domain(A), codomain(A), ℰ))
-*̄(ℰ::Evaluation, A::Operator) = *(Operator(codomain(A), ParameterSpace(1), ℰ), A)
+        function $f̄(A::Operator{Taylor,ParameterSpace}, ℰ::Evaluation{T}) where {T}
+            CoefType = promote_type(T, eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            xⁱ = one(CoefType)
+            @inbounds C[1,0] = $f(A[1,0], xⁱ)
+            @inbounds for i ∈ 1:order(domain(A))
+                xⁱ *= ℰ.value
+                C[1,i] = $f(A[1,i], xⁱ)
+            end
+            return C
+        end
 
-# sequence space
+        function $f̄(ℰ::Evaluation, A::Operator{<:Fourier,ParameterSpace})
+            eiωx = cis(frequency(domain(A))*ℰ.value)
+            CoefType = promote_type(typeof(eiωx), eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            eiωxj = one(CoefType)
+            @inbounds C[1,0] = $f(eiωxj, A[1,0])
+            @inbounds for j ∈ 1:order(domain(A))
+                eiωxj *= eiωx
+                C[1,-j] = $f(conj(eiωxj), A[1,-j])
+                C[1,j] = $f(eiωxj, A[1,j])
+            end
+            return C
+        end
 
-function Operator(domain::Taylor, ℰ::Evaluation{T}) where {T}
+        function $f̄(A::Operator{<:Fourier,ParameterSpace}, ℰ::Evaluation)
+            eiωx = cis(frequency(domain(A))*ℰ.value)
+            CoefType = promote_type(typeof(eiωx), eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            eiωxj = one(CoefType)
+            @inbounds C[1,0] = $f(A[1,0], eiωxj)
+            @inbounds for j ∈ 1:order(domain(A))
+                eiωxj *= eiωx
+                C[1,-j] = $f(A[1,-j], conj(eiωxj))
+                C[1,j] = $f(A[1,j], eiωxj)
+            end
+            return C
+        end
+
+        function $f̄(ℰ::Evaluation{T}, A::Operator{Chebyshev,ParameterSpace}) where {T}
+            CoefType = promote_type(T, eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            ord = order(domain(A))
+            @inbounds C[1,0] = one(CoefType)
+            if ord > 0
+                x2 = 2ℰ.value
+                @inbounds C[1,1] = x2
+                if ord > 1
+                    @inbounds C[1,2] = x2*C[1,1] - 2C[1,0]
+                    @inbounds for j ∈ 3:ord
+                        C[1,j] = x2*C[1,j-1] - C[1,j-2]
+                    end
+                end
+            end
+            @. C.coefficients .= $f(C.coefficients, A.coefficients)
+            return C
+        end
+
+        function $f̄(A::Operator{Chebyshev,ParameterSpace}, ℰ::Evaluation{T}) where {T}
+            CoefType = promote_type(T, eltype(A))
+            C = Operator(domain(A), ParameterSpace(), Matrix{CoefType}(undef, size(A)))
+            ord = order(domain(A))
+            @inbounds C[1,0] = one(CoefType)
+            if ord > 0
+                x2 = 2ℰ.value
+                @inbounds C[1,1] = x2
+                if ord > 1
+                    @inbounds C[1,2] = x2*C[1,1] - 2C[1,0]
+                    @inbounds for j ∈ 3:ord
+                        C[1,j] = x2*C[1,j-1] - C[1,j-2]
+                    end
+                end
+            end
+            @. C.coefficients .= $f(A.coefficients, C.coefficients)
+            return C
+        end
+    end
+end
+
+function +̄(ℰ::Evaluation{T}, A::Operator{Taylor,<:SequenceSpace}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    xⁱ = one(CoefType)
+    @inbounds C[idx,0] += xⁱ
+    @inbounds for i ∈ 1:order(domain(A))
+        xⁱ *= ℰ.value
+        C[idx,i] += xⁱ
+    end
+    return C
+end
+
++̄(A::Operator{Taylor,<:SequenceSpace}, ℰ::Evaluation{T}) where {T} = +̄(ℰ, A)
+
+function -̄(ℰ::Evaluation{T}, A::Operator{Taylor,<:SequenceSpace}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = -A.coefficients
+    idx = _constant_index(codomain(A))
+    xⁱ = one(CoefType)
+    @inbounds C[idx,0] += xⁱ
+    @inbounds for i ∈ 1:order(domain(A))
+        xⁱ *= ℰ.value
+        C[idx,i] += xⁱ
+    end
+    return C
+end
+
+function -̄(A::Operator{Taylor,<:SequenceSpace}, ℰ::Evaluation{T}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    xⁱ = one(CoefType)
+    @inbounds C[idx,0] -= xⁱ
+    @inbounds for i ∈ 1:order(domain(A))
+        xⁱ *= ℰ.value
+        C[idx,i] -= xⁱ
+    end
+    return C
+end
+
+function +̄(ℰ::Evaluation, A::Operator{<:Fourier,<:SequenceSpace})
+    eiωx = cis(frequency(domain(A))*ℰ.value)
+    CoefType = promote_type(typeof(eiωx), eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    eiωxj = one(CoefType)
+    @inbounds C[idx,0] += eiωxj
+    @inbounds for j ∈ 1:order(domain(A))
+        eiωxj *= eiωx
+        C[idx,-j] += conj(eiωxj)
+        C[idx,j] += eiωxj
+    end
+    return C
+end
+
++̄(A::Operator{<:Fourier,<:SequenceSpace}, ℰ::Evaluation) = +̄(ℰ, A)
+
+function -̄(ℰ::Evaluation, A::Operator{<:Fourier,<:SequenceSpace})
+    eiωx = cis(frequency(domain(A))*ℰ.value)
+    CoefType = promote_type(typeof(eiωx), eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = -A.coefficients
+    idx = _constant_index(codomain(A))
+    eiωxj = one(CoefType)
+    @inbounds C[idx,0] += eiωxj
+    @inbounds for j ∈ 1:order(domain(A))
+        eiωxj *= eiωx
+        C[idx,-j] += conj(eiωxj)
+        C[idx,j] += eiωxj
+    end
+    return C
+end
+
+function -̄(A::Operator{<:Fourier,<:SequenceSpace}, ℰ::Evaluation)
+    eiωx = cis(frequency(domain(A))*ℰ.value)
+    CoefType = promote_type(typeof(eiωx), eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    eiωxj = one(CoefType)
+    @inbounds C[idx,0] -= eiωxj
+    @inbounds for j ∈ 1:order(domain(A))
+        eiωxj *= eiωx
+        C[idx,-j] -= conj(eiωxj)
+        C[idx,j] -= eiωxj
+    end
+    return C
+end
+
+function +̄(ℰ::Evaluation{T}, A::Operator{Chebyshev,<:SequenceSpace}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    ord = order(domain(A))
+    @inbounds C[idx,0] = one(CoefType)
+    if ord > 0
+        x2 = 2ℰ.value
+        @inbounds C[idx,1] = x2
+        if ord > 1
+            @inbounds C[idx,2] = x2*C[idx,1] - 2C[idx,0]
+            @inbounds for j ∈ 3:ord
+                C[idx,j] = x2*C[idx,j-1] - C[idx,j-2]
+            end
+        end
+    end
+    @inbounds view(C, idx, :) .+= view(A, idx, :)
+    return C
+end
+
++̄(A::Operator{Chebyshev,<:SequenceSpace}, ℰ::Evaluation{T}) where {T} = +̄(ℰ, A)
+
+function -̄(ℰ::Evaluation{T}, A::Operator{Chebyshev,<:SequenceSpace}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = -A.coefficients
+    idx = _constant_index(codomain(A))
+    ord = order(domain(A))
+    @inbounds C[idx,0] = one(CoefType)
+    if ord > 0
+        x2 = 2ℰ.value
+        @inbounds C[idx,1] = x2
+        if ord > 1
+            @inbounds C[idx,2] = x2*C[idx,1] - 2C[idx,0]
+            @inbounds for j ∈ 3:ord
+                C[idx,j] = x2*C[idx,j-1] - C[idx,j-2]
+            end
+        end
+    end
+    @inbounds view(C, idx, :) .-= view(A, idx, :)
+    return C
+end
+
+function -̄(A::Operator{Chebyshev,<:SequenceSpace}, ℰ::Evaluation{T}) where {T}
+    CoefType = promote_type(T, eltype(A))
+    C = Operator(domain(A), codomain(A), Matrix{CoefType}(undef, size(A)))
+    @. C.coefficients = A.coefficients
+    idx = _constant_index(codomain(A))
+    ord = order(domain(A))
+    @inbounds C[idx,0] = -one(CoefType)
+    if ord > 0
+        x2 = 2ℰ.value
+        @inbounds C[idx,1] = -x2
+        if ord > 1
+            @inbounds C[idx,2] = x2*C[idx,1] - 2C[idx,0]
+            @inbounds for j ∈ 3:ord
+                C[idx,j] = x2*C[idx,j-1] - C[idx,j-2]
+            end
+        end
+    end
+    @inbounds view(C, idx, :) .+= view(A, idx, :)
+    return C
+end
+
+#
+
+function project(ℰ::Evaluation{T}, domain::Taylor) where {T}
     A = Operator(domain, ParameterSpace(), Matrix{T}(undef, 1, dimension(domain)))
-    @inbounds A[1,0] = one(T)
+    xⁱ = one(T)
+    @inbounds A[1,0] = xⁱ
     @inbounds for i ∈ 1:order(domain)
-        A[1,i] = ℰ.value ^ i
+        xⁱ *= ℰ.value
+        A[1,i] = xⁱ
     end
     return A
 end
 
-function Operator(domain::Fourier, ℰ::Evaluation)
-    iωx = im*domain.frequency*ℰ.value
-    CoefType = float(typeof(iωx))
+function project(ℰ::Evaluation, domain::Fourier)
+    eiωx = cis(frequency(domain)*ℰ.value)
+    CoefType = typeof(eiωx)
     A = Operator(domain, ParameterSpace(), Matrix{CoefType}(undef, 1, dimension(domain)))
-    @inbounds A[1,0] = one(CoefType)
+    eiωxj = one(CoefType)
+    @inbounds A[1,0] = eiωxj
     @inbounds for j ∈ 1:order(domain)
-        eiωxj = exp(iωx*j)
-        A[1,j] = eiωxj
+        eiωxj *= eiωx
         A[1,-j] = conj(eiωxj)
+        A[1,j] = eiωxj
     end
     return A
 end
 
-function Operator(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
+function project(ℰ::Evaluation{T}, domain::Chebyshev) where {T}
     A = Operator(domain, ParameterSpace(), Matrix{T}(undef, 1, dimension(domain)))
     ord = order(domain)
     @inbounds A[1,0] = one(T)
@@ -54,9 +299,11 @@ function Operator(domain::Chebyshev, ℰ::Evaluation{T}) where {T}
     return A
 end
 
-##
+## action
 
-# sequence space
+(ℰ::Evaluation)(a::Sequence) = *(ℰ, a)
+# signature needed to resolve ambiguity due to *(b, a::Sequence)
+Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 
 (a::Sequence{<:UnivariateSpace})(x) = evaluate(a, x)
 (a::Sequence{<:TensorSpace})(x; dims=:) = evaluate(a, x, dims)
@@ -103,14 +350,15 @@ function evaluate(a::Sequence{Chebyshev}, x)
 end
 
 function evaluate(a::Sequence{<:TensorSpace}, x, dims=:)
-    A = reshape(a.coefficients, dimensions(a.space))
-    return _evaluate(a.space, dims, A, x)
+    space_a = space(a)
+    A = reshape(coefficients(a), dimensions(space_a))
+    return _evaluate(space_a, dims, A, x)
 end
 
 _evaluate(space::TensorSpace{<:NTuple{N,UnivariateSpace}}, dims::Int, A::AbstractArray{T,N}, x) where {N,T} =
-    Sequence(TensorSpace((space.spaces[1:dims-1]..., space.spaces[dims+1:N]...)), vec(_evaluate(space[dims], Val(dims), A, x)))
+    Sequence(TensorSpace((space[1:dims-1]..., space[dims+1:N]...)), vec(_evaluate(space[dims], Val(dims), A, x)))
 function _evaluate(space::TensorSpace{<:NTuple{2,UnivariateSpace}}, dims::Int, A::AbstractArray{T,2}, x) where {T}
-    space_ = dims == 1 ? space[2] : space[dims-1]
+    space_ = dims == 1 ? space[2] : space[1]
     return Sequence(space_, vec(_evaluate(space[dims], Val(dims), A, x)))
 end
 _evaluate(space, ::Colon, A, x) = _apply_evaluate(space, A, x)[1]

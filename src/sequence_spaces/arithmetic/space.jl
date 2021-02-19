@@ -21,8 +21,8 @@ addition_bar_range(s₁::ParameterSpace, s₂::ParameterSpace) = addition_space(
 
 ##
 
-addition_range(s₁::Taylor, s₂::Taylor) = ifelse(s₁.order ≤ s₂.order, s₂, s₁)
-addition_bar_range(s₁::Taylor, s₂::Taylor) = ifelse(s₁.order ≤ s₂.order, s₁, s₂)
+addition_range(s₁::Taylor, s₂::Taylor) = Taylor(max(s₁.order, s₂.order))
+addition_bar_range(s₁::Taylor, s₂::Taylor) = Taylor(min(s₁.order, s₂.order))
 convolution_range(s₁::Taylor, s₂::Taylor) = Taylor(s₁.order + s₂.order)
 convolution_bar_range(s₁::Taylor, s₂::Taylor) = addition_bar_range(s₁, s₂)
 
@@ -43,8 +43,8 @@ function convolution_range(s₁::Fourier{T}, s₂::Fourier{S}) where {T,S}
 end
 convolution_bar_range(s₁::Fourier{T}, s₂::Fourier{S}) where {T,S} = addition_bar_range(s₁, s₂)
 
-addition_range(s₁::Chebyshev, s₂::Chebyshev) = ifelse(s₁.order ≤ s₂.order, s₂, s₁)
-addition_bar_range(s₁::Chebyshev, s₂::Chebyshev) = ifelse(s₁.order ≤ s₂.order, s₁, s₂)
+addition_range(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(max(s₁.order, s₂.order))
+addition_bar_range(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(min(s₁.order, s₂.order))
 convolution_range(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(s₁.order + s₂.order)
 convolution_bar_range(s₁::Chebyshev, s₂::Chebyshev) = addition_bar_range(s₁, s₂)
 

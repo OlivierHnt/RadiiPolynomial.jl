@@ -5,181 +5,10 @@ Abstract type for all vector spaces.
 """
 abstract type VectorSpace end
 
-
-
-
-
-##
-
-abstract type CartesianSpace <: VectorSpace end
-
-startindex(::CartesianSpace) = 1
-endindex(s::CartesianSpace) = dimension(s)
-allindices(s::CartesianSpace) = Base.OneTo(endindex(s))
-
-isindexof(i::Int, s::CartesianSpace) = (1 ≤ i) & (i ≤ nb_cartesian_product(s))
-isindexof(u::AbstractRange, s::CartesianSpace) = (1 ≤ first(u)) & (last(u) ≤ nb_cartesian_product(s))
-isindexof(::Colon, ::CartesianSpace) = true
-isindexof(u::AbstractVector{Int}, s::CartesianSpace) = all(i -> isindexof(i, s), u)
-
-_findindex(i, ::CartesianSpace) = i
-
-"""
-    CartesianPowerSpace{T<:VectorSpace} <: CartesianSpace
-
-Cartesian space resulting from `dim` cartesian products of a [`VectorSpace`](@ref).
-
-Fields:
-- `space :: T`
-- `dim :: Int`
-"""
-struct CartesianPowerSpace{T<:VectorSpace} <: CartesianSpace
-    space :: T
-    dim :: Int
-end
-
-spaces(s::CartesianPowerSpace) = fill(s.space, s.dim)
-
-nb_cartesian_product(s::CartesianPowerSpace) = s.dim
-
-Base.:^(s::VectorSpace, dim::Int) = cartesian_power_space(s, dim)
-
-function cartesian_power_space(s::VectorSpace, dim::Int)
-    dim < 1 && return throw(DomainError(dim, "^ is only defined for strictly positive integers"))
-    return CartesianPowerSpace(s, dim) # _cartesian_power_space(s, dim)
-end
-# _cartesian_power_space(s, dim) = CartesianPowerSpace(s, dim)
-# _cartesian_power_space(s::CartesianPowerSpace, dim) = CartesianPowerSpace(s.space, s.dim + dim)
-
-Base.@propagate_inbounds Base.getindex(s::CartesianPowerSpace, ::Colon) = s
-Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, i::Int)
-    @boundscheck((1 ≤ i) & (i ≤ s.dim) || throw(BoundsError(s, i)))
-    return s.space
-end
-Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, u::AbstractRange)
-    @boundscheck((1 ≤ first(u)) & (last(u) ≤ s.dim) || throw(BoundsError(s, u)))
-    return CartesianPowerSpace(s.space, length(u))
-end
-Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, u::AbstractVector{Int})
-    @boundscheck(all(i -> (1 ≤ i) & (i ≤ s.dim), u) || throw(BoundsError(s, u)))
-    return CartesianPowerSpace(s.space, length(u))
-end
-
-#
-
-Base.:(==)(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace) =
-    (s₁.dim == s₂.dim) & (s₁.space == s₂.space)
-Base.issubset(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace) =
-    (s₁.dim == s₂.dim) & issubset(s₁.space, s₂.space)
-function Base.intersect(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace)
-    s₁.dim == s₂.dim || return throw(DimensionMismatch)
-    return CartesianPowerSpace(intersect(s₁.space, s₂.space), s₁.dim)
-end
-function Base.union(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace)
-    s₁.dim == s₂.dim || return throw(DimensionMismatch)
-    return CartesianPowerSpace(union(s₁.space, s₂.space), s₁.dim)
-end
-
-dimension(s::CartesianPowerSpace) = dimension(s.space)*s.dim
-dimensions(s::CartesianPowerSpace) = fill(dimension(s.space), s.dim)
-function dimensions(s::CartesianPowerSpace, i::Int)
-    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
-    return dimension(s.space)
-end
-
-# order, frequency
-
-order(s::CartesianPowerSpace) = fill(order(s.space), s.dim)
-function order(s::CartesianPowerSpace, i::Int)
-    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
-    return order(s.space)
-end
-
-frequency(s::CartesianPowerSpace) = fill(frequency(s.space), s.dim)
-function frequency(s::CartesianPowerSpace, i::Int)
-    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
-    return frequency(s.space)
-end
-
-# promotion
-
-Base.convert(::Type{CartesianPowerSpace{T}}, s::CartesianPowerSpace) where {T<:VectorSpace} =
-    CartesianPowerSpace{T}(convert(T, s.space), s.dim)
-Base.promote_rule(::Type{CartesianPowerSpace{T}}, ::Type{CartesianPowerSpace{S}}) where {T<:VectorSpace,S<:VectorSpace} =
-    CartesianPowerSpace{promote_type(T, S)}
-
-# show
-
-Base.show(io::IO, s::CartesianPowerSpace) = print(io, pretty_string(s))
-pretty_string(s::CartesianPowerSpace) = string("(", pretty_string(s.space), ")")*superscriptify(s.dim)
-
-"""
-    CartesianProductSpace{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
-
-Cartesian space resulting from `N` cartesian products of some [`VectorSpace`](@ref).
-
-Fields:
-- `spaces :: T`
-"""
-struct CartesianProductSpace{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
-    spaces :: T
-end
-
-spaces(s::CartesianProductSpace) = s.spaces
-
-nb_cartesian_product(s::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} = N
-
-LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = cartesian_product_space(s₁, s₂)
-
-cartesian_product_space(s₁::VectorSpace, s₂::VectorSpace) = CartesianProductSpace((s₁, s₂))
-cartesian_product_space(s₁::CartesianProductSpace, s₂::CartesianProductSpace) = CartesianProductSpace((s₁.spaces..., s₂.spaces...))
-cartesian_product_space(s₁::CartesianProductSpace, s₂::VectorSpace) = CartesianProductSpace((s₁.spaces..., s₂))
-cartesian_product_space(s₁::VectorSpace, s₂::CartesianProductSpace) = CartesianProductSpace((s₁, s₂.spaces...))
-
-Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, c::Colon) = CartesianProductSpace(getindex(s.spaces, c))
-Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, i::Int) = getindex(s.spaces, i)
-Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, u::AbstractRange) = CartesianProductSpace(getindex(s.spaces, u))
-Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, u::AbstractVector{Int}) = CartesianProductSpace(getindex(s.spaces, u))
-
-Base.front(s::CartesianProductSpace) = CartesianProductSpace(Base.front(s.spaces))
-Base.tail(s::CartesianProductSpace) = CartesianProductSpace(Base.tail(s.spaces))
-
-#
-
-Base.:(==)(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
-    all(s -> ==(s[1], s[2]), zip(s₁.spaces, s₂.spaces))
-Base.issubset(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
-    all(s -> issubset(s[1], s[2]), zip(s₁.spaces, s₂.spaces))
-Base.intersect(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
-    CartesianProductSpace(map(intersect, s₁.space, s₂.space))
-Base.union(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
-    CartesianProductSpace(map(union, s₁.space, s₂.space))
-
-dimension(s::CartesianProductSpace) = mapreduce(dimension, +, s.spaces)
-dimensions(s::CartesianProductSpace) = map(dimension, s.spaces)
-dimensions(s::CartesianProductSpace, i::Int) = dimension(s.spaces[i])
-
-# order, frequency
-
-order(s::CartesianProductSpace) = map(order, s.spaces)
-order(s::CartesianProductSpace, i::Int) = order(s.spaces[i])
-
-frequency(s::CartesianProductSpace) = map(frequency, s.spaces)
-frequency(s::CartesianProductSpace, i::Int) = frequency(s.spaces[i])
-
-# promotion
-
-Base.convert(::Type{CartesianProductSpace{T}}, space::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N,T<:Tuple{Vararg{VectorSpace,N}}} =
-    CartesianProductSpace{T}(ntuple(i -> convert(T.parameters[i], space.spaces[i]), N))
-Base.promote_rule(::Type{CartesianProductSpace{T}}, ::Type{CartesianProductSpace{S}}) where {N,T<:Tuple{Vararg{VectorSpace,N}},S<:Tuple{Vararg{VectorSpace,N}}} =
-    CartesianProductSpace{Tuple{map(promote_type, T.parameters, S.parameters)...}}
-
-# show
-
-Base.show(io::IO, space::CartesianProductSpace) = print(io, pretty_string(space))
-pretty_string(space::CartesianProductSpace) =
-    mapreduce(sᵢ -> string(" × ", "(", pretty_string(sᵢ), ")"), *, Base.tail(space.spaces); init = "(" * pretty_string(space.spaces[1]) * ")")
-pretty_string(space::CartesianProductSpace{Tuple{}}) = string(Tuple{}())
+Base.:(==)(::VectorSpace, ::VectorSpace) = false
+Base.issubset(::VectorSpace, ::VectorSpace) = false
+Base.intersect(::VectorSpace, ::VectorSpace) = throw(MethodError)
+Base.union(::VectorSpace, ::VectorSpace) = throw(MethodError)
 
 
 
@@ -229,9 +58,6 @@ Abstract type for sequence spaces.
 """
 abstract type SequenceSpace <: VectorSpace end
 
-Base.issubset(s₁::SequenceSpace, s₂::SequenceSpace) = false
-Base.:(==)(s₁::SequenceSpace, s₂::SequenceSpace) = false
-
 """
     UnivariateSpace <: SequenceSpace
 
@@ -249,6 +75,10 @@ Fields:
 """
 struct Taylor <: UnivariateSpace
     order :: Int
+    function Taylor(order::Int)
+        order < 0 && return throw(DomainError(order, "Taylor is only defined for positive orders"))
+        return new(order)
+    end
 end
 
 order(s::Taylor) = s.order
@@ -293,7 +123,14 @@ Fields:
 struct Fourier{T} <: UnivariateSpace
     order :: Int
     frequency :: T
+    function Fourier{T}(order::Int, frequency::T) where {T}
+        order < 0 && return throw(DomainError(order, "Fourier is only defined for positive orders"))
+        frequency < 0 && return throw(DomainError(frequency, "Fourier is only defined for positive frequencies"))
+        return new{T}(order, frequency)
+    end
 end
+
+Fourier(order::Int, frequency::T) where {T} = Fourier{T}(order, frequency)
 
 order(s::Fourier) = s.order
 
@@ -351,6 +188,10 @@ Fields:
 """
 struct Chebyshev <: UnivariateSpace
     order :: Int
+    function Chebyshev(order::Int)
+        order < 0 && return throw(DomainError(order, "Chebyshev is only defined for positive orders"))
+        return new(order)
+    end
 end
 
 order(s::Chebyshev) = s.order
@@ -433,6 +274,7 @@ allindices(s::TensorSpace) = Base.Iterators.ProductIterator(map(allindices, s.sp
 isindexof(α::NTuple{N,Any}, s::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     all(t -> isindexof(t[1], t[2]), zip(α, s.spaces))
 isindexof(u::Base.Iterators.ProductIterator, s::TensorSpace) = isindexof(u.iterators, s)
+isindexof(::Colon, ::TensorSpace) = true
 isindexof(u::AbstractVector{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     all(α -> isindexof(α, s), u)
 
@@ -455,6 +297,7 @@ function _findindex(u::Base.Iterators.ProductIterator, s::TensorSpace)
     end
     return v
 end
+_findindex(c::Colon, ::TensorSpace) = c
 _findindex(u::AbstractVector{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,UnivariateSpace}}) where {N} =
     map(α -> _findindex(α, s), u)
 
@@ -481,3 +324,183 @@ Base.show(io::IO, s::TensorSpace) = print(io, pretty_string(s))
 pretty_string(s::TensorSpace) =
     mapreduce(sᵢ -> string(" ⨂ ", pretty_string(sᵢ)), *, Base.tail(s.spaces); init = pretty_string(s.spaces[1]))
 pretty_string(s::TensorSpace{Tuple{}}) = string(Tuple{}())
+
+
+
+
+
+##
+
+abstract type CartesianSpace <: VectorSpace end
+
+startindex(::CartesianSpace) = 1
+endindex(s::CartesianSpace) = dimension(s)
+allindices(s::CartesianSpace) = Base.OneTo(endindex(s))
+
+isindexof(i::Int, s::CartesianSpace) = (1 ≤ i) & (i ≤ dimension(s))
+isindexof(u::AbstractRange, s::CartesianSpace) = (1 ≤ first(u)) & (last(u) ≤ dimension(s))
+isindexof(::Colon, ::CartesianSpace) = true
+isindexof(u::AbstractVector{Int}, s::CartesianSpace) = all(i -> isindexof(i, s), u)
+
+_findindex(i, ::CartesianSpace) = i
+
+"""
+    CartesianPowerSpace{T<:VectorSpace} <: CartesianSpace
+
+Cartesian space resulting from `dim` cartesian products of a [`VectorSpace`](@ref).
+
+Fields:
+- `space :: T`
+- `dim :: Int`
+"""
+struct CartesianPowerSpace{T<:VectorSpace} <: CartesianSpace
+    space :: T
+    dim :: Int
+    function CartesianPowerSpace{T}(space::T, dim::Int) where {T<:VectorSpace}
+        dim < 1 && return throw(DomainError(dim, "CartesianPowerSpace is only defined for strictly positive dimensions"))
+        return new{T}(space, dim)
+    end
+end
+
+CartesianPowerSpace(space::T, dim::Int) where {T<:VectorSpace} =
+    CartesianPowerSpace{T}(space, dim)
+
+spaces(s::CartesianPowerSpace) = fill(s.space, s.dim)
+
+nb_cartesian_product(s::CartesianPowerSpace) = s.dim
+
+Base.:^(s::VectorSpace, dim::Int) = CartesianPowerSpace(s, dim)
+
+Base.@propagate_inbounds Base.getindex(s::CartesianPowerSpace, ::Colon) = s
+Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, i::Int)
+    @boundscheck((1 ≤ i) & (i ≤ s.dim) || throw(BoundsError(s, i)))
+    return s.space
+end
+Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, u::AbstractRange)
+    @boundscheck((1 ≤ first(u)) & (last(u) ≤ s.dim) || throw(BoundsError(s, u)))
+    return CartesianPowerSpace(s.space, length(u))
+end
+Base.@propagate_inbounds function Base.getindex(s::CartesianPowerSpace, u::AbstractVector{Int})
+    @boundscheck(all(i -> (1 ≤ i) & (i ≤ s.dim), u) || throw(BoundsError(s, u)))
+    return CartesianPowerSpace(s.space, length(u))
+end
+
+#
+
+Base.:(==)(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace) =
+    (s₁.dim == s₂.dim) & (s₁.space == s₂.space)
+Base.issubset(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace) =
+    (s₁.dim == s₂.dim) & issubset(s₁.space, s₂.space)
+function Base.intersect(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace)
+    s₁.dim == s₂.dim || return throw(DimensionMismatch)
+    return CartesianPowerSpace(intersect(s₁.space, s₂.space), s₁.dim)
+end
+function Base.union(s₁::CartesianPowerSpace, s₂::CartesianPowerSpace)
+    s₁.dim == s₂.dim || return throw(DimensionMismatch)
+    return CartesianPowerSpace(union(s₁.space, s₂.space), s₁.dim)
+end
+
+dimension(s::CartesianPowerSpace) = dimension(s.space)*s.dim
+dimensions(s::CartesianPowerSpace) = fill(dimension(s.space), s.dim)
+function dimensions(s::CartesianPowerSpace, i::Int)
+    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
+    return dimension(s.space)
+end
+
+# order, frequency
+
+order(s::CartesianPowerSpace) = fill(order(s.space), s.dim)
+function order(s::CartesianPowerSpace, i::Int)
+    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
+    return order(s.space)
+end
+
+frequency(s::CartesianPowerSpace) = fill(frequency(s.space), s.dim)
+function frequency(s::CartesianPowerSpace, i::Int)
+    (1 ≤ i) & (i ≤ s.dim) || return throw(BoundsError(s, i))
+    return frequency(s.space)
+end
+
+# promotion
+
+Base.convert(::Type{CartesianPowerSpace{T}}, s::CartesianPowerSpace) where {T<:VectorSpace} =
+    CartesianPowerSpace{T}(convert(T, s.space), s.dim)
+Base.promote_rule(::Type{CartesianPowerSpace{T}}, ::Type{CartesianPowerSpace{S}}) where {T<:VectorSpace,S<:VectorSpace} =
+    CartesianPowerSpace{promote_type(T, S)}
+
+# show
+
+Base.show(io::IO, s::CartesianPowerSpace) = print(io, pretty_string(s))
+pretty_string(s::CartesianPowerSpace) = powcartesian_pretty_string(s.space) * superscriptify(s.dim)
+powcartesian_pretty_string(s::VectorSpace) = pretty_string(s)
+powcartesian_pretty_string(s::TensorSpace) = "(" * pretty_string(s) * ")"
+powcartesian_pretty_string(s::CartesianSpace) = "(" * pretty_string(s) * ")"
+
+"""
+    CartesianProductSpace{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+
+Cartesian space resulting from `N` cartesian products of some [`VectorSpace`](@ref).
+
+Fields:
+- `spaces :: T`
+"""
+struct CartesianProductSpace{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+    spaces :: T
+end
+
+spaces(s::CartesianProductSpace) = s.spaces
+
+nb_cartesian_product(s::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} = N
+
+LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProductSpace((s₁, s₂))
+LinearAlgebra.:×(s₁::CartesianProductSpace, s₂::CartesianProductSpace) = CartesianProductSpace((s₁.spaces..., s₂.spaces...))
+LinearAlgebra.:×(s₁::CartesianProductSpace, s₂::VectorSpace) = CartesianProductSpace((s₁.spaces..., s₂))
+LinearAlgebra.:×(s₁::VectorSpace, s₂::CartesianProductSpace) = CartesianProductSpace((s₁, s₂.spaces...))
+
+Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, c::Colon) = CartesianProductSpace(getindex(s.spaces, c))
+Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, i::Int) = getindex(s.spaces, i)
+Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, u::AbstractRange) = CartesianProductSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::CartesianProductSpace, u::AbstractVector{Int}) = CartesianProductSpace(getindex(s.spaces, u))
+
+Base.front(s::CartesianProductSpace) = CartesianProductSpace(Base.front(s.spaces))
+Base.tail(s::CartesianProductSpace) = CartesianProductSpace(Base.tail(s.spaces))
+
+#
+
+Base.:(==)(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
+    all(s -> ==(s[1], s[2]), zip(s₁.spaces, s₂.spaces))
+Base.issubset(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
+    all(s -> issubset(s[1], s[2]), zip(s₁.spaces, s₂.spaces))
+Base.intersect(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
+    CartesianProductSpace(map(intersect, s₁.space, s₂.space))
+Base.union(s₁::CartesianProductSpace{<:NTuple{N,VectorSpace}}, s₂::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N} =
+    CartesianProductSpace(map(union, s₁.space, s₂.space))
+
+dimension(s::CartesianProductSpace) = mapreduce(dimension, +, s.spaces)
+dimensions(s::CartesianProductSpace) = map(dimension, s.spaces)
+dimensions(s::CartesianProductSpace, i::Int) = dimension(s.spaces[i])
+
+# order, frequency
+
+order(s::CartesianProductSpace) = map(order, s.spaces)
+order(s::CartesianProductSpace, i::Int) = order(s.spaces[i])
+
+frequency(s::CartesianProductSpace) = map(frequency, s.spaces)
+frequency(s::CartesianProductSpace, i::Int) = frequency(s.spaces[i])
+
+# promotion
+
+Base.convert(::Type{CartesianProductSpace{T}}, space::CartesianProductSpace{<:NTuple{N,VectorSpace}}) where {N,T<:Tuple{Vararg{VectorSpace,N}}} =
+    CartesianProductSpace{T}(ntuple(i -> convert(T.parameters[i], space.spaces[i]), N))
+Base.promote_rule(::Type{CartesianProductSpace{T}}, ::Type{CartesianProductSpace{S}}) where {N,T<:Tuple{Vararg{VectorSpace,N}},S<:Tuple{Vararg{VectorSpace,N}}} =
+    CartesianProductSpace{Tuple{map(promote_type, T.parameters, S.parameters)...}}
+
+# show
+
+Base.show(io::IO, space::CartesianProductSpace) = print(io, pretty_string(space))
+pretty_string(space::CartesianProductSpace) =
+    mapreduce(sᵢ -> " × " * prodcartesian_pretty_string(sᵢ), *, Base.tail(space.spaces); init = prodcartesian_pretty_string(space.spaces[1]))
+pretty_string(space::CartesianProductSpace{Tuple{}}) = string(Tuple{}())
+prodcartesian_pretty_string(s::VectorSpace) = pretty_string(s)
+prodcartesian_pretty_string(s::TensorSpace) = "(" * pretty_string(s) * ")"
+prodcartesian_pretty_string(s::CartesianProductSpace) = "(" * pretty_string(s) * ")"

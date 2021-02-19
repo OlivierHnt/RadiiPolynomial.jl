@@ -2,38 +2,31 @@ struct Derivative
     n :: Int
 end
 
-(𝒟::Derivative)(a) = *(𝒟, a)
-
-# signature needed to resolve ambiguity due to *(b, a::Sequence)
-Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, 𝒟.n)
-# signature needed to resolve ambiguity due to *(b, A::Operator)
-Base.:*(𝒟::Derivative, A::Operator) = differentiate(A, 𝒟.n)
-
 Base.:*(𝒟₁::Derivative, 𝒟₂::Derivative) = Derivative(𝒟₁.n + 𝒟₂.n)
 Base.:^(𝒟::Derivative, n::Int) = Derivative(𝒟.n * n)
 
-+̄(𝒟::Derivative, A::Operator{<:SequenceSpace,<:SequenceSpace}) = +(Operator(domain(A), codomain(A), 𝒟, eltype(A)), A)
-+̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, 𝒟::Derivative) = +(A, Operator(domain(A), codomain(A), 𝒟, eltype(A)))
--̄(𝒟::Derivative, A::Operator{<:SequenceSpace,<:SequenceSpace}) = -(Operator(domain(A), codomain(A), 𝒟, eltype(A)), A)
--̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, 𝒟::Derivative) = -(A, Operator(domain(A), codomain(A), 𝒟, eltype(A)))
-*̄(𝒟::Derivative, A::Operator{<:SequenceSpace,<:SequenceSpace}) = *(Operator(codomain(A), codomain(A), 𝒟, eltype(A)), A)
-*̄(A::Operator{<:SequenceSpace,<:SequenceSpace}, 𝒟::Derivative) = *(A, Operator(domain(A), domain(A), 𝒟, eltype(A)))
+## arithmetic
 
-# sequence space
++̄(𝒟::Derivative, A::Operator) = +(project(𝒟, domain(A), codomain(A), eltype(A)), A)
++̄(A::Operator, 𝒟::Derivative) = +(A, project(𝒟, domain(A), codomain(A), eltype(A)))
+-̄(𝒟::Derivative, A::Operator) = -(project(𝒟, domain(A), codomain(A), eltype(A)), A)
+-̄(A::Operator, 𝒟::Derivative) = -(A, project(𝒟, domain(A), codomain(A), eltype(A)))
+*̄(𝒟::Derivative, A::Operator) = *(project(𝒟, codomain(A), codomain(A), eltype(A)), A)
+*̄(A::Operator, 𝒟::Derivative) = *(A, project(𝒟, domain(A), domain(A), eltype(A)))
 
-function Operator(domain::Taylor, codomain::Taylor, 𝒟::Derivative, ::Type{T}=Float64) where {T}
-    A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(T)
+#
+
+function project(𝒟::Derivative, domain::Taylor, codomain::Taylor, ::Type{T}=Float64) where {T}
+    A = Operator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     @inbounds for i ∈ 0:min(order(domain)-𝒟.n, order(codomain))
         A[i,i+𝒟.n] = prod(i+1:i+𝒟.n)
     end
     return A
 end
 
-function Operator(domain::Fourier{T}, codomain::Fourier{S}, 𝒟::Derivative, ::Type{R}=complex(promote_type(T, S))) where {T,S,R}
-    @assert frequency(domain) == frequency(codomain)
-    A = Operator(domain, codomain, Matrix{R}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(R)
+function project(𝒟::Derivative, domain::Fourier{T}, codomain::Fourier{S}, ::Type{R}=complex(promote_type(T, S))) where {T,S,R}
+    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    A = Operator(domain, codomain, zeros(R, dimension(codomain), dimension(domain)))
     iⁿωⁿ = convert(R, (im*frequency(domain))^𝒟.n)
     if isodd(𝒟.n)
         @inbounds for j ∈ 1:min(order(domain), order(codomain))
@@ -52,32 +45,35 @@ function Operator(domain::Fourier{T}, codomain::Fourier{S}, 𝒟::Derivative, ::
     end
 end
 
-function Operator(domain::Chebyshev, codomain::Chebyshev, 𝒟::Derivative, ::Type{T}=Float64) where {T}
+function project(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshev, ::Type{T}=Float64) where {T}
     @assert 𝒟.n == 1 # TODO: lift restriction
-    A = Operator(domain, codomain, Matrix{T}(undef, dimension(codomain), dimension(domain)))
-    A.coefficients .= zero(T)
-    @inbounds for i ∈ 1:2:domain.order
+    A = Operator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
+    order_domain = order(domain)
+    order_codomain = order(codomain)
+    @inbounds for i ∈ 1:2:order_domain
         A[0,i] = 2i
     end
-    for j ∈ 2:2:domain.order-1
-        @inbounds for i ∈ 1:2:min(j-1, codomain.order)
+    for j ∈ 2:2:order_domain-1
+        @inbounds for i ∈ 1:2:min(j-1, order_codomain)
             A[i,j] = 2j
         end
-        @inbounds for i ∈ 2:2:min(j, codomain.order)
+        @inbounds for i ∈ 2:2:min(j, order_codomain)
             A[i,j+1] = 2(j+1)
         end
     end
-    if iseven(domain.order)
-        @inbounds for i ∈ 1:2:min(domain.order-1, codomain.order)
-            A[i,domain.order] = 2domain.order
+    if iseven(order_domain)
+        @inbounds for i ∈ 1:2:min(order_domain-1, order_codomain)
+            A[i,order_domain] = 2order_domain
         end
     end
     return A
 end
 
-##
+## action
 
-# sequence space
+(𝒟::Derivative)(a::Sequence) = *(𝒟, a)
+# signature needed to resolve ambiguity due to *(b, a::Sequence)
+Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, 𝒟.n)
 
 function derivative_range(s::Taylor, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
@@ -97,7 +93,7 @@ function derivative_range(s::Chebyshev, n::Int=1)
 end
 
 derivative_range(s::TensorSpace{<:NTuple{N,UnivariateSpace}}, dim::Int, n::Int=1) where {N} =
-    TensorSpace((s.spaces[1:dim-1]..., derivative_range(s[dim], n), s.spaces[dim+1:N]...))
+    TensorSpace((s.spaces[1:dim-1]..., derivative_range(s.spaces[dim], n), s.spaces[dim+1:N]...))
 
 function differentiate(a::Sequence{Taylor}, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
@@ -158,8 +154,9 @@ end
 
 function differentiate(a::Sequence{<:TensorSpace}, dim::Int, n::Int=1)
     n < 1 && return throw(DomainError(n, "^ is only defined for strictly positive integers"))
-    A = reshape(a.coefficients, dimensions(a.space))
-    return Sequence(derivative_range(a.space, dim, n), vec(_differentiate(a.space[dim], Val(dim), A, n)))
+    space_a = space(a)
+    A = reshape(coefficients(a), dimensions(space_a))
+    return Sequence(derivative_range(space_a, dim, n), vec(_differentiate(space_a[dim], Val(dim), A, n)))
 end
 
 function _differentiate(space::Taylor, ::Val{D}, A::AbstractArray{T,N}, n) where {D,T,N}

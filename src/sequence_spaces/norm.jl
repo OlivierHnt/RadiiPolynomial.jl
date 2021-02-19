@@ -1,8 +1,8 @@
 ## fallback methods for standard norm/opnorm
 
-LinearAlgebra.norm(a::Sequence, p::Real=1) = norm(a.coefficients, p)
+LinearAlgebra.norm(a::Sequence, p::Real=1) = norm(coefficients(a), p)
 
-LinearAlgebra.opnorm(A::Operator, p::Real=1) = opnorm(A.coefficients, p)
+LinearAlgebra.opnorm(A::Operator, p::Real=1) = opnorm(coefficients(A), p)
 
 ## CARTESIAN SPACE
 
@@ -27,11 +27,11 @@ checkweight(ν::Tuple) = all(checkweight, ν)
 
 #
 
-norm_weighted_ℓ¹(a::Sequence{<:SequenceSpace}) = norm(a.coefficients, 1)
+norm_weighted_ℓ¹(a::Sequence{<:SequenceSpace}) = norm(coefficients(a), 1)
 
 function norm_weighted_ℓ¹(a::Sequence{<:SequenceSpace}, ν)
     checkweight(ν) || return throw(DomainError(ν, "norm_weighted_ℓ¹ is only defined for strictly positive weights"))
-    return _norm_weighted_ℓ¹(a.space, a.coefficients, ν)
+    return _norm_weighted_ℓ¹(space(a), coefficients(a), ν)
 end
 
 function _norm_weighted_ℓ¹(space::Taylor, A, ν)
@@ -112,7 +112,7 @@ opnorm_weighted_ℓ¹(A::Operator{<:SequenceSpace,<:SequenceSpace}) = opnorm(A.c
 
 function opnorm_weighted_ℓ¹(A::Operator{<:SequenceSpace,<:SequenceSpace}, μ, ν)
     checkweight(μ) && checkweight(ν) || throw(DomainError((μ, ν), "norm_weighted_ℓ¹ is only defined for strictly positive weights"))
-    return _functional_opnorm_weighted_ℓ¹(A.domain, map(Aᵢ -> _norm_weighted_ℓ¹(A.codomain, Aᵢ, ν), eachcol(A.coefficients)), μ)
+    return _functional_opnorm_weighted_ℓ¹(domain(A), map(Aᵢ -> _norm_weighted_ℓ¹(codomain(A), Aᵢ, ν), eachcol(coefficients(A))), μ)
 end
 
 function _functional_opnorm_weighted_ℓ¹(domain::Taylor, A, μ)

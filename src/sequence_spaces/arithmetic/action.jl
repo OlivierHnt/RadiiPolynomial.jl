@@ -1,79 +1,75 @@
 ## fallback methods
 
-(A::Operator)(b) = *(A, b)
+(A::Operator)(b::Sequence) = *(A, b)
 
 function Base.:*(A::Operator, b::Sequence)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    space_b = space(b)
     CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(A.codomain, Vector{CoefType}(undef, dimension(A.codomain)))
-    if A.domain == b.space
-        mul!(c.coefficients, A.coefficients, b.coefficients)
-        return c
-    elseif A.domain ⊆ b.space
-        c.coefficients .= zero(CoefType)
-        @inbounds for β ∈ allindices(A.domain), α ∈ allindices(A.codomain)
-            c[α] += A[α,β]*b[β]
-        end
-        return c
-    elseif b.space ⊆ A.domain
-        c.coefficients .= zero(CoefType)
-        @inbounds for β ∈ allindices(b.space), α ∈ allindices(A.codomain)
-            c[α] += A[α,β]*b[β]
-        end
-        return c
+    c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
+    if domain_A == space_b
+        mul!(coefficients(c), coefficients(A), coefficients(b))
     else
-        c.coefficients .= zero(CoefType)
-        @inbounds for β ∈ allindices(A.domain ∩ b.space), α ∈ allindices(A.codomain)
+        coefficients(c) .= zero(CoefType)
+        @inbounds for β ∈ allindices(domain_A ∩ space_b), α ∈ allindices(codomain_A)
             c[α] += A[α,β]*b[β]
         end
-        return c
     end
+    return c
 end
 
 function Base.:\(A::Operator, b::Sequence)
-    if b.space == A.codomain
-        return Sequence(A.domain, \(A.coefficients, b.coefficients))
-    elseif b.space ⊆ A.codomain
-        return \(A, project(b, A.codomain))
-    elseif A.codomain ⊆ b.space
-        return \(project(A, A.domain, b.space), b)
-    else
-        space = addition_range(b.space, A.codomain)
-        return \(project(A, A.domain, space), project(b, space))
-    end
+    codomain_A = codomain(A)
+    space_b = space(b)
+    space_b == codomain_A && return Sequence(domain(A), \(coefficients(A), coefficients(b)))
+    space_b ⊆ codomain_A && return \(A, project(b, codomain_A))
+    codomain_A ⊆ space_b && return \(project(A, domain(A), space_b), b)
+    union_space = ∪(space_b, codomain_A)
+    return \(project(A, domain(A), union_space), project(b, union_space))
 end
 
 ## cartesian space
 
 function Base.:*(A::Operator{<:CartesianSpace,<:CartesianSpace}, b::Sequence{<:CartesianSpace})
-    nb_cartesian_product(A.domain) == nb_cartesian_product(b.space) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    space_b = space(b)
+    nb_cartesian_product(domain_A) == nb_cartesian_product(space_b) || return throw(DimensionMismatch)
     CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(A.codomain, zeros(CoefType, dimension(A.codomain)))
-    @inbounds for j ∈ 1:nb_cartesian_product(A.domain)
+    c = Sequence(codomain_A, zeros(CoefType, dimension(codomain_A)))
+    @inbounds for j ∈ 1:nb_cartesian_product(domain_A)
         bⱼ = component(b, j)
-        @inbounds for i ∈ 1:nb_cartesian_product(A.codomain)
-            component(c, i).coefficients .+= *(component(A, i, j), bⱼ).coefficients
+        @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+            coefficients(component(c, i)) .+= coefficients(*(component(A, i, j), bⱼ))
         end
     end
     return c
 end
 
 function Base.:*(A::Operator{<:CartesianSpace,<:VectorSpace}, b::Sequence{<:CartesianSpace})
-    nb_cartesian_product(A.domain) == nb_cartesian_product(b.space) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    space_b = space(b)
+    nb_cartesian_product(domain_A) == nb_cartesian_product(space_b) || return throw(DimensionMismatch)
     CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(A.codomain, Vector{CoefType}(undef, dimension(A.codomain)))
-    c.coefficients .= *(component(A, 1), component(b, 1)).coefficients
-    @inbounds for j ∈ 2:nb_cartesian_product(A.domain)
-        c.coefficients .+= *(component(A, j), component(b, j)).coefficients
+    c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
+    coefficients(c) .= coefficients(*(component(A, 1), component(b, 1)))
+    @inbounds for j ∈ 2:nb_cartesian_product(domain_A)
+        coefficients(c) .+= coefficients(*(component(A, j), component(b, j)))
     end
     return c
 end
 
 function Base.:*(A::Operator{<:VectorSpace,<:CartesianSpace}, b::Sequence{<:VectorSpace})
-    nb_cartesian_product(A.codomain) == nb_cartesian_product(b.space) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    space_b = space(b)
+    nb_cartesian_product(codomain_A) == nb_cartesian_product(space_b) || return throw(DimensionMismatch)
     CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(A.domain, Vector{CoefType}(undef, dimension(A.codomain)))
-    @inbounds for i ∈ 1:nb_cartesian_product(A.codomain)
-        component(c, i).coefficients .= *(component(A, i), b).coefficients
+    c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
+    @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+        coefficients(component(c, i)) .= coefficients(*(component(A, i), b))
     end
     return c
 end

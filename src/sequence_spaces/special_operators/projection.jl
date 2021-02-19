@@ -1,125 +1,104 @@
 ## fallback methods
 
-function project(a::Sequence, space::VectorSpace)
+function project(a::Sequence, space_dest::VectorSpace)
+    space_a = space(a)
     CoefType = eltype(a)
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == space
-        @. c.coefficients = a.coefficients
-        return c
-    elseif space ⊆ a.space
-        @inbounds for α ∈ allindices(space)
-            c[α] = a[α]
-        end
-        return c
+    c = Sequence(space_dest, Vector{CoefType}(undef, dimension(space_dest)))
+    if space_a == space_dest
+        coefficients(c) .= coefficients(a)
+    elseif space_dest ⊆ space_a
+        indices = allindices(space_dest)
+        @inbounds view(c, indices) .= view(a, indices)
     else
-        c.coefficients .= zero(CoefType)
-        @inbounds for α ∈ allindices(a.space ∩ space)
+        coefficients(c) .= zero(CoefType)
+        @inbounds for α ∈ allindices(space_a ∩ space_dest)
             c[α] = a[α]
         end
-        return c
     end
+    return c
 end
 
-function project(A::Operator, domain::VectorSpace, codomain::VectorSpace)
+function project(A::Operator, domain_dest::VectorSpace, codomain_dest::VectorSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
     CoefType = eltype(A)
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == domain && A.codomain == codomain
-        @. C.coefficients = A.coefficients
-        return C
-    elseif A.domain ⊆ domain && A.codomain == codomain
-        C.coefficients .= zero(CoefType)
-        @inbounds for α ∈ allindices(A.domain)
-            view(C, :, α) .= view(A, :, α)
-        end
-        return c
-    elseif domain ⊆ A.domain && A.codomain == codomain
-        @inbounds for α ∈ allindices(domain)
-            view(C, :, α) .= view(A, :, α)
-        end
-        return C
-    elseif A.domain == domain && A.codomain ⊆ codomain
-        C.coefficients .= zero(CoefType)
-        @inbounds for α ∈ allindices(A.codomain)
-            view(C, α, :) .= view(A, α, :)
-        end
-        return C
-    elseif domain == A.domain && codomain ⊆ A.codomain
-        @inbounds for α ∈ allindices(codomain)
-            view(C, α, :) .= view(A, α, :)
-        end
-        return C
-    elseif domain ⊆ A.domain && codomain ⊆ A.codomain
-        @inbounds for β ∈ allindices(domain), α ∈ allindices(codomain)
-            C[α,β] = A[α,β]
-        end
-        return C
+    C = Operator(domain_dest, codomain_dest, Matrix{CoefType}(undef, dimension(codomain_dest), dimension(domain_dest)))
+    if domain_A == domain_dest && codomain_A == codomain_dest
+        coefficients(C) .= coefficients(A)
+    elseif domain_dest ⊆ domain_A && codomain_dest ⊆ codomain_A
+        indices_dest_domain = allindices(domain_dest)
+        indices_dest_codomain = allindices(codomain_dest)
+        @inbounds view(C, indices_dest_codomain, indices_dest_domain) .= view(A, indices_dest_codomain, indices_dest_domain)
     else
-        C.coefficients .= zero(CoefType)
-        @inbounds for β ∈ allindices(A.domain ∩ domain), α ∈ allindices(A.codomain ∩ codomain)
+        coefficients(C) .= zero(CoefType)
+        @inbounds for β ∈ allindices(domain_A ∩ domain_dest), α ∈ allindices(codomain_A ∩ codomain_dest)
             C[α,β] = A[α,β]
         end
-        return C
     end
+    return C
 end
 
 ## cartesian space
 
-function project(a::Sequence{<:CartesianSpace}, space::CartesianSpace)
-    nb_cartesian_product(a.space) == nb_cartesian_product(space) || return throw(DimensionMismatch)
+function project(a::Sequence{<:CartesianSpace}, space_dest::CartesianSpace)
+    space_a = space(a)
+    nb_cartesian_product(space_a) == nb_cartesian_product(space_dest) || return throw(DimensionMismatch)
     CoefType = eltype(a)
-    c = Sequence(space, Vector{CoefType}(undef, dimension(space)))
-    if a.space == space
-        @. c.coefficients = a.coefficients
-        return c
+    c = Sequence(space_dest, Vector{CoefType}(undef, dimension(space_dest)))
+    if space_a == space_dest
+        coefficients(c) .= coefficients(a)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(space)
-            component(c, i).coefficients .= project(component(a, i), space[i]).coefficients
+        @inbounds for i ∈ 1:nb_cartesian_product(space_dest)
+            coefficients(component(c, i)) .= coefficients(project(component(a, i), space_dest[i]))
         end
-        return c
     end
+    return c
 end
 
-function project(A::Operator{<:CartesianSpace,<:CartesianSpace}, domain::CartesianSpace, codomain::CartesianSpace)
-    nb_cartesian_product(A.domain) == nb_cartesian_product(domain) && nb_cartesian_product(A.codomain) == nb_cartesian_product(codomain) || return throw(DimensionMismatch)
+function project(A::Operator{<:CartesianSpace,<:CartesianSpace}, domain_dest::CartesianSpace, codomain_dest::CartesianSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    nb_cartesian_product(domain_A) == nb_cartesian_product(domain_dest) && nb_cartesian_product(codomain_A) == nb_cartesian_product(codomain_dest) || return throw(DimensionMismatch)
     CoefType = eltype(A)
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == domain && A.codomain == codomain
-        @. C.coefficients = A.coefficients
-        return C
+    C = Operator(domain_dest, codomain_dest, Matrix{CoefType}(undef, dimension(codomain_dest), dimension(domain_dest)))
+    if domain_A == domain_dest && codomain_A == codomain_dest
+        coefficients(C) .= coefficients(A)
     else
-        @inbounds for j ∈ 1:nb_cartesian_product(domain), i ∈ 1:nb_cartesian_product(codomain)
-            component(C, i, j).coefficients .= project(component(A, i, j), domain[j], codomain[i]).coefficients
+        @inbounds for j ∈ 1:nb_cartesian_product(domain_dest), i ∈ 1:nb_cartesian_product(codomain_dest)
+            coefficients(component(C, i, j)) .= coefficients(project(component(A, i, j), domain_dest[j], codomain_dest[i]))
         end
-        return C
     end
+    return C
 end
 
-function project(A::Operator{<:CartesianSpace,<:VectorSpace}, domain::CartesianSpace, codomain::VectorSpace)
-    nb_cartesian_product(A.domain) == nb_cartesian_product(domain) || return throw(DimensionMismatch)
+function project(A::Operator{<:CartesianSpace,<:VectorSpace}, domain_dest::CartesianSpace, codomain_dest::VectorSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    nb_cartesian_product(domain_A) == nb_cartesian_product(domain_dest) || return throw(DimensionMismatch)
     CoefType = eltype(A)
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == domain && A.codomain == codomain
-        @. C.coefficients = A.coefficients
-        return C
+    C = Operator(domain_dest, codomain_dest, Matrix{CoefType}(undef, dimension(codomain_dest), dimension(domain_dest)))
+    if domain_A == domain_dest && codomain_A == codomain_dest
+        coefficients(C) .= coefficients(A)
     else
-        @inbounds for j ∈ 1:nb_cartesian_product(domain)
-            component(C, j).coefficients .= project(component(A, j), domain[j], codomain).coefficients
+        @inbounds for j ∈ 1:nb_cartesian_product(domain_dest)
+            coefficients(component(C, j)) .= coefficients(project(component(A, j), domain_dest[j], codomain_dest))
         end
-        return C
     end
+    return C
 end
 
-function project(A::Operator{<:VectorSpace,<:CartesianSpace}, domain::VectorSpace, codomain::CartesianSpace)
-    nb_cartesian_product(A.codomain) == nb_cartesian_product(codomain) || return throw(DimensionMismatch)
+function project(A::Operator{<:VectorSpace,<:CartesianSpace}, domain_dest::VectorSpace, codomain_dest::CartesianSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    nb_cartesian_product(codomain_A) == nb_cartesian_product(codomain_dest) || return throw(DimensionMismatch)
     CoefType = eltype(A)
-    C = Operator(domain, codomain, Matrix{CoefType}(undef, dimension(codomain), dimension(domain)))
-    if A.domain == domain && A.codomain == codomain
-        @. C.coefficients = A.coefficients
-        return C
+    C = Operator(domain_dest, codomain_dest, Matrix{CoefType}(undef, dimension(codomain_dest), dimension(domain_dest)))
+    if domain_A == domain_dest && codomain_A == codomain_dest
+        coefficients(C) .= coefficients(A)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(codomain)
-            component(C, i).coefficients .= project(component(A, i), domain, codomain[i]).coefficients
+        @inbounds for i ∈ 1:nb_cartesian_product(codomain_dest)
+            coefficients(component(C, i)) .= coefficients(project(component(A, i), domain_dest, codomain_dest[i]))
         end
-        return C
     end
+    return C
 end

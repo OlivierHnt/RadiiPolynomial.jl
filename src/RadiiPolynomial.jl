@@ -6,9 +6,9 @@ module RadiiPolynomial
 @inline Base._setindex(v, i::Int, args...) =
     ntuple(dim -> ifelse(i == dim, v, args[dim]), length(args))
 
-## hack intersect from Base for performance
-@inline Base.intersect(a::Base.Iterators.ProductIterator{<:NTuple{N,AbstractRange}}, b::Base.Iterators.ProductIterator{<:NTuple{N,AbstractRange}}) where {N} =
-    Base.Iterators.ProductIterator(map(intersect, a.iterators, b.iterators))
+## hack intersect from Base for performance (match intersect behaviour on CartesianIndices)
+@inline Base.intersect(a::Base.Iterators.ProductIterator, b::Base.Iterators.ProductIterator) =
+    Base.Iterators.ProductIterator(intersect.(a.iterators, b.iterators))
 
 ## from TaylorSeries.jl to show superscript and subscript
 
@@ -19,10 +19,11 @@ superscriptify(n::Int) = join([superscript_digits[i+1] for i ∈ reverse(digits(
 
 ## Sequence spaces
 
-include("sequence_spaces/space.jl")
-    export VectorSpace, CartesianSpace, CartesianPowerSpace, CartesianProductSpace,
-           ×, nb_cartesian_product, ParameterSpace, SequenceSpace, UnivariateSpace,
-           Taylor, Fourier, Chebyshev, TensorSpace, order, frequency, ⊗
+include("sequence_spaces/spaces.jl")
+    export VectorSpace, ParameterSpace, SequenceSpace, UnivariateSpace,
+           Taylor, Fourier, Chebyshev, TensorSpace, CartesianSpace,
+           CartesianPowerSpace, CartesianProductSpace, ×, ⊗, order, frequency,
+           spaces, nb_cartesian_product
 
     export dimension, dimensions, startindex, endindex, allindices, isindexof
 
@@ -42,6 +43,8 @@ include("sequence_spaces/arithmetic/space.jl")
 include("sequence_spaces/arithmetic/sequence.jl")
 include("sequence_spaces/arithmetic/operator.jl")
 include("sequence_spaces/arithmetic/action.jl")
+include("sequence_spaces/arithmetic/convolution.jl")
+    export geometric_decay
 include("sequence_spaces/arithmetic/fft.jl")
     export fft_length, fft_size, dfs_dimension, dfs_dimensions, dfs, idfs!
 
@@ -57,10 +60,10 @@ include("sequence_spaces/special_operators/integral.jl")
     export Integral, integral_range, integrate
 include("sequence_spaces/special_operators/evaluation.jl")
     export Evaluation, evaluate
-include("sequence_spaces/special_operators/rescale.jl")
-    export Rescale, rescale, rescale!
+include("sequence_spaces/special_operators/scale.jl")
+    export Scale, scale, scale!
 include("sequence_spaces/special_operators/shift.jl")
-    export Shift, shift
+    export Shift, shift, shift!
 
 #
 

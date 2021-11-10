@@ -1,0 +1,600 @@
+"""
+    VectorSpace
+
+Abstract type for all vector spaces.
+"""
+abstract type VectorSpace end
+
+Base.:(==)(::VectorSpace, ::VectorSpace) = false
+Base.issubset(::VectorSpace, ::VectorSpace) = false
+Base.intersect(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(intersect, (s₁, s₂)))
+Base.union(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(union, (s₁, s₂)))
+
+
+
+
+
+# Parameter space
+
+"""
+    ParameterSpace <: VectorSpace
+
+Space of a parameter corresponding to a commutative field.
+"""
+struct ParameterSpace <: VectorSpace end
+
+Base.:(==)(::ParameterSpace, ::ParameterSpace) = true
+Base.issubset(::ParameterSpace, ::ParameterSpace) = true
+Base.intersect(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
+Base.union(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
+
+dimension(::ParameterSpace) = 1
+_firstindex(::ParameterSpace) = 1
+_lastindex(::ParameterSpace) = 1
+indices(::ParameterSpace) = Base.OneTo(1)
+
+_findposition(i, ::ParameterSpace) = i
+
+
+
+
+
+# Sequence spaces
+
+"""
+    SequenceSpace <: VectorSpace
+
+Abstract type for all sequence spaces.
+"""
+abstract type SequenceSpace <: VectorSpace end
+
+"""
+    BaseSpace <: SequenceSpace
+
+Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but can be interlaced to form one.
+"""
+abstract type BaseSpace <: SequenceSpace end
+
+"""
+    TensorSpace{T<:NTuple{N,BaseSpace} where {N}} <: SequenceSpace
+
+[`SequenceSpace`](@ref) resulting from the tensor product of some [`BaseSpace`](@ref).
+
+Fields:
+- `spaces :: T`
+"""
+struct TensorSpace{T<:NTuple{N,BaseSpace} where {N}} <: SequenceSpace
+    spaces :: T
+end
+
+spaces(s::TensorSpace) = s.spaces
+
+⊗(s₁::BaseSpace, s₂::BaseSpace) = TensorSpace((s₁, s₂))
+⊗(s₁::TensorSpace, s₂::TensorSpace) = TensorSpace((s₁.spaces..., s₂.spaces...))
+⊗(s₁::TensorSpace, s₂::BaseSpace) = TensorSpace((s₁.spaces..., s₂))
+⊗(s₁::BaseSpace, s₂::TensorSpace) = TensorSpace((s₁, s₂.spaces...))
+
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, i::Int) = getindex(s.spaces, i)
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractRange{Int}) = TensorSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractVector{Int}) = TensorSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, c::Colon) = TensorSpace(getindex(s.spaces, c))
+
+Base.front(s::TensorSpace) = TensorSpace(Base.front(s.spaces))
+Base.tail(s::TensorSpace) = TensorSpace(Base.tail(s.spaces))
+
+#
+
+function Base.:(==)(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    s₁[1] == s₂[1] && return Base.tail(s₁) == Base.tail(s₂)
+    return false
+end
+Base.:(==)(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
+    s₁[1] == s₂[1]
+function Base.issubset(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    issubset(s₁[1], s₂[1]) && return issubset(Base.tail(s₁), Base.tail(s₂))
+    return false
+end
+Base.issubset(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
+    issubset(s₁[1], s₂[1])
+Base.intersect(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map(intersect, s₁.spaces, s₂.spaces))
+Base.union(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map(union, s₁.spaces, s₂.spaces))
+
+dimension(s::TensorSpace) = mapreduce(dimension, *, s.spaces)
+dimension(s::TensorSpace, i::Int) = dimension(s.spaces[i])
+dimensions(s::TensorSpace) = map(dimension, s.spaces)
+_firstindex(s::TensorSpace) = map(_firstindex, s.spaces)
+_lastindex(s::TensorSpace) = map(_lastindex, s.spaces)
+
+struct TensorIndices{T<:Tuple}
+    iterators :: T
+end
+Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = getindex(Base.Iterators.ProductIterator(a.iterators), i)
+Base.length(a::TensorIndices) = length(Base.Iterators.ProductIterator(a.iterators))
+Base.iterate(a::TensorIndices) = iterate(Base.Iterators.ProductIterator(a.iterators))
+Base.iterate(a::TensorIndices, state) = iterate(Base.Iterators.ProductIterator(a.iterators), state)
+Base.issubset(a::TensorIndices, b::TensorIndices) = all(issubset.(a.iterators, b.iterators))
+Base.intersect(a::TensorIndices, b::TensorIndices) = TensorIndices(intersect.(a.iterators, b.iterators))
+Base.union(a::TensorIndices, b::TensorIndices) = TensorIndices(union.(a.iterators, b.iterators))
+
+indices(s::TensorSpace) = TensorIndices(map(indices, s.spaces))
+
+_findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> 0, Val(N))
+
+@generated function _findposition(α::NTuple{N,Int}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    # follows column major convention
+    idx = :(_findposition(α[1], s.spaces[1]))
+    n = 1
+    for i ∈ 2:N
+        n = :(dimension(s.spaces[$i-1]) * $n)
+        idx = :($n * (_findposition(α[$i], s.spaces[$i]) - 1) + $idx)
+    end
+    return idx
+end
+_findposition(u::NTuple{N,Any}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    _findposition(TensorIndices(map(_colon2indices, u, s.spaces)), s)
+_colon2indices(u, s) = u
+_colon2indices(::Colon, s) = indices(s)
+function _findposition(u::TensorIndices{<:NTuple{N,Any}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    v = Vector{Int}(undef, length(u))
+    @inbounds for (i, uᵢ) ∈ enumerate(u)
+        v[i] = _findposition(uᵢ, s)
+    end
+    return v
+end
+_findposition(u::AbstractVector{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    map(α -> _findposition(α, s), u)
+_findposition(::NTuple{N,Colon}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = Colon()
+_findposition(c::Colon, ::TensorSpace) = c
+
+# order, frequency
+
+order(s::TensorSpace) = map(order, s.spaces)
+order(s::TensorSpace, i::Int) = order(s.spaces[i])
+
+frequency(s::TensorSpace) = map(frequency, s.spaces)
+frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
+
+# promotion
+
+Base.convert(::Type{T}, s::T) where {T<:TensorSpace} = s
+Base.convert(::Type{TensorSpace{T}}, s::TensorSpace) where {T} =
+    TensorSpace{T}(convert(T, s.spaces))
+
+Base.promote_rule(::Type{T}, ::Type{T}) where {T<:TensorSpace} = T
+Base.promote_rule(::Type{TensorSpace{T}}, ::Type{TensorSpace{S}}) where {T,S} =
+    TensorSpace{promote_type(T, S)}
+
+#
+
+"""
+    Taylor <: BaseSpace
+
+Taylor sequence space whose elements are Taylor sequences of a prescribed order.
+
+Fields:
+- `order :: Int`
+"""
+struct Taylor <: BaseSpace
+    order :: Int
+    function Taylor(order::Int)
+        order < 0 && return throw(DomainError(order, "Taylor is only defined for positive orders"))
+        return new(order)
+    end
+end
+
+order(s::Taylor) = s.order
+
+Base.:(==)(s₁::Taylor, s₂::Taylor) = s₁.order == s₂.order
+Base.issubset(s₁::Taylor, s₂::Taylor) = s₁.order ≤ s₂.order
+Base.intersect(s₁::Taylor, s₂::Taylor) = Taylor(min(s₁.order, s₂.order))
+Base.union(s₁::Taylor, s₂::Taylor) = Taylor(max(s₁.order, s₂.order))
+
+dimension(s::Taylor) = s.order + 1
+_firstindex(::Taylor) = 0
+_lastindex(s::Taylor) = s.order
+indices(s::Taylor) = 0:s.order
+
+_findindex_constant(::Taylor) = 0
+
+_findposition(i::Int, ::Taylor) = i + 1
+_findposition(u::AbstractRange{Int}, ::Taylor) = u .+ 1
+_findposition(u::AbstractVector{Int}, s::Taylor) = map(i -> _findposition(i, s), u)
+_findposition(c::Colon, ::Taylor) = c
+
+#
+
+"""
+    Fourier{T} <: BaseSpace
+
+Fourier sequence space whose elements are Fourier sequences of a prescribed order and frequency.
+
+Fields:
+- `order :: Int`
+- `frequency :: T`
+"""
+struct Fourier{T<:Real} <: BaseSpace
+    order :: Int
+    frequency :: T
+    function Fourier{T}(order::Int, frequency::T) where {T<:Real}
+        order < 0 && return throw(DomainError(order, "Fourier is only defined for positive orders"))
+        return new{T}(order, frequency)
+    end
+end
+
+Fourier(order::Int, frequency::T) where {T<:Real} = Fourier{T}(order, frequency)
+
+order(s::Fourier) = s.order
+
+frequency(s::Fourier) = s.frequency
+
+Base.:(==)(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order == s₂.order)
+Base.issubset(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order ≤ s₂.order)
+function Base.intersect(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
+    s₁.frequency == s₂.frequency || return throw(DomainError)
+    R = promote_type(T, S)
+    return Fourier(min(s₁.order, s₂.order), convert(R, s₁.frequency))
+end
+function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
+    s₁.frequency == s₂.frequency || return throw(DomainError)
+    R = promote_type(T, S)
+    return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
+end
+
+dimension(s::Fourier) = 2s.order + 1
+_firstindex(s::Fourier) = -s.order
+_lastindex(s::Fourier) = s.order
+indices(s::Fourier) = -s.order:s.order
+
+_findindex_constant(::Fourier) = 0
+
+_findposition(i::Int, s::Fourier) = i + s.order + 1
+_findposition(u::AbstractRange{Int}, s::Fourier) = u .+ (s.order + 1)
+_findposition(u::AbstractVector{Int}, s::Fourier) = map(i -> _findposition(i, s), u)
+_findposition(c::Colon, ::Fourier) = c
+
+# promotion
+
+Base.convert(::Type{T}, s::T) where {T<:Fourier} = s
+Base.convert(::Type{Fourier{T}}, s::Fourier) where {T<:Real} =
+    Fourier{T}(s.order, convert(T, s.frequency))
+
+Base.promote_rule(::Type{T}, ::Type{T}) where {T<:Fourier} = T
+Base.promote_rule(::Type{Fourier{T}}, ::Type{Fourier{S}}) where {T<:Real,S<:Real} =
+    Fourier{promote_type(T, S)}
+
+#
+
+"""
+    Chebyshev <: BaseSpace
+
+Chebyshev sequence space whose elements are Chebyshev sequences of a prescribed order.
+
+Fields:
+- `order :: Int`
+"""
+struct Chebyshev <: BaseSpace
+    order :: Int
+    function Chebyshev(order::Int)
+        order < 0 && return throw(DomainError(order, "Chebyshev is only defined for positive orders"))
+        return new(order)
+    end
+end
+
+order(s::Chebyshev) = s.order
+
+Base.:(==)(s₁::Chebyshev, s₂::Chebyshev) = s₁.order == s₂.order
+Base.issubset(s₁::Chebyshev, s₂::Chebyshev) = s₁.order ≤ s₂.order
+Base.intersect(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(min(s₁.order, s₂.order))
+Base.union(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(max(s₁.order, s₂.order))
+
+dimension(s::Chebyshev) = s.order + 1
+_firstindex(::Chebyshev) = 0
+_lastindex(s::Chebyshev) = s.order
+indices(s::Chebyshev) = 0:s.order
+
+_findindex_constant(::Chebyshev) = 0
+
+_findposition(i::Int, ::Chebyshev) = i + 1
+_findposition(u::AbstractRange{Int}, ::Chebyshev) = u .+ 1
+_findposition(u::AbstractVector{Int}, s::Chebyshev) = map(i -> _findposition(i, s), u)
+_findposition(c::Colon, ::Chebyshev) = c
+
+
+
+
+
+# Cartesian spaces
+
+"""
+    CartesianSpace <: VectorSpace
+
+Abstract type for all cartesian spaces.
+"""
+abstract type CartesianSpace <: VectorSpace end
+
+_firstindex(::CartesianSpace) = 1
+_lastindex(s::CartesianSpace) = dimension(s)
+indices(s::CartesianSpace) = Base.OneTo(dimension(s))
+
+_findposition(i, ::CartesianSpace) = i
+
+_component_findposition(u::AbstractRange{Int}, s::CartesianSpace) =
+    mapreduce(i -> _component_findposition(i, s), union, u)
+_component_findposition(u::AbstractVector{Int}, s::CartesianSpace) =
+    mapreduce(i -> _component_findposition(i, s), union, u)
+_component_findposition(c::Colon, s::CartesianSpace) = c
+
+"""
+    CartesianPower{T<:VectorSpace} <: CartesianSpace
+
+Cartesian space resulting from the cartesian products of a [`VectorSpace`](@ref).
+
+Fields:
+- `space :: T`
+- `n :: Int`
+"""
+struct CartesianPower{T<:VectorSpace} <: CartesianSpace
+    space :: T
+    n :: Int
+    function CartesianPower{T}(space::T, n::Int) where {T<:VectorSpace}
+        n < 1 && return throw(DomainError(n, "CartesianPower is only defined for strictly positive integers"))
+        return new{T}(space, n)
+    end
+end
+
+CartesianPower(space::T, n::Int) where {T<:VectorSpace} =
+    CartesianPower{T}(space, n)
+
+space(s::CartesianPower) = s.space
+
+spaces(s::CartesianPower) = fill(s.space, s.n)
+
+nb_cartesian_product(s::CartesianPower) = s.n
+
+Base.:^(s::VectorSpace, n::Int) = CartesianPower(s, n)
+
+Base.@propagate_inbounds function Base.getindex(s::CartesianPower, i::Int)
+    @boundscheck((1 ≤ i) & (i ≤ s.n) || throw(BoundsError(s, i)))
+    return s.space
+end
+Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractRange{Int})
+    @boundscheck((1 ≤ first(u)) & (last(u) ≤ s.n) || throw(BoundsError(s, u)))
+    return CartesianPower(s.space, length(u))
+end
+Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractVector{Int})
+    @boundscheck(all(i -> (1 ≤ i) & (i ≤ s.n), u) || throw(BoundsError(s, u)))
+    return CartesianPower(s.space, length(u))
+end
+Base.@propagate_inbounds Base.getindex(s::CartesianPower, ::Colon) = s
+
+#
+
+Base.:(==)(s₁::CartesianPower, s₂::CartesianPower) =
+    (s₁.n == s₂.n) & (s₁.space == s₂.space)
+Base.issubset(s₁::CartesianPower, s₂::CartesianPower) =
+    (s₁.n == s₂.n) & issubset(s₁.space, s₂.space)
+function Base.intersect(s₁::CartesianPower, s₂::CartesianPower)
+    s₁.n == s₂.n || return throw(DimensionMismatch("dimensions must match: s₁ has dimension $(s₁.n), s₂ has dimension $(s₂.n)"))
+    return CartesianPower(intersect(s₁.space, s₂.space), s₁.n)
+end
+function Base.union(s₁::CartesianPower, s₂::CartesianPower)
+    s₁.n == s₂.n || return throw(DimensionMismatch("dimensions must match: s₁ has dimension $(s₁.n), s₂ has dimension $(s₂.n)"))
+    return CartesianPower(union(s₁.space, s₂.space), s₁.n)
+end
+
+dimension(s::CartesianPower) = dimension(s.space)*s.n
+function dimension(s::CartesianPower, i::Int)
+    (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
+    return dimension(s.space)
+end
+dimensions(s::CartesianPower) = fill(dimension(s.space), s.n)
+
+# order, frequency
+
+order(s::CartesianPower) = fill(order(s.space), s.n)
+function order(s::CartesianPower, i::Int)
+    (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
+    return order(s.space)
+end
+
+frequency(s::CartesianPower) = fill(frequency(s.space), s.n)
+function frequency(s::CartesianPower, i::Int)
+    (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
+    return frequency(s.space)
+end
+
+#
+
+function _component_findposition(i::Int, s::CartesianPower)
+    dim = dimension(s.space)
+    x = (i-1)*dim
+    return 1+x:dim+x
+end
+function _component_findposition(u::UnitRange{Int}, s::CartesianPower)
+    dim = dimension(s.space)
+    x = (first(u)-1)*dim
+    return 1+x:dim*length(u)+x
+end
+
+# promotion
+
+Base.convert(::Type{T}, s::T) where {T<:CartesianPower} = s
+Base.convert(::Type{CartesianPower{T}}, s::CartesianPower) where {T} =
+    CartesianPower{T}(convert(T, s.space), s.n)
+
+Base.promote_rule(::Type{T}, ::Type{T}) where {T<:CartesianPower} = T
+Base.promote_rule(::Type{CartesianPower{T}}, ::Type{CartesianPower{S}}) where {T,S} =
+    CartesianPower{promote_type(T, S)}
+
+"""
+    CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+
+Cartesian space resulting from `N` cartesian products of some [`VectorSpace`](@ref).
+
+Fields:
+- `spaces :: T`
+"""
+struct CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+    spaces :: T
+end
+
+spaces(s::CartesianProduct) = s.spaces
+
+nb_cartesian_product(s::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
+
+LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
+LinearAlgebra.:×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))
+LinearAlgebra.:×(s₁::CartesianProduct, s₂::VectorSpace) = CartesianProduct((s₁.spaces..., s₂))
+LinearAlgebra.:×(s₁::VectorSpace, s₂::CartesianProduct) = CartesianProduct((s₁, s₂.spaces...))
+
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, i::Int) = getindex(s.spaces, i)
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractRange{Int}) = CartesianProduct(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractVector{Int}) = CartesianProduct(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, c::Colon) = CartesianProduct(getindex(s.spaces, c))
+
+Base.front(s::CartesianProduct) = CartesianProduct(Base.front(s.spaces))
+Base.tail(s::CartesianProduct) = CartesianProduct(Base.tail(s.spaces))
+
+#
+
+function Base.:(==)(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N}
+    s₁[1] == s₂[1] && return Base.tail(s₁) == Base.tail(s₂)
+    return false
+end
+Base.:(==)(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
+    s₁[1] == s₂[1]
+function Base.issubset(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N}
+    issubset(s₁[1], s₂[1]) && return issubset(Base.tail(s₁), Base.tail(s₂))
+    return false
+end
+Base.issubset(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
+    issubset(s₁[1], s₂[1])
+Base.intersect(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
+    CartesianProduct(map(intersect, s₁.spaces, s₂.spaces))
+Base.union(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
+    CartesianProduct(map(union, s₁.spaces, s₂.spaces))
+
+dimension(s::CartesianProduct) = mapreduce(dimension, +, s.spaces)
+dimension(s::CartesianProduct, i::Int) = dimension(s.spaces[i])
+dimensions(s::CartesianProduct) = map(dimension, s.spaces)
+
+# order, frequency
+
+order(s::CartesianProduct) = map(order, s.spaces)
+order(s::CartesianProduct, i::Int) = order(s.spaces[i])
+
+frequency(s::CartesianProduct) = map(frequency, s.spaces)
+frequency(s::CartesianProduct, i::Int) = frequency(s.spaces[i])
+
+#
+
+function _component_findposition(i::Int, s::CartesianProduct)
+    dims = dimensions(s)
+    dim = dims[i]
+    x = mapreduce(j -> dims[j], +, 1:i-1; init=0)
+    return 1+x:dim+x
+end
+function _component_findposition(u::UnitRange{Int}, s::CartesianProduct)
+    dims = dimensions(s)
+    dim = mapreduce(j -> dims[j], +, u)
+    x = mapreduce(j -> dims[j], +, 1:first(u)-1; init=0)
+    return 1+x:dim+x
+end
+
+# promotion
+
+Base.convert(::Type{T}, s::T) where {T<:CartesianProduct} = s
+Base.convert(::Type{CartesianProduct{T}}, s::CartesianProduct) where {T} =
+    CartesianProduct{T}(convert(T, s.spaces))
+
+Base.promote_rule(::Type{T}, ::Type{T}) where {T<:CartesianProduct} = T
+Base.promote_rule(::Type{CartesianProduct{T}}, ::Type{CartesianProduct{S}}) where {T,S} =
+    CartesianProduct{promote_type(T, S)}
+
+#
+
+_deep_nb_cartesian_product(::VectorSpace) = 1
+_deep_nb_cartesian_product(s::CartesianPower) = s.n * _deep_nb_cartesian_product(s.space)
+_deep_nb_cartesian_product(s::CartesianProduct) = sum(_deep_nb_cartesian_product, s.spaces)
+
+#
+
+_iscompatible(::VectorSpace, ::VectorSpace) = false
+_iscompatible(::ParameterSpace, ::ParameterSpace) = true
+_iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
+_iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
+    @inbounds _iscompatible(s₁[1], s₂[1])
+_iscompatible(::Taylor, ::Taylor) = true
+_iscompatible(s₁::Fourier, s₂::Fourier) = frequency(s₁) == frequency(s₂)
+_iscompatible(::Chebyshev, ::Chebyshev) = true
+_iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
+    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & _iscompatible(space(s₁), space(s₂))
+_iscompatible(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
+    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
+_iscompatible(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
+    @inbounds _iscompatible(s₁[1], s₂[1])
+_iscompatible(s₁::CartesianPower, s₂::CartesianProduct) =
+    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & all(s₂ᵢ -> _iscompatible(space(s₁), s₂ᵢ), spaces(s₂))
+_iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
+    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & all(s₁ᵢ -> _iscompatible(s₁ᵢ, space(s₂)), spaces(s₁))
+
+# show
+
+Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, string_space(s))
+
+string_space(::ParameterSpace) = "𝕂"
+
+string_space(s::TensorSpace) = string_space(s[1]) * " ⨂ " * string_space(Base.tail(s))
+string_space(s::TensorSpace{<:NTuple{2,BaseSpace}}) = string_space(s[1]) * " ⨂ " * string_space(s[2])
+string_space(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * string_space(s[1]) * ")"
+string_space(::TensorSpace{Tuple{}}) = "TensorSpace(())"
+
+string_space(s::Taylor) = "Taylor(" * string(order(s)) * ")"
+string_space(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+string_space(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
+
+string_space(s::CartesianPower) = string_space(space(s)) * _supscript(nb_cartesian_product(s))
+string_space(s::CartesianPower{<:TensorSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nb_cartesian_product(s))
+string_space(s::CartesianPower{<:CartesianSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nb_cartesian_product(s))
+
+string_space(s::CartesianProduct) = cartesian_string_space(s[1]) * " × " * string_space(Base.tail(s))
+string_space(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = cartesian_string_space(s[1]) * " × " * cartesian_string_space(s[2])
+string_space(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * string_space(s[1]) * ")"
+string_space(::CartesianProduct{Tuple{}}) = "CartesianProduct(())"
+cartesian_string_space(s::VectorSpace) = string_space(s)
+cartesian_string_space(s::TensorSpace) = "(" * string_space(s) * ")"
+cartesian_string_space(s::CartesianProduct) = "(" * string_space(s) * ")"
+
+function _supscript_digit(i::Int)
+    if i == 0
+        return "⁰"
+    elseif i == 1
+        return "¹"
+    elseif i == 2
+        return "²"
+    elseif i == 3
+        return "³"
+    elseif i == 4
+        return "⁴"
+    elseif i == 5
+        return "⁵"
+    elseif i == 6
+        return "⁶"
+    elseif i == 7
+        return "⁷"
+    elseif i == 8
+        return "⁸"
+    else
+        return "⁹"
+    end
+end
+function _supscript(n::Int)
+    x = ""
+    for i ∈ reverse!(digits(n))
+        x *= _supscript_digit(i)
+    end
+    return x
+end

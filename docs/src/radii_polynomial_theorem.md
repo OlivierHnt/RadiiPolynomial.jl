@@ -1,6 +1,6 @@
 # Radii Polynomial Theorem
 
-Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T \in C^k(U, X)``, ``x_0 \in U`` and ``R \geq 0``. Suppose there are constants ``Y, Z_1, \dots, Z_k \geq 0`` satisfying
+Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``k \in \mathbb{N}``, ``T \in C^k(U, X)``, ``x_0 \in U`` and ``R \geq 0`` such that ``\text{cl}( B_R(x_0) ) \subset U``. Suppose ``Y, Z_1, \dots, Z_k \geq 0`` satisfy
 
 ```math
 \begin{aligned}
@@ -16,7 +16,7 @@ and define the *radii polynomial* by
 p(r) := Y - r + \sum_{i = 1}^k \frac{Z_i}{i!} r^i.
 ```
 
-The Radii Polynomial Theorem states that if ``p(r_0) \leq 0`` for some ``r_0 \in [0, R]``, then ``T`` satisfies the [Banach Fixed Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem) in the closed ball ``\text{cl}( B_{r_0} (x_0) )``; the set of all possible radii is called the *interval of existence*.
+The Radii Polynomial Theorem states that if ``p(r_0) \leq 0`` and ``\frac{r_0^{k-1}}{(k-1)!} Z_k < 1`` for some ``r_0 \in [0, R]``, then ``T`` satisfies the [Banach Fixed Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem) in the closed ball ``\text{cl}( B_{r_0} (x_0) )``; the set of all possible radii is called the *interval of existence*.
 
 In practice, ``p`` is linear or quadratic and the interval of existence consists in a segment of the positive real line.
 

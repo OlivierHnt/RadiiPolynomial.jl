@@ -24,7 +24,7 @@ end
 
 # Sequence spaces
 
-# decay rates
+# weights
 
 abstract type Weights end
 
@@ -37,8 +37,6 @@ struct GeometricWeights{T<:Real} <: Weights
 end
 GeometricWeights(rate::T) where {T<:Real} = GeometricWeights{T}(rate)
 rate(weights::GeometricWeights) = weights.rate
-weight(weights::GeometricWeights, i::Int) = weights.rate ^ abs(i)
-weight(weights::GeometricWeights{<:Interval}, i::Int) = pow(weights.rate, abs(i))
 
 struct AlgebraicWeights{T<:Real} <: Weights
     rate :: T
@@ -49,16 +47,56 @@ struct AlgebraicWeights{T<:Real} <: Weights
 end
 AlgebraicWeights(rate::T) where {T<:Real} = AlgebraicWeights{T}(rate)
 rate(weights::AlgebraicWeights) = weights.rate
-weight(weights::AlgebraicWeights, i::Int) = (1 + abs(i)) ^ weights.rate
-weight(weights::AlgebraicWeights{<:Interval}, i::Int) = pow(Interval(1 + abs(i)), weights.rate)
 
-rate(weights::Tuple{Vararg{Weights}}) = map(rate, weights)
-@generated function weight(weights::NTuple{N,Weights}, α::NTuple{N,Int}) where {N}
-    p = :(weight(weights[1], α[1]))
+function weight(s::TensorSpace{<:NTuple{N,BaseSpace}}, weights::NTuple{N,Weights}, α::NTuple{N,Int}) where {N}
+    _is_space_index(s, α) || return throw(BoundsError)
+    return _weight(s, weights, α)
+end
+function weight(s::BaseSpace, weights::Weights, i::Int)
+    _is_space_index(s, i) || return throw(BoundsError)
+    return _weight(s, weights, i)
+end
+
+_is_space_index(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    _is_space_index(s[1], α[1]) & _is_space_index(Base.tail(s), Base.tail(α))
+_is_space_index(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    _is_space_index(s[1], α[1])
+@generated function _weight(s::TensorSpace{<:NTuple{N,BaseSpace}}, weights::NTuple{N,Weights}, α::NTuple{N,Int}) where {N}
+    p = :(_weight(s[1], weights[1], α[1]))
     for i ∈ 2:N
-        p = :(weight(weights[$i], α[$i]) * $p)
+        p = :(_weight(s[$i], weights[$i], α[$i]) * $p)
     end
     return p
+end
+
+_is_space_index(::Taylor, i::Int) = i ≥ 0
+_weight(::Taylor, weights::GeometricWeights, i::Int) = weights.rate ^ i
+_weight(::Taylor, weights::GeometricWeights{<:Interval}, i::Int) = pow(weights.rate, i)
+_weight(::Taylor, weights::AlgebraicWeights, i::Int) = (one(weights.rate) + i) ^ weights.rate
+_weight(::Taylor, weights::AlgebraicWeights{<:Interval}, i::Int) = pow(one(weights.rate) + i, weights.rate)
+
+_is_space_index(::Fourier, ::Int) = true
+_weight(::Fourier, weights::GeometricWeights, i::Int) = weights.rate ^ abs(i)
+_weight(::Fourier, weights::GeometricWeights{<:Interval}, i::Int) = pow(weights.rate, abs(i))
+_weight(::Fourier, weights::AlgebraicWeights, i::Int) = (one(weights.rate) + abs(i)) ^ weights.rate
+_weight(::Fourier, weights::AlgebraicWeights{<:Interval}, i::Int) = pow(one(weights.rate) + abs(i), weights.rate)
+
+_is_space_index(::Chebyshev, i::Int) = i ≥ 0
+function _weight(::Chebyshev, weights::GeometricWeights, i::Int)
+    x = weights.rate ^ i
+    return ifelse(i == 0, x, 2x)
+end
+function _weight(::Chebyshev, weights::GeometricWeights{<:Interval}, i::Int)
+    x = pow(weights.rate, i)
+    return ifelse(i == 0, x, 2x)
+end
+function _weight(::Chebyshev, weights::AlgebraicWeights, i::Int)
+    x = (one(weights.rate) + i) ^ weights.rate
+    return ifelse(i == 0, x, 2x)
+end
+function _weight(::Chebyshev, weights::AlgebraicWeights{<:Interval}, i::Int)
+    x = pow(one(weights.rate) + i, weights.rate)
+    return ifelse(i == 0, x, 2x)
 end
 
 function geometricweights(a::Sequence{<:BaseSpace})
@@ -339,9 +377,9 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Taylor, A::Abst
     return s
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Taylor, A::AbstractVector)
-    @inbounds s = abs(A[1]) * weight(d.weights, 0)
+    @inbounds s = abs(A[1]) * _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:order(space)
-        s += abs(A[i+1]) * weight(d.weights, i)
+        s += abs(A[i+1]) * _weight(space, d.weights, i)
     end
     return s
 end
@@ -350,21 +388,21 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Taylor, A::Abst
     ν = rate(d.weights)
     CoefType = typeof(abs(zero(T))*ν)
     ord = order(space)
-    @inbounds Aᵢ = selectdim(A, N, ord+1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ)
+    @inbounds A₀ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
     @inbounds for i ∈ ord-1:-1:0
         s .= s .* ν .+ abs.(selectdim(A, N, i+1))
     end
     return s
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Taylor, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))*weight(d.weights, 0))
-    @inbounds Aᵢ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ)
+    CoefType = typeof(abs(zero(T))*_weight(space, d.weights, 0))
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
     @inbounds for i ∈ 1:order(space)
-        s .+= abs.(selectdim(A, N, i+1)) .* weight(d.weights, i)
+        s .+= abs.(selectdim(A, N, i+1)) .* _weight(space, d.weights, i)
     end
     return s
 end
@@ -381,9 +419,9 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Taylor, A:
     return s
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Taylor, A::AbstractVector{T}) where {T}
-    @inbounds s = abs(A[1]) / weight(d.weights, 0)
+    @inbounds s = abs(A[1]) / _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:order(space)
-        s = max(s, abs(A[i+1]) / weight(d.weights, i))
+        s = max(s, abs(A[i+1]) / _weight(space, d.weights, i))
     end
     return s
 end
@@ -393,9 +431,9 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Taylor, A:
     ν⁻¹ = abs(one(T))/ν
     ν⁻ⁱ = one(ν⁻¹)
     CoefType = typeof(ν⁻¹)
-    @inbounds Aᵢ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ)
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
     @inbounds for i ∈ 1:order(space)
         ν⁻ⁱ *= ν⁻¹
         s .= max.(s, abs.(selectdim(A, N, i+1)) .* ν⁻ⁱ)
@@ -403,12 +441,12 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Taylor, A:
     return s
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Taylor, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))/weight(d.weights, 0))
-    @inbounds Aᵢ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ)
+    CoefType = typeof(abs(zero(T))/_weight(space, d.weights, 0))
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
     @inbounds for i ∈ 1:order(space)
-        s .= max.(s, abs.(selectdim(A, N, i+1)) ./ weight(d.weights, i))
+        s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _weight(space, d.weights, i))
     end
     return s
 end
@@ -431,9 +469,9 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A::Abs
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Fourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = abs(A[ord+1]) * weight(d.weights, 0)
+    @inbounds s = abs(A[ord+1]) * _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:ord
-        s += (abs(A[ord+1-i]) + abs(A[ord+1+i])) * weight(d.weights, i)
+        s += (abs(A[ord+1-i]) + abs(A[ord+1+i])) * _weight(space, d.weights, i)
     end
     return s
 end
@@ -442,12 +480,12 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A::Abs
     ν = rate(d.weights)
     CoefType = typeof(abs(zero(T))*ν)
     ord = order(space)
-    @inbounds A₋ᵢ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(A₋ᵢ))
+    @inbounds A₋ₙ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₋ₙ))
     if ord == 0
-        s .= abs.(A₋ᵢ)
+        s .= abs.(A₋ₙ)
     else
-        @inbounds s .= abs.(selectdim(A, N, 2ord+1)) .+ abs.(A₋ᵢ)
+        @inbounds s .= abs.(selectdim(A, N, 2ord+1)) .+ abs.(A₋ₙ)
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, ord+1-i)) .+ abs.(selectdim(A, N, ord+1+i))
         end
@@ -456,13 +494,13 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A::Abs
     return s
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Fourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))*weight(d.weights, 0))
+    CoefType = typeof(abs(zero(T))*_weight(space, d.weights, 0))
     ord = order(space)
-    @inbounds Aᵢ = selectdim(A, N, ord+1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    @inbounds s .= abs.(Aᵢ)
+    @inbounds A₀ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    @inbounds s .= abs.(A₀)
     @inbounds for i ∈ 1:ord
-        s .+= (abs.(selectdim(A, N, ord+1-i)) .+ abs.(selectdim(A, N, ord+1+i))) .* weight(d.weights, i)
+        s .+= (abs.(selectdim(A, N, ord+1-i)) .+ abs.(selectdim(A, N, ord+1+i))) .* _weight(space, d.weights, i)
     end
     return s
 end
@@ -481,9 +519,9 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Fourier, A::AbstractVector{T}) where {T}
     ord = order(space)
-    @inbounds s = abs(A[ord+1]) / weight(d.weights, 0)
+    @inbounds s = abs(A[ord+1]) / _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:ord
-        x = inv(weight(d.weights, i))
+        x = abs(one(T)) / _weight(space, d.weights, i)
         s = max(s, abs(A[ord+1+i]) * x, abs(A[ord+1-i]) * x)
     end
     return s
@@ -495,9 +533,9 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A
     ν⁻ⁱ = one(ν⁻¹)
     CoefType = typeof(ν⁻¹)
     ord = order(space)
-    @inbounds Aᵢ = selectdim(A, N, ord+1)
-    s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ)
+    @inbounds A₀ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
     @inbounds for i ∈ 1:ord
         ν⁻ⁱ *= ν⁻¹
         s .= max.(s, abs.(selectdim(A, N, ord+1-i)) .* ν⁻ⁱ, abs.(selectdim(A, N, ord+1+i)) .* ν⁻ⁱ)
@@ -505,14 +543,14 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Fourier, A
     return s
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Fourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))/weight(d.weights, 0))
+    CoefType = typeof(abs(zero(T))/_weight(space, d.weights, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs.(Aᵢ)
     @inbounds for i ∈ 1:ord
-        x = inv(weight(d.weights, i))
-        s .= max.(s, abs.(selectdim(A, N, ord+1-i)) ./ x, abs.(selectdim(A, N, ord+1+i)) ./ x)
+        x = abs(one(T)) / _weight(space, d.weights, i)
+        s .= max.(s, abs.(selectdim(A, N, ord+1-i)) .* x, abs.(selectdim(A, N, ord+1+i)) .* x)
     end
     return s
 end
@@ -523,15 +561,16 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev, A::A
     ν = rate(d.weights)
     ord = order(space)
     @inbounds s = abs(A[ord+1]) * one(ν)
-    @inbounds for i ∈ ord-1:-1:0
+    @inbounds for i ∈ ord-1:-1:1
         s = s * ν + abs(A[i+1])
     end
+    @inbounds s = 2s * ν + abs(A[1])
     return s
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Chebyshev, A::AbstractVector)
-    @inbounds s = abs(A[1]) * weight(d.weights, 0)
+    @inbounds s = abs(A[1]) * _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:order(space)
-        s += abs(A[i+1]) * weight(d.weights, i)
+        s += abs(A[i+1]) * _weight(space, d.weights, i)
     end
     return s
 end
@@ -543,18 +582,19 @@ function _apply(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev, A::A
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs.(Aᵢ)
-    @inbounds for i ∈ ord-1:-1:0
+    @inbounds for i ∈ ord-1:-1:1
         s .= s .* ν .+ abs.(selectdim(A, N, i+1))
     end
+    @inbounds s .= 2 .* s .* ν .+ abs.(selectdim(A, N, 1))
     return s
 end
 function _apply(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))*weight(d.weights, 0))
+    CoefType = typeof(abs(zero(T))*_weight(space, d.weights, 0))
     @inbounds Aᵢ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs.(Aᵢ)
     @inbounds for i ∈ 1:order(space)
-        s .+= abs.(selectdim(A, N, i+1)) .* weight(d.weights, i)
+        s .+= abs.(selectdim(A, N, i+1)) .* _weight(space, d.weights, i)
     end
     return s
 end
@@ -562,8 +602,8 @@ end
 function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev, A::AbstractVector{T}) where {T}
     ν = rate(d.weights)
     ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ = one(ν⁻¹)
-    @inbounds s = abs(A[1]) * ν⁻ⁱ
+    ν⁻ⁱ = one(ν⁻¹)/2
+    @inbounds s = abs(A[1]) * one(ν⁻ⁱ)
     @inbounds for i ∈ 1:order(space)
         ν⁻ⁱ *= ν⁻¹
         s = max(s, abs(A[i+1]) * ν⁻ⁱ)
@@ -571,9 +611,9 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev,
     return s
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Chebyshev, A::AbstractVector{T}) where {T}
-    @inbounds s = abs(A[1]) / weight(d.weights, 0)
+    @inbounds s = abs(A[1]) / _weight(space, d.weights, 0)
     @inbounds for i ∈ 1:order(space)
-        s = max(s, abs(A[i+1]) / weight(d.weights, i))
+        s = max(s, abs(A[i+1]) / _weight(space, d.weights, i))
     end
     return s
 end
@@ -581,8 +621,8 @@ end
 function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     ν = rate(d.weights)
     ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ = one(ν⁻¹)
-    CoefType = typeof(ν⁻¹)
+    ν⁻ⁱ = one(ν⁻¹)/2
+    CoefType = typeof(ν⁻ⁱ)
     @inbounds Aᵢ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs.(Aᵢ)
@@ -593,12 +633,12 @@ function _apply_dual(d::Weightedℓ¹Norm{<:GeometricWeights}, space::Chebyshev,
     return s
 end
 function _apply_dual(d::Weightedℓ¹Norm{<:AlgebraicWeights}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))/weight(d.weights, 0))
+    CoefType = typeof(abs(zero(T))/_weight(space, d.weights, 0))
     @inbounds Aᵢ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs.(Aᵢ)
     @inbounds for i ∈ 1:order(space)
-        s .= max.(s, abs.(selectdim(A, N, i+1)) ./ weight(d.weights, i))
+        s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _weight(space, d.weights, i))
     end
     return s
 end

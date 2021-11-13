@@ -57,9 +57,10 @@ end
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, weights::NTuple{N,Weights}, bound::Real, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S<:Interval}
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
-    @inbounds for α ∈ indices(space(a))
+    space_a = space(a)
+    @inbounds for α ∈ indices(space_a)
         if mapreduce((wᵢ, αᵢ) -> wᵢ == M ? 0//1 : abs(αᵢ) // wᵢ, +, w, α) ≥ 1
-            μᵅ = bound / weight(weights, α)
+            μᵅ = bound / _weight(space_a, weights, α)
             sup_μᵅ = sup(μᵅ)
             a[α] = Interval(-sup_μᵅ, sup_μᵅ)
         end
@@ -70,9 +71,10 @@ end
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{Complex{S}}}, weights::NTuple{N,Weights}, bound::Real, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S<:Interval}
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
-    @inbounds for α ∈ indices(space(a))
+    space_a = space(a)
+    @inbounds for α ∈ indices(space_a)
         if mapreduce((wᵢ, αᵢ) -> wᵢ == M ? 0//1 : abs(αᵢ) // wᵢ, +, w, α) ≥ 1
-            μᵅ = bound / weight(weights, α)
+            μᵅ = bound / _weight(space_a, weights, α)
             sup_μᵅ = sup(μᵅ)
             x = Interval(-sup_μᵅ, sup_μᵅ)
             a[α] = complex(x, x)
@@ -86,7 +88,7 @@ end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             a[i] = Interval(-sup_μⁱ, sup_μⁱ)
@@ -96,8 +98,9 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::Geom
     return a
 end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         a[i] = Interval(-sup_μⁱ, sup_μⁱ)
     end
     return a
@@ -106,7 +109,7 @@ end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -117,8 +120,9 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weig
     return a
 end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         a[i] = complex(x, x)
     end
@@ -130,7 +134,7 @@ end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -142,8 +146,9 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::G
     return a
 end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         a[i] = x
         a[-i] = x
@@ -154,7 +159,7 @@ end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -167,8 +172,9 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, w
     return a
 end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         complex_x = complex(x, x)
         a[i] = complex_x
@@ -182,7 +188,7 @@ end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             a[i] = Interval(-sup_μⁱ, sup_μⁱ)
@@ -192,8 +198,9 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::G
     return a
 end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         a[i] = Interval(-sup_μⁱ, sup_μⁱ)
     end
     return a
@@ -202,7 +209,7 @@ end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / weight(weights, rounding_order)
+        μⁱ = bound / _weight(space(a), weights, rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -213,8 +220,9 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, w
     return a
 end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+    space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / weight(weights, i))
+        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         a[i] = complex(x, x)
     end

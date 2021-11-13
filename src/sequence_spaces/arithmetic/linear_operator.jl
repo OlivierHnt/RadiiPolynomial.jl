@@ -9,6 +9,16 @@ Base.:*(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), *
 Base.:/(A::LinearOperator, b::Number) = LinearOperator(domain(A), codomain(A), /(coefficients(A), b))
 Base.:\(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), \(b, coefficients(A)))
 
+LinearAlgebra.rmul!(A::LinearOperator, b::Number) =
+    LinearOperator(domain(A), codomain(A), rmul!(coefficients(A), b))
+LinearAlgebra.lmul!(b::Number, A::LinearOperator) =
+    LinearOperator(domain(A), codomain(A), lmul!(b, coefficients(A)))
+
+LinearAlgebra.rdiv!(A::LinearOperator, b::Number) =
+    LinearOperator(domain(A), codomain(A), rdiv!(coefficients(A), b))
+LinearAlgebra.ldiv!(b::Number, A::LinearOperator) =
+    LinearOperator(domain(A), codomain(A), ldiv!(b, coefficients(A)))
+
 Base.:∘(A::LinearOperator, B::LinearOperator) = *(A, B)
 
 function Base.:*(A::LinearOperator, B::LinearOperator)
@@ -114,16 +124,6 @@ end
 function Base.:\(A::LinearOperator, B::LinearOperator)
     _iscompatible(codomain(A), codomain(B)) || return throw(DimensionMismatch)
     return LinearOperator(domain(B), domain(A), \(coefficients(A), coefficients(B)))
-end
-
-function LinearAlgebra.rdiv!(A::LinearOperator, B::LinearOperator)
-    _iscompatible(domain(A), domain(B)) || return throw(DimensionMismatch)
-    return LinearOperator(codomain(B), codomain(A), rdiv!(coefficients(A), coefficients(B)))
-end
-
-function LinearAlgebra.ldiv!(A::LinearOperator, B::LinearOperator)
-    _iscompatible(codomain(A), codomain(B)) || return throw(DimensionMismatch)
-    return LinearOperator(domain(B), domain(A), ldiv!(coefficients(A), coefficients(B)))
 end
 
 for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, :_add!, :_radd!, :_ladd!),

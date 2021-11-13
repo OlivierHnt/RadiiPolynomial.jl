@@ -55,17 +55,6 @@ function Base.:\(A::LinearOperator, b::Sequence)
     return Sequence(domain(A), \(coefficients(A), coefficients(b)))
 end
 
-function LinearAlgebra.ldiv!(A::LinearOperator, b::Sequence)
-    _iscompatible(codomain(A), space(b)) || return throw(DimensionMismatch)
-    return Sequence(domain(A), ldiv!(coefficients(A), coefficients(b)))
-end
-
-function LinearAlgebra.ldiv!(c::Sequence, A::LinearOperator, b::Sequence)
-    _iscompatible(space(c), domain(A)) & _iscompatible(codomain(A), space(b)) || return throw(DimensionMismatch)
-    ldiv!(coefficients(c), coefficients(A), coefficients(b))
-    return c
-end
-
 # Cartesian spaces
 
 @inline function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, b::Sequence{<:CartesianSpace}, α::Number, β::Number)

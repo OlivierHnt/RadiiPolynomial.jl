@@ -1,5 +1,5 @@
 """
-    LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Factorization}}
+    LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
 
 Compactly supported operator with effective domain and codomain.
 
@@ -8,11 +8,11 @@ Fields:
 - `codomain :: S`
 - `coefficients :: R`
 """
-struct LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Factorization}}
+struct LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
     domain :: T
     codomain :: S
     coefficients :: R
-    function LinearOperator{T,S,R}(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Factorization}}
+    function LinearOperator{T,S,R}(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
         dimension_domain = dimension(domain)
         dimension_codomain = dimension(codomain)
         sz₁, sz₂ = size(coefficients)
@@ -21,7 +21,7 @@ struct LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Fact
     end
 end
 
-LinearOperator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:Union{AbstractMatrix,Factorization}} =
+LinearOperator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} =
     LinearOperator{T,S,R}(domain, codomain, coefficients)
 
 domain(A::LinearOperator) = A.domain

@@ -9,6 +9,12 @@ Base.:*(b::Number, a::Sequence) = Sequence(space(a), *(b, coefficients(a)))
 Base.:/(a::Sequence, b::Number) = Sequence(space(a), /(coefficients(a), b))
 Base.:\(b::Number, a::Sequence) = Sequence(space(a), \(b, coefficients(a)))
 
+LinearAlgebra.rmul!(a::Sequence, b::Number) = Sequence(space(a), rmul!(coefficients(a), b))
+LinearAlgebra.lmul!(b::Number, a::Sequence) = Sequence(space(a), lmul!(b, coefficients(a)))
+
+LinearAlgebra.rdiv!(a::Sequence, b::Number) = Sequence(space(a), rdiv!(coefficients(a), b))
+LinearAlgebra.ldiv!(b::Number, a::Sequence) = Sequence(space(a), ldiv!(b, coefficients(a)))
+
 for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, :_add!, :_radd!, :_ladd!),
         (:(Base.:-), :sub!, :rsub!, :lsub!, :_sub!, :_rsub!, :_lsub!))
     @eval begin

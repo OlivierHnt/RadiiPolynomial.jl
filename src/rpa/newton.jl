@@ -1,6 +1,6 @@
-# Generic newton method
+#
 
-function newton(F_DF, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+function newton(F_DF, x₀::Number; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
     verbose && return _newton_verbose(F_DF, x₀, tol, maxiter)
     return _newton_silent(F_DF, x₀, tol, maxiter)
 end
@@ -15,22 +15,6 @@ function _newton_silent(F_DF, x₀::Number, tol, maxiter)
         x -= DF \ F
         F, DF = F_DF(x)
         nF = abs(F)
-        nF ≤ tol && return x, true
-        i += 1
-    end
-    return x, false
-end
-
-function _newton_silent(F_DF, x₀, tol, maxiter)
-    F, DF = F_DF(x₀)
-    nF = norm(F)
-    nF ≤ tol && return x₀, true
-    x = copy(x₀)
-    i = 1
-    while i ≤ maxiter && isfinite(nF)
-        x .-= ldiv!(lu!(DF), F)
-        F, DF = F_DF(x)
-        nF = norm(F)
         nF ≤ tol && return x, true
         i += 1
     end
@@ -60,22 +44,45 @@ function _newton_verbose(F_DF, x₀::Number, tol, maxiter)
     return x, false
 end
 
+#
+
+function newton(F_DF, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+    verbose && return _newton_verbose(F_DF, x₀, tol, maxiter)
+    return _newton_silent(F_DF, x₀, tol, maxiter)
+end
+
+function _newton_silent(F_DF, x₀, tol, maxiter)
+    F, DF = F_DF(x₀)
+    nF = norm(F)
+    nF ≤ tol && return x₀, true
+    x = copy(x₀)
+    i = 1
+    while i ≤ maxiter && isfinite(nF)
+        x .-= DF \ F
+        F, DF = F_DF(x)
+        nF = norm(F)
+        nF ≤ tol && return x, true
+        i += 1
+    end
+    return x, false
+end
+
 function _newton_verbose(F_DF, x₀, tol, maxiter)
     _display_newton_infos(tol, maxiter)
     F, DF = F_DF(x₀)
     nF = norm(F)
-    ldiv!(lu!(DF), F)
-    nAF = norm(F)
+    AF = DF \ F
+    nAF = norm(AF)
     _display_newton_iteration(0, nF, nAF)
     nF ≤ tol && return x₀, true
     x = copy(x₀)
     i = 1
     while i ≤ maxiter && isfinite(nF)
-        x .-= F
+        x .-= AF
         F, DF = F_DF(x)
         nF = norm(F)
-        ldiv!(lu!(DF), F)
-        nAF = norm(F)
+        AF = DF \ F
+        nAF = norm(AF)
         _display_newton_iteration(i, nF, nAF)
         nF ≤ tol && return x, true
         i += 1
@@ -83,7 +90,7 @@ function _newton_verbose(F_DF, x₀, tol, maxiter)
     return x, false
 end
 
-# in-place version
+#
 
 function newton!(F_DF!, x₀, F, DF; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
     verbose && return _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
@@ -96,7 +103,7 @@ function _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
     nF ≤ tol && return x₀, true
     i = 1
     while i ≤ maxiter && isfinite(nF)
-        x₀ .-= ldiv!(lu!(DF), F)
+        x₀ .-= DF \ F
         F_DF!(F, DF, x₀)
         nF = norm(F)
         nF ≤ tol && return x₀, true
@@ -109,17 +116,17 @@ function _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
     _display_newton_infos(tol, maxiter)
     F_DF!(F, DF, x₀)
     nF = norm(F)
-    ldiv!(lu!(DF), F)
-    nAF = norm(F)
+    AF = DF \ F
+    nAF = norm(AF)
     _display_newton_iteration(0, nF, nAF)
     nF ≤ tol && return x₀, true
     i = 1
     while i ≤ maxiter && isfinite(nF)
-        x₀ .-= F
+        x₀ .-= AF
         F_DF!(F, DF, x₀)
         nF = norm(F)
-        ldiv!(lu!(DF), F)
-        nAF = norm(F)
+        AF = DF \ F
+        nAF = norm(AF)
         _display_newton_iteration(i, nF, nAF)
         nF ≤ tol && return x₀, true
         i += 1

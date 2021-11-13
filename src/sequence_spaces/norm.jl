@@ -697,7 +697,7 @@ _apply_dual(d::𝐻ˢNorm, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
 
 function _apply(d::𝐻ˢNorm, space::Fourier, A::AbstractVector)
     s = d.exponent
-    un = one(eltype(A))
+    un = one(s)
     ord = order(space)
     @inbounds x = abs2(A[ord+1]) * (un + 0)^s
     @inbounds for i ∈ 1:ord
@@ -708,7 +708,7 @@ end
 
 function _apply(d::𝐻ˢNorm, space::Fourier, A::AbstractArray{T,N}) where {T,N}
     s = d.exponent
-    un = one(T)
+    un = one(s)
     CoefType = typeof(sqrt(abs2(zero(T))*(un+0)^s))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
@@ -723,7 +723,7 @@ end
 
 function _apply_dual(d::𝐻ˢNorm, space::Fourier, A::AbstractVector)
     s = d.exponent
-    un = one(eltype(A))
+    un = one(s)
     ord = order(space)
     @inbounds x = abs2(A[ord+1]) / (un + 0)^s
     @inbounds for i ∈ 1:ord
@@ -734,7 +734,7 @@ end
 
 function _apply_dual(d::𝐻ˢNorm, space::Fourier, A::AbstractArray{T,N}) where {T,N}
     s = d.exponent
-    un = one(T)
+    un = one(s)
     CoefType = typeof(sqrt(abs2(zero(T))/(un+0)^s))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)

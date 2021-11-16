@@ -243,8 +243,8 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
 end
 
 function banach_rounding_mul(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpace}, weights::Weights)
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    bound_ab = norm(a, weighted_ℓ¹_norm) * norm(b, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(weights, bound_ab)
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -255,8 +255,8 @@ function banach_rounding_mul(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpace},
 end
 
 function banach_rounding_mul(a::Sequence{TensorSpace{T}}, b::Sequence{TensorSpace{S}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace},S<:NTuple{N,BaseSpace}}
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    bound_ab = norm(a, weighted_ℓ¹_norm) * norm(b, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(weights, bound_ab)
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -459,8 +459,8 @@ function _sqr(a::Sequence{<:SequenceSpace})
 end
 
 function _banach_rounding_sqr(a::Sequence{<:BaseSpace}, weights::Weights)
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    norm_a = norm(a, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
     rounding_order = banach_rounding_order(weights, bound_a²)
     new_space = image(^, space(a), 2)
@@ -472,8 +472,8 @@ function _banach_rounding_sqr(a::Sequence{<:BaseSpace}, weights::Weights)
 end
 
 function _banach_rounding_sqr(a::Sequence{TensorSpace{T}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace}}
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    norm_a = norm(a, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
     rounding_order = banach_rounding_order(weights, bound_a²)
     new_space = image(^, space(a), 2)
@@ -587,8 +587,8 @@ function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
 end
 
 function banach_rounding_mul_bar(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpace}, weights::Weights)
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    bound_ab = norm(a, weighted_ℓ¹_norm) * norm(b, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(weights, bound_ab)
     new_space = image(*̄, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -599,8 +599,8 @@ function banach_rounding_mul_bar(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpa
 end
 
 function banach_rounding_mul_bar(a::Sequence{TensorSpace{T}}, b::Sequence{TensorSpace{S}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace},S<:NTuple{N,BaseSpace}}
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    bound_ab = norm(a, weighted_ℓ¹_norm) * norm(b, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(weights, bound_ab)
     new_space = image(*̄, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -667,8 +667,8 @@ function _sqr_bar(a::Sequence{<:SequenceSpace})
 end
 
 function _banach_rounding_sqr_bar(a::Sequence{<:BaseSpace}, weights::Weights)
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    norm_a = norm(a, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
     rounding_order = banach_rounding_order(weights, bound_a²)
     new_space = image(^̄, space(a), 2)
@@ -680,8 +680,8 @@ function _banach_rounding_sqr_bar(a::Sequence{<:BaseSpace}, weights::Weights)
 end
 
 function _banach_rounding_sqr_bar(a::Sequence{TensorSpace{T}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace}}
-    weighted_ℓ¹_norm = Weightedℓ¹Norm(weights)
-    norm_a = norm(a, weighted_ℓ¹_norm)
+    X = Weightedℓ¹(weights)
+    norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
     rounding_order = banach_rounding_order(weights, bound_a²)
     new_space = image(^̄, space(a), 2)

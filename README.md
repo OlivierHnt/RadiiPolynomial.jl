@@ -15,6 +15,12 @@ If you use the RadiiPolynomial software in your publication, research, teaching,
 @software{RadiiPolynomial.jl,
   author = {Olivier Hénot},
   title  = {RadiiPolynomial.jl},
-  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl}
+  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl},
+  year   = {},
+  doi    = {}
 }
 ```
+
+The empty fields `year` and `doi` should correspond with the cited version of the RadiiPolynomial software. For instance, if you wish to cite the software as a whole: `year = {2021}` and `doi = {10.5281/zenodo.5705258}`.
+
+You may refer to [10.5281/zenodo.5705258](https://doi.org/10.5281/zenodo.5705258) for more informations.

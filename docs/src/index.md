@@ -12,12 +12,18 @@ When the solution lies in a Banach space involving function spaces, the standard
 
 ## Citing
 
-If you use the RadiiPolynomial software in your publication, research, teaching, or other activities, please use the following BibTeX entry (cf. [`CITATION.bib`](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib)):
+If you use the RadiiPolynomial software in your publication, research, teaching, or other activities, please use the following BibTeX template (cf. [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib)):
 
 ```bibtex
 @software{RadiiPolynomial.jl,
   author = {Olivier Hénot},
   title  = {RadiiPolynomial.jl},
-  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl}
+  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl},
+  year   = {},
+  doi    = {}
 }
 ```
+
+The empty fields `year` and `doi` should correspond with the cited version of the RadiiPolynomial software. For instance, if you wish to cite the software as a whole: `year = {2021}` and `doi = {10.5281/zenodo.5705258}`.
+
+You may refer to [10.5281/zenodo.5705258](https://doi.org/10.5281/zenodo.5705258) for more informations.

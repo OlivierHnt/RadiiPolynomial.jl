@@ -4,54 +4,58 @@ using RadiiPolynomial
 
 # Norms
 
-The spaces introduced in the section [Vector spaces](@ref vector_spaces) are not normed a priori. Indeed, to satisfy the Radii Polynomial Theorem, it is useful to tune the Banach space by adjusting its norm on the fly.
+The spaces introduced in the section [Vector spaces](@ref vector_spaces) are not normed a priori. Indeed, to satisfy the Radii Polynomial Theorem, it is useful to tune the Banach space on the fly.
 
-RadiiPolynomial defines norms which are known to turn a [`VectorSpace`](@ref) into a Banach space or a Banach algebra.
-
-All norms mentioned below are a subtype of the abstract type [`Norm`](@ref).
+All Banach spaces mentioned below are a subtype of the abstract type [`BanachSpace`](@ref).
 
 ```julia
-Norm
-├─ CartesianPowerNorm
-├─ CartesianProductNorm
-├─ Weightedℓ¹Norm
-├─ ℓᵖNorm
-└─ 𝐻ˢNorm
+BanachSpace
+├─ NormedCartesianSpace
+├─ Weightedℓ¹
+├─ ℓ¹
+├─ ℓ∞
+└─ 𝐻ˢ
 ```
 
 ```@docs
-Norm
+BanachSpace
 ```
 
-## ``\ell^p`` norm
+## ``\ell^1`` and ``\ell^\infty``
 
-Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}`` and ``p \in [1, +\infty) \cup \{ +\infty \}``. The ``\ell^p`` space is defined as
+Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}``.
+
+The ``\ell^1`` space is defined as
 
 ```math
-\ell^p := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{\ell^p} :=
-\begin{cases}
-\left( \sum_{\alpha \in \mathscr{I}} | a_\alpha | ^ p \right)^{1/p}, & 1 \leq p < +\infty,\\
-\sup_{\alpha \in \mathscr{I}} | a_\alpha |, & p = +\infty.
-\end{cases} \right\}.
+\ell^1 := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{\ell^1} := \sum_{\alpha \in \mathscr{I}} | a_\alpha | \right\}.
 ```
 
-The [`ℓᵖNorm`](@ref) (`\ell<TAB>\^p<TAB>Norm`) wraps such a ``p``.
+and the ``\ell^\infty`` space is defined as
+
+```math
+\ell^1 := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{\ell^\infty} := \sup_{\alpha \in \mathscr{I}} | a_\alpha | \right\}.
+```
+
+These Banach spaces are representing by the structures [`ℓ¹`](@ref) (`\ell<TAB>\^1<TAB>`) and [`ℓ∞`](@ref) (`\ell<TAB>\infty<TAB>`).
 
 ```@repl norms
 a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-norm(a, ℓᵖNorm(Inf))
+norm(a, ℓ¹())
+norm(a, ℓ∞())
 ```
 
 ```@docs
-ℓᵖNorm
+ℓ¹
+ℓ∞
 ```
 
-## Weighted ``\ell^1`` norm
+## Weighted ``\ell^1``
 
-The [`Weightedℓ¹Norm`](@ref) (`Weighted\ell<TAB>\^1<TAB>Norm`) represents the norm for a weighted ``\ell^1`` space.
+The [`Weightedℓ¹`](@ref) (`Weighted\ell<TAB>\^1<TAB>`) represents a weighted ``\ell^1`` space.
 
 ```@docs
-Weightedℓ¹Norm
+Weightedℓ¹
 ```
 
 ### Geometric weights
@@ -66,7 +70,19 @@ The geometric weights of rate ``\nu > 0`` are the numbers ``\nu^{|\alpha|}`` for
 
 ```@repl norms
 a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-norm(a, Weightedℓ¹Norm(GeometricWeights(2.0)))
+norm(a, Weightedℓ¹(GeometricWeights(2.0)))
+```
+
+Note that such a Banach space may also yield a Banach algebra for a suitable choice of the rate ``\nu``. Namely,
+- for [`Taylor`](@ref), ``\ell^1_\nu`` is a Banach algebra for all ``\nu > 0`` .
+- for [`Fourier`](@ref) and [`Chebyshev`](@ref), ``\ell^1_\nu`` is a Banach algebra for all ``\nu \geq 1``.
+
+```@repl norms
+a = Sequence(Taylor(2) ⊗ Fourier(2, 1.) ⊗ Chebyshev(2), ones(3*5*3));
+b = Sequence(Taylor(1) ⊗ Fourier(3, 1.) ⊗ Chebyshev(0), ones(2*7*1));
+X = Weightedℓ¹((GeometricWeights(0.2), GeometricWeights(1.2), GeometricWeights(2.0)));
+norm(a*b, X)
+norm(a, X) * norm(b, X)
 ```
 
 ### Algebraic weights
@@ -81,10 +97,20 @@ The algebraic weights of rate ``s \geq 0`` are the numbers ``(1 + |\alpha|)^s`` 
 
 ```@repl norms
 a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-norm(a, Weightedℓ¹Norm(AlgebraicWeights(2.0)))
+norm(a, Weightedℓ¹(AlgebraicWeights(2.0)))
 ```
 
-## ``H^s`` norm
+Note that such a Banach space may also yield a Banach algebra.
+
+```@repl norms
+a = Sequence(Taylor(2) ⊗ Fourier(2, 1.) ⊗ Chebyshev(2), ones(3*5*3));
+b = Sequence(Taylor(1) ⊗ Fourier(3, 1.) ⊗ Chebyshev(0), ones(2*7*1));
+X = Weightedℓ¹((AlgebraicWeights(0.2), AlgebraicWeights(1.2), AlgebraicWeights(2.0)));
+norm(a*b, X)
+norm(a, X) * norm(b, X)
+```
+
+## ``H^s``
 
 Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}`` and ``s \in [1, +\infty)``. The Sobolev space ``H^s`` is defined as
 
@@ -92,30 +118,29 @@ Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{
 H^s := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{H^s} := \left( \sum_{\alpha \in \mathscr{I}} | a_\alpha | \left( 1 + \sum_{i=1}^d | \alpha_i |^2 \right)^s \right)^{1/2} \right\}.
 ```
 
-The [`𝐻ˢNorm`](@ref) (`\itH<TAB>\^s<TAB>Norm`) wraps such a ``s``.
+The [`𝐻ˢ`](@ref) (`\itH<TAB>\^s<TAB>`) wraps such a ``s``.
 
 ```@repl norms
 a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
-norm(a, 𝐻ˢNorm(2.0))
+norm(a, 𝐻ˢ(2.0))
 ```
 
 ```@docs
-𝐻ˢNorm
+𝐻ˢ
 ```
 
-## Cartesian norms
+## Normed cartesian space
 
-One may use:
-- [`CartesianPowerNorm`](@ref) to use the same norm for each space constituting a [`CartesianSpace`](@ref).
-- [`CartesianProductNorm`](@ref) to use a different norm for each space constituting a [`CartesianSpace`](@ref).
+For the norm of a [`CartesianSpace`](@ref), one may use a [`NormedCartesianSpace`](@ref) to either:
+- use the same [`BanachSpace`](@ref) for each space.
+- use a different [`BanachSpace`](@ref) for each space.
 
 ```@repl norms
 a = Sequence(Taylor(1)^2 × Chebyshev(1)^2, [1, 2, 3, 4, 5, 6, 7, 8])
-inner_norm = CartesianProductNorm((Weightedℓ¹Norm(GeometricWeights(2.0)), Weightedℓ¹Norm(AlgebraicWeights(3.0))), ℓᵖNorm(Inf))
-norm(c, CartesianPowerNorm(inner_norm, ℓᵖNorm(1)))
+inner = NormedCartesianSpace((Weightedℓ¹(GeometricWeights(2.0)), Weightedℓ¹(AlgebraicWeights(3.0))), ℓ∞())
+norm(a, NormedCartesianSpace(inner, ℓ¹()))
 ```
 
 ```@docs
-CartesianPowerNorm
-CartesianProductNorm
+NormedCartesianSpace
 ```

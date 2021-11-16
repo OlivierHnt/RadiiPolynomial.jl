@@ -78,6 +78,6 @@ The rounding strategy for `*`, `^`, `*̄` and `^̄` is integrated in the functio
 
 ```@repl sequences
 weights = GeometricWeights(Interval(10_000.0))
-norm_x = norm(x, Weightedℓ¹Norm(weights))
+norm_x = norm(x, Weightedℓ¹(weights))
 banach_rounding!(x³_fft, weights, norm_x ^ 3, 5)
 ```

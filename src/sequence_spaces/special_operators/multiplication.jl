@@ -20,7 +20,7 @@ end
 Base.:/(ℳ::Multiplication, a::Number) = Multiplication(/(ℳ.sequence, a))
 Base.:\(a::Number, ℳ::Multiplication) = Multiplication(\(a, ℳ.sequence))
 
-LinearAlgebra.opnorm(ℳ::Multiplication, d::Norm) = norm(ℳ.sequence, d)
+LinearAlgebra.opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
 
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}
     _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(DimensionMismatch)

@@ -107,11 +107,11 @@ A = inv(mid.(DF_interval))
 bound_tail_A = inv(Interval(n+1))
 
 ν = Interval(1.0)
-metric = Weightedℓ¹Norm(GeometricWeights(ν))
+X = Weightedℓ¹(GeometricWeights(ν))
 R = Inf
 
-Y = norm(A * F_interval, metric) + bound_tail_A * norm(tail_F_interval, metric)
-Z₁ = opnorm(A * DF_interval - I, metric) + bound_tail_A * ν * norm(2x₀_interval - 1, metric)
-Z₂ = 2ν * (opnorm(A, metric) + bound_tail_A)
+Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
+Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x₀_interval - 1, X)
+Z₂ = 2ν * (opnorm(A, X) + bound_tail_A)
 showfull(interval_of_existence(Y, Z₁, Z₂, R))
 ```

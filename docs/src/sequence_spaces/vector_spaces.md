@@ -105,7 +105,9 @@ Fourier
 
 #### Chebyshev
 
-For a given order ``n``, a [`Chebyshev`](@ref) sequence space is the span of ``\{\phi_0, 2\phi_1, \dots, 2\phi_n\}`` where ``\phi_0(t) := 1``, ``\phi_1(t) := t`` and ``\phi_k(t) := 2 t \phi_{k-1}(t) - \phi_{k-2}(t)`` for ``k = 2, \dots, n`` and ``t \in [-1, 1]``. The normalization by a factor ``2`` is done for convenience.
+For a given order ``n``, a [`Chebyshev`](@ref) sequence space is the span of ``\{\phi_0, \phi_1, \dots, \phi_n\}`` where ``\phi_0(t) := 1``, ``\phi_1(t) := t`` and ``\phi_k(t) := 2 t \phi_{k-1}(t) - \phi_{k-2}(t)`` for ``k = 2, \dots, n`` and ``t \in [-1, 1]``.
+
+It is important to note that coefficients ``\{a_0, a_1, \dots, a_n\}`` associated to a [`Chebyshev`](@ref) space are normalized such that ``\{a_0, 2a_1, \dots, 2a_n\}`` are the actual Chebyshev coefficients.
 
 ```@repl vector_spaces
 𝒞 = Chebyshev(1)

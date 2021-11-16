@@ -34,7 +34,7 @@ The ``\ell^1`` space is defined as
 and the ``\ell^\infty`` space is defined as
 
 ```math
-\ell^1 := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{\ell^\infty} := \sup_{\alpha \in \mathscr{I}} | a_\alpha | \right\}.
+\ell^\infty := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{\ell^\infty} := \sup_{\alpha \in \mathscr{I}} | a_\alpha | \right\}.
 ```
 
 These Banach spaces are representing by the structures [`ℓ¹`](@ref) (`\ell<TAB>\^1<TAB>`) and [`ℓ∞`](@ref) (`\ell<TAB>\infty<TAB>`).

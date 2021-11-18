@@ -349,19 +349,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nb_cartesian_product(domain_A)
         n = nb_cartesian_product(codomain_A)
@@ -387,19 +376,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         n = nb_cartesian_product(codomain(A))
         m = nb_cartesian_product(domain(B))
@@ -417,19 +395,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nb_cartesian_product(domain_A)
         m = nb_cartesian_product(domain_B)
@@ -452,19 +419,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for j ∈ 1:nb_cartesian_product(domain_B)
             _mul!(component(C, j), A, component(B, j), α, β)
@@ -477,19 +433,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nb_cartesian_product(domain_A)
         n = nb_cartesian_product(codomain_A)
@@ -512,19 +457,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == codomain_B
-        if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
-        else
-            if iszero(β)
-                coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
-                coefficients(C) .*= β
-            end
-            inds_domain = indices(domain_B ∩ domain_C)
-            inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
-        end
+    if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
+        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
             _mul!(component(C, i), component(A, i), B, α, β)

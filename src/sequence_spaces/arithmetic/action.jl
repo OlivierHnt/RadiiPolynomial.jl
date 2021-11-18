@@ -61,18 +61,8 @@ end
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)
-    if domain_A == space_b
-        if codomain_A == space_c
-            __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
-        else
-            if iszero(β)
-                coefficients(c) .= zero(eltype(c))
-            elseif !isone(β)
-                coefficients(c) .*= β
-            end
-            inds_space = indices(codomain_A ∩ space_c)
-            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, true)
-        end
+    if domain_A == space_b && codomain_A == space_c
+        __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
     else
         m = nb_cartesian_product(domain_A)
         n = nb_cartesian_product(codomain_A)
@@ -86,6 +76,20 @@ end
             @inbounds for i ∈ 1:n
                 _mul!(component(c, i), component(A, i, j), bⱼ, α, true)
             end
+        end
+    end
+    return c
+end
+
+@inline function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, b::Sequence{<:VectorSpace}, α::Number, β::Number)
+    domain_A, codomain_A = domain(A), codomain(A)
+    space_b = space(b)
+    space_c = space(c)
+    if domain_A == space_b && codomain_A == space_c
+        __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
+    else
+        @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+            _mul!(component(c, i), component(A, i), b, α, β)
         end
     end
     return c
@@ -115,30 +119,6 @@ end
         end
         @inbounds for j ∈ 1:nb_cartesian_product(domain_A)
             _mul!(c, component(A, j), component(b, j), α, true)
-        end
-    end
-    return c
-end
-
-@inline function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, b::Sequence{<:VectorSpace}, α::Number, β::Number)
-    domain_A, codomain_A = domain(A), codomain(A)
-    space_b = space(b)
-    space_c = space(c)
-    if domain_A == space_b
-        if codomain_A == space_c
-            __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
-        else
-            if iszero(β)
-                coefficients(c) .= zero(eltype(c))
-            elseif !isone(β)
-                coefficients(c) .*= β
-            end
-            inds_space = indices(codomain_A ∩ space_c)
-            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, true)
-        end
-    else
-        @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
-            _mul!(component(c, i), component(A, i), b, α, β)
         end
     end
     return c

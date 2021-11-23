@@ -10,6 +10,14 @@ Hence, the desired solution is the unique fixed point within the ball(s) whose r
 
 When the solution lies in a Banach space involving function spaces, the standard approach is to interpret the function spaces as sequence spaces. Thus, RadiiPolynomial is concerned with the latter (cf. [ApproxFun.jl](https://github.com/JuliaApproximation/ApproxFun.jl) for a Julia package to approximate functions).
 
+## Installing
+
+To install the package, use the following command inside the Julia REPL:
+
+```julia
+using Pkg; Pkg.add("RadiiPolynomial")
+```
+
 ## Citing
 
 If you use the RadiiPolynomial software in your publication, research, teaching, or other activities, please use the following BibTeX template (cf. [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib)):

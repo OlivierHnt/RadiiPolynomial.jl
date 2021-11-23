@@ -7,6 +7,14 @@
 
 RadiiPolynomial.jl is a Julia package for computer-assisted proofs in dynamical systems.
 
+## Installing
+
+To install the package, use the following command inside the Julia REPL:
+
+```julia
+using Pkg; Pkg.add("RadiiPolynomial")
+```
+
 ## Citing
 
 If you use the RadiiPolynomial software in your publication, research, teaching, or other activities, please use the following BibTeX template (cf. [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib)):

@@ -753,59 +753,59 @@ function _apply_dual(X::Weightedℓ¹{<:AlgebraicWeights}, space::Chebyshev, A::
     return s
 end
 
-# 𝐻ˢ Sobolev norm
+# Hˢ Sobolev norm
 
 """
-    𝐻ˢ{T<:Real} <: BanachSpace
+    Hˢ{T<:Real} <: BanachSpace
 
 ``H^s`` Sobolev space.
 
 Fields:
 - `exponent :: T`
 """
-struct 𝐻ˢ{T<:Real} <: BanachSpace
+struct Hˢ{T<:Real} <: BanachSpace
     exponent :: T
-    function 𝐻ˢ{T}(exponent::T) where {T<:Real}
-        isfinite(exponent) & (exponent > 0) || return throw(DomainError(exponent, "𝐻ˢ is only defined for real numbers greater than 1"))
+    function Hˢ{T}(exponent::T) where {T<:Real}
+        isfinite(exponent) & (exponent > 0) || return throw(DomainError(exponent, "Hˢ is only defined for real numbers greater than 1"))
         return new{T}(exponent)
     end
 end
 
-𝐻ˢ(exponent::T) where {T<:Real} = 𝐻ˢ{T}(exponent)
+Hˢ(exponent::T) where {T<:Real} = Hˢ{T}(exponent)
 
-LinearAlgebra.norm(a::Sequence{<:BaseSpace}, X::𝐻ˢ) =
+LinearAlgebra.norm(a::Sequence{<:BaseSpace}, X::Hˢ) =
     _apply(X, space(a), coefficients(a))
 
-function LinearAlgebra.norm(a::Sequence{<:TensorSpace}, X::𝐻ˢ)
+function LinearAlgebra.norm(a::Sequence{<:TensorSpace}, X::Hˢ)
     space_a = space(a)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
     return _apply(X, space_a, A)
 end
 
-_apply(X::𝐻ˢ, space::TensorSpace, A) =
+_apply(X::Hˢ, space::TensorSpace, A) =
     @inbounds _apply(X, space[1], _apply(X, Base.tail(space), A))
 
-_apply(X::𝐻ˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
+_apply(X::Hˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
     @inbounds _apply(X, space[1], A)
 
-LinearAlgebra.opnorm(A::LinearOperator{<:BaseSpace,ParameterSpace}, X::𝐻ˢ) =
+LinearAlgebra.opnorm(A::LinearOperator{<:BaseSpace,ParameterSpace}, X::Hˢ) =
     _apply_dual(X, domain(A), vec(coefficients(A)))
 
-function LinearAlgebra.opnorm(A::LinearOperator{<:TensorSpace,ParameterSpace}, X::𝐻ˢ)
+function LinearAlgebra.opnorm(A::LinearOperator{<:TensorSpace,ParameterSpace}, X::Hˢ)
     domain_A = domain(A)
     A_ = _no_alloc_reshape(coefficients(A), dimensions(domain_A))
     return _apply_dual(X, domain_A, A_)
 end
 
-_apply_dual(X::𝐻ˢ, space::TensorSpace, A) =
+_apply_dual(X::Hˢ, space::TensorSpace, A) =
     @inbounds _apply_dual(X, space[1], _apply_dual(X, Base.tail(space), A))
 
-_apply_dual(X::𝐻ˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
+_apply_dual(X::Hˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
     @inbounds _apply_dual(X, space[1], A)
 
 # Fourier
 
-function _apply(X::𝐻ˢ, space::Fourier, A::AbstractVector)
+function _apply(X::Hˢ, space::Fourier, A::AbstractVector)
     s = X.exponent
     un = one(s)
     ord = order(space)
@@ -816,7 +816,7 @@ function _apply(X::𝐻ˢ, space::Fourier, A::AbstractVector)
     return sqrt(x)
 end
 
-function _apply(X::𝐻ˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
+function _apply(X::Hˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
     s = X.exponent
     un = one(s)
     CoefType = typeof(sqrt(abs2(zero(T))*(un+0)^s))
@@ -831,7 +831,7 @@ function _apply(X::𝐻ˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
     return x
 end
 
-function _apply_dual(X::𝐻ˢ, space::Fourier, A::AbstractVector)
+function _apply_dual(X::Hˢ, space::Fourier, A::AbstractVector)
     s = X.exponent
     un = one(s)
     ord = order(space)
@@ -842,7 +842,7 @@ function _apply_dual(X::𝐻ˢ, space::Fourier, A::AbstractVector)
     return sqrt(x)
 end
 
-function _apply_dual(X::𝐻ˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
+function _apply_dual(X::Hˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
     s = X.exponent
     un = one(s)
     CoefType = typeof(sqrt(abs2(zero(T))/(un+0)^s))

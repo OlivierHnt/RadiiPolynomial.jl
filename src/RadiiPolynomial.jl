@@ -29,7 +29,7 @@ include("sequence_spaces/broadcast.jl")
 
 include("sequence_spaces/norm.jl")
     export Weights, GeometricWeights, geometricweights, AlgebraicWeights,
-        algebraicweights, rate, weight, BanachSpace, ℓ¹, ℓ∞, Weightedℓ¹, 𝐻ˢ,
+        algebraicweights, rate, weight, BanachSpace, ℓ¹, ℓ∞, Weightedℓ¹, Hˢ,
         NormedCartesianSpace
 
 #

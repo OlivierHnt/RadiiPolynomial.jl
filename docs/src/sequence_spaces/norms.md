@@ -14,7 +14,7 @@ BanachSpace
 ├─ Weightedℓ¹
 ├─ ℓ¹
 ├─ ℓ∞
-└─ 𝐻ˢ
+└─ Hˢ
 ```
 
 ```@docs
@@ -118,15 +118,15 @@ Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{
 H^s := \left\{ a \in \mathbb{C}^\mathscr{I} \, : \, +\infty > | a |_{H^s} := \left( \sum_{\alpha \in \mathscr{I}} | a_\alpha | \left( 1 + \sum_{i=1}^d | \alpha_i |^2 \right)^s \right)^{1/2} \right\}.
 ```
 
-The [`𝐻ˢ`](@ref) (`\itH<TAB>\^s<TAB>`) wraps such a ``s``.
+The [`Hˢ`](@ref) (`\itH<TAB>\^s<TAB>`) wraps such a ``s``.
 
 ```@repl norms
 a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
-norm(a, 𝐻ˢ(2.0))
+norm(a, Hˢ(2.0))
 ```
 
 ```@docs
-𝐻ˢ
+Hˢ
 ```
 
 ## Normed cartesian space

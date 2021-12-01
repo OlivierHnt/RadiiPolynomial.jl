@@ -43,7 +43,7 @@ T(x) := x - A F(x),
 
 where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in X`` of ``F``.
 
-Let ``R > 0``. According to the Radii Polynomial Theorem, we need to estimate ``|T(x_0) - x_0|_X``, ``|DT(x_0)|_{\mathscr{B}(X, X)}`` and ``\sup_{y \in \text{cl}( B_R(x_0) )} |D^2T(y)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [Radii Polynomial Theorem with the second order ``C^2`` condition](@ref C2_condition) such that we need to estimate ``|T(x_0) - x_0|_X``, ``|DT(x_0)|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
 To this end, for all ``x \in X``, consider the projection operators
 
@@ -60,7 +60,7 @@ Thus, for all ``x_0 \in X`` and ``R > 0``, we have
 \begin{aligned}
 |T(x_0) - x_0|_X &\leq |\pi^n A \pi^n F(x_0)|_X + \frac{1}{n+1} |\pi^{\infty(n)} F(x_0)|_X,\\
 |DT(x_0)|_{\mathscr{B}(X, X)} &\leq |\pi^n A \pi^n DF(x_0) \pi^n - I|_{\mathscr{B}(X, X)} + \frac{\nu}{n+1} |2x_0 - 1|_X,\\
-\sup_{y \in \text{cl}( B_R(x_0) )} |D^2T(y)|_{\mathscr{B}(X^2, X)} &\leq 2 \nu \left( |\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \right).
+\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq 2 \nu \left( |\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \right).
 \end{aligned}
 ```
 
@@ -113,5 +113,5 @@ R = Inf
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
 Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x₀_interval - 1, X)
 Z₂ = 2ν * (opnorm(A, X) + bound_tail_A)
-showfull(interval_of_existence(Y, Z₁, Z₂, R))
+showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
 ```

@@ -67,7 +67,7 @@ include("sequence_spaces/special_operators/shift.jl")
 # Radii polynomial
 
 include("rpa/interval_existence.jl")
-    export interval_of_existence
+    export interval_of_existence, C¹Condition, C²Condition
 include("rpa/newton.jl")
     export newton, newton!
 

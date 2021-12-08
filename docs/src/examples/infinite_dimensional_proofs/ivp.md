@@ -43,7 +43,7 @@ T(x) := x - A F(x),
 
 where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in X`` of ``F``.
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [Radii Polynomial Theorem with the second order ``C^2`` condition](@ref C2_condition) such that we need to estimate ``|T(x_0) - x_0|_X``, ``|DT(x_0)|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(x_0) - x_0|_X``, ``|DT(x_0)|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
 To this end, for all ``x \in X``, consider the projection operators
 

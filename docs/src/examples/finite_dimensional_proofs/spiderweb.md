@@ -66,7 +66,7 @@ T(x) := x - A F(x),
 
 where ``A : \mathbb{R}^n \to \mathbb{R}^n`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in \mathbb{R}^n`` of ``F``.
 
-Let ``R > 0``. According to the Radii Polynomial Theorem, we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{y \in \text{cl}( B_R(x_0) )} |DT(y)|_\infty`` which can be readily computed with interval arithmetic.
+Let ``R > 0``. According to the [first-order Radii Polynomial Theorem](@ref first_order_RPT), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{y \in \text{cl}( B_R(x_0) )} |DT(y)|_\infty`` which can be readily computed with interval arithmetic.
 
 We can now write our computer-assisted proof:
 

@@ -10,7 +10,7 @@ makedocs(;
     ),
     pages = [
         "Home" => "index.md",
-        "Radii Polynomial Theorem" => "radii_polynomial_theorem.md",
+        "Radii polynomial approach" => "radii_polynomial_approach.md",
         "Sequence spaces" => [
             "sequence_spaces/vector_spaces.md",
             "sequence_spaces/sequences.md",

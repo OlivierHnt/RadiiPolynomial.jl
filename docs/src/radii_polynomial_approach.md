@@ -1,8 +1,8 @@
-# Radii Polynomial Theorem
+# Radii polynomial approach
 
 Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T : U \to X`` an operator, ``x_0 \in U`` and ``R \geq 0`` such that ``\text{cl}( B_R(x_0) ) \subset U``.
 
-##### First order
+## [First-order Radii Polynomial Theorem](@id first_order_RPT)
 
 Suppose ``T \in C^1(U, X)`` and ``Y, Z_1 \geq 0`` satisfy
 
@@ -27,9 +27,9 @@ p(r_0) \leq 0 \qquad \text{and} \qquad Z_1 < 1,
 
 then ``T`` has a unique fixed point in ``\text{cl}( B_{r_0} (x_0) )``.
 
-##### Second order
+## Second-order Radii Polynomial Theorem
 
-###### ``C^1`` condition
+### ``C^1`` condition
 
 Suppose ``T \in C^1(U, X)`` and ``Y, Z_1, Z_2 \geq 0`` satisfy
 
@@ -55,7 +55,7 @@ p(r_0) \leq 0 \qquad \text{and} \qquad Z_1 + Z_2 r_0 < 1,
 
 then ``T`` has a unique fixed point in ``\text{cl}( B_{r_0} (x_0) )``.
 
-###### [``C^2`` condition](@id C2_condition)
+### [``C^2`` condition](@id C2_condition_RPT)
 
 Suppose ``T \in C^2(U, X)`` and ``Y, Z_1, Z_2 \geq 0`` satisfy
 
@@ -81,7 +81,7 @@ p(r_0) \leq 0 \qquad \text{and} \qquad Z_2 r_0 < 1,
 
 then ``T`` has a unique fixed point in ``\text{cl}( B_{r_0} (x_0) )``.
 
-# Interval of existence
+## Interval of existence
 
 The set of all possible radii is called the *interval of existence*.
 

@@ -48,7 +48,7 @@ and the fixed-point operator ``T : \mathbb{R}^3 \times [0,1] \to \mathbb{R}^3`` 
 T(x, s) := x - A F(x, s).
 ```
 
-Let ``R > 0``. According to the Radii Polynomial Theorem, we need to estimate uniform bounds for ``|T(x_0(s), s) - x_0(s)|_\infty`` and ``\sup_{y \in \text{cl}( B_R(x_0(s)) )} |DT(y ,s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
+Let ``R > 0``. We use a uniform version of the [first-order Radii Polynomial Theorem](@ref first_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |DT(x ,s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
 
 ```math
 |T(x_0(s), s) - x_0(s)|_\infty = \left|A \begin{pmatrix} 0 \\ f(x_0(s)) \end{pmatrix} \right|_\infty, \qquad \text{for all } s \in [0,1].

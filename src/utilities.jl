@@ -144,16 +144,13 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
         end
     end
 end
-@inline function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{S}) where {T<:Interval,S<:Interval}
-    R = promote_type(T, S)
-    return __mul(convert.(R, A), convert.(R, B))
-end
-@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{Interval{T}}) where {T<:Real}
+@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
+    NewType = promote_type(T, S)
     Ainf = inf.(A)
     Asup = sup.(A)
     Binf = inf.(B)
     Bsup = sup.(B)
-    mA, mB, R, Csup = setrounding(T, RoundUp) do
+    mA, mB, R, Csup = setrounding(NewType, RoundUp) do
         mA = Ainf .+ (Asup .- Ainf) ./ 2
         mB = Binf .+ (Bsup .- Binf) ./ 2
         rA = mA - Ainf
@@ -162,37 +159,39 @@ end
         Csup = mA * mB + R
         return mA, mB, R, Csup
     end
-    Cinf = setrounding(T, RoundDown) do
+    Cinf = setrounding(NewType, RoundDown) do
         return mA * mB - R
     end
     return Cinf, Csup
 end
-@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{T}) where {T<:Real}
+@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{S}) where {T<:Real,S<:Real}
+    NewType = promote_type(T, S)
     Ainf = inf.(A)
     Asup = sup.(A)
-    mA, R, Csup = setrounding(T, RoundUp) do
+    mA, R, Csup = setrounding(NewType, RoundUp) do
         mA = Ainf .+ (Asup .- Ainf) ./ 2
         rA = mA - Ainf
         R = rA * abs.(B)
         Csup = mA * B + R
         return mA, R, Csup
     end
-    Cinf = setrounding(T, RoundDown) do
+    Cinf = setrounding(NewType, RoundDown) do
         return mA * B - R
     end
     return Cinf, Csup
 end
-@inline function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{Interval{T}}) where {T<:Real}
+@inline function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
+    NewType = promote_type(T, S)
     Binf = inf.(B)
     Bsup = sup.(B)
-    mB, R, Csup = setrounding(T, RoundUp) do
+    mB, R, Csup = setrounding(NewType, RoundUp) do
         mB = Binf .+ (Bsup .- Binf) ./ 2
         rB = mB - Binf
         R = abs.(A) * rB
         Csup = A * mB + R
         return mB, R, Csup
     end
-    Cinf = setrounding(T, RoundDown) do
+    Cinf = setrounding(NewType, RoundDown) do
         return A * mB - R
     end
     return Cinf, Csup

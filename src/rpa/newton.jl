@@ -90,6 +90,45 @@ function _newton_verbose(F_DF, x₀, tol, maxiter)
     return x, false
 end
 
+function _newton_silent(F_DF, x₀::Sequence, tol, maxiter)
+    F, DF = F_DF(x₀)
+    nF = norm(coefficients(F), Inf)
+    nF ≤ tol && return x₀, true
+    x = copy(x₀)
+    i = 1
+    while i ≤ maxiter && isfinite(nF)
+        x .-= DF \ F
+        F, DF = F_DF(x)
+        nF = norm(coefficients(F), Inf)
+        nF ≤ tol && return x, true
+        i += 1
+    end
+    return x, false
+end
+
+function _newton_verbose(F_DF, x₀::Sequence, tol, maxiter)
+    _display_newton_infos(tol, maxiter)
+    F, DF = F_DF(x₀)
+    nF = norm(coefficients(F), Inf)
+    AF = DF \ F
+    nAF = norm(coefficients(AF), Inf)
+    _display_newton_iteration(0, nF, nAF)
+    nF ≤ tol && return x₀, true
+    x = copy(x₀)
+    i = 1
+    while i ≤ maxiter && isfinite(nF)
+        x .-= AF
+        F, DF = F_DF(x)
+        nF = norm(coefficients(F), Inf)
+        AF = DF \ F
+        nAF = norm(coefficients(AF), Inf)
+        _display_newton_iteration(i, nF, nAF)
+        nF ≤ tol && return x, true
+        i += 1
+    end
+    return x, false
+end
+
 #
 
 function newton!(F_DF!, x₀, F, DF; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
@@ -127,6 +166,43 @@ function _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
         nF = norm(F, Inf)
         AF = DF \ F
         nAF = norm(AF, Inf)
+        _display_newton_iteration(i, nF, nAF)
+        nF ≤ tol && return x₀, true
+        i += 1
+    end
+    return x₀, false
+end
+
+function _newton_silent!(F_DF!, x₀::Sequence, F, DF, tol, maxiter)
+    F_DF!(F, DF, x₀)
+    nF = norm(coefficients(F), Inf)
+    nF ≤ tol && return x₀, true
+    i = 1
+    while i ≤ maxiter && isfinite(nF)
+        x₀ .-= DF \ F
+        F_DF!(F, DF, x₀)
+        nF = norm(coefficients(F), Inf)
+        nF ≤ tol && return x₀, true
+        i += 1
+    end
+    return x₀, false
+end
+
+function _newton_verbose!(F_DF!, x₀::Sequence, F, DF, tol, maxiter)
+    _display_newton_infos(tol, maxiter)
+    F_DF!(F, DF, x₀)
+    nF = norm(coefficients(F), Inf)
+    AF = DF \ F
+    nAF = norm(coefficients(AF), Inf)
+    _display_newton_iteration(0, nF, nAF)
+    nF ≤ tol && return x₀, true
+    i = 1
+    while i ≤ maxiter && isfinite(nF)
+        x₀ .-= AF
+        F_DF!(F, DF, x₀)
+        nF = norm(coefficients(F), Inf)
+        AF = DF \ F
+        nAF = norm(coefficients(AF), Inf)
         _display_newton_iteration(i, nF, nAF)
         nF ≤ tol && return x₀, true
         i += 1

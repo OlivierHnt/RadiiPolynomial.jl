@@ -242,7 +242,36 @@ Abstract type for all Banach spaces.
 """
 abstract type BanachSpace end
 
-# fallback methods
+LinearAlgebra.opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
+
+function LinearAlgebra.opnorm(A::LinearOperator, X_domain::BanachSpace, X_codomain::BanachSpace)
+    codomain_A = codomain(A)
+    A_ = coefficients(A)
+    @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), X_codomain)
+    sz = size(A_, 2)
+    v = Vector{typeof(v₁)}(undef, sz)
+    @inbounds v[1] = v₁
+    @inbounds for i ∈ 2:sz
+        v[i] = norm(Sequence(codomain_A, view(A_, :, i)), X_codomain)
+    end
+    return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X_domain)
+end
+
+#
+
+"""
+    ℓ¹ <: BanachSpace
+
+``\\ell^1`` Banach space.
+"""
+struct ℓ¹ <: BanachSpace end
+
+"""
+    ℓ∞ <: BanachSpace
+
+``\\ell^\\infty`` Banach space.
+"""
+struct ℓ∞ <: BanachSpace end
 
 function LinearAlgebra.norm(a::Sequence, p::Real=Inf)
     if p == 1
@@ -264,34 +293,9 @@ function LinearAlgebra.opnorm(A::LinearOperator, p::Real=Inf)
     end
 end
 
-LinearAlgebra.opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
-
-function LinearAlgebra.opnorm(A::LinearOperator, X_domain::BanachSpace, X_codomain::BanachSpace)
-    codomain_A = codomain(A)
-    v = map(Aᵢ -> norm(Sequence(codomain_A, Aᵢ), X_codomain), eachcol(coefficients(A)))
-    return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X_domain)
-end
-
-#
-
-"""
-    ℓ¹ <: BanachSpace
-
-``\\ell^1`` Banach space.
-"""
-struct ℓ¹ <: BanachSpace end
-
-"""
-    ℓ∞ <: BanachSpace
-
-``\\ell^\\infty`` Banach space.
-"""
-struct ℓ∞ <: BanachSpace end
-
 for T ∈ (:ℓ¹, :ℓ∞)
     @eval begin
-        LinearAlgebra.norm(a::Sequence, X::$T) =
-            _apply(X, space(a), coefficients(a))
+        LinearAlgebra.norm(a::Sequence, X::$T) = _apply(X, space(a), coefficients(a))
 
         function LinearAlgebra.norm(a::Sequence{<:TensorSpace}, X::$T)
             space_a = space(a)
@@ -316,18 +320,47 @@ for T ∈ (:ℓ¹, :ℓ∞)
     end
 end
 
-_apply(::ℓ¹, ::VectorSpace, A::AbstractVector) = sum(abs, A)
-function _apply(::ℓ¹, ::VectorSpace, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T)))
-    @inbounds A₁ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(A₁))
-    s .= abs.(A₁)
-    @inbounds for i ∈ 2:size(A, N)
-        s .+= abs.(selectdim(A, N, i))
+# ParameterSpace
+
+_apply(::ℓ¹, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
+_apply_dual(::ℓ¹, ::ParameterSpace, A::AbstractArray) = @inbounds abs(A[1])
+
+_apply(::ℓ∞, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
+_apply_dual(::ℓ∞, ::ParameterSpace, A::AbstractArray) = @inbounds abs(A[1])
+
+# Taylor, Fourier
+
+for S ∈ (:Taylor, :Fourier)
+    @eval begin
+        _apply(::ℓ¹, ::$S, A::AbstractVector) = sum(abs, A)
+        function _apply(::ℓ¹, ::$S, A::AbstractArray{T,N}) where {T,N}
+            CoefType = typeof(abs(zero(T)))
+            @inbounds A₁ = selectdim(A, N, 1)
+            s = Array{CoefType,N-1}(undef, size(A₁))
+            s .= abs.(A₁)
+            @inbounds for i ∈ 2:size(A, N)
+                s .+= abs.(selectdim(A, N, i))
+            end
+            return s
+        end
+        _apply_dual(::ℓ¹, space::$S, A::AbstractArray) = _apply(ℓ∞(), space, A)
+
+        _apply(::ℓ∞, ::$S, A::AbstractVector) = maximum(abs, A)
+        function _apply(::ℓ∞, ::$S, A::AbstractArray{T,N}) where {T,N}
+            CoefType = typeof(abs(zero(T)))
+            @inbounds A₁ = selectdim(A, N, 1)
+            s = Array{CoefType,N-1}(undef, size(A₁))
+            s .= abs.(A₁)
+            for i ∈ 2:size(A, N)
+                s .= max.(s, abs.(selectdim(A, N, i)))
+            end
+            return s
+        end
+        _apply_dual(::ℓ∞, space::$S, A::AbstractArray) = _apply(ℓ¹(), space, A)
     end
-    return s
 end
-_apply_dual(::ℓ¹, space::VectorSpace, A::AbstractArray) = _apply(ℓ∞(), space, A)
+
+# Chebyshev
 
 function _apply(::ℓ¹, space::Chebyshev, A::AbstractVector)
     ord = order(space)
@@ -369,19 +402,6 @@ function _apply_dual(::ℓ¹, space::Chebyshev, A::AbstractArray{T,N}) where {T,
     @inbounds s .= max.(s ./ 2, abs.(selectdim(A, N, 1)))
     return s
 end
-
-_apply(::ℓ∞, ::VectorSpace, A::AbstractVector) = maximum(abs, A)
-function _apply(::ℓ∞, ::VectorSpace, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T)))
-    @inbounds A₁ = selectdim(A, N, 1)
-    s = Array{CoefType,N-1}(undef, size(A₁))
-    s .= abs.(A₁)
-    for i ∈ 2:size(A, N)
-        s .= max.(s, abs.(selectdim(A, N, i)))
-    end
-    return s
-end
-_apply_dual(::ℓ∞, space::VectorSpace, A::AbstractArray) = _apply(ℓ¹(), space, A)
 
 function _apply(::ℓ∞, space::Chebyshev, A::AbstractVector)
     ord = order(space)
@@ -562,15 +582,15 @@ function _apply(X::Weightedℓ¹{<:GeometricWeights}, space::Fourier, A::Abstrac
     ν = rate(X.weights)
     ord = order(space)
     if ord == 0
-        return abs(A[1]) * one(ν)
+        @inbounds s = abs(A[1]) * one(ν)
     else
         @inbounds s = (abs(A[1]) + abs(A[2ord+1])) * one(ν)
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[ord+1-i]) + abs(A[ord+1+i])
         end
         @inbounds s = s * ν + abs(A[ord+1])
-        return s
     end
+    return s
 end
 function _apply(X::Weightedℓ¹{<:AlgebraicWeights}, space::Fourier, A::AbstractVector)
     ord = order(space)
@@ -873,30 +893,132 @@ struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:
     outer :: S
 end
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace})
-    s = CartesianPower(ParameterSpace(), nb_cartesian_product(space(a)))
-    v = map(aᵢ -> norm(aᵢ, X.inner), eachcomponent(a))
-    return norm(Sequence(s, v), X.outer)
+function LinearAlgebra.norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹})
+    @inbounds r = norm(component(a, 1), X.inner)
+    @inbounds for i ∈ 2:nb_cartesian_product(space(a))
+        r += norm(component(a, i), X.inner)
+    end
+    return r
 end
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace}}) where {N}
-    n = nb_cartesian_product(space(a))
-    n == N || return throw(DimensionMismatch)
-    s = CartesianPower(ParameterSpace(), n)
-    v = map((aᵢ, Xᵢ) -> norm(aᵢ, Xᵢ), eachcomponent(a), X.inner)
-    return norm(Sequence(s, v), X.outer)
+function LinearAlgebra.norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞})
+    @inbounds r = norm(component(a, 1), X.inner)
+    @inbounds for i ∈ 2:nb_cartesian_product(space(a))
+        r = max(r, norm(component(a, i), X.inner))
+    end
+    return r
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace})
-    s = CartesianPower(ParameterSpace(), nb_cartesian_product(domain(A)))
-    v = map(Aᵢ -> opnorm(Aᵢ, X.inner), eachcomponent(A))
-    return opnorm(LinearOperator(s, ParameterSpace(), v), X.outer)
+function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹})
+    @inbounds r = opnorm(component(A, 1), X.inner)
+    @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
+        r = max(r, opnorm(component(A, i), X.inner))
+    end
+    return r
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace}}) where {N}
-    n = nb_cartesian_product(domain(A))
-    n == N || return throw(DimensionMismatch)
-    s = CartesianPower(ParameterSpace(), n)
-    v = map((Aᵢ, Xᵢ) -> opnorm(Aᵢ, Xᵢ), eachcomponent(A), X.inner)
-    return opnorm(LinearOperator(s, ParameterSpace(), transpose(v)), X.outer)
+function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞})
+    @inbounds r = opnorm(component(A, 1), X.inner)
+    @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
+        r += opnorm(component(A, i), X.inner)
+    end
+    return r
+end
+
+for T ∈ (:ℓ¹, :ℓ∞)
+    @eval begin
+        function LinearAlgebra.norm(a::Sequence{<:CartesianProduct}, X::NormedCartesianSpace{<:BanachSpace,$T})
+            @inbounds r = norm(component(a, 1), X.inner)
+            return _apply(X, r, Val(2), a)
+        end
+
+        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$T}) where {N}
+            nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
+            @inbounds r = norm(component(a, 1), X.inner[1])
+            return _apply(X, r, Val(2), a)
+        end
+
+        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianProduct,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$T})
+            @inbounds r = opnorm(component(A, 1), X.inner)
+            return _apply_dual(X, r, Val(2), A)
+        end
+
+        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$T}) where {N}
+            nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
+            @inbounds r = opnorm(component(A, 1), X.inner[1])
+            return _apply_dual(X, r, Val(2), A)
+        end
+    end
+end
+
+function _apply(X::NormedCartesianSpace{<:BanachSpace,ℓ¹}, r, ::Val{D}, a) where {D}
+    if D ≤ nb_cartesian_product(space(a))
+        @inbounds r += norm(component(a, D), X.inner)
+        return _apply(X, r, Val(D+1), a)
+    else
+        return r
+    end
+end
+
+function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹}, r, ::Val{D}, a) where {N,D}
+    @inbounds r += norm(component(a, D), X.inner[D])
+    return _apply(X, r, Val(D+1), a)
+end
+function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹}, r, ::Val{N}, a) where {N}
+    @inbounds r += norm(component(a, N), X.inner[N])
+    return r
+end
+
+function _apply(X::NormedCartesianSpace{<:BanachSpace,ℓ∞}, r, ::Val{D}, a) where {D}
+    if D ≤ nb_cartesian_product(space(a))
+        @inbounds r = max(r, norm(component(a, D), X.inner))
+        return _apply(X, r, Val(D+1), a)
+    else
+        return r
+    end
+end
+
+function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞}, r, ::Val{D}, a) where {N,D}
+    @inbounds r = max(r, norm(component(a, D), X.inner[D]))
+    return _apply(X, r, Val(D+1), a)
+end
+function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞}, r, ::Val{N}, a) where {N}
+    @inbounds r = max(r, norm(component(a, N), X.inner[N]))
+    return r
+end
+
+function _apply_dual(X::NormedCartesianSpace{<:BanachSpace,ℓ¹}, r, ::Val{D}, A) where {D}
+    if D ≤ nb_cartesian_product(domain(A))
+        @inbounds r = max(r, opnorm(component(A, D), X.inner))
+        return _apply_dual(X, r, Val(D+1), A)
+    else
+        return r
+    end
+end
+
+function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹}, r, ::Val{D}, A) where {N,D}
+    @inbounds r = max(r, opnorm(component(A, D), X.inner[D]))
+    return _apply_dual(X, r, Val(D+1), A)
+end
+function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹}, r, ::Val{N}, A) where {N}
+    @inbounds r = max(r, opnorm(component(A, N), X.inner[N]))
+    return r
+end
+
+function _apply_dual(X::NormedCartesianSpace{<:BanachSpace,ℓ∞}, r, ::Val{D}, A) where {D}
+    if D ≤ nb_cartesian_product(domain(A))
+        @inbounds r += opnorm(component(A, D), X.inner)
+        return _apply_dual(X, r, Val(D+1), A)
+    else
+        return r
+    end
+end
+
+function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞}, r, ::Val{D}, A) where {N,D}
+    @inbounds r += opnorm(component(A, D), X.inner[D])
+    return _apply_dual(X, r, Val(D+1), A)
+end
+function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞}, r, ::Val{N}, A) where {N}
+    @inbounds r += opnorm(component(A, N), X.inner[N])
+    return r
 end

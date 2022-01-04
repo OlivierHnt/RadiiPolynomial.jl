@@ -34,7 +34,7 @@ component(component(b, 2), 1)
 component(component(b, 2), 2)
 ```
 
-Similarly, the function `eachcomponent` returns a `Generator` whose iterates yield the each [`Sequence`](@ref) composing the cartesian space.
+Similarly, the function `eachcomponent` returns a `Generator` whose iterates yield each [`Sequence`](@ref) composing the cartesian space.
 
 ```@docs
 Sequence

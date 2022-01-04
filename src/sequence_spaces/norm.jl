@@ -793,88 +793,50 @@ end
 
 Hˢ(exponent::T) where {T<:Real} = Hˢ{T}(exponent)
 
-LinearAlgebra.norm(a::Sequence{<:BaseSpace}, X::Hˢ) =
-    _apply(X, space(a), coefficients(a))
+function LinearAlgebra.norm(a::Sequence{<:Fourier}, X::Hˢ)
+    s = X.exponent
+    un = one(s)
+    ord = order(space(a))
+    @inbounds x = abs2(a[0]) * (un + 0)^s
+    @inbounds for i ∈ 1:ord
+        x += (abs2(a[-i]) + abs2(a[i])) * (un + i*i)^s
+    end
+    return sqrt(x)
+end
 
-function LinearAlgebra.norm(a::Sequence{<:TensorSpace}, X::Hˢ)
+function LinearAlgebra.norm(a::Sequence{<:TensorSpace{<:Tuple{Vararg{Fourier}}}}, X::Hˢ) where {N}
+    s = X.exponent
+    un = one(s)
     space_a = space(a)
-    A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
-    return _apply(X, space_a, A)
+    ord = order(space_a)
+    @inbounds x = zero(abs2(zero(eltype(a)))*(un+0)^s)
+    @inbounds for α ∈ indices(space_a)
+        x += abs2(a[α]) * (un + mapreduce(abs2, +, α))^s
+    end
+    return sqrt(x)
 end
 
-_apply(X::Hˢ, space::TensorSpace, A) =
-    @inbounds _apply(X, space[1], _apply(X, Base.tail(space), A))
+function LinearAlgebra.opnorm(A::LinearOperator{<:Fourier,ParameterSpace}, X::Hˢ)
+    s = X.exponent
+    un = one(s)
+    ord = order(domain(A))
+    @inbounds x = abs2(A[1,0]) / (un + 0)^s
+    @inbounds for i ∈ 1:ord
+        x += (abs2(A[1,-i]) + abs2(A[1,i])) / (un + i*i)^s
+    end
+    return sqrt(x)
+end
 
-_apply(X::Hˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply(X, space[1], A)
-
-LinearAlgebra.opnorm(A::LinearOperator{<:BaseSpace,ParameterSpace}, X::Hˢ) =
-    _apply_dual(X, domain(A), vec(coefficients(A)))
-
-function LinearAlgebra.opnorm(A::LinearOperator{<:TensorSpace,ParameterSpace}, X::Hˢ)
+function LinearAlgebra.opnorm(A::LinearOperator{<:TensorSpace{<:Tuple{Vararg{Fourier}}},ParameterSpace}, X::Hˢ)
+    s = X.exponent
+    un = one(s)
     domain_A = domain(A)
-    A_ = _no_alloc_reshape(coefficients(A), dimensions(domain_A))
-    return _apply_dual(X, domain_A, A_)
-end
-
-_apply_dual(X::Hˢ, space::TensorSpace, A) =
-    @inbounds _apply_dual(X, space[1], _apply_dual(X, Base.tail(space), A))
-
-_apply_dual(X::Hˢ, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply_dual(X, space[1], A)
-
-# Fourier
-
-function _apply(X::Hˢ, space::Fourier, A::AbstractVector)
-    s = X.exponent
-    un = one(s)
-    ord = order(space)
-    @inbounds x = abs2(A[ord+1]) * (un + 0)^s
-    @inbounds for i ∈ 1:ord
-        x += (abs2(A[ord+1-i]) + abs2(A[ord+1+i])) * (un + i*i)^s
+    ord = order(domain_A)
+    @inbounds x = zero(abs2(zero(eltype(A)))/(un+0)^s)
+    @inbounds for α ∈ indices(domain_A)
+        x += abs2(A[1,α]) / (un + mapreduce(abs2, +, α))^s
     end
     return sqrt(x)
-end
-
-function _apply(X::Hˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
-    s = X.exponent
-    un = one(s)
-    CoefType = typeof(sqrt(abs2(zero(T))*(un+0)^s))
-    ord = order(space)
-    @inbounds Aᵢ = selectdim(A, N, ord+1)
-    x = Array{CoefType,N-1}(undef, size(Aᵢ))
-    x .= abs.(Aᵢ)
-    @inbounds for i ∈ 1:ord
-        x .+= (abs2.(selectdim(A, N, ord+1+i)) .+ abs2.(selectdim(A, N, ord+1-i))) .* (un + i*i)^s
-    end
-    x .= sqrt.(x)
-    return x
-end
-
-function _apply_dual(X::Hˢ, space::Fourier, A::AbstractVector)
-    s = X.exponent
-    un = one(s)
-    ord = order(space)
-    @inbounds x = abs2(A[ord+1]) / (un + 0)^s
-    @inbounds for i ∈ 1:ord
-        x += (abs2(A[ord+1-i]) + abs2(A[ord+1+i])) / (un + i*i)^s
-    end
-    return sqrt(x)
-end
-
-function _apply_dual(X::Hˢ, space::Fourier, A::AbstractArray{T,N}) where {T,N}
-    s = X.exponent
-    un = one(s)
-    CoefType = typeof(sqrt(abs2(zero(T))/(un+0)^s))
-    ord = order(space)
-    @inbounds Aᵢ = selectdim(A, N, ord+1)
-    x = Array{CoefType,N-1}(undef, size(Aᵢ))
-    x .= abs2.(Aᵢ)
-    @inbounds for i ∈ 1:ord
-        x .+= (abs2.(selectdim(A, N, ord+1+i)) .+ abs2.(selectdim(A, N, ord+1-i))) ./ (un + i*i)^s
-    end
-    x .= sqrt.(x)
-    return x
 end
 
 # Cartesian spaces

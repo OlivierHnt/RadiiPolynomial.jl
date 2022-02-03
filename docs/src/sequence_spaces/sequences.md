@@ -77,7 +77,6 @@ To circumvent machine precision limitations, the `banach_rounding!` method enclo
 The rounding strategy for `*`, `^`, `*̄` and `^̄` is integrated in the functions `banach_rounding_mul`, `banach_rounding_pow`, `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
 
 ```@repl sequences
-weights = GeometricWeights(Interval(10_000.0))
-norm_x = norm(x, Weightedℓ¹(weights))
-banach_rounding!(x³_fft, weights, norm_x ^ 3, 5)
+X = ℓ¹(GeometricWeight(Interval(10_000.0)))
+banach_rounding!(x³_fft, norm(x, X) ^ 3, X, 5)
 ```

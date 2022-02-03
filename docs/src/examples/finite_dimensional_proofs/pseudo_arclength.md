@@ -45,10 +45,12 @@ f(x)
 and the fixed-point operator ``T : \mathbb{R}^3 \times [0,1] \to \mathbb{R}^3`` by
 
 ```math
-T(x, s) := x - A F(x, s).
+T(x, s) := x - A F(x, s),
 ```
 
-Let ``R > 0``. We use a uniform version of the [first-order Radii Polynomial Theorem](@ref first_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |DT(x ,s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
+where ``A : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``DF(x_0(s), s)^{-1}`` for all ``s \in [0, 1]``.
+
+Let ``R > 0``. We use a uniform version of the [first-order Radii Polynomial Theorem](@ref first_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x T(x ,s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
 
 ```math
 |T(x_0(s), s) - x_0(s)|_\infty = \left|A \begin{pmatrix} 0 \\ f(x_0(s)) \end{pmatrix} \right|_\infty, \qquad \text{for all } s \in [0,1].

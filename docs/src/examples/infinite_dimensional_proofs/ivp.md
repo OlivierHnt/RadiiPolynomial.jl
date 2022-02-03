@@ -107,7 +107,7 @@ A = inv(mid.(DF_interval))
 bound_tail_A = inv(Interval(n+1))
 
 ν = Interval(1.0)
-X = Weightedℓ¹(GeometricWeights(ν))
+X = ℓ¹(GeometricWeight(ν))
 R = Inf
 
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)

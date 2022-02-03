@@ -339,7 +339,7 @@ struct CartesianPower{T<:VectorSpace} <: CartesianSpace
     space :: T
     n :: Int
     function CartesianPower{T}(space::T, n::Int) where {T<:VectorSpace}
-        n < 1 && return throw(DomainError(n, "CartesianPower is only defined for strictly positive integers"))
+        n < 0 && return throw(DomainError(n, "CartesianPower is only defined for positive integers"))
         return new{T}(space, n)
     end
 end

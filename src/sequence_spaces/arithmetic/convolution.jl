@@ -1,66 +1,55 @@
-function banach_rounding_order(weights::GeometricWeights{T}, bound::T) where {T<:AbstractFloat}
-    isone(rate(weights)) | isinf(bound) && return typemax(Int)
+function banach_rounding_order(bound::T, X::ℓ¹{GeometricWeight{T}}) where {T<:AbstractFloat}
+    isone(rate(X.weight)) | isinf(bound) && return typemax(Int)
     ϵ = eps(T)
     bound ≤ ϵ && return 0
-    order = log(bound/ϵ)/log(rate(weights))
+    order = log(bound/ϵ)/log(rate(X.weight))
     isinf(order) && return typemax(Int)
     return ceil(Int, order)
 end
-function banach_rounding_order(weights::AlgebraicWeights{T}, bound::T) where {T<:AbstractFloat}
-    iszero(rate(weights)) | isinf(bound) && return typemax(Int)
+function banach_rounding_order(bound::T,  X::ℓ¹{AlgebraicWeight{T}}) where {T<:AbstractFloat}
+    iszero(rate(X.weight)) | isinf(bound) && return typemax(Int)
     ϵ = eps(T)
     bound ≤ ϵ && return 0
-    order = exp(log(bound/ϵ)/rate(weights))-1
+    order = exp(log(bound/ϵ)/rate(X.weight))-1
     isinf(order) && return typemax(Int)
     return ceil(Int, order)
 end
 
-function banach_rounding_order(weights::GeometricWeights, bound::Real)
-    rate_, bound_ = promote(float(rate(weights)), float(bound))
-    return banach_rounding_order(GeometricWeights(rate_), bound_)
+for T ∈ (:GeometricWeight, :AlgebraicWeight)
+    @eval begin
+        function banach_rounding_order(bound::Real, X::ℓ¹{<:$T})
+            bound_, rate_ = promote(float(bound), float(rate(X.weight)))
+            return banach_rounding_order(bound_, ℓ¹($T(rate_)))
+        end
+
+        banach_rounding_order(bound::Interval, X::ℓ¹{<:$T{<:Interval}}) =
+            banach_rounding_order(sup(bound), ℓ¹($T(sup(rate(X.weight)))))
+
+        banach_rounding_order(bound::Real, X::ℓ¹{<:$T{<:Interval}}) =
+            banach_rounding_order(bound, ℓ¹($T(sup(rate(X.weight)))))
+
+        banach_rounding_order(bound::Interval, X::ℓ¹{<:$T}) =
+            banach_rounding_order(sup(bound), ℓ¹($T(rate(X.weight))))
+    end
 end
-function banach_rounding_order(weights::AlgebraicWeights, bound::Real)
-    rate_, bound_ = promote(float(rate(weights)), float(bound))
-    return banach_rounding_order(AlgebraicWeights(rate_), bound_)
-end
 
-banach_rounding_order(weights::GeometricWeights{<:Interval}, bound::Interval) =
-    banach_rounding_order(GeometricWeights(sup(rate(weights))), sup(bound))
-banach_rounding_order(weights::AlgebraicWeights{<:Interval}, bound::Interval) =
-    banach_rounding_order(AlgebraicWeights(sup(rate(weights))), sup(bound))
+banach_rounding_order(bound::Real, X::ℓ¹{<:Tuple}) =
+    map(wᵢ -> banach_rounding_order(bound, ℓ¹(wᵢ)), X.weight)
 
-banach_rounding_order(weights::GeometricWeights{<:Interval}, bound::Real) =
-    banach_rounding_order(GeometricWeights(sup(rate(weights))), bound)
-banach_rounding_order(weights::AlgebraicWeights{<:Interval}, bound::Real) =
-    banach_rounding_order(AlgebraicWeights(sup(rate(weights))), bound)
-
-banach_rounding_order(weights::GeometricWeights, bound::Interval) =
-    banach_rounding_order(weights, sup(bound))
-banach_rounding_order(weights::AlgebraicWeights, bound::Interval) =
-    banach_rounding_order(weights, sup(bound))
-
-banach_rounding_order(weights::Tuple, bound::Real) =
-    map(νᵢ -> banach_rounding_order(νᵢ, bound), weights)
-
-function banach_rounding_order(weights::Tuple, bound::Interval)
-    sup_bound = sup(bound)
-    return map(νᵢ -> banach_rounding_order(νᵢ, sup_bound), weights)
-end
+banach_rounding_order(bound::Interval, X::ℓ¹{<:Tuple}) = banach_rounding_order(sup(bound), X)
 
 #
 
-function banach_rounding!(a, weights, bound)
-    banach_rounding!(a, weights, bound, banach_rounding_order(weights, bound))
-    return a
-end
+banach_rounding!(a, bound, X) = banach_rounding!(a, bound, banach_rounding_order(bound, X))
 
-function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, weights::NTuple{N,Weights}, bound::Real, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S<:Interval}
+function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
+    bound < 0 && return throw(DomainError)
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
     space_a = space(a)
     @inbounds for α ∈ indices(space_a)
         if mapreduce((wᵢ, αᵢ) -> wᵢ == M ? 0//1 : abs(αᵢ) // wᵢ, +, w, α) ≥ 1
-            μᵅ = bound / _weight(space_a, weights, α)
+            μᵅ = bound / _getindex(X.weight, space_a, α)
             sup_μᵅ = sup(μᵅ)
             a[α] = Interval(-sup_μᵅ, sup_μᵅ)
         end
@@ -68,13 +57,14 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, weigh
     return a
 end
 
-function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{Complex{S}}}, weights::NTuple{N,Weights}, bound::Real, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S<:Interval}
+function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
+    bound < 0 && return throw(DomainError)
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
     space_a = space(a)
     @inbounds for α ∈ indices(space_a)
         if mapreduce((wᵢ, αᵢ) -> wᵢ == M ? 0//1 : abs(αᵢ) // wᵢ, +, w, α) ≥ 1
-            μᵅ = bound / _weight(space_a, weights, α)
+            μᵅ = bound / _getindex(X.weight, space_a, α)
             sup_μᵅ = sup(μᵅ)
             x = Interval(-sup_μᵅ, sup_μᵅ)
             a[α] = complex(x, x)
@@ -85,10 +75,11 @@ end
 
 # Taylor
 
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             a[i] = Interval(-sup_μⁱ, sup_μⁱ)
@@ -97,19 +88,11 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::Geom
     end
     return a
 end
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
-    space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
-        a[i] = Interval(-sup_μⁱ, sup_μⁱ)
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -119,10 +102,21 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weig
     end
     return a
 end
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
+        a[i] = Interval(-sup_μⁱ, sup_μⁱ)
+    end
+    return a
+end
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         a[i] = complex(x, x)
     end
@@ -131,10 +125,11 @@ end
 
 # Fourier
 
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -145,21 +140,11 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::G
     end
     return a
 end
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
-    space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
-        x = Interval(-sup_μⁱ, sup_μⁱ)
-        a[i] = x
-        a[-i] = x
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -171,10 +156,23 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, w
     end
     return a
 end
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
+        x = Interval(-sup_μⁱ, sup_μⁱ)
+        a[i] = x
+        a[-i] = x
+    end
+    return a
+end
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         complex_x = complex(x, x)
         a[i] = complex_x
@@ -185,10 +183,11 @@ end
 
 # Chebyshev
 
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             a[i] = Interval(-sup_μⁱ, sup_μⁱ)
@@ -197,19 +196,11 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::G
     end
     return a
 end
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
-    space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
-        a[i] = Interval(-sup_μⁱ, sup_μⁱ)
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, weights::GeometricWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weights))
-        μⁱ = bound / _weight(space(a), weights, rounding_order)
+        ν⁻¹ = inv(rate(X.weight))
+        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             sup_μⁱ = sup(μⁱ)
             x = Interval(-sup_μⁱ, sup_μⁱ)
@@ -219,10 +210,21 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, w
     end
     return a
 end
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{Complex{T}}}, weights::AlgebraicWeights, bound::Real, rounding_order::Int) where {T<:Interval}
+
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        sup_μⁱ = sup(bound / _weight(space_a, weights, i))
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
+        a[i] = Interval(-sup_μⁱ, sup_μⁱ)
+    end
+    return a
+end
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
+    bound < 0 && return throw(DomainError)
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
         x = Interval(-sup_μⁱ, sup_μⁱ)
         a[i] = complex(x, x)
     end
@@ -231,38 +233,28 @@ end
 
 #
 
-_inf_max_order(::BaseSpace) = typemax(Int)
-_inf_max_order(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> typemax(Int), Val(N))
+_max_order(::BaseSpace) = typemax(Int)
+_max_order(::BaseSpace, rounding_order::Int) = rounding_order-1
+_max_order(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> typemax(Int), Val(N))
+_max_order(::TensorSpace{<:NTuple{N,BaseSpace}}, rounding_order::NTuple{N,Int}) where {N} =
+    ntuple(i -> rounding_order[i]-1, Val(N))
 
 function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    _add_mul!(c, a, b, _inf_max_order(new_space))
+    _add_mul!(c, a, b, _max_order(new_space))
     return c
 end
 
-function banach_rounding_mul(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpace}, weights::Weights)
-    X = Weightedℓ¹(weights)
+function banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     bound_ab = norm(a, X) * norm(b, X)
-    rounding_order = banach_rounding_order(weights, bound_ab)
+    rounding_order = banach_rounding_order(bound_ab, X)
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_ab, rounding_order)
-    _add_mul!(c, a, b, rounding_order-1)
-    return c
-end
-
-function banach_rounding_mul(a::Sequence{TensorSpace{T}}, b::Sequence{TensorSpace{S}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace},S<:NTuple{N,BaseSpace}}
-    X = Weightedℓ¹(weights)
-    bound_ab = norm(a, X) * norm(b, X)
-    rounding_order = banach_rounding_order(weights, bound_ab)
-    new_space = image(*, space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_ab, rounding_order)
-    _add_mul!(c, a, b, ntuple(i -> rounding_order[i]-1, Val(N)))
+    banach_rounding!(c, bound_ab, X, rounding_order)
+    _add_mul!(c, a, b, _max_order(new_space, rounding_order))
     return c
 end
 
@@ -427,25 +419,25 @@ function Base.:^(a::Sequence{<:SequenceSpace}, n::Int)
     return c
 end
 
-function banach_rounding_pow(a::Sequence{<:SequenceSpace}, n::Int, weights)
+function banach_rounding_pow(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
     n == 0 && return one(a)
     n == 1 && return copy(a)
-    n == 2 && return _banach_rounding_sqr(a, weights)
+    n == 2 && return _banach_rounding_sqr(a, X)
     # power by squaring
     t = trailing_zeros(n) + 1
     n >>= t
     while (t -= 1) > 0
-        a = _banach_rounding_sqr(a, weights)
+        a = _banach_rounding_sqr(a, X)
     end
     c = a
     while n > 0
         t = trailing_zeros(n) + 1
         n >>= t
         while (t -= 1) ≥ 0
-            a = _banach_rounding_sqr(a, weights)
+            a = _banach_rounding_sqr(a, X)
         end
-        c = banach_rounding_mul(c, a, weights)
+        c = banach_rounding_mul(c, a, X)
     end
     return c
 end
@@ -454,33 +446,19 @@ function _sqr(a::Sequence{<:SequenceSpace})
     new_space = image(^, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    _add_sqr!(c, a, _inf_max_order(new_space))
+    _add_sqr!(c, a, _max_order(new_space))
     return c
 end
 
-function _banach_rounding_sqr(a::Sequence{<:BaseSpace}, weights::Weights)
-    X = Weightedℓ¹(weights)
+function _banach_rounding_sqr(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
-    rounding_order = banach_rounding_order(weights, bound_a²)
+    rounding_order = banach_rounding_order(bound_a², X)
     new_space = image(^, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_a², rounding_order)
-    _add_sqr!(c, a, rounding_order-1)
-    return c
-end
-
-function _banach_rounding_sqr(a::Sequence{TensorSpace{T}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace}}
-    X = Weightedℓ¹(weights)
-    norm_a = norm(a, X)
-    bound_a² = norm_a * norm_a
-    rounding_order = banach_rounding_order(weights, bound_a²)
-    new_space = image(^, space(a), 2)
-    CoefType = eltype(a)
-    c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_a², rounding_order)
-    _add_sqr!(c, a, ntuple(i -> rounding_order[i]-1, Val(N)))
+    banach_rounding!(c, bound_a², X, rounding_order)
+    _add_sqr!(c, a, _max_order(new_space, rounding_order))
     return c
 end
 
@@ -582,31 +560,18 @@ function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(*̄, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    _add_mul!(c, a, b, _inf_max_order(new_space))
+    _add_mul!(c, a, b, _max_order(new_space))
     return c
 end
 
-function banach_rounding_mul_bar(a::Sequence{<:BaseSpace}, b::Sequence{<:BaseSpace}, weights::Weights)
-    X = Weightedℓ¹(weights)
+function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     bound_ab = norm(a, X) * norm(b, X)
-    rounding_order = banach_rounding_order(weights, bound_ab)
+    rounding_order = banach_rounding_order(bound_ab, X)
     new_space = image(*̄, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_ab, rounding_order)
-    _add_mul!(c, a, b, rounding_order-1)
-    return c
-end
-
-function banach_rounding_mul_bar(a::Sequence{TensorSpace{T}}, b::Sequence{TensorSpace{S}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace},S<:NTuple{N,BaseSpace}}
-    X = Weightedℓ¹(weights)
-    bound_ab = norm(a, X) * norm(b, X)
-    rounding_order = banach_rounding_order(weights, bound_ab)
-    new_space = image(*̄, space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(b))
-    c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_ab, rounding_order)
-    _add_mul!(c, a, b, ntuple(i -> rounding_order[i]-1, Val(N)))
+    banach_rounding!(c, bound_ab, X, rounding_order)
+    _add_mul!(c, a, b, _max_order(new_space, rounding_order))
     return c
 end
 
@@ -635,25 +600,25 @@ function ^̄(a::Sequence{<:SequenceSpace}, n::Int)
     return c
 end
 
-function banach_rounding_pow_bar(a::Sequence{<:SequenceSpace}, n::Int, weights)
+function banach_rounding_pow_bar(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
     n == 0 && return one(a)
     n == 1 && return copy(a)
-    n == 2 && return _banach_rounding_sqr_bar(a, weights)
+    n == 2 && return _banach_rounding_sqr_bar(a, X)
     # power by squaring
     t = trailing_zeros(n) + 1
     n >>= t
     while (t -= 1) > 0
-        a = _banach_rounding_sqr_bar(a, weights)
+        a = _banach_rounding_sqr_bar(a, X)
     end
     c = a
     while n > 0
         t = trailing_zeros(n) + 1
         n >>= t
         while (t -= 1) ≥ 0
-            a = _banach_rounding_sqr_bar(a, weights)
+            a = _banach_rounding_sqr_bar(a, X)
         end
-        c = banach_rounding_mul_bar(c, a, weights)
+        c = banach_rounding_mul_bar(c, a, X)
     end
     return c
 end
@@ -662,32 +627,18 @@ function _sqr_bar(a::Sequence{<:SequenceSpace})
     new_space = image(^̄, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    _add_sqr!(c, a, _inf_max_order(new_space))
+    _add_sqr!(c, a, _max_order(new_space))
     return c
 end
 
-function _banach_rounding_sqr_bar(a::Sequence{<:BaseSpace}, weights::Weights)
-    X = Weightedℓ¹(weights)
+function _banach_rounding_sqr_bar(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
-    rounding_order = banach_rounding_order(weights, bound_a²)
+    rounding_order = banach_rounding_order(bound_a², X)
     new_space = image(^̄, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_a², rounding_order)
-    _add_sqr!(c, a, rounding_order-1)
-    return c
-end
-
-function _banach_rounding_sqr_bar(a::Sequence{TensorSpace{T}}, weights::NTuple{N,Weights}) where {N,T<:NTuple{N,BaseSpace}}
-    X = Weightedℓ¹(weights)
-    norm_a = norm(a, X)
-    bound_a² = norm_a * norm_a
-    rounding_order = banach_rounding_order(weights, bound_a²)
-    new_space = image(^̄, space(a), 2)
-    CoefType = eltype(a)
-    c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
-    banach_rounding!(c, weights, bound_a², rounding_order)
-    _add_sqr!(c, a, ntuple(i -> rounding_order[i]-1, Val(N)))
+    banach_rounding!(c, bound_a², X, rounding_order)
+    _add_sqr!(c, a, _max_order(new_space, rounding_order))
     return c
 end

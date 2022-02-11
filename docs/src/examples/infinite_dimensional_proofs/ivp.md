@@ -59,7 +59,7 @@ Thus, for all ``x_0 \in X`` and ``R > 0``, we have
 ```math
 \begin{aligned}
 |T(x_0) - x_0|_X &\leq |\pi^n A \pi^n F(x_0)|_X + \frac{1}{n+1} |\pi^{\infty(n)} F(x_0)|_X,\\
-|DT(x_0)|_{\mathscr{B}(X, X)} &\leq |\pi^n A \pi^n DF(x_0) \pi^n - I|_{\mathscr{B}(X, X)} + \frac{\nu}{n+1} |2x_0 - 1|_X,\\
+|DT(x_0)|_{\mathscr{B}(X, X)} &\leq |\pi^n A \pi^n DF(x_0) \pi^n - \pi^n|_{\mathscr{B}(X, X)} + \frac{\nu}{n+1} |2x_0 - 1|_X,\\
 \sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq 2 \nu \left( |\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \right).
 \end{aligned}
 ```

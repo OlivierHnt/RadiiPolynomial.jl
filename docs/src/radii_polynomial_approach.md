@@ -1,6 +1,6 @@
 # [Radii polynomial approach](@id radii_polynomial_approach)
 
-Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T : U \to X`` an operator, ``x_0 \in U`` and ``R \geq 0`` such that ``\text{cl}( B_R(x_0) ) \subset U``.
+Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T : U \to X`` an operator, ``x_0 \in U`` and ``R > 0`` such that ``\text{cl}( B_R(x_0) ) \subset U``.
 
 ## [First-order Radii Polynomial Theorem](@id first_order_RPT)
 

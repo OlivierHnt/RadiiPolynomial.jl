@@ -28,18 +28,24 @@ end
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(DimensionMismatch)
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
-    _project!(C, ℰ)
+    _project!(C, ℰ, _memo(domain, codomain, T))
     return C
 end
 
 function project!(C::LinearOperator, ℰ::Evaluation)
-    _iscompatible(domain(C), codomain(C)) || return throw(DimensionMismatch)
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, ℰ)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    _iscompatible(domain_C, codomain_C) || return throw(DimensionMismatch)
+    CoefType = eltype(C)
+    coefficients(C) .= zero(CoefType)
+    _project!(C, ℰ, _memo(domain_C, codomain_C, CoefType))
     return C
 end
 
 # Sequence spaces
+
+_memo(s₁::TensorSpace, s₂::TensorSpace, ::Type{T}) where {T} =
+    map((s₁ᵢ, s₂ᵢ) -> _memo(s₁ᵢ, s₂ᵢ, T), spaces(s₁), spaces(s₂))
 
 image(ℰ::Evaluation{<:NTuple{N,Any}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), ℰ.value, spaces(s)))
@@ -77,25 +83,27 @@ _apply(ℰ::Evaluation, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::Abstrac
 _apply(ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
     @inbounds _apply(Evaluation(ℰ.value[1]), space[1], Val(N), A)
 
-function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Evaluation)
+function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Evaluation, memo)
     domain_C = domain(C)
     codomain_C = codomain(C)
     CoefType = eltype(C)
     @inbounds for β ∈ indices(domain_C), α ∈ indices(codomain_C)
-        C[α,β] = _getindex(ℰ, domain_C, codomain_C, CoefType, α, β)
+        C[α,β] = _getindex(ℰ, domain_C, codomain_C, CoefType, α, β, memo)
     end
     return C
 end
 
-@generated function _getindex(ℰ::Evaluation{<:NTuple{N,Any}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
-    p = :(_getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1]))
+@generated function _getindex(ℰ::Evaluation{<:NTuple{N,Any}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T}
+    p = :(_getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]))
     for i ∈ 2:N
-        p = :(_getindex(Evaluation(ℰ.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i]) * $p)
+        p = :(_getindex(Evaluation(ℰ.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i], memo[$i]) * $p)
     end
     return p
 end
 
 # Taylor
+
+_memo(::Taylor, ::Taylor, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::Taylor) = s
 image(::Evaluation, ::Taylor) = Taylor(0)
@@ -155,14 +163,14 @@ function _apply(ℰ::Evaluation, space::Taylor, ::Val{D}, A::AbstractArray{T,N})
     return C
 end
 
-function _getindex(::Evaluation{Nothing}, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
+function _getindex(::Evaluation{Nothing}, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T}
     if i == j
         return one(T)
     else
         return zero(T)
     end
 end
-function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
+function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = ℰ.value
         if j == 0
@@ -180,6 +188,8 @@ function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j) where {
 end
 
 # Fourier
+
+_memo(::Fourier, ::Fourier, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::Fourier) = s
 image(::Evaluation, s::Fourier) = Fourier(0, frequency(s))
@@ -264,15 +274,14 @@ function _apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}
     return C
 end
 
-function _getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, i, j) where {T}
-    frequency(domain) == frequency(codomain) || return throw(DomainError)
+function _getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == j
         return one(T)
     else
         return zero(T)
     end
 end
-function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T}, i, j) where {T}
+function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = ℰ.value
         if j == 0 || iszero(x)
@@ -286,6 +295,8 @@ function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T
 end
 
 # Chebyshev
+
+_memo(::Chebyshev, ::Chebyshev, ::Type{T}) where {T} = Dict{Int,T}()
 
 image(::Evaluation{Nothing}, s::Chebyshev) = s
 image(::Evaluation, ::Chebyshev) = Chebyshev(0)
@@ -429,14 +440,14 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     end
 end
 
-function _getindex(::Evaluation{Nothing}, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
+function _getindex(::Evaluation{Nothing}, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j, memo) where {T}
     if i == j
         return one(T)
     else
         return zero(T)
     end
 end
-function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Type{T}, i, j) where {T}
+function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Type{T}, i, j, memo) where {T}
     if i == 0
         if j == 0
             return one(T)
@@ -465,7 +476,9 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
                 elseif j == 2
                     return convert(T, x2*x2 - 2)
                 else
-                    return x2*_getindex(ℰ, domain, codomain, T, i, j-1) - _getindex(ℰ, domain, codomain, T, i, j-2)
+                    return get!(memo, j) do
+                        x2*_getindex(ℰ, domain, codomain, T, i, j-1, memo) - _getindex(ℰ, domain, codomain, T, i, j-2, memo)
+                    end
                 end
             end
         end
@@ -475,6 +488,9 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
 end
 
 # Cartesian spaces
+
+_memo(s₁::CartesianSpace, s₂::CartesianSpace, ::Type{T}) where {T} =
+    @inbounds _memo(s₁[1], s₂[1], T)
 
 image(ℰ::Evaluation, s::CartesianPower) =
     CartesianPower(image(ℰ, space(s)), nb_cartesian_product(s))
@@ -506,9 +522,9 @@ function _apply!(c::Sequence{CartesianProduct{T}}, ℰ::Evaluation, a) where {T<
     return c
 end
 
-function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℰ::Evaluation)
+function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℰ::Evaluation, memo)
     @inbounds for i ∈ 1:nb_cartesian_product(domain(C))
-        _project!(component(C, i, i), ℰ)
+        _project!(component(C, i, i), ℰ, memo)
     end
     return C
 end

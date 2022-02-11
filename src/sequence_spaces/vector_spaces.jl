@@ -65,7 +65,13 @@ Fields:
 """
 struct TensorSpace{T<:NTuple{N,BaseSpace} where {N}} <: SequenceSpace
     spaces :: T
+    function TensorSpace{T}(spaces::T) where {N,T<:NTuple{N,BaseSpace}}
+        N == 0 && return throw(DomainError(N, "TensorSpace is only defined for at least one BaseSpace"))
+        return new{T}(spaces)
+    end
 end
+
+TensorSpace(spaces::T) where {T<:NTuple{N,BaseSpace} where {N}} = TensorSpace{T}(spaces)
 
 spaces(s::TensorSpace) = s.spaces
 
@@ -438,7 +444,13 @@ Fields:
 """
 struct CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
     spaces :: T
+    function CartesianProduct{T}(spaces::T) where {N,T<:NTuple{N,VectorSpace}}
+        N == 0 && return throw(DomainError(N, "CartesianProduct is only defined for at least one VectorSpace"))
+        return new{T}(spaces)
+    end
 end
+
+CartesianProduct(spaces::T) where {T<:NTuple{N,VectorSpace} where {N}} = CartesianProduct{T}(spaces)
 
 spaces(s::CartesianProduct) = s.spaces
 
@@ -550,7 +562,6 @@ string_space(::ParameterSpace) = "𝕂"
 string_space(s::TensorSpace) = string_space(s[1]) * " ⨂ " * string_space(Base.tail(s))
 string_space(s::TensorSpace{<:NTuple{2,BaseSpace}}) = string_space(s[1]) * " ⨂ " * string_space(s[2])
 string_space(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * string_space(s[1]) * ")"
-string_space(::TensorSpace{Tuple{}}) = "TensorSpace(())"
 
 string_space(s::Taylor) = "Taylor(" * string(order(s)) * ")"
 string_space(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
@@ -563,7 +574,6 @@ string_space(s::CartesianPower{<:CartesianSpace}) = "(" * string_space(space(s))
 string_space(s::CartesianProduct) = cartesian_string_space(s[1]) * " × " * string_space(Base.tail(s))
 string_space(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = cartesian_string_space(s[1]) * " × " * cartesian_string_space(s[2])
 string_space(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * string_space(s[1]) * ")"
-string_space(::CartesianProduct{Tuple{}}) = "CartesianProduct(())"
 cartesian_string_space(s::VectorSpace) = string_space(s)
 cartesian_string_space(s::TensorSpace) = "(" * string_space(s) * ")"
 cartesian_string_space(s::CartesianProduct) = "(" * string_space(s) * ")"

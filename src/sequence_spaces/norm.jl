@@ -927,8 +927,8 @@ function _apply_dual(X::ℓ¹{<:AlgebraicWeight}, space::Chebyshev, A::AbstractA
     return s
 end
 
-_apply(::ℓ²{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
-_apply_dual(::ℓ²{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
+_apply(::ℓ²{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + 4sum(abs2, view(A, 2:length(A))))
+_apply_dual(::ℓ²{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/4)
 
 _apply(::ℓ∞{IdentityWeight}, space::Chebyshev, A::AbstractVector) =
     @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))

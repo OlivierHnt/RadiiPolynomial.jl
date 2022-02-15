@@ -1,4 +1,5 @@
 function newton(F_DF, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+    tol < 0 || maxiter < 0 && return throw(DomainError)
     verbose && return _newton_verbose(F_DF, x₀, tol, maxiter)
     return _newton_silent(F_DF, x₀, tol, maxiter)
 end
@@ -84,23 +85,28 @@ end
 #
 
 function newton!(F_DF!, x₀, F, DF; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+    tol < 0 || maxiter < 0 && return throw(DomainError)
     verbose && return _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
     return _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
 end
 
 function newton!(F_DF!, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+    tol < 0 || maxiter < 0 && return throw(DomainError)
     F = similar(x₀)
     n = length(x₀)
     DF = similar(x₀, n, n)
-    return newton!(F_DF!, x₀, F, DF; tol=tol, maxiter=maxiter, verbose=verbose)
+    verbose && return _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
+    return _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
 end
 
 function newton!(F_DF!, x₀::Sequence; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+    tol < 0 || maxiter < 0 && return throw(DomainError)
     F = similar(x₀)
     s = space(x₀)
     n = length(x₀)
     DF = LinearOperator(s, s, similar(coefficients(x₀), n, n))
-    return newton!(F_DF!, x₀, F, DF; tol=tol, maxiter=maxiter, verbose=verbose)
+    verbose && return _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
+    return _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
 end
 
 function _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)

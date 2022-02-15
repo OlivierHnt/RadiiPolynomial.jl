@@ -21,7 +21,7 @@ function _newton_silent(F_DF, x₀::Number, tol, maxiter)
 end
 
 function _newton_verbose(F_DF, x₀::Number, tol, maxiter)
-    _display_newton_infos(tol, maxiter)
+    _display_newton_info(tol, maxiter)
     F, DF = F_DF(x₀)
     nF = abs(F)
     AF = DF \ F
@@ -60,7 +60,7 @@ function _newton_silent(F_DF, x₀, tol, maxiter)
 end
 
 function _newton_verbose(F_DF, x₀, tol, maxiter)
-    _display_newton_infos(tol, maxiter)
+    _display_newton_info(tol, maxiter)
     F, DF = F_DF(x₀)
     nF = norm(F, Inf)
     AF = DF \ F
@@ -125,7 +125,7 @@ function _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
 end
 
 function _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
-    _display_newton_infos(tol, maxiter)
+    _display_newton_info(tol, maxiter)
     F_DF!(F, DF, x₀)
     nF = norm(F, Inf)
     AF = DF \ F
@@ -148,8 +148,8 @@ end
 
 #
 
-function _display_newton_infos(tol, maxiter)
-    println(string("\n Newton's method: ∞-norm, tol = ", tol, ", maxiter = ", maxiter))
+function _display_newton_info(tol, maxiter)
+    println("Newton's method: ∞-norm, tol = ", tol, ", maxiter = ", maxiter)
     println("      iteration        |F(x)|              |AF(x)|")
     println("---------------------------------------------------------")
 end

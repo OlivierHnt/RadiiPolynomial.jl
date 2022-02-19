@@ -41,7 +41,7 @@ fft(a::Sequence{<:BaseSpace}, n::Tuple{Int}) = @inbounds fft(a, n[1])
 
 function fft(a::Sequence{<:BaseSpace}, n::Int)
     space_a = space(a)
-    ispow2(n) & (_dfs_dimension(space_a) ≤ n) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
     CoefType = complex(eltype(a))
     C = zeros(CoefType, n)
     A = coefficients(a)
@@ -52,8 +52,7 @@ end
 
 function fft!(C::AbstractVector, a::Sequence{<:BaseSpace})
     space_a = space(a)
-    n = length(C)
-    ispow2(n) & (_dfs_dimension(space_a) ≤ n) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(length(C), space_a) || return throw(DimensionMismatch)
     C .= zero(eltype(C))
     A = coefficients(a)
     @inbounds view(C, eachindex(A)) .= A
@@ -63,7 +62,7 @@ end
 
 function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
     space_a = space(a)
-    all(ispow2, n) & all(i -> _dfs_dimension(space_a, i) ≤ n[i], 1:N) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
     CoefType = complex(eltype(a))
     C = zeros(CoefType, n)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
@@ -74,14 +73,17 @@ end
 
 function fft!(C::AbstractArray{T,N}, a::Sequence{TensorSpace{S}}) where {T,N,S<:NTuple{N,BaseSpace}}
     space_a = space(a)
-    n = size(C)
-    all(ispow2, n) & all(i -> _dfs_dimension(space_a, i) ≤ n[i], 1:N) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(size(C), space_a) || return throw(DimensionMismatch)
     C .= zero(T)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
     @inbounds view(C, axes(A)...) .= A
     _apply_preprocess_data_sequence2dfs!(space_a, C)
     return _fft_pow2!(C)
 end
+
+_is_fft_size_compatible(n, s) = ispow2(n) & (_dfs_dimension(s) ≤ n)
+_is_fft_size_compatible(n::Tuple, s) = @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
+_is_fft_size_compatible(n::Tuple{Int}, s) = @inbounds _is_fft_size_compatible(n[1], s[1])
 
 _apply_preprocess_data_sequence2dfs!(space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
     @inbounds _preprocess_data_sequence2dfs!(space[1], Val(N₂-N₁+1), _apply_preprocess_data_sequence2dfs!(Base.tail(space), A))
@@ -123,8 +125,7 @@ end
 
 function ifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     space_c = space(c)
-    n = length(A)
-    ispow2(n) & (dimension(space_c) ≤ n) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(length(A), space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     @inbounds coefficients(c) .= view(A, 1:dimension(space_c))
     return c
@@ -132,8 +133,7 @@ end
 
 function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     space_c = space(c)
-    n = length(A)
-    ispow2(n) & (dimension(space_c) ≤ n) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(length(A), space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     @inbounds coefficients(c) .= real.(view(A, 1:dimension(space_c)))
     return c
@@ -141,7 +141,7 @@ end
 
 function ifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
     space_c = space(c)
-    all(i -> ispow2(size(A, i)) & (dimension(space_c, i) ≤ size(A, i)), 1:N) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(size(A), space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
     @inbounds C .= view(A, map(sᵢ -> 1:dimension(sᵢ), spaces(space_c))...)
@@ -150,35 +150,39 @@ end
 
 function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
     space_c = space(c)
-    all(i -> ispow2(size(A, i)) & (dimension(space_c, i) ≤ size(A, i)), 1:N) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(size(A), space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
     @inbounds C .= real.(view(A, map(sᵢ -> 1:dimension(sᵢ), spaces(space_c))...))
     return c
 end
 
+_is_ifft_size_compatible(n, s) = ispow2(n) & (dimension(s) ≤ n)
+_is_ifft_size_compatible(n::Tuple, s) = @inbounds _is_ifft_size_compatible(n[1], s[1]) & _is_ifft_size_compatible(Base.tail(n), Base.tail(s))
+_is_ifft_size_compatible(n::Tuple{Int}, s) = @inbounds _is_ifft_size_compatible(n[1], s[1])
+
 # FFT routines
 
 function _fft_pow2!(a::AbstractArray{<:Complex})
-    sz = size(a, 1)
-    a_ = _no_alloc_reshape(a, (sz, length(a)÷sz))
-    for a_row ∈ eachrow(a_)
-        _fft_pow2!(a_row)
+    @inbounds for i ∈ axes(a, 1)
+        _fft_pow2!(selectdim(a, 1, i))
     end
-    for a_col ∈ eachcol(a_)
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
         _fft_pow2!(a_col)
     end
     return a
 end
 
-function _ifft_pow2!(a::AbstractArray{<:Complex})
-    sz = size(a, 1)
-    a_ = _no_alloc_reshape(a, (sz, length(a)÷sz))
-    for a_row ∈ eachrow(a_)
-        _ifft_pow2!(a_row)
+_fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
+
+function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
+    @inbounds for i ∈ axes(a, 1)
+        _fft_pow2!(selectdim(a, 1, i), Ω)
     end
-    for a_col ∈ eachcol(a_)
-        _ifft_pow2!(a_col)
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _fft_pow2!(a_col, Ω)
     end
     return a
 end
@@ -205,11 +209,10 @@ function _fft_pow2!(a::AbstractVector{Complex{T}}) where {T}
     return a
 end
 
-function _fft_pow2!(a::AbstractVector{Complex{T}}) where {T<:Interval}
+function _fft_pow2!(a::AbstractVector{Complex{T}}, Ω) where {T<:Interval}
     _bitreverse!(a)
     π_ = convert(T, π)
     n = length(a)
-    Ω = Vector{Complex{T}}(undef, n÷2)
     N = 2
     @inbounds while N ≤ n
         N½ = N÷2
@@ -228,8 +231,38 @@ function _fft_pow2!(a::AbstractVector{Complex{T}}) where {T<:Interval}
     return a
 end
 
+function _ifft_pow2!(a::AbstractArray{<:Complex})
+    @inbounds for i ∈ axes(a, 1)
+        _ifft_pow2!(selectdim(a, 1, i))
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _ifft_pow2!(a_col)
+    end
+    return a
+end
+
+_ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _ifft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
+
+function _ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
+    @inbounds for i ∈ axes(a, 1)
+        _ifft_pow2!(selectdim(a, 1, i), Ω)
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _ifft_pow2!(a_col, Ω)
+    end
+    return a
+end
+
 function _ifft_pow2!(a::AbstractVector{<:Complex})
     conj!(_fft_pow2!(conj!(a)))
+    a ./= length(a)
+    return a
+end
+
+function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
+    conj!(_fft_pow2!(conj!(a), Ω))
     a ./= length(a)
     return a
 end

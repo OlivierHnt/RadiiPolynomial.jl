@@ -62,28 +62,32 @@
         b = Sequence(Taylor(2), [1.0, 2.0, 3.0])
         @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b
-        @test a *̄ a == a ^̄ 2
+        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
+        @test a *̄ a == a ^̄ 2 == mul!(a *̄ a, a, a)
+        @test 3a * b +̄ 4b == mul!(2b, a, b, 3, 2)
 
         a = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0])
         b = Sequence(Fourier(2, 1.0), [1.0, 2.0, 3.0, 4.0, 5.0])
         @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b
-        @test a *̄ a == a ^̄ 2
+        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
+        @test a *̄ a == a ^̄ 2 == mul!(a *̄ a, a, a)
+        @test 3a * b +̄ 4b == mul!(2b, a, b, 3, 2)
 
         a = Sequence(Chebyshev(1), [1.0, 2.0])
         b = Sequence(Chebyshev(2), [1.0, 2.0, 3.0])
         @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b
-        @test a *̄ a == a ^̄ 2
+        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
+        @test a *̄ a == a ^̄ 2 == mul!(a *̄ a, a, a)
+        @test 3a * b +̄ 4b == mul!(2b, a, b, 3, 2)
 
         a = Sequence(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), collect(1.0:12.0))
         b = Sequence(Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1), collect(1.0:6.0))
         @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b
-        @test a *̄ a == a ^̄ 2
+        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
+        @test a *̄ a == a ^̄ 2 == mul!(a *̄ a, a, a)
+        @test 3a * b +̄ 4b == mul!(2b, a, b, 3, 2)
     end
 end

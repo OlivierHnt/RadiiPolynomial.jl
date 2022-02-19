@@ -44,8 +44,9 @@ include("sequence_spaces/arithmetic/linear_operator.jl")
 include("sequence_spaces/arithmetic/action.jl")
     export image, +̄, -̄, add!, radd!, ladd!, sub!, rsub!, lsub!
 include("sequence_spaces/arithmetic/convolution.jl")
-    export banach_rounding_order, banach_rounding!, banach_rounding_mul,
-        banach_rounding_pow, *̄, banach_rounding_mul_bar, ^̄, banach_rounding_pow_bar
+    export banach_rounding_order, banach_rounding!,
+        *̄, banach_rounding_mul, banach_rounding_mul_bar, banach_rounding_mul!,
+        ^̄, banach_rounding_pow, banach_rounding_pow_bar
 include("sequence_spaces/arithmetic/fft.jl")
     export fft_size, fft, fft!, ifft!, rifft!
 

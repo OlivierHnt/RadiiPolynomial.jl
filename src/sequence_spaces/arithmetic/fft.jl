@@ -209,6 +209,8 @@ function _fft_pow2!(a::AbstractVector{Complex{T}}) where {T}
     return a
 end
 
+_fft_pow2!(a::AbstractVector{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, length(a)÷2))
+
 function _fft_pow2!(a::AbstractVector{Complex{T}}, Ω) where {T<:Interval}
     _bitreverse!(a)
     π_ = convert(T, π)

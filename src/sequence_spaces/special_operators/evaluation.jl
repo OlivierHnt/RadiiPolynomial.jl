@@ -163,13 +163,8 @@ function _apply(ℰ::Evaluation, space::Taylor, ::Val{D}, A::AbstractArray{T,N})
     return C
 end
 
-function _getindex(::Evaluation{Nothing}, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T}
-    if i == j
-        return one(T)
-    else
-        return zero(T)
-    end
-end
+_getindex(::Evaluation{Nothing}, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = ℰ.value
@@ -202,11 +197,12 @@ function _apply!(c::Sequence{<:Fourier}, ::Evaluation{Nothing}, a)
     coefficients(c) .= coefficients(a)
     return c
 end
-function _apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
+_apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a) = __apply!(c, ℰ, a)
+function __apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
     x = ℰ.value
     ord = order(a)
     if iszero(x)
-        c[0] = a[0]
+        @inbounds c[0] = a[0]
         @inbounds for j ∈ 1:ord
             c[0] += a[j] + a[-j]
         end
@@ -225,12 +221,30 @@ function _apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
     end
     return c
 end
+function __apply!(c::Sequence{<:Fourier,<:AbstractVector{<:Union{Interval,Complex{<:Interval}}}}, ℰ::Evaluation, a)
+    x = ℰ.value
+    ord = order(a)
+    @inbounds c[0] = a[0]
+    if iszero(x)
+        @inbounds for j ∈ 1:ord
+            c[0] += a[j] + a[-j]
+        end
+    elseif ord > 0
+        ωx = frequency(a)*x
+        @inbounds for j ∈ 1:ord
+            eiωxj = cis(ωx*j)
+            c[0] += a[j] * eiωxj + a[-j] * conj(eiωxj)
+        end
+    end
+    return c
+end
 
 function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Fourier, A)
     C .= A
     return C
 end
-function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Fourier, A) where {T}
+_apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A) = __apply!(C, ℰ, space, A)
+function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
     x = ℰ.value
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
@@ -238,49 +252,74 @@ function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Fourier, A) where 
         @inbounds for j ∈ 1:ord
             C .+= selectdim(A, 1, ord+1+j) .+ selectdim(A, 1, ord+1-j)
         end
-    else
-        if ord > 0
-            eiωx = cis(frequency(space)*x)
-            eiωxj = one(eiωx)
-            @inbounds for j ∈ 1:ord
-                eiωxj *= eiωx
-                C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) .* conj(eiωxj)
-            end
+    elseif ord > 0
+        eiωx = cis(frequency(space)*x)
+        eiωxj = one(eiωx)
+        @inbounds for j ∈ 1:ord
+            eiωxj *= eiωx
+            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) .* conj(eiωxj)
+        end
+    end
+    return C
+end
+function __apply!(C::AbstractArray{<:Union{Interval,Complex{<:Interval}}}, ℰ::Evaluation, space::Fourier, A)
+    x = ℰ.value
+    ord = order(space)
+    @inbounds C .= selectdim(A, 1, ord+1)
+    if iszero(x)
+        @inbounds for j ∈ 1:ord
+            C .+= selectdim(A, 1, ord+1+j) .+ selectdim(A, 1, ord+1-j)
+        end
+    elseif ord > 0
+        ωx = frequency(space)*x
+        @inbounds for j ∈ 1:ord
+            eiωxj = cis(ωx*j)
+            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) .* conj(eiωxj)
         end
     end
     return C
 end
 
 _apply(::Evaluation{Nothing}, ::Fourier, ::Val, A::AbstractArray) = A
-function _apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+_apply(ℰ::Evaluation, space::Fourier, d::Val, A::AbstractArray) = __apply(ℰ, space, d, A, _coeftype(ℰ, space, eltype(A)))
+function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}, ::Type{CoefType}) where {D,T,N,CoefType}
     x = ℰ.value
-    CoefType = _coeftype(ℰ, space, T)
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if iszero(x)
         @inbounds for j ∈ 1:ord
             C .+= selectdim(A, D, ord+1+j) .+ selectdim(A, D, ord+1-j)
         end
-    else
-        if ord > 0
-            eiωx = cis(frequency(space)*x)
-            eiωxj = one(eiωx)
-            @inbounds for j ∈ 1:ord
-                eiωxj *= eiωx
-                C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) .* conj(eiωxj)
-            end
+    elseif ord > 0
+        eiωx = cis(frequency(space)*x)
+        eiωxj = one(eiωx)
+        @inbounds for j ∈ 1:ord
+            eiωxj *= eiωx
+            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) .* conj(eiωxj)
+        end
+    end
+    return C
+end
+function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}, ::Type{CoefType}) where {D,T,N,CoefType<:Union{Interval,Complex{<:Interval}}}
+    x = ℰ.value
+    ord = order(space)
+    @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
+    if iszero(x)
+        @inbounds for j ∈ 1:ord
+            C .+= selectdim(A, D, ord+1+j) .+ selectdim(A, D, ord+1-j)
+        end
+    elseif ord > 0
+        ωx = frequency(space)*x
+        @inbounds for j ∈ 1:ord
+            eiωxj = cis(ωx*j)
+            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) .* conj(eiωxj)
         end
     end
     return C
 end
 
-function _getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
-    if i == j
-        return one(T)
-    else
-        return zero(T)
-    end
-end
+_getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = ℰ.value
@@ -440,13 +479,8 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     end
 end
 
-function _getindex(::Evaluation{Nothing}, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j, memo) where {T}
-    if i == j
-        return one(T)
-    else
-        return zero(T)
-    end
-end
+_getindex(::Evaluation{Nothing}, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Type{T}, i, j, memo) where {T}
     if i == 0
         if j == 0

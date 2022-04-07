@@ -9,6 +9,10 @@ abstract type BanachSpace end
 
 #-
 
+_linear_regression_log_abs(x) = log(abs(x))
+_linear_regression_log_abs(x::Interval) = log(mag(x))
+_linear_regression_log_abs(x::Complex{<:Interval}) = log(mag(x))
+
 """
     Weight
 
@@ -58,24 +62,24 @@ function geometricweight(a::Sequence{<:TensorSpace})
     return GeometricWeight.(rate)
 end
 
-_geometric_rate(s::BaseSpace, A::AbstractVector{<:Interval}) = Interval(exp(-_linear_regression(s, log.(mag.(A)))))
-_geometric_rate(s::BaseSpace, A::AbstractVector{<:Complex{<:Interval}}) = Interval(exp(-_linear_regression(s, log.(mag.(A)))))
-_geometric_rate(s::BaseSpace, A::AbstractVector) = exp(-_linear_regression(s, log.(abs.(A))))
-_geometric_rate(s::TensorSpace, A::AbstractVector{<:Interval}) = Interval.(exp.((-).(_linear_regression(s, log.(mag.(A))))))
-_geometric_rate(s::TensorSpace, A::AbstractVector{<:Complex{<:Interval}}) = Interval.(exp.((-).(_linear_regression(s, log.(mag.(A))))))
-_geometric_rate(s::TensorSpace, A::AbstractVector) = exp.((-).(_linear_regression(s, log.(abs.(A)))))
-
-function _linear_regression(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    A_ = filter(isfinite, A)
+function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
+    A_ = _linear_regression_log_abs.(filter(!iszero, A))
     x = ones(Int, length(A_), N+1)
+    n = 0
     @inbounds for (i, α) ∈ enumerate(indices(s))
-        if isfinite(A[i])
-            view(x, i, 2:N+1) .= abs.(α) .+ 1
+        if !iszero(A[i])
+            view(x, i-n, 2:N+1) .= abs.(α) .+ 1
+        else
+            n += 1
         end
     end
     x_T = transpose(x)
     r = (x_T * x) \ x_T * A_
-    return @inbounds ntuple(i -> r[i+1], Val(N))
+    return ntuple(Val(N)) do i
+        @inbounds rᵢ₊₁ = r[i+1]
+        v = ifelse(isfinite(rᵢ₊₁), rᵢ₊₁, zero(rᵢ₊₁))
+        return exp(-v)
+    end
 end
 
 # Taylor
@@ -83,21 +87,24 @@ end
 _getindex(weight::GeometricWeight, ::Taylor, i::Int) = weight.rate ^ i
 _getindex(weight::GeometricWeight{<:Interval}, ::Taylor, i::Int) = pow(weight.rate, i)
 
-function _linear_regression(::Taylor, A)
-    n = sum_x = 0
-    u = t = sum_A = zero(eltype(A))
+function _geometric_rate(::Taylor, A)
+    sum_x = t = n = 0
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += i
-            u += i*Aᵢ
+            u += i*log_abs_Aᵢ
             t += i*i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    v = ifelse(isfinite(r), r, zero(r))
+    return exp(-v)
 end
 
 # Fourier
@@ -105,23 +112,26 @@ end
 _getindex(weight::GeometricWeight, ::Fourier, i::Int) = weight.rate ^ abs(i)
 _getindex(weight::GeometricWeight{<:Interval}, ::Fourier, i::Int) = pow(weight.rate, abs(i))
 
-function _linear_regression(s::Fourier, A)
+function _geometric_rate(s::Fourier, A)
     ord = order(s)
-    n = sum_x = 0
-    u = t = sum_A = zero(eltype(A))
+    sum_x = t = n = 0
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
             abs_i = abs(i-ord-1)+1
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += abs_i
-            u += abs_i*Aᵢ
+            u += abs_i*log_abs_Aᵢ
             t += abs_i*abs_i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    v = ifelse(isfinite(r), r, zero(r))
+    return exp(-v)
 end
 
 # Chebyshev
@@ -129,21 +139,24 @@ end
 _getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = weight.rate ^ i
 _getindex(weight::GeometricWeight{<:Interval}, ::Chebyshev, i::Int) = pow(weight.rate, i)
 
-function _linear_regression(::Chebyshev, A)
-    n = sum_x = 0
-    u = t = sum_A = zero(eltype(A))
+function _geometric_rate(::Chebyshev, A)
+    sum_x = t = n = 0
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += i
-            u += i*Aᵢ
+            u += i*log_abs_Aᵢ
             t += i*i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    v = ifelse(isfinite(r), r, zero(r))
+    return exp(-v)
 end
 
 """
@@ -166,31 +179,30 @@ rate(weight::AlgebraicWeight) = weight.rate
 
 function algebraicweight(a::Sequence{<:BaseSpace})
     rate = _algebraic_rate(space(a), coefficients(a))
-    return AlgebraicWeight(max(zero(rate), rate))
+    return AlgebraicWeight(rate)
 end
 function algebraicweight(a::Sequence{<:TensorSpace})
     rate = _algebraic_rate(space(a), coefficients(a))
-    return AlgebraicWeight.(max.(zero.(rate), rate))
+    return AlgebraicWeight.(rate)
 end
 
-_algebraic_rate(s::BaseSpace, A::AbstractVector{<:Interval}) = Interval(-_log_linear_regression(s, log.(mag.(A))))
-_algebraic_rate(s::BaseSpace, A::AbstractVector{<:Complex{<:Interval}}) = Interval(-_log_linear_regression(s, log.(mag.(A))))
-_algebraic_rate(s::BaseSpace, A::AbstractVector) = -_log_linear_regression(s, log.(abs.(A)))
-_algebraic_rate(s::TensorSpace, A::AbstractVector{<:Interval}) = Interval.((-).(_log_linear_regression(s, log.(mag.(A)))))
-_algebraic_rate(s::TensorSpace, A::AbstractVector{<:Complex{<:Interval}}) = Interval.((-).(_log_linear_regression( s, log.(mag.(A)))))
-_algebraic_rate(s::TensorSpace, A::AbstractVector) = (-).(_log_linear_regression(s, log.(abs.(A))))
-
-function _log_linear_regression(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    A_ = filter(isfinite, A)
+function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
+    A_ = _linear_regression_log_abs.(filter(!iszero, A))
     x = ones(Float64, length(A_), N+1)
+    n = 0
     @inbounds for (i, α) ∈ enumerate(indices(s))
-        if isfinite(A[i])
-            view(x, i, 2:N+1) .= log.(abs.(α) .+ 1)
+        if !iszero(A[i])
+            view(x, i-n, 2:N+1) .= log.(abs.(α) .+ 1)
+        else
+            n += 1
         end
     end
     x_T = transpose(x)
     r = (x_T * x) \ x_T * A_
-    return @inbounds ntuple(i -> r[i+1], Val(N))
+    return ntuple(Val(N)) do i
+        @inbounds rᵢ₊₁ = r[i+1]
+        return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), -rᵢ₊₁, zero(rᵢ₊₁))
+    end
 end
 
 # Taylor
@@ -198,22 +210,25 @@ end
 _getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = (one(weight.rate) + i) ^ weight.rate
 _getindex(weight::AlgebraicWeight{<:Interval}, ::Taylor, i::Int) = pow(one(weight.rate) + i, weight.rate)
 
-function _log_linear_regression(::Taylor, A)
+function _algebraic_rate(::Taylor, A)
+    sum_x = t = 0.0
     n = 0
-    sum_x = u = t = sum_A = zero(promote_type(Float64, eltype(A)))
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0.0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
             log_i = log(i)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += log_i
-            u += log_i*Aᵢ
+            u += log_i*log_abs_Aᵢ
             t += log_i*log_i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    return ifelse(isfinite(r) & (r < 0), -r, zero(r))
 end
 
 # Fourier
@@ -221,23 +236,26 @@ end
 _getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = (one(weight.rate) + abs(i)) ^ weight.rate
 _getindex(weight::AlgebraicWeight{<:Interval}, ::Fourier, i::Int) = pow(one(weight.rate) + abs(i), weight.rate)
 
-function _log_linear_regression(s::Fourier, A)
+function _algebraic_rate(s::Fourier, A)
     ord = order(s)
+    sum_x = t = 0.0
     n = 0
-    sum_x = u = t = sum_A = zero(promote_type(Float64, eltype(A)))
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0.0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
             log_abs_i = log(abs(i-ord-1)+1)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += log_abs_i
-            u += log_abs_i*Aᵢ
+            u += log_abs_i*log_abs_Aᵢ
             t += log_abs_i*log_abs_i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    return ifelse(isfinite(r) & (r < 0), -r, zero(r))
 end
 
 # Chebyshev
@@ -245,22 +263,25 @@ end
 _getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = (one(weight.rate) + i) ^ weight.rate
 _getindex(weight::AlgebraicWeight{<:Interval}, ::Chebyshev, i::Int) = pow(one(weight.rate) + i, weight.rate)
 
-function _log_linear_regression(::Chebyshev, A)
+function _algebraic_rate(::Chebyshev, A)
+    sum_x = t = 0.0
     n = 0
-    sum_x = u = t = sum_A = zero(promote_type(Float64, eltype(A)))
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    u = 0.0*sum_log_abs_A
     for (i, Aᵢ) ∈ enumerate(A)
-        if isfinite(Aᵢ)
+        if !iszero(Aᵢ)
             log_i = log(i)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += log_i
-            u += log_i*Aᵢ
+            u += log_i*log_abs_Aᵢ
             t += log_i*log_i
-            sum_A += Aᵢ
+            sum_log_abs_A += log_abs_Aᵢ
             n += 1
         end
     end
     x̄ = sum_x/n
-    r = (u - x̄*sum_A)/(t - sum_x*x̄)
-    return ifelse(isfinite(r), r, zero(r))
+    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
+    return ifelse(isfinite(r) & (r < 0), -r, zero(r))
 end
 
 """

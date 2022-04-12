@@ -64,7 +64,7 @@ end
 
 function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
     A_ = _linear_regression_log_abs.(filter(!iszero, A))
-    x = ones(Int, length(A_), N+1)
+    x = ones(Float64, length(A_), N+1)
     n = 0
     @inbounds for (i, α) ∈ enumerate(indices(s))
         if !iszero(A[i])
@@ -73,8 +73,7 @@ function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
             n += 1
         end
     end
-    x_T = transpose(x)
-    r = (x_T * x) \ x_T * A_
+    r = ldiv!(qr!(x, NoPivot()), A_)
     return ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
         v = ifelse(isfinite(rᵢ₊₁), rᵢ₊₁, zero(rᵢ₊₁))
@@ -197,8 +196,7 @@ function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
             n += 1
         end
     end
-    x_T = transpose(x)
-    r = (x_T * x) \ x_T * A_
+    r = ldiv!(qr!(x, NoPivot()), A_)
     return ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
         return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), -rᵢ₊₁, zero(rᵢ₊₁))

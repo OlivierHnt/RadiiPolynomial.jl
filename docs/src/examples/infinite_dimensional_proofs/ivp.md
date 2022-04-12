@@ -1,4 +1,4 @@
-# Initial value problem for Ordinary Differential Equations (ODE)
+# Initial value problem for ordinary differential equations (ODE)
 
 In this example, we will prove the existence of a solution of the initial value problem
 
@@ -41,9 +41,9 @@ Consider the fixed-point operator ``T : X \to X`` defined by
 T(x) := x - A F(x),
 ```
 
-where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in X`` of ``F``.
+where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} \in X`` of ``F``.
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(x_0) - x_0|_X``, ``|DT(x_0)|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
 To this end, for all ``x \in X``, consider the projection operators
 
@@ -54,13 +54,13 @@ To this end, for all ``x \in X``, consider the projection operators
 \end{aligned}
 ```
 
-Thus, for all ``x_0 \in X`` and ``R > 0``, we have
+Thus, for all ``\bar{x} \in X`` and ``R > 0``, we have
 
 ```math
 \begin{aligned}
-|T(x_0) - x_0|_X &\leq |\pi^n A \pi^n F(x_0)|_X + \frac{1}{n+1} |\pi^{\infty(n)} F(x_0)|_X,\\
-|DT(x_0)|_{\mathscr{B}(X, X)} &\leq |\pi^n A \pi^n DF(x_0) \pi^n - \pi^n|_{\mathscr{B}(X, X)} + \frac{\nu}{n+1} |2x_0 - 1|_X,\\
-\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq 2 \nu \left( |\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \right).
+|T(\bar{x}) - \bar{x}|_X &\leq |\pi^n A \pi^n F(\bar{x})|_X + \frac{1}{n+1} |\pi^{\infty(n)} F(\bar{x})|_X,\\
+|DT(\bar{x})|_{\mathscr{B}(X, X)} &\leq |\pi^n A \pi^n DF(\bar{x}) \pi^n - \pi^n|_{\mathscr{B}(X, X)} + \frac{\nu}{n+1} |2\bar{x} - 1|_X,\\
+\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq 2 \nu \left( |\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \right).
 \end{aligned}
 ```
 
@@ -84,34 +84,40 @@ function DF(x::Sequence{Taylor}, domain::Taylor, codomain::Taylor, ::Type{CoefTy
     DF_[0,0] = one(CoefType)
     DF_[1:end,:] .=
         project(Derivative(1), domain, Taylor(order(codomain)-1), CoefType) .-
-        project(Multiplication(2x - 1), domain, Taylor(order(codomain)-1), CoefType)    
+        project(Multiplication(2x - 1), domain, Taylor(order(codomain)-1), CoefType)
     return DF_
 end
 
 # numerical solution
 
 n = 27
-x₀ = Sequence(Taylor(n), zeros(n+1))
-x₀, success = newton(x -> (project(F(x), space(x)), DF(x, space(x), space(x), eltype(x))),
-    x₀;
+x̄ = Sequence(Taylor(n), zeros(n+1))
+x̄, success = newton(x -> (project(F(x), space(x)), DF(x, space(x), space(x), eltype(x))),
+    x̄;
     verbose = false)
 
 # proof
 
-x₀_interval = Interval.(x₀)
-F_interval = F(x₀_interval)
+x̄_interval = Interval.(x̄)
+F_interval = F(x̄_interval)
 tail_F_interval = copy(F_interval)
 tail_F_interval[0:n] .= Interval(0.0)
-DF_interval = DF(x₀_interval, space(x₀_interval), space(x₀_interval), eltype(x₀_interval))
+DF_interval = DF(x̄_interval, space(x̄_interval), space(x̄_interval), eltype(x̄_interval))
 A = inv(mid.(DF_interval))
 bound_tail_A = inv(Interval(n+1))
 
-ν = Interval(1.0)
+ν = Interval(2.0)
 X = ℓ¹(GeometricWeight(ν))
 R = Inf
 
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
-Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x₀_interval - 1, X)
+Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x̄_interval - 1, X)
 Z₂ = 2ν * (opnorm(A, X) + bound_tail_A)
 showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
 ```
+
+The following figure[^2] shows the numerical approximation of the proven solution in the interval ``[-2, 2]`` along with the theoretical solution ``t \mapsto (e^{t} + 1)^{-1}``.
+
+[^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
+
+![](../../assets/ivp.svg)

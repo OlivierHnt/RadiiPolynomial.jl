@@ -184,10 +184,12 @@ end
 x, δ, ie = rigorous_pseudo_arclength([2, 1.129171306613029, 0.564585653306514], 0.1, 3_000)
 ```
 
-The following figure shows the numerical approximation of the branch of equilibria for the FitzHugh-Nagumo model.
+The following figure[^1] shows the numerical approximation of the proven branch of equilibria for the FitzHugh-Nagumo model.
 
 ![](../../assets/pseudo_arclength.svg)
 
-The following figure shows the sharpest computed a posteriori error bound for each numerical approximation of a piece of the branch of equilibria for the FitzHugh-Nagumo model.
+The following figure[^1] shows the sharpest computed a posteriori error bound for each numerical approximation of a piece of the branch of equilibria for the FitzHugh-Nagumo model.
+
+[^1]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
 ![](../../assets/pseudo_arclength_error.svg)

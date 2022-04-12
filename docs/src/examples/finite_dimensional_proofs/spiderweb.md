@@ -150,6 +150,8 @@ Z₁ = opnorm(Interval.(mag.(A * DF_interval - I)), Inf)
 showfull(interval_of_existence(Y, Z₁, R))
 ```
 
-The following figure shows the numerical approximation of the spiderweb central configuration.
+The following figure[^2] shows the numerical approximation of the proven spiderweb central configuration.
+
+[^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
 ![](../../assets/spiderweb.svg)

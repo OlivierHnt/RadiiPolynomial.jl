@@ -275,7 +275,7 @@ function banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:Sequenc
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     banach_rounding!(c, bound_ab, X, rounding_order)
-    _add_mul!(c, a, b, _max_order(new_space, rounding_order))
+    _add_mul!(c, a, b, true, _max_order(new_space, rounding_order))
     return c
 end
 function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
@@ -285,7 +285,7 @@ function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:Seq
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     banach_rounding!(c, bound_ab, X, rounding_order)
-    _add_mul!(c, a, b, _max_order(new_space, rounding_order))
+    _add_mul!(c, a, b, true, _max_order(new_space, rounding_order))
     return c
 end
 function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
@@ -294,7 +294,7 @@ function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:Sequen
     rounding_order = banach_rounding_order(bound_ab, X)
     coefficients(c) .= zero(eltype(c))
     banach_rounding!(c, bound_ab, X, rounding_order)
-    _add_mul!(c, a, b, _max_order(space(c), rounding_order))
+    _add_mul!(c, a, b, true, _max_order(space(c), rounding_order))
     return c
 end
 

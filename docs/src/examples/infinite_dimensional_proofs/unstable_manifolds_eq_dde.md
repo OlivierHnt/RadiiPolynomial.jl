@@ -176,6 +176,6 @@ The following animation[^2] shows the numerical approximation of the proven unst
 
 ```@raw html
 <video width="800" height="400" controls autoplay loop>
-  <source src="../../assets/ikeda.mp4" type="video/mp4">
+  <source src="../../../assets/ikeda.mp4" type="video/mp4">
 </video>
 ```

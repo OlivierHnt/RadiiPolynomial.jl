@@ -21,7 +21,9 @@ and ``* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu`` is the Cauchy product gi
 x * y := \left\{ \sum_{\beta = 0}^\alpha x_{\alpha - \beta} y_\beta \right\}_{\alpha \geq 0}, \qquad \text{for all } x, y \in \ell^1_\nu.
 ```
 
-The Banach algebra ``X`` is a suitable space to look for a solution of the initial value problem. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions. For any sequence ``x \in X``, the series ``\sum_{\alpha \geq 0} x_\alpha t^\alpha`` defines an analytic function in ``C^\omega([-\nu, \nu], \mathbb{R})``; while the Cauchy product ``*`` corresponds to the product of analytic functions in sequence space.[^1]
+For any sequence ``x \in X``, the series ``\sum_{\alpha \geq 0} x_\alpha t^\alpha`` defines an analytic function in ``C^\omega([-\nu, \nu], \mathbb{R})``; while the Cauchy product ``*`` corresponds to the product of analytic functions in sequence space.
+
+The Banach algebra ``X`` is a suitable space to look for a solution of the initial value problem. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 
 [^1]: A. Hungria, J.-P. Lessard and J. D. Mireles James, [Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach](https://doi.org/10.1090/mcom/3046), *Mathematics of Computation*, **85** (2016), 1427-1459.
 
@@ -54,7 +56,7 @@ To this end, for all ``x \in X``, consider the projection operators
 \end{aligned}
 ```
 
-Thus, for all ``\bar{x} \in X`` and ``R > 0``, we have
+Thus, we have
 
 ```math
 \begin{aligned}

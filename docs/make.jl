@@ -24,7 +24,8 @@ makedocs(;
                 "examples/finite_dimensional_proofs/pseudo_arclength.md"
             ],
             "Infinite-dimensional proofs" => [
-                "examples/infinite_dimensional_proofs/ivp.md"
+                "examples/infinite_dimensional_proofs/ivp.md",
+                "examples/infinite_dimensional_proofs/unstable_manifolds_eq_dde.md"
             ]
         ]
     ]

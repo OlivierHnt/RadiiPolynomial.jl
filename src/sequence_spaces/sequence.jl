@@ -53,6 +53,8 @@ Base.eltype(::Type{Sequence{T,S}}) where {T,S} = eltype(S)
 
 Base.@propagate_inbounds Base.getindex(a::Sequence, α) =
     getindex(coefficients(a), _findposition(α, space(a)))
+Base.@propagate_inbounds Base.getindex(a::Sequence, u::AbstractRange) =
+    getindex(coefficients(a), _findposition(u, space(a)))
 Base.@propagate_inbounds function Base.getindex(a::Sequence, u::AbstractVector)
     v = Vector{eltype(a)}(undef, length(u))
     for (i, uᵢ) ∈ enumerate(u)
@@ -77,6 +79,8 @@ Base.@propagate_inbounds Base.view(a::Sequence, α) =
 
 Base.@propagate_inbounds Base.setindex!(a::Sequence, x, α) =
     setindex!(coefficients(a), x, _findposition(α, space(a)))
+Base.@propagate_inbounds Base.setindex!(a::Sequence, x, u::AbstractRange) =
+    setindex!(coefficients(a), x, _findposition(u, space(a)))
 Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVector)
     for (i, uᵢ) ∈ enumerate(u)
         a[uᵢ] = x[i]

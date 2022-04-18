@@ -34,7 +34,7 @@ and ``* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu`` is the Cauchy product gi
 x * y := \left\{ \sum_{\beta_1 + \ldots + \beta_d \geq 0}^\alpha x_{\alpha - \beta} y_\beta \right\}_{\alpha_1 + \ldots + \alpha_d \geq 0}, \qquad \text{for all } x, y \in \ell^1_\nu.
 ```
 
-For any sequence ``x \in X``, the series ``\sum_{\alpha_1 + \ldots + \alpha_d \geq 0} x_\alpha \sigma^\alpha`` defines an analytic function in ``C^\omega(\mathbb{D}_\nu^d, \mathbb{C})`` where ``\mathbb{D}_\nu := \{ z \in \mathbb{C} \, : \, |z| \leq \nu \}``; while the Cauchy product ``*`` corresponds to the product of analytic functions in sequence space.
+For any sequence ``x \in X``, the Taylor series ``\sum_{\alpha_1 + \ldots + \alpha_d \geq 0} x_\alpha \sigma^\alpha`` defines an analytic function in ``C^\omega(\mathbb{D}_\nu^d, \mathbb{C})`` where ``\mathbb{D}_\nu := \{ z \in \mathbb{C} \, : \, |z| \leq \nu \}``; while the Cauchy product ``*`` corresponds to the product of Taylor series in sequence space.
 
 The Banach algebra ``X`` is a suitable space to look for a parameterization of the unstable manifold. Indeed, it is a standard result from DDE theory that analytic vector fields yield analytic unstable manifolds of equilibria. In the context of this example, it holds that the unstable manifold is parameterized by an analytic function ``P : \mathbb{C}^d \to C([-\tau, 0], \mathbb{C})`` satisfying ``\frac{d}{ds} P(\sigma)(s) = [DP(\sigma) \Lambda \sigma](s)`` for all ``s \in [-\tau, 0]`` and ``\sigma \in \{ \sigma \in \mathbb{D}_\nu^d \, : \, \Lambda \sigma \in \mathbb{D}_\nu^d\}`` along with ``[DP(\sigma) \Lambda \sigma](0) = f([P (\sigma)](0), [P(\sigma)](-\tau))``.[^1]
 
@@ -59,14 +59,17 @@ c, & \alpha_1 = \ldots = \alpha_d = 0,\\
 \end{cases}
 ```
 
-For all ``x \in X``, consider the projection operators
+Consider the truncation operator
 
 ```math
-\begin{aligned}
-(\pi^n x)_\alpha &:= \begin{cases} x_\alpha, & \alpha_1 + \ldots + \alpha_d \leq n, \\ 0, & \alpha_1 + \ldots + \alpha_d > n, \end{cases}\\
-\pi^{\infty(n)} x &:= x - \pi^n x.
-\end{aligned}
+(\pi^n x)_\alpha :=
+\begin{cases} x_\alpha, & \alpha_1 + \ldots + \alpha_d \leq n,\\
+0, & \alpha_1 + \ldots + \alpha_d > n,
+\end{cases}
+\qquad \text{for all } x \in X,
 ```
+
+as well as the complementary operator ``\pi^{\infty(n)} := I - \pi^n``.
 
 Given that ``\pi^n \tilde{x}`` is a finite sequence of known Taylor coefficients, it follows that the remaining coefficients are a fixed-point of the mapping ``T : \pi^{\infty(n)} X \to \pi^{\infty(n)} X`` given component-wise by
 
@@ -91,22 +94,22 @@ where ``\tilde{y} := \left\{ \tilde{x}_\alpha e^{-\tau (\alpha_1 \lambda_1 + \ld
 
 We can now write our computer-assisted proof:
 
-```julia
+```@example
 using RadiiPolynomial
 
 Ψ(λ, c, τ) = λ - (1 - 3c^2) * exp(-τ*λ)
 
 DλΨ(λ, c, τ) = 1 + τ * (1 - 3c^2) * exp(-τ*λ)
 
-# 1D unstable manifold of 0
-
-let τ = @interval(1.59), c = Interval(0.0)
+let τ = 1.59..1.59, c = Interval(0.0)
+    println("Computer-assisted proof of the 1D unstable manifold of 0 in the chaotic window τ = 1.59:")
     λ_approx, _ = newton(λ -> (Ψ(λ, 0.0, 1.59), DλΨ(λ, 0.0, 1.59)), 0.47208; verbose = false)
     R_eigval = 1e-14
     Y_eigval = abs(Ψ(Interval(λ_approx), c, τ))
     Z₁_eigval = abs(1 - DλΨ(λ_approx, mid(c), mid(τ)) \ DλΨ(λ_approx ± R_eigval, c, τ))
     ie_eigval = interval_of_existence(Y_eigval, Z₁_eigval, R_eigval)
     λ = λ_approx ± inf(ie_eigval)
+    print("    - rigorous enclosure of the unstable eigenvalue:\n        "); showfull(λ); print("\n")
 
     n = 150
     x̃ = Sequence(Taylor(n), zeros(Interval{Float64}, n+1))
@@ -129,17 +132,18 @@ let τ = @interval(1.59), c = Interval(0.0)
     Y = C \ norm(tail_ỹ³, X)
     Z₁ = C \ (3(norm(ỹ, X) + R)^2)
     ie = interval_of_existence(Y, Z₁, R)
+    print("    - error bound for the Taylor coefficients of order α > 150 of the parameterization on the domain [-5, 5]:\n        "); showfull(ie); print("\n\n")
 end
 
-# 2D unstable manifold of 1
-
-let τ = @interval(1.59), c = Interval(1.0)
+let τ = 1.59..1.59, c = Interval(1.0)
+    println("Computer-assisted proof of the 1D unstable manifold of ±1 in the chaotic window τ = 1.59:")
     λ_approx, _ = newton(λ -> (Ψ(λ, 1.0, 1.59), DλΨ(λ, 1.0, 1.59)), 0.32056+1.15780im; verbose = false)
     R_eigval = 1e-14
     Y_eigval = abs(Ψ(Interval(λ_approx), c, τ))
     Z₁_eigval = abs(1 - DλΨ(λ_approx, mid(c), mid(τ)) \ DλΨ(complex(real(λ_approx) ± R_eigval, imag(λ_approx) ± R_eigval), c, τ))
     ie_eigval = interval_of_existence(Y_eigval, Z₁_eigval, R_eigval)
     λ = complex(real(λ_approx) ± inf(ie_eigval), imag(λ_approx) ± inf(ie_eigval))
+    print("    - rigorous enclosure of one of the two complex conjugate unstable eigenvalue:\n        "); showfull(real(λ)); print(" + "); showfull(imag(λ)); print("im\n")
 
     n = 25
     x̃ = Sequence(Taylor(n) ⊗ Taylor(n), zeros(Complex{Interval{Float64}}, (n+1)^2))
@@ -167,10 +171,14 @@ let τ = @interval(1.59), c = Interval(1.0)
     Y = C \ norm(tail_ỹ³, X)
     Z₁ = C \ (3(norm(ỹ, X) + R)^2)
     ie = interval_of_existence(Y, Z₁, R)
+    print("    - error bound for the Taylor coefficients of order α₁ + α₂ > 25 of the parameterization on the domain 𝔻₁²:\n        "); showfull(ie)
 end
 ```
 
-The following animation[^2] shows the numerical approximation of the proven unstable manifolds.
+The following animation[^2] shows:
+- the equilibria ``0, \pm 1`` (red markers).
+- the numerical approximation of the parameterization of the 1D unstable manifold of ``0``: on the domain of the computer-assisted proof ``[-5,5]`` (green line) and on a larger domain (black line).
+- the numerical approximation of the parameterization of the 2D unstable manifold of ``\pm 1``: on the domain of the computer-assisted proof ``\mathbb{D}_1^2`` (blue surfaces) and on a larger domain (black wireframes).
 
 [^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 

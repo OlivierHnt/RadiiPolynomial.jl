@@ -21,7 +21,7 @@ and ``* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu`` is the Cauchy product gi
 x * y := \left\{ \sum_{\beta = 0}^\alpha x_{\alpha - \beta} y_\beta \right\}_{\alpha \geq 0}, \qquad \text{for all } x, y \in \ell^1_\nu.
 ```
 
-For any sequence ``x \in X``, the series ``\sum_{\alpha \geq 0} x_\alpha t^\alpha`` defines an analytic function in ``C^\omega([-\nu, \nu], \mathbb{R})``; while the Cauchy product ``*`` corresponds to the product of analytic functions in sequence space.
+For any sequence ``x \in X``, the Taylor series ``\sum_{\alpha \geq 0} x_\alpha t^\alpha`` defines an analytic function in ``C^\omega([-\nu, \nu], \mathbb{R})``; while the Cauchy product ``*`` corresponds to the product of Taylor series in sequence space.
 
 The Banach algebra ``X`` is a suitable space to look for a solution of the initial value problem. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 
@@ -47,14 +47,16 @@ where ``A : X \to X`` is the injective operator corresponding to a numerical app
 
 Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
-To this end, for all ``x \in X``, consider the projection operators
+To this end, consider the truncation operator
 
 ```math
-\begin{aligned}
-(\pi^n x)_\alpha &:= \begin{cases} x_\alpha, & \alpha \leq n, \\ 0, & \alpha > n, \end{cases}\\
-\pi^{\infty(n)} x &:= x - \pi^n x.
-\end{aligned}
+(\pi^n x)_\alpha :=
+\begin{cases} x_\alpha, & \alpha \leq n,\\
+0, & \alpha > n,
+\end{cases} \qquad \text{for all } x \in X,
 ```
+
+as well as the complementary operator ``\pi^{\infty(n)} := I - \pi^n``.
 
 Thus, we have
 

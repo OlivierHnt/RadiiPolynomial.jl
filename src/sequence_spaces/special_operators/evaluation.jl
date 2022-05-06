@@ -2,6 +2,27 @@ struct Evaluation{T}
     value :: T
 end
 
+# fallback arithmetic methods
+
+function Base.:+(A::LinearOperator, ℰ::Evaluation)
+    domain_A = domain(A)
+    return ladd!(A, project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))))
+end
+function Base.:+(ℰ::Evaluation, A::LinearOperator)
+    domain_A = domain(A)
+    return radd!(project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))), A)
+end
+function Base.:-(A::LinearOperator, ℰ::Evaluation)
+    domain_A = domain(A)
+    return lsub!(A, project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))))
+end
+function Base.:-(ℰ::Evaluation, A::LinearOperator)
+    domain_A = domain(A)
+    return rsub!(project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))), A)
+end
+
+#
+
 (ℰ::Evaluation)(a::Sequence) = *(ℰ, a)
 Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 

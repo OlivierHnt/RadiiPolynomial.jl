@@ -2,6 +2,27 @@ struct Shift{T}
     value :: T
 end
 
+# fallback arithmetic methods
+
+function Base.:+(A::LinearOperator, 𝒮::Shift)
+    domain_A = domain(A)
+    return A + project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
+end
+function Base.:+(𝒮::Shift, A::LinearOperator)
+    domain_A = domain(A)
+    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) + A
+end
+function Base.:-(A::LinearOperator, 𝒮::Shift)
+    domain_A = domain(A)
+    return A - project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
+end
+function Base.:-(𝒮::Shift, A::LinearOperator)
+    domain_A = domain(A)
+    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) - A
+end
+
+#
+
 (𝒮::Shift)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.value)
 

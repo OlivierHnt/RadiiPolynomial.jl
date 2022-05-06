@@ -2,6 +2,27 @@ struct Scale{T}
     value :: T
 end
 
+# fallback arithmetic methods
+
+function Base.:+(A::LinearOperator, 𝒮::Scale)
+    domain_A = domain(A)
+    return A + project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
+end
+function Base.:+(𝒮::Scale, A::LinearOperator)
+    domain_A = domain(A)
+    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) + A
+end
+function Base.:-(A::LinearOperator, 𝒮::Scale)
+    domain_A = domain(A)
+    return A - project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
+end
+function Base.:-(𝒮::Scale, A::LinearOperator)
+    domain_A = domain(A)
+    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) - A
+end
+
+#
+
 (𝒮::Scale)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
 

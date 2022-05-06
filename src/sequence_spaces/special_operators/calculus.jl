@@ -24,6 +24,31 @@ struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
 end
 Integral(order::T) where {T<:Union{Int,Tuple{Vararg{Int}}}} = Integral{T}(order)
 
+# fallback arithmetic methods
+
+for F ∈ (:Derivative, :Integral)
+    @eval begin
+        function Base.:+(A::LinearOperator, ℱ::$F)
+            domain_A = domain(A)
+            return A + project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A)))
+        end
+        function Base.:+(ℱ::$F, A::LinearOperator)
+            domain_A = domain(A)
+            return project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A))) + A
+        end
+        function Base.:-(A::LinearOperator, ℱ::$F)
+            domain_A = domain(A)
+            return A - project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A)))
+        end
+        function Base.:-(ℱ::$F, A::LinearOperator)
+            domain_A = domain(A)
+            return project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A))) - A
+        end
+    end
+end
+
+#
+
 for (F, f, f!) ∈ ((:Derivative, :differentiate, :differentiate!), (:Integral, :integrate, :integrate!))
     @eval begin
         Base.:*(ℱ₁::$F{Int}, ℱ₂::$F{Int}) = $F(ℱ₁.order + ℱ₂.order)

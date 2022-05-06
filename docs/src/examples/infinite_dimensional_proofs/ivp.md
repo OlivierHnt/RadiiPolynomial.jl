@@ -86,8 +86,7 @@ end
 function DF(x::Sequence{Taylor}, domain::Taylor, codomain::Taylor, ::Type{CoefType}) where {CoefType}
     DF_ = LinearOperator(domain, codomain, zeros(CoefType, dimension(codomain), dimension(domain)))
     DF_[0,0] = one(CoefType)
-    DF_[1:end,:] .=
-        project(Derivative(1), domain, Taylor(order(codomain)-1), CoefType) .-
+    DF_[1:end,:] .= Derivative(1) -
         project(Multiplication(2x - 1), domain, Taylor(order(codomain)-1), CoefType)
     return DF_
 end

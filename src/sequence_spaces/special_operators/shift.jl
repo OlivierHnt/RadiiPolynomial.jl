@@ -1,4 +1,4 @@
-struct Shift{T}
+struct Shift{T<:Union{Number,NTuple{N,Number} where {N}}}
     value :: T
 end
 
@@ -67,7 +67,7 @@ _findposition_nzind_codomain(𝒮::Shift, domain, codomain) =
 
 # Sequence spaces
 
-image(𝒮::Shift{<:NTuple{N,Any}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+image(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((τᵢ, sᵢ) -> image(Shift(τᵢ), sᵢ), 𝒮.value, spaces(s)))
 
 _coeftype(𝒮::Shift, s::TensorSpace, ::Type{T}) where {T} =
@@ -91,7 +91,7 @@ _apply!(C, 𝒮::Shift, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray
 
 for (_f, __f) ∈ ((:_nzind_domain, :__nzind_domain), (:_nzind_codomain, :__nzind_codomain))
     @eval begin
-        $_f(𝒮::Shift{<:NTuple{N,Any}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+        $_f(𝒮::Shift{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
             TensorIndices($__f(𝒮, domain, codomain))
         $__f(𝒮::Shift, domain::TensorSpace, codomain) =
             @inbounds ($_f(Shift(𝒮.value[1]), domain[1], codomain[1]), $__f(Shift(Base.tail(𝒮.value)), Base.tail(domain), Base.tail(codomain))...)
@@ -110,7 +110,7 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, 𝒮::Shi
     return C
 end
 
-@generated function _nzval(𝒮::Shift{<:NTuple{N,Any}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
+@generated function _nzval(𝒮::Shift{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
     p = :(_nzval(Shift(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1]))
     for i ∈ 2:N
         p = :(_nzval(Shift(𝒮.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i]) * $p)

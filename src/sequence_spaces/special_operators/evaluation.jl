@@ -1,4 +1,4 @@
-struct Evaluation{T}
+struct Evaluation{T<:Union{Nothing,Number,NTuple{N,Union{Nothing,Number}} where {N}}}
     value :: T
 end
 
@@ -68,7 +68,7 @@ end
 _memo(s₁::TensorSpace, s₂::TensorSpace, ::Type{T}) where {T} =
     map((s₁ᵢ, s₂ᵢ) -> _memo(s₁ᵢ, s₂ᵢ, T), spaces(s₁), spaces(s₂))
 
-image(ℰ::Evaluation{<:NTuple{N,Any}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+image(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), ℰ.value, spaces(s)))
 
 _coeftype(ℰ::Evaluation, s::TensorSpace, ::Type{T}) where {T} =
@@ -84,13 +84,13 @@ function _apply!(c::Sequence{<:TensorSpace}, ℰ::Evaluation, a)
     return c
 end
 
-_effective_dimensions(ℰ::Evaluation{<:Tuple{Nothing,Vararg}}, space::TensorSpace) =
+_effective_dimensions(ℰ::Evaluation{<:Tuple{Nothing,Vararg{Union{Nothing,Number}}}}, space::TensorSpace) =
     (dimension(space[1]), _effective_dimensions(Evaluation(Base.tail(ℰ.value)), Base.tail(space))...)
-_effective_dimensions(ℰ::Evaluation{<:Tuple{Nothing}}, space::TensorSpace) =
+_effective_dimensions(::Evaluation{<:Tuple{Nothing}}, space::TensorSpace) =
     (dimension(space[1]),)
 _effective_dimensions(ℰ::Evaluation, space::TensorSpace) =
     _effective_dimensions(Evaluation(Base.tail(ℰ.value)), Base.tail(space))
-_effective_dimensions(ℰ::Evaluation{<:Tuple{Any}}, space::TensorSpace) = ()
+_effective_dimensions(::Evaluation{<:Tuple{Number}}, ::TensorSpace) = ()
 
 _apply!(C, ℰ::Evaluation, space::TensorSpace, A) =
     @inbounds _apply!(C, Evaluation(ℰ.value[1]), space[1], _apply(Evaluation(Base.tail(ℰ.value)), Base.tail(space), A))
@@ -114,7 +114,7 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Eval
     return C
 end
 
-@generated function _getindex(ℰ::Evaluation{<:NTuple{N,Any}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T}
+@generated function _getindex(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T}
     p = :(_getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]))
     for i ∈ 2:N
         p = :(_getindex(Evaluation(ℰ.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i], memo[$i]) * $p)

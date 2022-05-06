@@ -38,7 +38,7 @@ function interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval
             r₁ = 2Y/d
             if 0 ≤ sup(r₁) ≤ R && sup(Z₁ + Z₂ * r₁) < 1
                 r₂ = d/Z₂
-                if 0 ≤ sup(r₂) ≤ R && sup(Z₁ + Z₂ * r₂) < 1
+                if 0 ≤ sup(r₂) ≤ R && sup(Z₁ + d) < 1
                     return Interval(sup(r₁), inf(r₂))
                 elseif sup(Z₁ + Z₂ * R) < 1
                     return Interval(sup(r₁), R)
@@ -79,7 +79,7 @@ function interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval
             r₁ = 2Y/d
             if 0 ≤ sup(r₁) ≤ R && sup(Z₂ * r₁) < 1
                 r₂ = d/Z₂
-                if 0 ≤ sup(r₂) ≤ R && sup(Z₂ * r₂) < 1
+                if 0 ≤ sup(r₂) ≤ R && sup(d) < 1
                     return Interval(sup(r₁), inf(r₂))
                 elseif sup(Z₂ * R) < 1
                     return Interval(sup(r₁), R)

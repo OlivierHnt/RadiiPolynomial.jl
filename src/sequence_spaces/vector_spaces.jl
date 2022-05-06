@@ -454,7 +454,7 @@ CartesianProduct(spaces::T) where {T<:NTuple{N,VectorSpace} where {N}} = Cartesi
 
 spaces(s::CartesianProduct) = s.spaces
 
-nb_cartesian_product(s::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
+nb_cartesian_product(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
 
 LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
 LinearAlgebra.:×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))

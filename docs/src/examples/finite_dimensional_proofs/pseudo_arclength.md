@@ -48,7 +48,7 @@ and the fixed-point operator ``T : \mathbb{R}^3 \times [0,1] \to \mathbb{R}^3`` 
 T(x, s) := x - A F(x, s),
 ```
 
-where ``A : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``DF(x_0(s), s)^{-1}`` for all ``s \in [0, 1]``.
+where ``A : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``D_x F(x_0(s), s)^{-1}`` for all ``s \in [0, 1]``.
 
 Let ``R > 0``. We use a uniform version of the [first-order Radii Polynomial Theorem](@ref first_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x T(x ,s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
 

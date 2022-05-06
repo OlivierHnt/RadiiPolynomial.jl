@@ -112,9 +112,9 @@ function F_DF!(F, DF, x, σ, ρ, β)
     DF .= zero(eltype(DF))
 
     F[1] =
-        (sum(view(component(u, 1), :)) - 10.205222700615433) * 24.600655549587863 +
-        (sum(view(component(u, 2), :)) - 11.899530531689562) * (-2.4927169722923335) +
-        (sum(view(component(u, 3), :)) - 27.000586375896557) * 71.81142025024573
+        (sum(coefficients(component(u, 1))) - 10.205222700615433) * 24.600655549587863 +
+        (sum(coefficients(component(u, 2))) - 11.899530531689562) * (-2.4927169722923335) +
+        (sum(coefficients(component(u, 3))) - 27.000586375896557) * 71.81142025024573
     component(component(DF, 1, 2), 1)[1,:] .= 24.600655549587863
     component(component(DF, 1, 2), 2)[1,:] .= -2.4927169722923335
     component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
@@ -149,15 +149,15 @@ component(component(x̄, 2), 3)[0:14] =
     [24.45, -0.22 - 1.62im, 1.13 - 0.83im, 1.2 + 0.53im, 0.14 + 1.28im,
     -1.03 + 0.75im, -1.14 - 0.52im, -0.08 - 1.21im, 0.98 - 0.57im, 0.79 + 0.59im,
     -0.27 + 0.69im, -0.34 - 0.23im, 0.57 + 0.22im, -1.23 + 1.02im, 0.75 - 2.69im]
-view(component(component(x̄, 2), 1), -14:-1) .= conj.(reverse(view(component(component(x̄, 2), 1), 1:14)))
-view(component(component(x̄, 2), 2), -14:-1) .= conj.(reverse(view(component(component(x̄, 2), 2), 1:14)))
-view(component(component(x̄, 2), 3), -14:-1) .= conj.(reverse(view(component(component(x̄, 2), 3), 1:14)))
+component(component(x̄, 2), 1)[-14:-1] .= conj.(component(component(x̄, 2), 1)[14:-1:1])
+component(component(x̄, 2), 2)[-14:-1] .= conj.(component(component(x̄, 2), 2)[14:-1:1])
+component(component(x̄, 2), 3)[-14:-1] .= conj.(component(component(x̄, 2), 3)[14:-1:1])
 
 x̄, success = newton!((F, DF, x) -> F_DF!(F, DF, x, σ, ρ, β), x̄; verbose = false)
 x̄[1] = real(x̄[1])
 for i ∈ 1:3
     component(component(x̄, 2), i)[0] = real(component(component(x̄, 2), i)[0])
-    view(component(component(x̄, 2), i), -n:-1) .= conj.(view(component(component(x̄, 2), i), n:-1:1))
+    component(component(x̄, 2), i)[-n:-1] .= conj.(component(component(x̄, 2), i)[n:-1:1])
 end
 
 # proof
@@ -171,8 +171,8 @@ DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coe
 F_DF!(F_interval, DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
 tail_f_interval = zero(component(F_interval, 2))
 for i ∈ 1:3
-    view(component(tail_f_interval, i), n+1:2n) .= view(component(component(F_interval, 2), i), n+1:2n)
-    view(component(tail_f_interval, i), -2n:-n-1) .= view(component(component(F_interval, 2), i), -2n:-n-1)
+    component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
+    component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
 end
 A = Interval.(inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval)))))
 bound_tail_A = inv(Interval(n+1))

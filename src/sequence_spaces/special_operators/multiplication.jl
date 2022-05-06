@@ -94,7 +94,6 @@ _extract_valid_index(::Fourier, i::Int, j::Int) = i-j
 # Chebyshev
 
 function _project!(C::LinearOperator{Chebyshev,Chebyshev}, ℳ::Multiplication)
-    order_codomain = order(codomain(C))
     ord = order(ℳ.sequence)
     @inbounds for j ∈ indices(domain(C)), i ∈ indices(codomain(C))
         if abs(i-j) ≤ ord

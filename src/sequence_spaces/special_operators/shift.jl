@@ -1,4 +1,4 @@
-struct Shift{T<:Union{Number,NTuple{N,Number} where {N}}}
+struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}}
     value :: T
 end
 

@@ -56,14 +56,14 @@ Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but c
 abstract type BaseSpace <: SequenceSpace end
 
 """
-    TensorSpace{T<:NTuple{N,BaseSpace} where {N}} <: SequenceSpace
+    TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
 
 [`SequenceSpace`](@ref) resulting from the tensor product of some [`BaseSpace`](@ref).
 
 Fields:
 - `spaces :: T`
 """
-struct TensorSpace{T<:NTuple{N,BaseSpace} where {N}} <: SequenceSpace
+struct TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
     spaces :: T
     function TensorSpace{T}(spaces::T) where {N,T<:NTuple{N,BaseSpace}}
         N == 0 && return throw(DomainError(N, "TensorSpace is only defined for at least one BaseSpace"))

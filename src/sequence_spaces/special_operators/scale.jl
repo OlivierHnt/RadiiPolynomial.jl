@@ -1,4 +1,4 @@
-struct Scale{T<:Union{Number,NTuple{N,Number} where {N}}}
+struct Scale{T<:Union{Number,Tuple{Vararg{Number}}}}
     value :: T
 end
 

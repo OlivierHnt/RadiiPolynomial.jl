@@ -1,4 +1,4 @@
-struct Evaluation{T<:Union{Nothing,Number,NTuple{N,Union{Nothing,Number}} where {N}}}
+struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
     value :: T
 end
 

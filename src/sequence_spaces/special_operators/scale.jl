@@ -110,13 +110,10 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, 𝒮::Sca
     return C
 end
 
-@generated function _nzval(𝒮::Scale{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
-    p = :(_nzval(Scale(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1]))
-    for i ∈ 2:N
-        p = :(_nzval(Scale(𝒮.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i]) * $p)
-    end
-    return p
-end
+_nzval(𝒮::Scale{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T} =
+    @inbounds _nzval(Scale(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval(Scale(Base.tail(𝒮.value)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
+_nzval(𝒮::Scale{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
+    @inbounds _nzval(Scale(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1])
 
 # Taylor
 

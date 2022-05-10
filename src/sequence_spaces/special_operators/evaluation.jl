@@ -114,13 +114,10 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Eval
     return C
 end
 
-@generated function _getindex(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T}
-    p = :(_getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]))
-    for i ∈ 2:N
-        p = :(_getindex(Evaluation(ℰ.value[$i]), domain[$i], codomain[$i], T, α[$i], β[$i], memo[$i]) * $p)
-    end
-    return p
-end
+_getindex(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T} =
+    @inbounds _getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]) * _getindex(Evaluation(Base.tail(ℰ.value)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β), Base.tail(memo))
+_getindex(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β, memo) where {T} =
+    @inbounds _getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1])
 
 # Taylor
 

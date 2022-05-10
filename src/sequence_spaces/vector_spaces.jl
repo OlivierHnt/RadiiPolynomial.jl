@@ -128,16 +128,19 @@ indices(s::TensorSpace) = TensorIndices(map(indices, s.spaces))
 
 _findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> 0, Val(N))
 
-@generated function _findposition(α::NTuple{N,Int}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
-    # follows column major convention
-    idx = :(_findposition(α[1], s.spaces[1]))
-    n = 1
-    for i ∈ 2:N
-        n = :(dimension(s.spaces[$i-1]) * $n)
-        idx = :($n * (_findposition(α[$i], s.spaces[$i]) - 1) + $idx)
+_findposition(α::Tuple{Int}, s::TensorSpace{<:Tuple{BaseSpace}}) =
+    @inbounds _findposition(α[1], s.spaces[1])
+function _findposition(α::NTuple{N,Int}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    @inbounds idx = _findposition(α[1], s.spaces[1])
+    @inbounds n = dimension(s.spaces[1])
+    return __findposition(Base.tail(α), Base.tail(s.spaces), idx, n)
     end
-    return idx
+function __findposition(α, spaces, idx, n)
+    @inbounds idx += n * (_findposition(α[1], spaces[1]) - 1)
+    @inbounds n *= dimension(spaces[1])
+    return __findposition(Base.tail(α), Base.tail(spaces), idx, n)
 end
+__findposition(α::Tuple{Int}, spaces, idx, n) = @inbounds idx + n * (_findposition(α[1], spaces[1]) - 1)
 _findposition(u::NTuple{N,Any}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     _findposition(TensorIndices(map(_colon2indices, u, s.spaces)), s)
 _colon2indices(u, s) = u

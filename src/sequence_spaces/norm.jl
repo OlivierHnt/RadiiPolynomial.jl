@@ -28,13 +28,10 @@ Abstract type for all weights.
 """
 abstract type Weight end
 
-@generated function _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N}
-    p = :(_getindex(weight[1], s[1], α[1]))
-    for i ∈ 2:N
-        p = :(_getindex(weight[$i], s[$i], α[$i]) * $p)
-    end
-    return p
-end
+_getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _getindex(weight[1], s[1], α[1]) * _getindex(Base.tail(weight), Base.tail(s), Base.tail(α))
+_getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _getindex(weight[1], s[1], α[1])
 
 """
     IdentityWeight <: Weight

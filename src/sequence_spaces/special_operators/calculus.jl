@@ -148,31 +148,22 @@ for F ∈ (:Derivative, :Integral)
         end
     end
 
-    @eval function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℱ::$F)
-        domain_C = domain(C)
-        codomain_C = codomain(C)
-        CoefType = eltype(C)
-        @inbounds for (α, β) ∈ zip(_nzind_codomain(ℱ, domain_C, codomain_C), _nzind_domain(ℱ, domain_C, codomain_C))
-            C[α,β] = _nzval(ℱ, domain_C, codomain_C, CoefType, α, β)
+    @eval begin
+        function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℱ::$F)
+            domain_C = domain(C)
+            codomain_C = codomain(C)
+            CoefType = eltype(C)
+            @inbounds for (α, β) ∈ zip(_nzind_codomain(ℱ, domain_C, codomain_C), _nzind_domain(ℱ, domain_C, codomain_C))
+                C[α,β] = _nzval(ℱ, domain_C, codomain_C, CoefType, α, β)
+            end
+            return C
         end
-        return C
-    end
-end
 
-@generated function _nzval(𝒟::Derivative{NTuple{N,Int}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
-    p = :(_nzval(Derivative(𝒟.order[1]), domain[1], codomain[1], T, α[1], β[1]))
-    for i ∈ 2:N
-        p = :(_nzval(Derivative(𝒟.order[$i]), domain[$i], codomain[$i], T, α[$i], β[$i]) * $p)
+        _nzval(ℱ::$F{NTuple{N,Int}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T} =
+            @inbounds _nzval($F(ℱ.order[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval($F(Base.tail(ℱ.order)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
+        _nzval(ℱ::$F{Tuple{Int}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
+            @inbounds _nzval($F(ℱ.order[1]), domain[1], codomain[1], T, α[1], β[1])
     end
-    return p
-end
-
-@generated function _nzval(ℐ::Integral{NTuple{N,Int}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T}
-    p = :(_nzval(Integral(ℐ.order[1]), domain[1], codomain[1], T, α[1], β[1]))
-    for i ∈ 2:N
-        p = :(_nzval(Integral(ℐ.order[$i]), domain[$i], codomain[$i], T, α[$i], β[$i]) * $p)
-    end
-    return p
 end
 
 # Taylor

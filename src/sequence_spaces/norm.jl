@@ -1035,188 +1035,164 @@ _apply_dual(::ℓ²{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = sqrt
 _apply(::ℓ∞{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = maximum(abs, A)
 _apply_dual(::ℓ∞{IdentityWeight}, space::CartesianSpace, A::AbstractVector) = _apply(ℓ¹(IdentityWeight()), space, A)
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
+for X ∈ (:ℓ¹, :ℓ∞)
+    @eval begin
+        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
+            0 < nb_cartesian_product(space(a)) || return throw(DimensionMismatch)
+            return _norm(a, X)
+        end
+        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
+            0 < nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
+            return _norm(a, X)
+        end
+
+        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
+            0 < nb_cartesian_product(domain(A)) || return throw(DimensionMismatch)
+            return _opnorm(A, X)
+        end
+        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
+            0 < nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
+            return _opnorm(A, X)
+        end
+    end
+end
+
+function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+    0 < nb_cartesian_product(space(a)) || return throw(DimensionMismatch)
+    return sqrt(_norm2(a, X))
+end
+function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
+    0 < nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
+    return sqrt(_norm2(a, X))
+end
+
+function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+    0 < nb_cartesian_product(domain(A)) || return throw(DimensionMismatch)
+    return sqrt(_opnorm2(A, X))
+end
+function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
+    0 < nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
+    return sqrt(_opnorm2(A, X))
+end
+
+# ℓ¹
+
+function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
     @inbounds r = norm(component(a, 1), X.inner)
     @inbounds for i ∈ 2:nb_cartesian_product(space(a))
         r += norm(component(a, i), X.inner)
     end
     return r
 end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
+_norm(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds norm(component(a, 1), X.inner) + _norm(component(a, 2:N), X)
+_norm(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}) =
+    @inbounds norm(component(a, 1), X.inner)
+_norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}) where {N} =
+    @inbounds norm(component(a, 1), X.inner[1]) + _norm(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+_norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ¹{IdentityWeight}}) =
+    @inbounds norm(component(a, 1), X.inner[1])
+
+function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
     @inbounds r = opnorm(component(A, 1), X.inner)
     @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
         r = max(r, opnorm(component(A, i), X.inner))
     end
     return r
 end
+_opnorm(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds max(opnorm(component(A, 1), X.inner), _opnorm(component(A, 2:N), X))
+_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}) =
+    @inbounds opnorm(component(A, 1), X.inner)
+_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}) where {N} =
+    @inbounds max(opnorm(component(A, 1), X.inner[1]), _opnorm(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
+_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ¹{IdentityWeight}}) =
+    @inbounds opnorm(component(A, 1), X.inner[1])
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+# ℓ²
+
+function _norm2(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
     @inbounds v = norm(component(a, 1), X.inner)
     r = v*v
     @inbounds for i ∈ 2:nb_cartesian_product(space(a))
         v = norm(component(a, i), X.inner)
         r += v*v
     end
-    return sqrt(r)
+    return r
 end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+function _norm2(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}}
+    @inbounds v = norm(component(a, 1), X.inner)
+    return @inbounds v*v + _norm2(component(a, 2:N), X)
+end
+function _norm2(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+    @inbounds v = norm(component(a, 1), X.inner)
+    return v*v
+end
+function _norm2(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
+    @inbounds v = norm(component(a, 1), X.inner[1])
+    return @inbounds v*v + _norm2(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+end
+function _norm2(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ²{IdentityWeight}})
+    @inbounds v = norm(component(a, 1), X.inner[1])
+    return v*v
+end
+
+function _opnorm2(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
     @inbounds v = opnorm(component(A, 1), X.inner)
     r = v*v
     @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
         v = opnorm(component(A, i), X.inner)
         r += v*v
     end
-    return sqrt(r)
+    return r
+end
+function _opnorm2(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}}
+    @inbounds v = opnorm(component(A, 1), X.inner)
+    return @inbounds v*v + _opnorm2(component(A, 2:N), X)
+end
+function _opnorm2(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
+    @inbounds v = opnorm(component(A, 1), X.inner)
+    return v*v
+end
+function _opnorm2(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
+    @inbounds v = opnorm(component(A, 1), X.inner[1])
+    return @inbounds v*v + _opnorm2(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+end
+function _opnorm2(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ²{IdentityWeight}})
+    @inbounds v = opnorm(component(A, 1), X.inner[1])
+    return v*v
 end
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
+# ℓ∞
+
+function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
     @inbounds r = norm(component(a, 1), X.inner)
     @inbounds for i ∈ 2:nb_cartesian_product(space(a))
         r = max(r, norm(component(a, i), X.inner))
     end
     return r
 end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
+_norm(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds max(norm(component(a, 1), X.inner), _norm(component(a, 2:N), X))
+_norm(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}) =
+    @inbounds norm(component(a, 1), X.inner)
+_norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}) where {N} =
+    @inbounds max(norm(component(a, 1), X.inner[1]), _norm(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
+_norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ∞{IdentityWeight}}) =
+    @inbounds norm(component(a, 1), X.inner[1])
+
+function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
     @inbounds r = opnorm(component(A, 1), X.inner)
     @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
         r += opnorm(component(A, i), X.inner)
     end
     return r
 end
-
-for T ∈ (:ℓ¹, :ℓ∞)
-    @eval begin
-        function LinearAlgebra.norm(a::Sequence{<:CartesianProduct}, X::NormedCartesianSpace{<:BanachSpace,$T{IdentityWeight}})
-            @inbounds r = norm(component(a, 1), X.inner)
-            return _apply(X, r, Val(2), a)
-        end
-
-        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$T{IdentityWeight}}) where {N}
-            nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
-            @inbounds r = norm(component(a, 1), X.inner[1])
-            return _apply(X, r, Val(2), a)
-        end
-
-        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianProduct,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$T{IdentityWeight}})
-            @inbounds r = opnorm(component(A, 1), X.inner)
-            return _apply_dual(X, r, Val(2), A)
-        end
-
-        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$T{IdentityWeight}}) where {N}
-            nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
-            @inbounds r = opnorm(component(A, 1), X.inner[1])
-            return _apply_dual(X, r, Val(2), A)
-        end
-    end
-end
-
-function LinearAlgebra.norm(a::Sequence{<:CartesianProduct}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    @inbounds r = norm(component(a, 1), X.inner)
-    return sqrt(_apply(X, r*r, Val(2), a))
-end
-function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
-    @inbounds r = norm(component(a, 1), X.inner[1])
-    return sqrt(_apply(X, r*r, Val(2), a))
-end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianProduct,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    @inbounds r = opnorm(component(A, 1), X.inner)
-    return sqrt(_apply_dual(X, r*r, Val(2), A))
-end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
-    @inbounds r = opnorm(component(A, 1), X.inner[1])
-    return sqrt(_apply_dual(X, r*r, Val(2), A))
-end
-
-function _apply(X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}, r, ::Val{D}, a) where {D}
-    if D ≤ nb_cartesian_product(space(a))
-        @inbounds r += norm(component(a, D), X.inner)
-        return _apply(X, r, Val(D+1), a)
-    else
-        return r
-    end
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}, r, ::Val{D}, a) where {N,D}
-    @inbounds r += norm(component(a, D), X.inner[D])
-    return _apply(X, r, Val(D+1), a)
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}, r, ::Val{N}, a) where {N}
-    @inbounds r += norm(component(a, N), X.inner[N])
-    return r
-end
-function _apply_dual(X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}}, r, ::Val{D}, A) where {D}
-    if D ≤ nb_cartesian_product(domain(A))
-        @inbounds r = max(r, opnorm(component(A, D), X.inner))
-        return _apply_dual(X, r, Val(D+1), A)
-    else
-        return r
-    end
-end
-function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}, r, ::Val{D}, A) where {N,D}
-    @inbounds r = max(r, opnorm(component(A, D), X.inner[D]))
-    return _apply_dual(X, r, Val(D+1), A)
-end
-function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ¹{IdentityWeight}}, r, ::Val{N}, A) where {N}
-    @inbounds r = max(r, opnorm(component(A, N), X.inner[N]))
-    return r
-end
-
-function _apply(X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}}, r, ::Val{D}, a) where {D}
-    if D ≤ nb_cartesian_product(space(a))
-        @inbounds v = norm(component(a, D), X.inner)
-        r += v*v
-        return _apply(X, r, Val(D+1), a)
-    else
-        return r
-    end
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}, r, ::Val{D}, a) where {N,D}
-    @inbounds v = norm(component(a, D), X.inner)
-    r += v*v
-    return _apply(X, r, Val(D+1), a)
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}, r, ::Val{N}, a) where {N}
-    @inbounds v = norm(component(a, N), X.inner[N])
-    r += v*v
-    return r
-end
-_apply_dual(X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}}, r, ::Val{D}, A) where {D} =
-    _apply(X, r, Val(D), a)
-_apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}, r, ::Val{D}, A) where {N,D} =
-    _apply(X, r, Val(D), a)
-_apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}, r, ::Val{N}, A) where {N} =
-    _apply(X, r, Val(N), a)
-
-function _apply(X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}, r, ::Val{D}, a) where {D}
-    if D ≤ nb_cartesian_product(space(a))
-        @inbounds r = max(r, norm(component(a, D), X.inner))
-        return _apply(X, r, Val(D+1), a)
-    else
-        return r
-    end
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}, r, ::Val{D}, a) where {N,D}
-    @inbounds r = max(r, norm(component(a, D), X.inner[D]))
-    return _apply(X, r, Val(D+1), a)
-end
-function _apply(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}, r, ::Val{N}, a) where {N}
-    @inbounds r = max(r, norm(component(a, N), X.inner[N]))
-    return r
-end
-function _apply_dual(X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}, r, ::Val{D}, A) where {D}
-    if D ≤ nb_cartesian_product(domain(A))
-        @inbounds r += opnorm(component(A, D), X.inner)
-        return _apply_dual(X, r, Val(D+1), A)
-    else
-        return r
-    end
-end
-function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}, r, ::Val{D}, A) where {N,D}
-    @inbounds r += opnorm(component(A, D), X.inner[D])
-    return _apply_dual(X, r, Val(D+1), A)
-end
-function _apply_dual(X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}, r, ::Val{N}, A) where {N}
-    @inbounds r += opnorm(component(A, N), X.inner[N])
-    return r
-end
+_opnorm(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds opnorm(component(A, 1), X.inner) + _opnorm(component(A, 2:N), X)
+_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}}) =
+    @inbounds opnorm(component(A, 1), X.inner)
+_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ∞{IdentityWeight}}) where {N} =
+    @inbounds opnorm(component(A, 1), X.inner[1]) + _opnorm(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},ℓ∞{IdentityWeight}}) =
+    @inbounds opnorm(component(A, 1), X.inner[1])

@@ -134,7 +134,7 @@ function _findposition(α::NTuple{N,Int}, s::TensorSpace{<:NTuple{N,BaseSpace}})
     @inbounds idx = _findposition(α[1], s.spaces[1])
     @inbounds n = dimension(s.spaces[1])
     return __findposition(Base.tail(α), Base.tail(s.spaces), idx, n)
-    end
+end
 function __findposition(α, spaces, idx, n)
     @inbounds idx += n * (_findposition(α[1], spaces[1]) - 1)
     @inbounds n *= dimension(spaces[1])
@@ -491,7 +491,9 @@ Base.intersect(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianP
 Base.union(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
     CartesianProduct(map(union, s₁.spaces, s₂.spaces))
 
-dimension(s::CartesianProduct) = mapreduce(dimension, +, s.spaces)
+dimension(s::CartesianProduct{<:Tuple{VectorSpace,Vararg{VectorSpace}}}) = @inbounds dimension(s.spaces[1]) + dimension(Base.tail(s))
+dimension(s::CartesianProduct{<:Tuple{VectorSpace}}) = @inbounds dimension(s.spaces[1])
+dimension(s::CartesianProduct{<:Tuple{CartesianProduct}}) = @inbounds dimension(s.spaces[1])
 dimension(s::CartesianProduct, i::Int) = dimension(s.spaces[i])
 dimensions(s::CartesianProduct) = map(dimension, s.spaces)
 

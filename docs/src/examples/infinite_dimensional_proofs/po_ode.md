@@ -124,7 +124,7 @@ function F_DF!(F, DF, x, σ, ρ, β)
     D₁F₂ = component(DF, 2, 1)
     f!(Sequence(codomain(D₁F₂), vec(coefficients(D₁F₂))), u, σ, ρ, β)
     Df!(component(DF, 2, 2), u, σ, ρ, β) .*= γ
-    rsub!(component(DF, 2, 2), project(Derivative(1), domain(component(DF, 2, 2)), codomain(component(DF, 2, 2)), eltype(DF)))
+    rsub!(component(DF, 2, 2), Derivative(1))
 
     return F, DF
 end

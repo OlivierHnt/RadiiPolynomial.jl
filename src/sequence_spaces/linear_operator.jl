@@ -13,9 +13,10 @@ struct LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
     codomain :: S
     coefficients :: R
     function LinearOperator{T,S,R}(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
+        sz₁, sz₂ = size(coefficients)
+        (Base.OneTo(sz₁) == Base.axes(coefficients, 1)) & (Base.OneTo(sz₂) == Base.axes(coefficients, 2)) || return throw(ArgumentError("offset matrices are not supported"))
         dimension_domain = dimension(domain)
         dimension_codomain = dimension(codomain)
-        sz₁, sz₂ = size(coefficients)
         (dimension_codomain == sz₁) & (dimension_domain == sz₂) || return throw(DimensionMismatch("dimensions must match: codomain and domain have dimensions $((dimension_codomain, dimension_domain)), coefficients has size $((sz₁, sz₂))"))
         return new{T,S,R}(domain, codomain, coefficients)
     end

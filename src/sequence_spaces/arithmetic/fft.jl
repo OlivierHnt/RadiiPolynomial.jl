@@ -51,8 +51,10 @@ function fft(a::Sequence{<:BaseSpace}, n::Int)
 end
 
 function fft!(C::AbstractVector, a::Sequence{<:BaseSpace})
+    l = length(C)
+    Base.OneTo(l) == eachindex(C) || return throw(ArgumentError("offset vectors are not supported"))
     space_a = space(a)
-    _is_fft_size_compatible(length(C), space_a) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(l, space_a) || return throw(DimensionMismatch)
     C .= zero(eltype(C))
     A = coefficients(a)
     @inbounds view(C, eachindex(A)) .= A
@@ -72,8 +74,10 @@ function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NTuple{N
 end
 
 function fft!(C::AbstractArray{T,N}, a::Sequence{TensorSpace{S}}) where {T,N,S<:NTuple{N,BaseSpace}}
+    sz = size(C)
+    Base.OneTo.(sz) == axes(C) || return throw(ArgumentError("offset arrays are not supported"))
     space_a = space(a)
-    _is_fft_size_compatible(size(C), space_a) || return throw(DimensionMismatch)
+    _is_fft_size_compatible(sz, space_a) || return throw(DimensionMismatch)
     C .= zero(T)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
     @inbounds view(C, axes(A)...) .= A
@@ -124,36 +128,46 @@ end
 # discrete Fourier series to sequence
 
 function ifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
+    l = length(A)
+    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
     space_c = space(c)
-    _is_ifft_size_compatible(length(A), space_c) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(l, space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
-    @inbounds coefficients(c) .= view(A, 1:dimension(space_c))
+    C = coefficients(c)
+    @inbounds C.= view(A, eachindex(C))
     return c
 end
 
 function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
+    l = length(A)
+    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
     space_c = space(c)
-    _is_ifft_size_compatible(length(A), space_c) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(l, space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
-    @inbounds coefficients(c) .= real.(view(A, 1:dimension(space_c)))
+    C = coefficients(c)
+    @inbounds C .= real.(view(A, eachindex(C)))
     return c
 end
 
 function ifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
+    sz = size(A)
+    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
     space_c = space(c)
-    _is_ifft_size_compatible(size(A), space_c) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(sz, space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
-    @inbounds C .= view(A, map(sᵢ -> 1:dimension(sᵢ), spaces(space_c))...)
+    @inbounds C .= view(A, axes(C)...)
     return c
 end
 
 function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
+    sz = size(A)
+    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
     space_c = space(c)
-    _is_ifft_size_compatible(size(A), space_c) || return throw(DimensionMismatch)
+    _is_ifft_size_compatible(sz, space_c) || return throw(DimensionMismatch)
     _ifft_pow2!(A)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
-    @inbounds C .= real.(view(A, map(sᵢ -> 1:dimension(sᵢ), spaces(space_c))...))
+    @inbounds C .= real.(view(A, axes(C)...))
     return c
 end
 

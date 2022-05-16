@@ -11,8 +11,9 @@ struct Sequence{T<:VectorSpace,S<:AbstractVector}
     space :: T
     coefficients :: S
     function Sequence{T,S}(space::T, coefficients::S) where {T<:VectorSpace,S<:AbstractVector}
-        d = dimension(space)
         l = length(coefficients)
+        Base.OneTo(l) == eachindex(coefficients) || return throw(ArgumentError("offset vectors are not supported"))
+        d = dimension(space)
         d == l || return throw(DimensionMismatch("dimensions must match: space has dimension $d, coefficients has length $l"))
         return new{T,S}(space, coefficients)
     end

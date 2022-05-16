@@ -2,6 +2,20 @@ struct Multiplication{T<:Sequence{<:SequenceSpace}}
     sequence :: T
 end
 
+# fallback arithmetic methods
+
+function Base.:*(ℳ::Multiplication, A::LinearOperator)
+    codomain_A = codomain(A)
+    return project(ℳ, codomain_A, image(ℳ, codomain_A), eltype(ℳ.sequence)) * A
+end
+
+LinearAlgebra.mul!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator, α::Number, β::Number) =
+    mul!(C, project(ℳ, codomain(A), codomain(C), eltype(C)), A, α, β)
+LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication, α::Number, β::Number) =
+    mul!(C, A, project(ℳ, domain(C), domain(A), eltype(C)), α, β)
+
+#
+
 (ℳ::Multiplication)(a::Sequence) = *(ℳ, a)
 Base.:*(ℳ::Multiplication, a::Sequence) = *(ℳ.sequence, a)
 

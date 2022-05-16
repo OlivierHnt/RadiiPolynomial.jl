@@ -44,6 +44,27 @@ for F ∈ (:Derivative, :Integral)
             domain_A = domain(A)
             return project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A))) - A
         end
+
+        add!(C::LinearOperator, A::LinearOperator, ℱ::$F) = add!(C, A, project(ℱ, domain(A), codomain(A), eltype(C)))
+        add!(C::LinearOperator, ℱ::$F, A::LinearOperator) = add!(C, project(ℱ, domain(A), codomain(A), eltype(C)), A)
+        sub!(C::LinearOperator, A::LinearOperator, ℱ::$F) = sub!(C, A, project(ℱ, domain(A), codomain(A), eltype(C)))
+        sub!(C::LinearOperator, ℱ::$F, A::LinearOperator) = sub!(C, project(ℱ, domain(A), codomain(A), eltype(C)), A)
+
+        radd!(A::LinearOperator, ℱ::$F) = radd!(A, project(ℱ, domain(A), codomain(A), eltype(A)))
+        rsub!(A::LinearOperator, ℱ::$F) = rsub!(A, project(ℱ, domain(A), codomain(A), eltype(A)))
+
+        ladd!(ℱ::$F, A::LinearOperator) = ladd!(project(ℱ, domain(A), codomain(A), eltype(A)), A)
+        lsub!(ℱ::$F, A::LinearOperator) = lsub!(project(ℱ, domain(A), codomain(A), eltype(A)), A)
+
+        function Base.:*(ℱ::$F, A::LinearOperator)
+            codomain_A = codomain(A)
+            return project(ℱ, codomain_A, image(ℱ, codomain_A), _coeftype(ℱ, codomain_A, eltype(A))) * A
+        end
+
+        LinearAlgebra.mul!(C::LinearOperator, ℱ::$F, A::LinearOperator, α::Number, β::Number) =
+            mul!(C, project(ℱ, codomain(A), codomain(C), eltype(C)), A, α, β)
+        LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, ℱ::$F, α::Number, β::Number) =
+            mul!(C, A, project(ℱ, domain(C), domain(A), eltype(C)), α, β)
     end
 end
 

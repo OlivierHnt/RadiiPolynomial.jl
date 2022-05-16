@@ -21,6 +21,27 @@ function Base.:-(𝒮::Scale, A::LinearOperator)
     return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) - A
 end
 
+add!(C::LinearOperator, A::LinearOperator, 𝒮::Scale) = add!(C, A, project(𝒮, domain(A), codomain(A), eltype(C)))
+add!(C::LinearOperator, 𝒮::Scale, A::LinearOperator) = add!(C, project(𝒮, domain(A), codomain(A), eltype(C)), A)
+sub!(C::LinearOperator, A::LinearOperator, 𝒮::Scale) = sub!(C, A, project(𝒮, domain(A), codomain(A), eltype(C)))
+sub!(C::LinearOperator, 𝒮::Scale, A::LinearOperator) = sub!(C, project(𝒮, domain(A), codomain(A), eltype(C)), A)
+
+radd!(A::LinearOperator, 𝒮::Scale) = radd!(A, project(𝒮, domain(A), codomain(A), eltype(A)))
+rsub!(A::LinearOperator, 𝒮::Scale) = rsub!(A, project(𝒮, domain(A), codomain(A), eltype(A)))
+
+ladd!(𝒮::Scale, A::LinearOperator) = ladd!(project(𝒮, domain(A), codomain(A), eltype(A)), A)
+lsub!(𝒮::Scale, A::LinearOperator) = lsub!(project(𝒮, domain(A), codomain(A), eltype(A)), A)
+
+function Base.:*(𝒮::Scale, A::LinearOperator)
+    codomain_A = domain(A)
+    return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
+end
+
+LinearAlgebra.mul!(C::LinearOperator, 𝒮::Scale, A::LinearOperator, α::Number, β::Number) =
+    mul!(C, project(𝒮, codomain(A), codomain(C), eltype(C)), A, α, β)
+LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number, β::Number) =
+    mul!(C, A, project(𝒮, domain(C), domain(A), eltype(C)), α, β)
+
 #
 
 (𝒮::Scale)(a::Sequence) = *(𝒮, a)

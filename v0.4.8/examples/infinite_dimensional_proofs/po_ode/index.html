@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Periodic orbit for ordinary differential equations (ODE) · RadiiPolynomial.jl</title><script data-outdated-warner src="../../../assets/warner.js"></script><link rel="canonical" href="https://OlivierHnt.github.io/RadiiPolynomial.jl/examples/infinite_dimensional_proofs/po_ode/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img src="../../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">RadiiPolynomial.jl</a></span></div><form class="docs-search" action="../../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../radii_polynomial_approach/">Radii polynomial approach</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../../sequence_spaces/vector_spaces/">Vector spaces</a></li><li><a class="tocitem" href="../../../sequence_spaces/sequences/">Sequences</a></li><li><a class="tocitem" href="../../../sequence_spaces/linear_operators/">Linear operators</a></li><li><a class="tocitem" href="../../../sequence_spaces/norms/">Norms</a></li><li><a class="tocitem" href="../../../sequence_spaces/special_operators/">Special operators</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Finite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../finite_dimensional_proofs/spiderweb/">Spiderweb central configurations</a></li><li><a class="tocitem" href="../../finite_dimensional_proofs/pseudo_arclength/">Pseudo-arclength continuation</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox" checked/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Infinite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../ivp/">Initial value problem for ordinary differential equations (ODE)</a></li><li class="is-active"><a class="tocitem" href>Periodic orbit for ordinary differential equations (ODE)</a></li><li><a class="tocitem" href="../unstable_manifolds_eq_dde/">Unstable manifolds of equilibria for delay differential equations (DDE)</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Infinite-dimensional proofs</a></li><li class="is-active"><a href>Periodic orbit for ordinary differential equations (ODE)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Periodic orbit for ordinary differential equations (ODE)</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/master/docs/src/examples/infinite_dimensional_proofs/po_ode.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Periodic-orbit-for-ordinary-differential-equations-(ODE)"><a class="docs-heading-anchor" href="#Periodic-orbit-for-ordinary-differential-equations-(ODE)">Periodic orbit for ordinary differential equations (ODE)</a><a id="Periodic-orbit-for-ordinary-differential-equations-(ODE)-1"></a><a class="docs-heading-anchor-permalink" href="#Periodic-orbit-for-ordinary-differential-equations-(ODE)" title="Permalink"></a></h1><p>In this example, we will prove the existence of a periodic orbit of the Lorenz equations</p><p class="math-container">\[\frac{d}{dt} u(t) = f(u(t), \sigma, \rho, \beta) :=
+\begin{pmatrix}
+\sigma(u_2(t) - u_1(t))\\
+u_1(t)(\rho - u_3(t)) - u_2(t)\\
+u_1(t) u_2(t) - \beta u_3(t)
+\end{pmatrix}.\]</p><p>Let <span>$\nu &gt; 1$</span> and <span>$X_\textnormal{F} := (\ell^1_\nu, *)$</span> where</p><p class="math-container">\[\ell^1_\nu := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{\ell^1_\nu} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}\]</p><p>and <span>$* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu$</span> is the discrete convolution given by</p><p class="math-container">\[u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in \ell^1_\nu.\]</p><p>For any sequence <span>$u \in X$</span>, the Fourier series <span>$\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}$</span>, for some frequency <span>$\omega &gt; 0$</span>, defines an analytic <span>$2\pi\omega^{-1}$</span>-periodic function in <span>$C^\omega(\mathbb{R}, \mathbb{C})$</span>; while the discrete convolution <span>$*$</span> corresponds to the product of Fourier series in sequence space.</p><p>The Banach algebra <span>$X_\textnormal{F}$</span> is a suitable space to look for a periodic solution of the Lorenz equations. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.<sup class="footnote-reference"><a id="citeref-1" href="#footnote-1">[1]</a></sup></p><p>Define the Banach space <span>$X := \mathbb{C} \times X_\textnormal{F}^3$</span> endowed with the norm <span>$|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})$</span>. It follows that the sequence of coefficients of a <span>$2\pi\gamma$</span>-periodic Fourier series solving the Lorenz equations is a zero of the mapping <span>$F : X \to X$</span> given by</p><p class="math-container">\[F(x) :=
+\begin{pmatrix}
+\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
+\left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
+\end{pmatrix}, \qquad \text{for all } x := (\gamma, u_1, u_2, u_3) \in X,\]</p><p>where <span>$\xi \in \mathbb{R}^3$</span> is a chosen approximate position on the periodic orbit and <span>$\eta \in \mathbb{R}^3$</span> the corresponding approximate tangent vector at <span>$\xi$</span>. By means of the <em>phase condition</em> <span>$\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j$</span>, the translation invariance of the periodic orbit is eliminated.</p><p>Consider the fixed-point operator <span>$T : X \to X$</span> defined by</p><p class="math-container">\[T(x) := x - A F(x),\]</p><p>where <span>$A : X \to X$</span> is the injective operator corresponding to a numerical approximation of <span>$DF(\bar{x})^{-1}$</span> for some numerical zero <span>$\bar{x} := (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X$</span> of <span>$F$</span>.</p><p>Let <span>$R &gt; 0$</span>. Since <span>$T \in C^2(X, X)$</span> we may use the <a href="../../../radii_polynomial_approach/#C2_condition_RPT">second-order Radii Polynomial Theorem with <span>$C^2$</span> condition</a> such that we need to estimate <span>$|T(\bar{x}) - \bar{x}|_X$</span>, <span>$|DT(\bar{x})|_{\mathscr{B}(X, X)}$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}$</span>.</p><p>To this end, consider the truncation operator</p><p class="math-container">\[(\pi^n u)_k :=
+\begin{cases}
+u_k, &amp; |k| \leq n,\\
+0, &amp; |k| &gt; n,
+\end{cases}
+\qquad \textnormal{for all } u \in X_\textnormal{F}.\]</p><p>Using the same symbol, this projection extends naturally to <span>$X_\textnormal{F}^3$</span> and <span>$X$</span> by acting on each component as follows <span>$\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$u := (u_1, u_2, u_3) \in X_\textnormal{F}^3$</span>, and <span>$\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$x := (\gamma, u_1, u_2, u_3) \in X$</span>. For each of the Banach spaces <span>$X_\textnormal{F}, X_\textnormal{F}^3, X$</span>, we define the complementary operator <span>$\pi^{\infty(n)} := I - \pi^n$</span>.</p><p>Thus, denoting <span>$\bar{u} := (\bar{u}_1, \bar{u}_2, \bar{u}_3)$</span>, we have</p><p class="math-container">\[\begin{aligned}
+|T(\bar{x}) - \bar{x}|_X &amp;\leq
+|\pi^n A \pi^n F(\bar{x})|_X + \frac{\bar{\gamma}}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3},\\
+|DT(\bar{x})|_{\mathscr{B}(X, X)} &amp;\leq
+|\pi^n A \pi^n DF(\bar{x}) \pi^{2n} - \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3} +\\
+&amp;\qquad \frac{\bar{\gamma}}{n+1}
+\max \left(2 \sigma, 1 + |\bar{u}_1|_{X_\textnormal{F}} + |\rho - \bar{u}_3|_{X_\textnormal{F}}, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}}\right),\\
+\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &amp;\leq
+2\left(|\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \Big(\bar{\gamma} + R +\\
+&amp;\qquad \max \left(2 \sigma, 1 + \rho + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_3|_{X_\textnormal{F}} + 2R, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}} + 2R\right)\Big).
+\end{aligned}\]</p><p>We can now write our computer-assisted proof:</p><pre><code class="language-julia hljs">using RadiiPolynomial
+
+function f!(f::Sequence, u::Sequence, σ, ρ, β)
+    u₁, u₂, u₃ = component(u, 1), component(u, 2), component(u, 3)
+    project!(component(f, 1), σ*(u₂ - u₁))
+    project!(component(f, 2), u₁*(ρ - u₃) - u₂)
+    project!(component(f, 3), u₁*u₂ - β*u₃)
+    return f
+end
+
+function Df!(Df::LinearOperator, u::Sequence, σ, ρ, β)
+    u₁, u₂, u₃ = component(u, 1), component(u, 2), component(u, 3)
+    project!(component(Df, 1, 1), Multiplication(-σ*one(u₁)))
+    project!(component(Df, 1, 2), Multiplication(σ*one(u₂)))
+    project!(component(Df, 1, 3), Multiplication(zero(u₃)))
+    project!(component(Df, 2, 1), Multiplication(ρ-u₃))
+    project!(component(Df, 2, 2), Multiplication(-one(u₂)))
+    project!(component(Df, 2, 3), Multiplication(-u₁))
+    project!(component(Df, 3, 1), Multiplication(u₂))
+    project!(component(Df, 3, 2), Multiplication(u₁))
+    project!(component(Df, 3, 3), Multiplication(-β*one(u₃)))
+    return Df
+end
+
+function F_DF!(F, DF, x, σ, ρ, β)
+    γ, u = x[1], component(x, 2)
+    DF .= zero(eltype(DF))
+
+    F[1] =
+        (sum(coefficients(component(u, 1))) - 10.205222700615433) * 24.600655549587863 +
+        (sum(coefficients(component(u, 2))) - 11.899530531689562) * (-2.4927169722923335) +
+        (sum(coefficients(component(u, 3))) - 27.000586375896557) * 71.81142025024573
+    component(component(DF, 1, 2), 1)[1,:] .= 24.600655549587863
+    component(component(DF, 1, 2), 2)[1,:] .= -2.4927169722923335
+    component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
+
+    f!(component(F, 2), u, σ, ρ, β) .*= γ
+    rsub!(component(F, 2), differentiate(u))
+    D₁F₂ = component(DF, 2, 1)
+    f!(Sequence(codomain(D₁F₂), vec(coefficients(D₁F₂))), u, σ, ρ, β)
+    Df!(component(DF, 2, 2), u, σ, ρ, β) .*= γ
+    rsub!(component(DF, 2, 2), Derivative(1))
+
+    return F, DF
+end
+
+# numerical solution
+
+σ, ρ, β = 10.0, 28.0, 8/3
+
+n = 400
+
+x̄ = Sequence(ParameterSpace() × Fourier(n, 1.0)^3, zeros(ComplexF64, 1+3*(2n+1)))
+x̄[1] = 9.150971830259179/2π # approximate inverse of the frequency
+component(component(x̄, 2), 1)[0:14] =
+    [6.25, -0.66 - 1.45im, 0.6 - 1.2im, 1.11 - 0.26im, 0.77 + 0.57im,
+    0.08 + 0.76im, -0.35 + 0.45im, -0.39 + 0.13im, -0.37 - 0.0008im, -0.44 - 0.23im,
+    -0.18 - 0.68im, 0.65 - 0.61im, 0.80 + 0.50im, -0.53 + 0.43im, 1.25 - 0.07im]
+component(component(x̄, 2), 2)[0:14] =
+    [6.25, -0.56 - 1.5im, 0.76 - 1.12im, 1.17 - 0.03im, 0.62 + 0.78im,
+    -0.18 + 0.76im,-0.54 + 0.3im, -0.45 - 0.06im, -0.37 - 0.2im, -0.3 - 0.51im,
+    0.29 - 0.8im, 1.11 - 0.13im, 0.4 + 1.16im, -0.91 - 0.05im, 1.31 + 1.13im]
+component(component(x̄, 2), 3)[0:14] =
+    [24.45, -0.22 - 1.62im, 1.13 - 0.83im, 1.2 + 0.53im, 0.14 + 1.28im,
+    -1.03 + 0.75im, -1.14 - 0.52im, -0.08 - 1.21im, 0.98 - 0.57im, 0.79 + 0.59im,
+    -0.27 + 0.69im, -0.34 - 0.23im, 0.57 + 0.22im, -1.23 + 1.02im, 0.75 - 2.69im]
+component(component(x̄, 2), 1)[-14:-1] .= conj.(component(component(x̄, 2), 1)[14:-1:1])
+component(component(x̄, 2), 2)[-14:-1] .= conj.(component(component(x̄, 2), 2)[14:-1:1])
+component(component(x̄, 2), 3)[-14:-1] .= conj.(component(component(x̄, 2), 3)[14:-1:1])
+
+x̄, success = newton!((F, DF, x) -&gt; F_DF!(F, DF, x, σ, ρ, β), x̄; verbose = false)
+x̄[1] = real(x̄[1])
+for i ∈ 1:3
+    component(component(x̄, 2), i)[0] = real(component(component(x̄, 2), i)[0])
+    component(component(x̄, 2), i)[-n:-1] .= conj.(component(component(x̄, 2), i)[n:-1:1])
+end
+
+# proof
+
+σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), @interval(8/3)
+x̄_interval = Sequence(ParameterSpace() × Fourier(n, Interval(1.0))^3, Interval.(coefficients(x̄)))
+γ̄_interval = real(x̄_interval[1])
+ū_interval = component(x̄_interval, 2)
+F_interval = Sequence(ParameterSpace() × Fourier(2n, Interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
+DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coefficients(x̄_interval), length(x̄_interval), length(F_interval)))
+F_DF!(F_interval, DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
+tail_f_interval = zero(component(F_interval, 2))
+for i ∈ 1:3
+    component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
+    component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
+end
+A = Interval.(inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval)))))
+bound_tail_A = inv(Interval(n+1))
+
+ν = Interval(1.01)
+X_Fourier = ℓ¹(GeometricWeight(ν))
+X_Fourier³ = NormedCartesianSpace(X_Fourier, ℓ∞())
+X = NormedCartesianSpace((ℓ∞(), X_Fourier³), ℓ∞())
+R = 1e-8
+
+Y = norm(A*F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_Fourier³)
+Z₁ = opnorm(A*DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_Fourier³) +
+    bound_tail_A * γ̄_interval * max(2σ_interval,
+        1 + norm(component(ū_interval, 1), X_Fourier) + norm(ρ_interval-component(ū_interval, 3), X_Fourier),
+        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier))
+Z₂ = (opnorm(A, X) + bound_tail_A) * 2 * (γ̄_interval + R +
+    max(2σ_interval,
+        1 + ρ_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 3), X_Fourier) + 2R,
+        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier) + 2R))
+showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Interval(4.126842323338598e-9, 1.0e-8)</code></pre><p>The following figure<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).</p><video width="800" height="400" controls autoplay loop>
+  <source src="../../../assets/lorenz.mp4" type="video/mp4">
+</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>A. Hungria, J.-P. Lessard and J. D. Mireles James, <a href="https://doi.org/10.1090/mcom/3046">Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach</a>, <em>Mathematics of Computation</em>, <strong>85</strong> (2016), 1427-1459.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ivp/">« Initial value problem for ordinary differential equations (ODE)</a><a class="docs-footer-nextpage" href="../unstable_manifolds_eq_dde/">Unstable manifolds of equilibria for delay differential equations (DDE) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.18 on <span class="colophon-date" title="Thursday 26 May 2022 20:53">Thursday 26 May 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

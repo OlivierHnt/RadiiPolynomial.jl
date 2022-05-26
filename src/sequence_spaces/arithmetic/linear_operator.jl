@@ -31,13 +31,13 @@ function Base.:*(A::LinearOperator, B::LinearOperator)
     return C
 end
 
-@inline function LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
+function LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
     _iscompatible(domain(C), domain(B)) & _iscompatible(codomain(C), codomain(A)) & _iscompatible(domain(A), codomain(B)) || return throw(DimensionMismatch)
     _mul!(C, A, B, α, β)
     return C
 end
 
-@inline function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
+function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -345,7 +345,7 @@ end
 
 # Cartesian spaces
 
-@inline function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, B::LinearOperator{<:CartesianSpace,<:CartesianSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, B::LinearOperator{<:CartesianSpace,<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -372,7 +372,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, B::LinearOperator{<:CartesianSpace,<:VectorSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, B::LinearOperator{<:CartesianSpace,<:VectorSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -391,7 +391,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, B::LinearOperator{<:CartesianSpace,<:CartesianSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, B::LinearOperator{<:CartesianSpace,<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -415,7 +415,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOperator{<:VectorSpace,<:VectorSpace}, B::LinearOperator{<:CartesianSpace,<:VectorSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOperator{<:VectorSpace,<:VectorSpace}, B::LinearOperator{<:CartesianSpace,<:VectorSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -429,7 +429,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, B::LinearOperator{<:VectorSpace,<:CartesianSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, B::LinearOperator{<:VectorSpace,<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -453,7 +453,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, B::LinearOperator{<:VectorSpace,<:VectorSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, B::LinearOperator{<:VectorSpace,<:VectorSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
@@ -467,7 +467,7 @@ end
     return C
 end
 
-@inline function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, B::LinearOperator{<:VectorSpace,<:CartesianSpace}, α::Number, β::Number)
+function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, B::LinearOperator{<:VectorSpace,<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)

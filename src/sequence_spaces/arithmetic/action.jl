@@ -11,13 +11,13 @@ function Base.:*(A::LinearOperator, b::Sequence)
     return c
 end
 
-@inline function LinearAlgebra.mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
+function LinearAlgebra.mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     _iscompatible(space(c), codomain(A)) & _iscompatible(domain(A), space(b)) || return throw(DimensionMismatch)
     _mul!(c, A, b, α, β)
     return c
 end
 
-@inline function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
+function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)
@@ -57,7 +57,7 @@ end
 
 # Cartesian spaces
 
-@inline function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, b::Sequence{<:CartesianSpace}, α::Number, β::Number)
+function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, b::Sequence{<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)
@@ -81,7 +81,7 @@ end
     return c
 end
 
-@inline function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, b::Sequence{<:VectorSpace}, α::Number, β::Number)
+function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}, b::Sequence{<:VectorSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)
@@ -95,7 +95,7 @@ end
     return c
 end
 
-@inline function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, b::Sequence{<:CartesianSpace}, α::Number, β::Number)
+function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}, b::Sequence{<:CartesianSpace}, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)

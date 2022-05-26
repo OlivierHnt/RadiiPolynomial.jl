@@ -5,7 +5,7 @@ _no_alloc_reshape(a, dims) = invoke(Base._reshape, Tuple{AbstractArray,typeof(di
 # S. M. Rump, [Verification methods: Rigorous results using floating-point arithmetic](https://doi.org/10.1017/S096249291000005X), *Acta Numerica*, **19** (2010), 287-449.
 @inline __mul!(C, A, B, α, β) = mul!(C, A, B, α, β)
 for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
-    @eval @inline function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
+    @eval function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
         if iszero(α)
             if iszero(β)
                 C .= zero(eltype(C))
@@ -37,7 +37,7 @@ for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
 end
 for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
         (:(Complex{<:Interval}), :Complex), (:Complex, :(Complex{<:Interval})))
-    @eval @inline function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
+    @eval function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
         if iszero(α)
             if iszero(β)
                 C .= zero(eltype(C))
@@ -80,7 +80,7 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
 end
 for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :Any), (:Complex, :Interval))
     @eval begin
-        @inline function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
+        function __mul!(C, A::AbstractMatrix{T}, B::AbstractVecOrMat{S}, α, β) where {T<:$T,S<:$S}
             if iszero(α)
                 if iszero(β)
                     C .= zero(eltype(C))
@@ -111,7 +111,7 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
             end
             return C
         end
-        @inline function __mul!(C, A::AbstractMatrix{S}, B::AbstractVecOrMat{T}, α, β) where {S<:$S,T<:$T}
+        function __mul!(C, A::AbstractMatrix{S}, B::AbstractVecOrMat{T}, α, β) where {S<:$S,T<:$T}
             if iszero(α)
                 if iszero(β)
                     C .= zero(eltype(C))
@@ -144,7 +144,7 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
         end
     end
 end
-@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
     NewType = promote_type(T, S)
     Ainf = inf.(A)
     Asup = sup.(A)
@@ -164,7 +164,7 @@ end
     end
     return Cinf, Csup
 end
-@inline function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{S}) where {T<:Real,S<:Real}
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVecOrMat{S}) where {T<:Real,S<:Real}
     NewType = promote_type(T, S)
     Ainf = inf.(A)
     Asup = sup.(A)
@@ -180,7 +180,7 @@ end
     end
     return Cinf, Csup
 end
-@inline function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
+function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{Interval{S}}) where {T<:Real,S<:Real}
     NewType = promote_type(T, S)
     Binf = inf.(B)
     Bsup = sup.(B)

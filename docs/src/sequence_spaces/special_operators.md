@@ -43,7 +43,6 @@ project(Evaluation((0.5, nothing)), Taylor(2) ⊗ Fourier(1, 1.0), Taylor(0) ⊗
 ```@repl
 using RadiiPolynomial
 project(Scale(2.0), Taylor(2), Taylor(2), Float64)
-project(Scale((2.0, nothing)), Taylor(2) ⊗ Fourier(1, 1.0), Taylor(2) ⊗ Fourier(1, 1.0), Float64)
 ```
 
 ## Shift

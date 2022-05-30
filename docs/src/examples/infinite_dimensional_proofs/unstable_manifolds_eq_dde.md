@@ -38,7 +38,7 @@ For any sequence ``x \in X``, the Taylor series ``\sum_{\alpha_1 + \ldots + \alp
 
 The Banach algebra ``X`` is a suitable space to look for a parameterization of the unstable manifold. Indeed, it is a standard result from DDE theory that analytic vector fields yield analytic unstable manifolds of equilibria. In the context of this example, it holds that the unstable manifold is parameterized by an analytic function ``P : \mathbb{C}^d \to C([-\tau, 0], \mathbb{C})`` satisfying ``\frac{d}{ds} P(\sigma)(s) = [DP(\sigma) \Lambda \sigma](s)`` for all ``s \in [-\tau, 0]`` and ``\sigma \in \{ \sigma \in \mathbb{D}_\nu^d \, : \, \Lambda \sigma \in \mathbb{D}_\nu^d\}`` along with ``[DP(\sigma) \Lambda \sigma](0) = f([P (\sigma)](0), [P(\sigma)](-\tau))``.[^1]
 
-[^1]: O. Hénot, J.-P. Lessard and J. D. Mireles James, [Parameterization of unstable manifolds for DDEs: formal series solutions and validated error bounds](https://doi.org/10.1007/s10884-021-10002-8), *Journal of Dynamics and Differential Equations* (2021).
+[^1]: O. Hénot, J.-P. Lessard and J. D. Mireles James, [Parameterization of unstable manifolds for DDEs: formal series solutions and validated error bounds](https://doi.org/10.1007/s10884-021-10002-8), *Journal of Dynamics and Differential Equations*, **34** (2022), 1285-1324.
 
 In terms of the Taylor coefficients, the previous equalities yield
 

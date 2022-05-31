@@ -407,7 +407,7 @@ function LinearAlgebra.norm(a::Sequence, p::Real=Inf)
     elseif p == Inf
         return norm(a, ℓ∞(IdentityWeight()))
     else
-        return throw(ArgumentError)
+        return throw(ArgumentError("p-norm is only supported for p = 1, 2, Inf"))
     end
 end
 
@@ -419,7 +419,7 @@ function LinearAlgebra.opnorm(A::LinearOperator, p::Real=Inf)
     elseif p == Inf
         return opnorm(A, ℓ∞(IdentityWeight()))
     else
-        return throw(ArgumentError)
+        return throw(ArgumentError("p-norm is only supported for p = 1, 2, Inf"))
     end
 end
 
@@ -450,6 +450,22 @@ for T ∈ (:ℓ¹, :ℓ², :ℓ∞)
         _apply_dual(X::$T, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
             @inbounds _apply_dual($T(X.weight[1]), space[1], A)
     end
+end
+
+#
+
+function LinearAlgebra.opnorm(A::LinearOperator, ::ℓ∞{IdentityWeight}, ::ℓ∞{IdentityWeight})
+    z = zero(eltype(A))
+    r = z
+    A_ = coefficients(A)
+    for i ∈ axes(A_, 1)
+        s = z
+        @inbounds for j ∈ axes(A_, 2)
+            s += abs(A_[i,j])
+        end
+        r = max(r, s)
+    end
+    return r
 end
 
 # ParameterSpace

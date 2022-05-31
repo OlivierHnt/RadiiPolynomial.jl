@@ -3,8 +3,9 @@
 (A::LinearOperator)(b::Sequence) = *(A, b)
 
 function Base.:*(A::LinearOperator, b::Sequence)
-    _iscompatible(domain(A), space(b)) || return throw(DimensionMismatch)
-    codomain_A = codomain(A)
+    domain_A, codomain_A = domain(A), codomain(A)
+    space_b = space(b)
+    _iscompatible(domain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, b has space $space_b"))
     CoefType = promote_type(eltype(A), eltype(b))
     c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
     _mul!(c, A, b, true, false)
@@ -12,7 +13,7 @@ function Base.:*(A::LinearOperator, b::Sequence)
 end
 
 function LinearAlgebra.mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
-    _iscompatible(space(c), codomain(A)) & _iscompatible(domain(A), space(b)) || return throw(DimensionMismatch)
+    _iscompatible(space(c), codomain(A)) & _iscompatible(domain(A), space(b)) || return throw(ArgumentError("spaces must be compatible"))
     _mul!(c, A, b, α, β)
     return c
 end
@@ -51,7 +52,9 @@ function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Numb
 end
 
 function Base.:\(A::LinearOperator, b::Sequence)
-    _iscompatible(codomain(A), space(b)) || return throw(DimensionMismatch)
+    codomain_A = codomain(A)
+    space_b = space(b)
+    _iscompatible(codomain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has codomain $codomain_A, b has space $space_b"))
     return Sequence(domain(A), \(coefficients(A), coefficients(b)))
 end
 

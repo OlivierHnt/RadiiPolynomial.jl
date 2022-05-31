@@ -18,18 +18,24 @@ LinearAlgebra.adjoint(A::LinearOperator) = LinearOperator(codomain(A), domain(A)
 # eigen
 
 function LinearAlgebra.eigvals(A::LinearOperator; kwargs...)
-    domain(A) == codomain(A) || throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    domain_A == codomain_A || return throw(ArgumentError("spaces must be equal: A has domain $domain_A, A has codomain $codomain_A"))
     return eigvals(coefficients(A); kwargs...)
 end
 
 function LinearAlgebra.eigvecs(A::LinearOperator; kwargs...)
-    domain(A) == codomain(A) || throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    domain_A == codomain_A || return throw(ArgumentError("spaces must be equal: A has domain $domain_A, A has codomain $codomain_A"))
     Ξ = eigvecs(coefficients(A); kwargs...)
     return LinearOperator(ParameterSpace()^size(Ξ, 2), domain(A), Ξ)
 end
 
 function LinearAlgebra.eigen(A::LinearOperator; kwargs...)
-    domain(A) == codomain(A) || throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    domain_A == codomain_A || return throw(ArgumentError("spaces must be equal: A has domain $domain_A, A has codomain $codomain_A"))
     Λ, Ξ = eigen(coefficients(A); kwargs...)
     return Λ, LinearOperator(ParameterSpace()^size(Ξ, 2), domain(A), Ξ)
 end

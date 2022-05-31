@@ -59,13 +59,15 @@ end
 
 function scale!(c::Sequence, a::Sequence, γ)
     𝒮 = Scale(γ)
-    space(c) == image(𝒮, space(a)) || return throw(DomainError)
+    space_c = space(c)
+    new_space = image(𝒮, space(a))
+    space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $𝒮(a) has space $new_space"))
     _apply!(c, 𝒮, a)
     return c
 end
 
 function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
-    _iscompatible(domain, codomain) || return throw(DimensionMismatch)
+    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
     C = LinearOperator(domain, codomain, sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
@@ -74,7 +76,9 @@ function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type
 end
 
 function project!(C::LinearOperator, 𝒮::Scale)
-    _iscompatible(domain(C), codomain(C)) || return throw(DimensionMismatch)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, 𝒮)
     return C

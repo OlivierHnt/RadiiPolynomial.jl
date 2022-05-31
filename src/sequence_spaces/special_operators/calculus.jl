@@ -94,13 +94,15 @@ for (F, f, f!) ∈ ((:Derivative, :differentiate, :differentiate!), (:Integral, 
 
         function $f!(c::Sequence, a::Sequence, α=1)
             ℱ = $F(α)
-            space(c) == image(ℱ, space(a)) || return throw(DomainError)
+            space_c = space(c)
+            new_space = image(ℱ, space(a))
+            space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℱ(a) has space $new_space"))
             _apply!(c, ℱ, a)
             return c
         end
 
         function project(ℱ::$F, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
-            _iscompatible(domain, codomain) || return throw(DimensionMismatch)
+            _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
             ind_domain = _findposition_nzind_domain(ℱ, domain, codomain)
             ind_codomain = _findposition_nzind_codomain(ℱ, domain, codomain)
             C = LinearOperator(domain, codomain, sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
@@ -109,7 +111,9 @@ for (F, f, f!) ∈ ((:Derivative, :differentiate, :differentiate!), (:Integral, 
         end
 
         function project!(C::LinearOperator, ℱ::$F)
-            _iscompatible(domain(C), codomain(C)) || return throw(DimensionMismatch)
+            domain_C = domain(C)
+            codomain_C = codomain(C)
+            _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
             coefficients(C) .= zero(eltype(C))
             _project!(C, ℱ)
             return C
@@ -472,13 +476,17 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
 end
 
 function _nzind_domain(::Derivative, domain::Fourier, codomain::Fourier)
-    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end
 
 function _nzind_codomain(::Derivative, domain::Fourier, codomain::Fourier)
-    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end
@@ -511,7 +519,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        @inbounds iszero(a[0]) || return throw(DomainError)
+        @inbounds iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
         ω = one(eltype(a))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
@@ -547,7 +555,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
         C .= A
     else
         ord = order(space)
-        @inbounds iszero(selectdim(A, 1, ord+1)) || return throw(DomainError)
+        @inbounds iszero(selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
         ω = one(eltype(A))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
@@ -584,7 +592,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
         return convert(Array{CoefType,N}, A)
     else
         ord = order(space)
-        @inbounds iszero(selectdim(A, D, ord+1)) || return throw(DomainError)
+        @inbounds iszero(selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
         ω = one(T)*frequency(space)
         C = Array{CoefType,N}(undef, size(A))
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
@@ -616,13 +624,17 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
 end
 
 function _nzind_domain(::Integral, domain::Fourier, codomain::Fourier)
-    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end
 
 function _nzind_codomain(::Integral, domain::Fourier, codomain::Fourier)
-    frequency(domain) == frequency(codomain) || return throw(DomainError)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end

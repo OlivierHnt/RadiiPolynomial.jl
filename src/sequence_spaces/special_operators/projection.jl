@@ -1,14 +1,17 @@
 # fallback methods
 
 function project(a::Sequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T}
-    _iscompatible(space(a), space_dest) || return throw(DimensionMismatch)
+    space_a = space(a)
+    _iscompatible(space_a, space_dest) || return throw(ArgumentError("spaces must be compatible: a has space $space_a, destination space is $space_dest"))
     c = Sequence(space_dest, Vector{T}(undef, dimension(space_dest)))
     _project!(c, a)
     return c
 end
 
 function project!(c::Sequence, a::Sequence)
-    _iscompatible(space(a), space(c)) || return throw(DimensionMismatch)
+    space_a = space(a)
+    space_c = space(c)
+    _iscompatible(space_a, space_c) || return throw(ArgumentError("spaces must be compatible: c has $space_c, a has space $space_a"))
     _project!(c, a)
     return c
 end
@@ -34,14 +37,14 @@ end
 #
 
 function project(A::LinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(A)) where {T}
-    _iscompatible(domain(A), domain_dest) & _iscompatible(codomain(A), codomain_dest) || return throw(DimensionMismatch)
+    _iscompatible(domain(A), domain_dest) & _iscompatible(codomain(A), codomain_dest) || return throw(ArgumentError("spaces must be compatible"))
     C = LinearOperator(domain_dest, codomain_dest, Matrix{T}(undef, dimension(codomain_dest), dimension(domain_dest)))
     _project!(C, A)
     return C
 end
 
 function project!(C::LinearOperator, A::LinearOperator)
-    _iscompatible(domain(A), domain(C)) & _iscompatible(codomain(A), codomain(C)) || return throw(DimensionMismatch)
+    _iscompatible(domain(A), domain(C)) & _iscompatible(codomain(A), codomain(C)) || return throw(ArgumentError("spaces must be compatible"))
     _project!(C, A)
     return C
 end

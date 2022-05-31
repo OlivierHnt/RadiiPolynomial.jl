@@ -41,13 +41,15 @@ end
 
 function evaluate!(c::Sequence, a::Sequence, x)
     ℰ = Evaluation(x)
-    space(c) == image(ℰ, space(a)) || return throw(DomainError)
+    space_c = space(c)
+    new_space = image(ℰ, space(a))
+    space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℰ(a) has space $new_space"))
     _apply!(c, ℰ, a)
     return c
 end
 
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
-    _iscompatible(domain, codomain) || return throw(DimensionMismatch)
+    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℰ, _memo(domain, codomain, T))
     return C
@@ -56,7 +58,7 @@ end
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)
     codomain_C = codomain(C)
-    _iscompatible(domain_C, codomain_C) || return throw(DimensionMismatch)
+    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
     CoefType = eltype(C)
     coefficients(C) .= zero(CoefType)
     _project!(C, ℰ, _memo(domain_C, codomain_C, CoefType))

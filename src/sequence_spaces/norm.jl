@@ -51,7 +51,7 @@ Fields:
 struct GeometricWeight{T<:Real} <: Weight
     rate :: T
     function GeometricWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate > 0) || return throw(DomainError)
+        isfinite(rate) & (rate > 0) || return throw(DomainError(rate, "rate must be finite and strictly positive"))
         return new{T}(rate)
     end
 end
@@ -174,7 +174,7 @@ Fields:
 struct AlgebraicWeight{T<:Real} <: Weight
     rate :: T
     function AlgebraicWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 0) || return throw(DomainError)
+        isfinite(rate) & (rate ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
         return new{T}(rate)
     end
 end
@@ -298,7 +298,7 @@ Fields:
 struct BesselWeight{T<:Real} <: Weight
     rate :: T
     function BesselWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 0) || return throw(DomainError)
+        isfinite(rate) & (rate ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
         return new{T}(rate)
     end
 end
@@ -1054,40 +1054,40 @@ _apply_dual(::ℓ∞{IdentityWeight}, space::CartesianSpace, A::AbstractVector) 
 for X ∈ (:ℓ¹, :ℓ∞)
     @eval begin
         function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
-            0 < nb_cartesian_product(space(a)) || return throw(DimensionMismatch)
+            0 < nb_cartesian_product(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _norm(a, X)
         end
         function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
-            0 < nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
+            0 < nb_cartesian_product(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _norm(a, X)
         end
 
         function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
-            0 < nb_cartesian_product(domain(A)) || return throw(DimensionMismatch)
+            0 < nb_cartesian_product(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _opnorm(A, X)
         end
         function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
-            0 < nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
+            0 < nb_cartesian_product(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _opnorm(A, X)
         end
     end
 end
 
 function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    0 < nb_cartesian_product(space(a)) || return throw(DimensionMismatch)
+    0 < nb_cartesian_product(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_norm2(a, X))
 end
 function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    0 < nb_cartesian_product(space(a)) == N || return throw(DimensionMismatch)
+    0 < nb_cartesian_product(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_norm2(a, X))
 end
 
 function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    0 < nb_cartesian_product(domain(A)) || return throw(DimensionMismatch)
+    0 < nb_cartesian_product(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_opnorm2(A, X))
 end
 function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    0 < nb_cartesian_product(domain(A)) == N || return throw(DimensionMismatch)
+    0 < nb_cartesian_product(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_opnorm2(A, X))
 end
 

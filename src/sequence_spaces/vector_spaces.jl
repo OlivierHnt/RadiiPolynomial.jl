@@ -241,12 +241,12 @@ frequency(s::Fourier) = s.frequency
 Base.:(==)(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order == s₂.order)
 Base.issubset(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order ≤ s₂.order)
 function Base.intersect(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
-    s₁.frequency == s₂.frequency || return throw(DomainError)
+    s₁.frequency == s₂.frequency || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
     return Fourier(min(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
-    s₁.frequency == s₂.frequency || return throw(DomainError)
+    s₁.frequency == s₂.frequency || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
     return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
@@ -385,11 +385,11 @@ Base.:(==)(s₁::CartesianPower, s₂::CartesianPower) =
 Base.issubset(s₁::CartesianPower, s₂::CartesianPower) =
     (s₁.n == s₂.n) & issubset(s₁.space, s₂.space)
 function Base.intersect(s₁::CartesianPower, s₂::CartesianPower)
-    s₁.n == s₂.n || return throw(DimensionMismatch("dimensions must match: s₁ has dimension $(s₁.n), s₂ has dimension $(s₂.n)"))
+    s₁.n == s₂.n || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $(s₁.n) cartesian product(s), s₂ has $(s₂.n) cartesian product(s)"))
     return CartesianPower(intersect(s₁.space, s₂.space), s₁.n)
 end
 function Base.union(s₁::CartesianPower, s₂::CartesianPower)
-    s₁.n == s₂.n || return throw(DimensionMismatch("dimensions must match: s₁ has dimension $(s₁.n), s₂ has dimension $(s₂.n)"))
+    s₁.n == s₂.n || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $(s₁.n) cartesian product(s), s₂ has $(s₂.n) cartesian product(s)"))
     return CartesianPower(union(s₁.space, s₂.space), s₁.n)
 end
 

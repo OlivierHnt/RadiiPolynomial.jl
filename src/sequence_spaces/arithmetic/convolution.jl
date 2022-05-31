@@ -43,7 +43,7 @@ banach_rounding_order(bound::Interval, X::ℓ¹{<:Tuple}) = banach_rounding_orde
 banach_rounding!(a, bound, X) = banach_rounding!(a, bound, banach_rounding_order(bound, X))
 
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
     space_a = space(a)
@@ -58,7 +58,7 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{<:Interval
 end
 
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     M = typemax(Int)
     w = map(ord -> ifelse(ord == 0, 1, ord), rounding_order)
     space_a = space(a)
@@ -76,7 +76,7 @@ end
 # Taylor
 
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -89,7 +89,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, boun
     return a
 end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -104,7 +104,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Complex{<:Interv
 end
 
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -113,7 +113,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Interval}}, boun
     return a
 end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -126,7 +126,7 @@ end
 # Fourier
 
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -141,7 +141,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, b
     return a
 end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -158,7 +158,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Complex{<:Int
 end
 
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -169,7 +169,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Interval}}, b
     return a
 end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -184,7 +184,7 @@ end
 # Chebyshev
 
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -197,7 +197,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, b
     return a
 end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:GeometricWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
@@ -212,7 +212,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Complex{<:Int
 end
 
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -221,7 +221,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Interval}}, b
     return a
 end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{<:Complex{<:Interval}}}, bound::Real, X::ℓ¹{<:AlgebraicWeight}, rounding_order::Int)
-    bound < 0 && return throw(DomainError)
+    bound ≥ 0 || return throw(DomainError(bound, "bound must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         sup_μⁱ = sup(bound / _getindex(X.weight, space_a, i))
@@ -254,7 +254,9 @@ function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     return c
 end
 function LinearAlgebra.mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
-    _iscompatible(space(c), image(*, space(a), space(b))) || return throw(DimensionMismatch)
+    space_c = space(c)
+    new_space = image(*, space(a), space(b))
+    _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a*b has space $new_space"))
     _mul!(c, a, b, α, β)
     return c
 end
@@ -289,12 +291,14 @@ function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:Seq
     return c
 end
 function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
-    _iscompatible(space(c), image(*, space(a), space(b))) || return throw(DimensionMismatch)
+    space_c = space(c)
+    new_space = image(*, space(a), space(b))
+    _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a*b has space $new_space"))
     bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(bound_ab, X)
     coefficients(c) .= zero(eltype(c))
     banach_rounding!(c, bound_ab, X, rounding_order)
-    _add_mul!(c, a, b, true, _max_order(space(c), rounding_order))
+    _add_mul!(c, a, b, true, _max_order(space_c, rounding_order))
     return c
 end
 

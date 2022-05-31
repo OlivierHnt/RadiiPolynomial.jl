@@ -22,9 +22,9 @@ LinearAlgebra.ldiv!(b::Number, A::LinearOperator) =
 Base.:∘(A::LinearOperator, B::LinearOperator) = *(A, B)
 
 function Base.:*(A::LinearOperator, B::LinearOperator)
-    _iscompatible(domain(A), codomain(B)) || return throw(DimensionMismatch)
-    codomain_A = codomain(A)
-    domain_B = domain(B)
+    domain_A, codomain_A = domain(A), codomain(A)
+    domain_B, codomain_B = domain(B), codomain(B)
+    _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     CoefType = promote_type(eltype(A), eltype(B))
     C = LinearOperator(domain_B, codomain_A, Matrix{CoefType}(undef, dimension(codomain_A), dimension(domain_B)))
     _mul!(C, A, B, true, false)
@@ -32,7 +32,7 @@ function Base.:*(A::LinearOperator, B::LinearOperator)
 end
 
 function LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
-    _iscompatible(domain(C), domain(B)) & _iscompatible(codomain(C), codomain(A)) & _iscompatible(domain(A), codomain(B)) || return throw(DimensionMismatch)
+    _iscompatible(domain(C), domain(B)) & _iscompatible(codomain(C), codomain(A)) & _iscompatible(domain(A), codomain(B)) || return throw(ArgumentError("spaces must be compatible"))
     _mul!(C, A, B, α, β)
     return C
 end
@@ -73,12 +73,16 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
 end
 
 function LinearAlgebra.rmul!(A::LinearOperator, B::LinearOperator)
-    _iscompatible(domain(A), codomain(B)) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_B = codomain(B)
+    _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     return LinearOperator(domain(B), codomain(A), rmul!(coefficients(A), coefficients(B)))
 end
 
 function LinearAlgebra.lmul!(A::LinearOperator, B::LinearOperator)
-    _iscompatible(domain(A), codomain(B)) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_B = codomain(B)
+    _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     return LinearOperator(domain(B), codomain(A), lmul!(coefficients(A), coefficients(B)))
 end
 
@@ -117,12 +121,16 @@ end
 Base.inv(A::LinearOperator) = LinearOperator(codomain(A), domain(A), inv(coefficients(A)))
 
 function Base.:/(A::LinearOperator, B::LinearOperator)
-    _iscompatible(domain(A), domain(B)) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    domain_B = domain(B)
+    _iscompatible(domain_A, domain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has domain $domain_B"))
     return LinearOperator(codomain(B), codomain(A), /(coefficients(A), coefficients(B)))
 end
 
 function Base.:\(A::LinearOperator, B::LinearOperator)
-    _iscompatible(codomain(A), codomain(B)) || return throw(DimensionMismatch)
+    codomain_A = codomain(A)
+    codomain_B = codomain(B)
+    _iscompatible(codomain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has codomain $codomain_A, B has codomain $codomain_B"))
     return LinearOperator(domain(B), domain(A), \(coefficients(A), coefficients(B)))
 end
 
@@ -140,7 +148,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         end
 
         function $f!(C::LinearOperator, A::LinearOperator, B::LinearOperator)
-            _iscompatible(domain(C), image($f, domain(A), domain(B))) & _iscompatible(codomain(C), image($f, codomain(A), codomain(B))) || return throw(DimensionMismatch)
+            _iscompatible(domain(C), image($f, domain(A), domain(B))) & _iscompatible(codomain(C), image($f, codomain(A), codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
             $_f!(C, A, B)
             return C
         end
@@ -148,7 +156,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $rf!(A::LinearOperator, B::LinearOperator)
             domain_A = domain(A)
             codomain_A = codomain(A)
-            _iscompatible(domain_A, image($f, domain_A, domain(B))) & _iscompatible(codomain_A, image($f, codomain_A, codomain(B))) || return throw(DimensionMismatch)
+            _iscompatible(domain_A, image($f, domain_A, domain(B))) & _iscompatible(codomain_A, image($f, codomain_A, codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
             $_rf!(A, B)
             return A
         end
@@ -156,7 +164,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $lf!(A::LinearOperator, B::LinearOperator)
             domain_B = domain(B)
             codomain_B = codomain(B)
-            _iscompatible(domain_B, image($f, domain(A), domain_B)) & _iscompatible(codomain_B, image($f, codomain(A), codomain_B)) || return throw(DimensionMismatch)
+            _iscompatible(domain_B, image($f, domain(A), domain_B)) & _iscompatible(codomain_B, image($f, codomain(A), codomain_B)) || return throw(ArgumentError("spaces must be compatible"))
             $_lf!(A, B)
             return B
         end
@@ -619,7 +627,7 @@ end
 function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling)
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain_A) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, A has codomain $codomain_A"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= coefficients(A)
@@ -631,7 +639,7 @@ Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling)
 function Base.:-(J::UniformScaling, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain_A) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, A has codomain $codomain_A"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= (-).(coefficients(A))
@@ -640,14 +648,18 @@ function Base.:-(J::UniformScaling, A::LinearOperator{<:CartesianSpace,<:Cartesi
 end
 
 function radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling)
-    _iscompatible(domain(A), codomain(A)) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    _iscompatible(domain_A, codomain_A) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, A has codomain $codomain_A"))
     _radd!(A, J)
     return A
 end
 ladd!(J::UniformScaling, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = radd!(A, J)
 rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::UniformScaling) = radd!(A, -J)
 function lsub!(J::UniformScaling, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
-    _iscompatible(domain(A), codomain(A)) || return throw(DimensionMismatch)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    _iscompatible(domain_A, codomain_A) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, A has codomain $codomain_A"))
     A_ = coefficients(A)
     A_ .= (-).(A_)
     _radd!(A, J)
@@ -674,7 +686,7 @@ end
 function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= coefficients(A)
@@ -685,7 +697,7 @@ Base.:+(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:Cart
 function Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= coefficients(A)
@@ -695,7 +707,7 @@ end
 function Base.:-(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= (-).(coefficients(A))
@@ -705,20 +717,20 @@ end
 
 function radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _radd!(A, J)
     return A
 end
 ladd!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = radd!(A, J)
 function rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _rsub!(A, J)
     return A
 end
 function lsub!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(DimensionMismatch)
+    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     A_ = coefficients(A)
     A_ .= (-).(A_)
     _radd!(A, J)

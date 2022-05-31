@@ -27,21 +27,28 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         end
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
-            _iscompatible(space(c), image($f, space(a), space(b))) || return throw(DimensionMismatch)
+            op = $f
+            space_c = space(c)
+            new_space = image(op, space(a), space(b))
+            _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a$(op)b has space $new_space"))
             $_f!(c, a, b)
             return c
         end
 
         function $rf!(a::Sequence, b::Sequence)
+            op = $f
             space_a = space(a)
-            _iscompatible(space_a, image($f, space_a, space(b))) || return throw(DimensionMismatch)
+            new_space = image(op, space_a, space(b))
+            _iscompatible(space_a, new_space) || return throw(ArgumentError("spaces must be compatible: a has space $space_a, a$(op)b has space $new_space"))
             $_rf!(a, b)
             return a
         end
 
         function $lf!(a::Sequence, b::Sequence)
+            op = $f
             space_b = space(b)
-            _iscompatible(space_b, image($f, space(a), space_b)) || return throw(DimensionMismatch)
+            new_space = image(op, space(a), space_b)
+            _iscompatible(space_b, new_space) || return throw(ArgumentError("spaces must be compatible: b has space $space_b, a$(op)b has space $new_space"))
             $_lf!(a, b)
             return b
         end
@@ -299,7 +306,7 @@ end
 
 function Base.:+(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -309,7 +316,7 @@ end
 Base.:+(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number} = +(a, b)
 function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -318,7 +325,7 @@ function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:
 end
 function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= (-).(coefficients(a))
@@ -327,18 +334,18 @@ function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:
 end
 
 function radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
     _radd!(a, b)
     return a
 end
 ladd!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace}) = radd!(a, b)
 function rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
     _rsub!(a, b)
     return a
 end
 function lsub!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(DimensionMismatch)
+    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
     A = coefficients(a)
     A .= (-).(A)
     _radd!(a, b)

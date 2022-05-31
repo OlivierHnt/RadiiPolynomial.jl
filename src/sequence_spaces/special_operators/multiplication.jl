@@ -37,7 +37,7 @@ Base.:\(a::Number, ℳ::Multiplication) = Multiplication(\(a, ℳ.sequence))
 LinearAlgebra.opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
 
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}
-    _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(DimensionMismatch)
+    _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(ArgumentError("spaces must be compatible"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℳ)
     return C
@@ -45,7 +45,7 @@ end
 
 function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
     domain_C = domain(C)
-    _iscompatible(domain_C, codomain(C)) & _iscompatible(space(ℳ.sequence), domain_C) || return throw(DimensionMismatch)
+    _iscompatible(domain_C, codomain(C)) & _iscompatible(space(ℳ.sequence), domain_C) || return throw(ArgumentError("spaces must be compatible"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, ℳ)
     return C

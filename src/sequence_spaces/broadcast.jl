@@ -22,7 +22,7 @@ _find_space(space::VectorSpace, ::Nothing) = space
 _find_space(::Nothing, space::VectorSpace) = space
 _find_space(::Nothing, ::Nothing) = nothing
 function _find_space(s₁::T, s₂::S) where {T<:VectorSpace,S<:VectorSpace}
-    s₁ == s₂ || return throw(DomainError)
+    s₁ == s₂ || return throw(ArgumentError("spaces must be equal: s₁ is $s₁, s₂ is $s₂"))
     return convert(promote_type(T, S), s₁)
 end
 
@@ -68,7 +68,7 @@ _find_domain_codomain(domain_codomain::NTuple{2,VectorSpace}, ::Nothing) = domai
 _find_domain_codomain(::Nothing, domain_codomain::NTuple{2,VectorSpace}) = domain_codomain
 _find_domain_codomain(::Nothing, ::Nothing) = nothing
 function _find_domain_codomain(s₁::Tuple{T₁,S₁}, s₂::Tuple{T₂,S₂}) where {T₁<:VectorSpace,S₁<:VectorSpace,T₂<:VectorSpace,S₂<:VectorSpace}
-    s₁ == s₂ || return throw(DomainError)
+    s₁ == s₂ || return throw(ArgumentError("spaces must be equal: s₁ is $s₁, s₂ is $s₂"))
     return @inbounds (convert(promote_type(T₁, T₂), s₁[1]), convert(promote_type(S₁, S₂), s₁[2]))
 end
 

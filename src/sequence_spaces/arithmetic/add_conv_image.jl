@@ -82,9 +82,11 @@ image(::typeof(+), s₁::Fourier, s₂::Fourier) = union(s₁, s₂)
 image(::typeof(+̄), s₁::Fourier, s₂::Fourier) = intersect(s₁, s₂)
 
 function image(::typeof(*), s₁::Fourier{T}, s₂::Fourier{S}) where {T,S}
-    frequency(s₁) == frequency(s₂) || return throw(DomainError)
+    ω₁ = frequency(s₁)
+    ω₂ = frequency(s₂)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     R = promote_type(T, S)
-    return Fourier(order(s₁) + order(s₂), convert(R, frequency(s₁)))
+    return Fourier(order(s₁) + order(s₂), convert(R, ω₁))
 end
 image(::typeof(*̄), s₁::Fourier, s₂::Fourier) = intersect(s₁, s₂)
 
@@ -101,19 +103,27 @@ image(::typeof(*̄), s₁::Chebyshev, s₂::Chebyshev) = intersect(s₁, s₂)
 for f ∈ (:+, :+̄)
     @eval begin
         function image(::typeof($f), s₁::CartesianPower, s₂::CartesianPower)
-            nb_cartesian_product(s₁) == nb_cartesian_product(s₂) || return throw(DimensionMismatch)
-            return CartesianPower(image($f, space(s₁), space(s₂)), nb_cartesian_product(s₁))
+            n = nb_cartesian_product(s₁)
+            m = nb_cartesian_product(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+            return CartesianPower(image($f, space(s₁), space(s₂)), n)
         end
         function image(::typeof($f), s₁::CartesianProduct, s₂::CartesianProduct)
-            nb_cartesian_product(s₁) == nb_cartesian_product(s₂) || return throw(DimensionMismatch)
+            n = nb_cartesian_product(s₁)
+            m = nb_cartesian_product(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
             return CartesianProduct(map((s₁ᵢ, s₂ᵢ) -> image($f, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
         end
         function image(::typeof($f), s₁::CartesianPower, s₂::CartesianProduct)
-            nb_cartesian_product(s₁) == nb_cartesian_product(s₂) || return throw(DimensionMismatch)
+            n = nb_cartesian_product(s₁)
+            m = nb_cartesian_product(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
             return CartesianProduct(map(s₂ᵢ -> image($f, space(s₁), s₂ᵢ), spaces(s₂)))
         end
         function image(::typeof($f), s₁::CartesianProduct, s₂::CartesianPower)
-            nb_cartesian_product(s₁) == nb_cartesian_product(s₂) || return throw(DimensionMismatch)
+            n = nb_cartesian_product(s₁)
+            m = nb_cartesian_product(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
             return CartesianProduct(map(s₁ᵢ -> image($f, s₁ᵢ, space(s₂)), spaces(s₁)))
         end
     end

@@ -1,5 +1,5 @@
 function newton(F_DF, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
-    tol < 0 || maxiter < 0 && return throw(DomainError)
+    tol < 0 || maxiter < 0 && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     verbose && return _newton_verbose(F_DF, x₀, tol, maxiter)
     return _newton_silent(F_DF, x₀, tol, maxiter)
 end
@@ -85,13 +85,13 @@ end
 #
 
 function newton!(F_DF!, x₀, F, DF; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
-    tol < 0 || maxiter < 0 && return throw(DomainError)
+    tol < 0 || maxiter < 0 && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     verbose && return _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
     return _newton_silent!(F_DF!, x₀, F, DF, tol, maxiter)
 end
 
 function newton!(F_DF!, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
-    tol < 0 || maxiter < 0 && return throw(DomainError)
+    tol < 0 || maxiter < 0 && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     F = similar(x₀)
     n = length(x₀)
     DF = similar(x₀, n, n)
@@ -100,7 +100,7 @@ function newton!(F_DF!, x₀; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=tr
 end
 
 function newton!(F_DF!, x₀::Sequence; tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
-    tol < 0 || maxiter < 0 && return throw(DomainError)
+    tol < 0 || maxiter < 0 && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     F = similar(x₀)
     s = space(x₀)
     n = length(x₀)

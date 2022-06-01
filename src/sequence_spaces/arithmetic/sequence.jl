@@ -166,10 +166,6 @@ end
 
 # Parameter space
 
-Base.:*(a::Sequence{ParameterSpace}, b::Sequence{ParameterSpace}) =
-    @inbounds Sequence(space(a), [a[1] * b[1]])
-Base.:^(a::Sequence{ParameterSpace}, n::Number) = @inbounds Sequence(space(a), [a[1] ^ n])
-
 Base.:+(a::Sequence{ParameterSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] + b])
 Base.:+(b::Number, a::Sequence{ParameterSpace}) = @inbounds Sequence(space(a), [b + a[1]])
 Base.:-(a::Sequence{ParameterSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] - b])

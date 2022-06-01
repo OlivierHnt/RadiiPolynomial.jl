@@ -6,7 +6,9 @@ The solution of many problems in dynamical systems can be seen as the fixed poin
 
 Hence, the desired solution is the unique fixed point within the ball(s) whose radius yields an a posteriori error bound on the numerical approximation.
 
-[RadiiPolynomial.jl](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a Julia package to conduct the computational steps of the Radii Polynomial Theorem which entails rigorous arithmetic (cf. [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl)).
+[RadiiPolynomial.jl](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a Julia package to conduct the computational steps of the Radii Polynomial Theorem. For the entailed rigorous floating-point computations, the RadiiPolynomial software relies on [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl)[^2].
+
+[^2]: L. Benet and D. P. Sanders, [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl).
 
 When the solution lies in a Banach space involving function spaces, the standard approach is to interpret the function spaces as sequence spaces. Thus, RadiiPolynomial is concerned with the latter (cf. [ApproxFun.jl](https://github.com/JuliaApproximation/ApproxFun.jl) for a Julia package to approximate functions).
 

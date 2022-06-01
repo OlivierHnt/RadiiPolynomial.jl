@@ -56,10 +56,10 @@ C + I
 C - I
 ```
 
-The product between [`LinearOperator`](@ref) is implemented as the `*`, or equivalently `∘`, and `^` functions. The division between [`LinearOperator`](@ref) is implemented as the `\` method.
+The product between [`LinearOperator`](@ref) is implemented as the `*` and `^` functions. The division between [`LinearOperator`](@ref) is implemented as the `\` method.
 
 ```@repl linear_operators
-C * D # C ∘ D
+C * D
 C ^ 3
 C \ C
 ```

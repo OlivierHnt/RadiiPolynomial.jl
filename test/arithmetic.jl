@@ -40,13 +40,13 @@
         @test A + D == A - (-D)
         @test A +̄ D == A -̄ (-D)
 
-        @test A ∘ A == A*A == A^2
-        @test A ∘ B == mul!(similar(B), A, B, true, false)
-        @test B ∘ A == mul!(similar(A), B, A, true, false)
-        @test A ∘ C == mul!(similar(C), A, C, true, false)
-        @test C ∘ A == mul!(similar(A), C, A, true, false)
-        @test A ∘ D == mul!(similar(D), A, D, true, false)
-        @test D ∘ A == mul!(similar(A), D, A, true, false)
+        @test A*A == A^2
+        @test A * B == mul!(similar(B), A, B, true, false)
+        @test B * A == mul!(similar(A), B, A, true, false)
+        @test A * C == mul!(similar(C), A, C, true, false)
+        @test C * A == mul!(similar(A), C, A, true, false)
+        @test A * D == mul!(similar(D), A, D, true, false)
+        @test D * A == mul!(similar(A), D, A, true, false)
     end
 
     @testset "Convolution" begin

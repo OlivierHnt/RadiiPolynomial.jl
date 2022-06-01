@@ -19,8 +19,6 @@ LinearAlgebra.rdiv!(A::LinearOperator, b::Number) =
 LinearAlgebra.ldiv!(b::Number, A::LinearOperator) =
     LinearOperator(domain(A), codomain(A), ldiv!(b, coefficients(A)))
 
-Base.:∘(A::LinearOperator, B::LinearOperator) = *(A, B)
-
 function Base.:*(A::LinearOperator, B::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)

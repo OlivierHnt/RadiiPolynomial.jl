@@ -75,6 +75,8 @@ TensorSpace(spaces::T) where {T<:NTuple{N,BaseSpace} where {N}} = TensorSpace{T}
 
 spaces(s::TensorSpace) = s.spaces
 
+nspaces(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = N
+
 ⊗(s₁::BaseSpace, s₂::BaseSpace) = TensorSpace((s₁, s₂))
 ⊗(s₁::TensorSpace, s₂::TensorSpace) = TensorSpace((s₁.spaces..., s₂.spaces...))
 ⊗(s₁::TensorSpace, s₂::BaseSpace) = TensorSpace((s₁.spaces..., s₂))

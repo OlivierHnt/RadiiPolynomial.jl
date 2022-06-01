@@ -126,6 +126,7 @@ A [`TensorSpace`](@ref) is the tensor product of some [`BaseSpace`](@ref). The s
 
 ```@repl vector_spaces
 𝒯_otimes_ℱ_otimes_𝒞 = Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1) # TensorSpace((Taylor(1), Fourier(1, 1.0), Chebyshev(1)))
+nspaces(𝒯_otimes_ℱ_otimes_𝒞)
 order(𝒯_otimes_ℱ_otimes_𝒞)
 frequency(𝒯_otimes_ℱ_otimes_𝒞, 2)
 dimension(𝒯_otimes_ℱ_otimes_𝒞)

@@ -226,7 +226,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if space(a) == space(b)
                 coefficients(c) .= ($f).(coefficients(a), coefficients(b))
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(space(c))
+                @inbounds for i ∈ 1:nspaces(space(c))
                     $_f!(component(c, i), component(a, i), component(b, i))
                 end
             end
@@ -250,7 +250,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A = coefficients(a)
                 A .= ($f).(A, coefficients(b))
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(space_a)
+                @inbounds for i ∈ 1:nspaces(space_a)
                     $_rf!(component(a, i), component(b, i))
                 end
             end
@@ -276,7 +276,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B = coefficients(b)
                 B .= ($f).(coefficients(a), B)
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(space_a)
+                @inbounds for i ∈ 1:nspaces(space_a)
                     $_lf!(component(a, i), component(b, i))
                 end
             end
@@ -302,7 +302,7 @@ end
 
 function Base.:+(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -312,7 +312,7 @@ end
 Base.:+(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number} = +(a, b)
 function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -321,7 +321,7 @@ function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:
 end
 function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nb_cartesian_product(space_a)) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= (-).(coefficients(a))
@@ -330,18 +330,18 @@ function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:
 end
 
 function radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
     _radd!(a, b)
     return a
 end
 ladd!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace}) = radd!(a, b)
 function rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
     _rsub!(a, b)
     return a
 end
 function lsub!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace})
-    Base.OneTo(_deep_nb_cartesian_product(space(a))) == eachindex(b) || return throw(ArgumentError)
+    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
     A = coefficients(a)
     A .= (-).(A)
     _radd!(a, b)
@@ -350,12 +350,12 @@ end
 
 function _radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
-    @inbounds for i ∈ 1:nb_cartesian_product(space(a))
+    @inbounds for i ∈ 1:nspaces(space(a))
         aᵢ = component(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1
-            k += _deep_nb_cartesian_product(space_aᵢ)
+            k += _deep_nspaces(space_aᵢ)
             _radd!(aᵢ, view(b, k_:k))
         else
             k += 1
@@ -366,12 +366,12 @@ function _radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
 end
 function _rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
-    @inbounds for i ∈ 1:nb_cartesian_product(space(a))
+    @inbounds for i ∈ 1:nspaces(space(a))
         aᵢ = component(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1
-            k += _deep_nb_cartesian_product(space_aᵢ)
+            k += _deep_nspaces(space_aᵢ)
             _rsub!(aᵢ, view(b, k_:k))
         else
             k += 1

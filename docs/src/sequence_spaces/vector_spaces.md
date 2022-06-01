@@ -118,7 +118,7 @@ indices(𝒞)
 
 ```@docs
 Chebyshev
-```    
+```
 
 ### Tensor space
 
@@ -157,7 +157,7 @@ A [`CartesianPower`](@ref) is the cartesian product of an identical [`VectorSpac
 
 ```@repl vector_spaces
 𝒯² = Taylor(1) ^ 2 # CartesianPower(Taylor(1), 2)
-nb_cartesian_product(𝒯²)
+nspaces(𝒯²)
 dimension(𝒯²)
 indices(𝒯²)
 ```
@@ -173,7 +173,7 @@ A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@r
 
 ```@repl vector_spaces
 𝒫_times_𝒯 = ParameterSpace() × Taylor(1) # CartesianProduct((ParameterSpace(), Taylor(1)))
-nb_cartesian_product(𝒫_times_𝒯)
+nspaces(𝒫_times_𝒯)
 dimension(𝒫_times_𝒯)
 indices(𝒫_times_𝒯)
 ```

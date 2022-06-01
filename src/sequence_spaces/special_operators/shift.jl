@@ -217,7 +217,7 @@ end
 # Cartesian spaces
 
 image(𝒮::Shift, s::CartesianPower) =
-    CartesianPower(image(𝒮, space(s)), nb_cartesian_product(s))
+    CartesianPower(image(𝒮, space(s)), nspaces(s))
 
 image(𝒮::Shift, s::CartesianProduct) =
     CartesianProduct(map(sᵢ -> image(𝒮, sᵢ), spaces(s)))
@@ -231,7 +231,7 @@ _coeftype(𝒮::Shift, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) whe
     @inbounds _coeftype(𝒮, s[1], T)
 
 function _apply!(c::Sequence{<:CartesianPower}, 𝒮::Shift, a)
-    @inbounds for i ∈ 1:nb_cartesian_product(space(c))
+    @inbounds for i ∈ 1:nspaces(space(c))
         _apply!(component(c, i), 𝒮, component(a, i))
     end
     return c
@@ -275,7 +275,7 @@ function _findposition_nzind_codomain(𝒮::Shift, domain::CartesianSpace, codom
 end
 
 function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, 𝒮::Shift)
-    @inbounds for i ∈ 1:nb_cartesian_product(domain(C))
+    @inbounds for i ∈ 1:nspaces(domain(C))
         _project!(component(C, i, i), 𝒮)
     end
     return C

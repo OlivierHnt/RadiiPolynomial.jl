@@ -547,7 +547,7 @@ _memo(s₁::CartesianSpace, s₂::CartesianSpace, ::Type{T}) where {T} =
     @inbounds _memo(s₁[1], s₂[1], T)
 
 image(ℰ::Evaluation, s::CartesianPower) =
-    CartesianPower(image(ℰ, space(s)), nb_cartesian_product(s))
+    CartesianPower(image(ℰ, space(s)), nspaces(s))
 
 image(ℰ::Evaluation, s::CartesianProduct) =
     CartesianProduct(map(sᵢ -> image(ℰ, sᵢ), spaces(s)))
@@ -561,7 +561,7 @@ _coeftype(ℰ::Evaluation, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T})
     @inbounds _coeftype(ℰ, s[1], T)
 
 function _apply!(c::Sequence{<:CartesianPower}, ℰ::Evaluation, a)
-    @inbounds for i ∈ 1:nb_cartesian_product(space(c))
+    @inbounds for i ∈ 1:nspaces(space(c))
         _apply!(component(c, i), ℰ, component(a, i))
     end
     return c
@@ -577,7 +577,7 @@ function _apply!(c::Sequence{CartesianProduct{T}}, ℰ::Evaluation, a) where {T<
 end
 
 function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℰ::Evaluation, memo)
-    @inbounds for i ∈ 1:nb_cartesian_product(domain(C))
+    @inbounds for i ∈ 1:nspaces(domain(C))
         _project!(component(C, i, i), ℰ, memo)
     end
     return C

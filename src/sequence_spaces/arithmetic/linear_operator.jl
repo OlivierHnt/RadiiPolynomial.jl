@@ -358,9 +358,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        l = nb_cartesian_product(domain_A)
-        n = nb_cartesian_product(codomain_A)
-        m = nb_cartesian_product(domain_B)
+        l = nspaces(domain_A)
+        n = nspaces(codomain_A)
+        m = nspaces(domain_B)
         if iszero(β)
             coefficients(C) .= zero(eltype(C))
         elseif !isone(β)
@@ -385,8 +385,8 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        n = nb_cartesian_product(codomain(A))
-        m = nb_cartesian_product(domain(B))
+        n = nspaces(codomain(A))
+        m = nspaces(domain(B))
         @inbounds for j ∈ 1:m
             Bⱼ = component(B, j)
             @inbounds for i ∈ 1:n
@@ -404,8 +404,8 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        l = nb_cartesian_product(domain_A)
-        m = nb_cartesian_product(domain_B)
+        l = nspaces(domain_A)
+        m = nspaces(domain_B)
         if iszero(β)
             coefficients(C) .= zero(eltype(C))
         elseif !isone(β)
@@ -428,7 +428,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        @inbounds for j ∈ 1:nb_cartesian_product(domain_B)
+        @inbounds for j ∈ 1:nspaces(domain_B)
             _mul!(component(C, j), A, component(B, j), α, β)
         end
     end
@@ -442,8 +442,8 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        l = nb_cartesian_product(domain_A)
-        n = nb_cartesian_product(codomain_A)
+        l = nspaces(domain_A)
+        n = nspaces(codomain_A)
         if iszero(β)
             coefficients(C) .= zero(eltype(C))
         elseif !isone(β)
@@ -466,7 +466,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
         __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+        @inbounds for i ∈ 1:nspaces(codomain_A)
             _mul!(component(C, i), component(A, i), B, α, β)
         end
     end
@@ -496,7 +496,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
         elseif !isone(β)
             coefficients(C) .*= β
         end
-        @inbounds for k ∈ 1:nb_cartesian_product(domain_A)
+        @inbounds for k ∈ 1:nspaces(domain_A)
             _mul!(C, component(A, k), component(B, k), α, true)
         end
     end
@@ -509,7 +509,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if domain(A) == domain(B) && codomain(A) == codomain(B)
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain(C)), i ∈ 1:nb_cartesian_product(codomain(C))
+                @inbounds for j ∈ 1:nspaces(domain(C)), i ∈ 1:nspaces(codomain(C))
                     $_f!(component(C, i, j), component(A, i, j), component(B, i, j))
                 end
             end
@@ -520,7 +520,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if domain(A) == domain(B) && codomain(A) == codomain(B)
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain(C))
+                @inbounds for j ∈ 1:nspaces(domain(C))
                     $_f!(component(C, j), component(A, j), component(B, j))
                 end
             end
@@ -531,7 +531,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if domain(A) == domain(B) && codomain(A) == codomain(B)
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(codomain(C))
+                @inbounds for i ∈ 1:nspaces(codomain(C))
                     $_f!(component(C, i), component(A, i), component(B, i))
                 end
             end
@@ -545,7 +545,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ = coefficients(A)
                 A_ .= ($f).(A_, coefficients(B))
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain_A), i ∈ 1:nb_cartesian_product(codomain_A)
+                @inbounds for j ∈ 1:nspaces(domain_A), i ∈ 1:nspaces(codomain_A)
                     $_rf!(component(A, i, j), component(B, i, j))
                 end
             end
@@ -558,7 +558,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ = coefficients(A)
                 A_ .= ($f).(A_, coefficients(B))
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain_A)
+                @inbounds for j ∈ 1:nspaces(domain_A)
                     $_rf!(component(A, j), component(B, j))
                 end
             end
@@ -571,7 +571,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ = coefficients(A)
                 A_ .= ($f).(A_, coefficients(B))
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+                @inbounds for i ∈ 1:nspaces(codomain_A)
                     $_rf!(component(A, i), component(B, i))
                 end
             end
@@ -585,7 +585,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ = coefficients(B)
                 B_ .= ($f).(coefficients(A), B_)
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain_A), i ∈ 1:nb_cartesian_product(codomain_A)
+                @inbounds for j ∈ 1:nspaces(domain_A), i ∈ 1:nspaces(codomain_A)
                     $_lf!(component(A, i, j), component(B, i, j))
                 end
             end
@@ -598,7 +598,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ = coefficients(B)
                 B_ .= ($f).(coefficients(A), B_)
             else
-                @inbounds for j ∈ 1:nb_cartesian_product(domain_A)
+                @inbounds for j ∈ 1:nspaces(domain_A)
                     $_lf!(component(A, j), component(B, j))
                 end
             end
@@ -611,7 +611,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ = coefficients(B)
                 B_ .= ($f).(coefficients(A), B_)
             else
-                @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+                @inbounds for i ∈ 1:nspaces(codomain_A)
                     $_lf!(component(A, i), component(B, i))
                 end
             end
@@ -672,7 +672,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Uniform
             A_[i,i] += J.λ
         end
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(domain_A)
+        @inbounds for i ∈ 1:nspaces(domain_A)
             _radd!(component(A, i, i), J)
         end
     end
@@ -684,7 +684,7 @@ end
 function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= coefficients(A)
@@ -695,7 +695,7 @@ Base.:+(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:Cart
 function Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= coefficients(A)
@@ -705,7 +705,7 @@ end
 function Base.:-(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
     codomain_A = codomain(A)
-    _iscompatible(domain_A, codomain_A) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     CoefType = promote_type(eltype(A), eltype(J))
     C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, size(A)))
     coefficients(C) .= (-).(coefficients(A))
@@ -715,20 +715,20 @@ end
 
 function radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _radd!(A, J)
     return A
 end
 ladd!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = radd!(A, J)
 function rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _rsub!(A, J)
     return A
 end
 function lsub!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
-    _iscompatible(domain_A, codomain(A)) & (_deep_nb_cartesian_product(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
+    _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     A_ = coefficients(A)
     A_ .= (-).(A_)
     _radd!(A, J)
@@ -737,12 +737,12 @@ end
 
 function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     k = 0
-    @inbounds for i ∈ 1:nb_cartesian_product(domain(A))
+    @inbounds for i ∈ 1:nspaces(domain(A))
         Aᵢ = component(A, i, i)
         domain_Aᵢ = domain(Aᵢ)
         if domain_Aᵢ isa CartesianSpace
             k_ = k + 1
-            k += _deep_nb_cartesian_product(domain_Aᵢ)
+            k += _deep_nspaces(domain_Aᵢ)
             _radd!(Aᵢ, Diagonal(view(J.diag, k_:k)))
         else
             k += 1
@@ -753,12 +753,12 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagona
 end
 function _rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
     k = 0
-    @inbounds for i ∈ 1:nb_cartesian_product(domain(A))
+    @inbounds for i ∈ 1:nspaces(domain(A))
         Aᵢ = component(A, i, i)
         domain_Aᵢ = domain(Aᵢ)
         if domain_Aᵢ isa CartesianSpace
             k_ = k + 1
-            k += _deep_nb_cartesian_product(domain_Aᵢ)
+            k += _deep_nspaces(domain_Aᵢ)
             _rsub!(Aᵢ, Diagonal(view(J.diag, k_:k)))
         else
             k += 1

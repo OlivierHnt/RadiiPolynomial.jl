@@ -13,7 +13,7 @@ include("sequence_spaces/vector_spaces.jl")
         CartesianSpace, CartesianPower, CartesianProduct, ×
 
     export order, frequency, space, spaces, dimension, dimensions, indices,
-        nb_cartesian_product
+        nspaces
 
 #
 

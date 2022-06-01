@@ -982,7 +982,7 @@ end
 for F ∈ (:Derivative, :Integral)
     @eval begin
         image(ℱ::$F, s::CartesianPower) =
-            CartesianPower(image(ℱ, space(s)), nb_cartesian_product(s))
+            CartesianPower(image(ℱ, space(s)), nspaces(s))
 
         image(ℱ::$F, s::CartesianProduct) =
             CartesianProduct(map(sᵢ -> image(ℱ, sᵢ), spaces(s)))
@@ -996,7 +996,7 @@ for F ∈ (:Derivative, :Integral)
             @inbounds _coeftype(ℱ, s[1], T)
 
         function _apply!(c::Sequence{<:CartesianPower}, ℱ::$F, a)
-            @inbounds for i ∈ 1:nb_cartesian_product(space(c))
+            @inbounds for i ∈ 1:nspaces(space(c))
                 _apply!(component(c, i), ℱ, component(a, i))
             end
             return c
@@ -1040,7 +1040,7 @@ for F ∈ (:Derivative, :Integral)
         end
 
         function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℱ::$F)
-            @inbounds for i ∈ 1:nb_cartesian_product(domain(C))
+            @inbounds for i ∈ 1:nspaces(domain(C))
                 _project!(component(C, i, i), ℱ)
             end
             return C

@@ -131,16 +131,16 @@ Base.promote_rule(::Type{LinearOperator{T₁,S₁,R₁}}, ::Type{LinearOperator{
 # Cartesian spaces
 
 Base.eachcol(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-    (@inbounds(component(A, :, j)) for j ∈ Base.OneTo(nb_cartesian_product(domain(A))))
+    (@inbounds(component(A, :, j)) for j ∈ Base.OneTo(nspaces(domain(A))))
 Base.eachrow(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-    (@inbounds(component(A, i, :)) for i ∈ Base.OneTo(nb_cartesian_product(codomain(A))))
+    (@inbounds(component(A, i, :)) for i ∈ Base.OneTo(nspaces(codomain(A))))
 
 eachcomponent(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-    (@inbounds(component(A, i, j)) for i ∈ Base.OneTo(nb_cartesian_product(codomain(A))), j ∈ Base.OneTo(nb_cartesian_product(domain(A))))
+    (@inbounds(component(A, i, j)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(nspaces(domain(A))))
 eachcomponent(A::LinearOperator{<:CartesianSpace,<:VectorSpace}) =
-    (@inbounds(component(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(nb_cartesian_product(domain(A))))
+    (@inbounds(component(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(nspaces(domain(A))))
 eachcomponent(A::LinearOperator{<:VectorSpace,<:CartesianSpace}) =
-    (@inbounds(component(A, i)) for i ∈ Base.OneTo(nb_cartesian_product(codomain(A))), j ∈ Base.OneTo(1))
+    (@inbounds(component(A, i)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(1))
 
 Base.@propagate_inbounds component(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, i, j) =
     LinearOperator(domain(A)[j], codomain(A)[i], view(coefficients(A), _component_findposition(i, codomain(A)), _component_findposition(j, domain(A))))

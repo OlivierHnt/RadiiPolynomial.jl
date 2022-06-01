@@ -67,8 +67,8 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace
     if domain_A == space_b && codomain_A == space_c
         __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
     else
-        m = nb_cartesian_product(domain_A)
-        n = nb_cartesian_product(codomain_A)
+        m = nspaces(domain_A)
+        n = nspaces(codomain_A)
         if iszero(β)
             coefficients(c) .= zero(eltype(c))
         elseif !isone(β)
@@ -91,7 +91,7 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:
     if domain_A == space_b && codomain_A == space_c
         __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(codomain_A)
+        @inbounds for i ∈ 1:nspaces(codomain_A)
             _mul!(component(c, i), component(A, i), b, α, β)
         end
     end
@@ -120,7 +120,7 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
         elseif !isone(β)
             coefficients(c) .*= β
         end
-        @inbounds for j ∈ 1:nb_cartesian_product(domain_A)
+        @inbounds for j ∈ 1:nspaces(domain_A)
             _mul!(c, component(A, j), component(b, j), α, true)
         end
     end

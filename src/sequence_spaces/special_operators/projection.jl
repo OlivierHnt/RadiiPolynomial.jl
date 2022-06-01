@@ -74,7 +74,7 @@ function _project!(c::Sequence{<:CartesianSpace}, a::Sequence{<:CartesianSpace})
     if space(a) == space_c
         coefficients(c) .= coefficients(a)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(space_c)
+        @inbounds for i ∈ 1:nspaces(space_c)
             _project!(component(c, i), component(a, i))
         end
     end
@@ -89,7 +89,7 @@ function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::Line
     if domain(A) == domain_C && codomain(A) == codomain_C
         coefficients(C) .= coefficients(A)
     else
-        @inbounds for j ∈ 1:nb_cartesian_product(domain_C), i ∈ 1:nb_cartesian_product(codomain_C)
+        @inbounds for j ∈ 1:nspaces(domain_C), i ∈ 1:nspaces(codomain_C)
             _project!(component(C, i, j), component(A, i, j))
         end
     end
@@ -101,7 +101,7 @@ function _project!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearO
     if domain(A) == domain_C && codomain(A) == codomain(C)
         coefficients(C) .= coefficients(A)
     else
-        @inbounds for j ∈ 1:nb_cartesian_product(domain_C)
+        @inbounds for j ∈ 1:nspaces(domain_C)
             _project!(component(C, j), component(A, j))
         end
     end
@@ -113,7 +113,7 @@ function _project!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearO
     if domain(A) == domain(C) && codomain(A) == codomain_C
         coefficients(C) .= coefficients(A)
     else
-        @inbounds for i ∈ 1:nb_cartesian_product(codomain_C)
+        @inbounds for i ∈ 1:nspaces(codomain_C)
             _project!(component(C, i), component(A, i))
         end
     end

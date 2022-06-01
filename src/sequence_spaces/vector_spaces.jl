@@ -360,7 +360,7 @@ space(s::CartesianPower) = s.space
 
 spaces(s::CartesianPower) = fill(s.space, s.n)
 
-nb_cartesian_product(s::CartesianPower) = s.n
+nspaces(s::CartesianPower) = s.n
 
 Base.:^(s::VectorSpace, n::Int) = CartesianPower(s, n)
 
@@ -457,7 +457,7 @@ CartesianProduct(spaces::T) where {T<:NTuple{N,VectorSpace} where {N}} = Cartesi
 
 spaces(s::CartesianProduct) = s.spaces
 
-nb_cartesian_product(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
+nspaces(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
 
 LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
 LinearAlgebra.:×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))
@@ -532,9 +532,9 @@ Base.promote_rule(::Type{CartesianProduct{T}}, ::Type{CartesianProduct{S}}) wher
 
 #
 
-_deep_nb_cartesian_product(::VectorSpace) = 1
-_deep_nb_cartesian_product(s::CartesianPower) = s.n * _deep_nb_cartesian_product(s.space)
-_deep_nb_cartesian_product(s::CartesianProduct) = sum(_deep_nb_cartesian_product, s.spaces)
+_deep_nspaces(::VectorSpace) = 1
+_deep_nspaces(s::CartesianPower) = s.n * _deep_nspaces(s.space)
+_deep_nspaces(s::CartesianProduct) = sum(_deep_nspaces, s.spaces)
 
 #
 
@@ -548,15 +548,15 @@ _iscompatible(::Taylor, ::Taylor) = true
 _iscompatible(s₁::Fourier, s₂::Fourier) = frequency(s₁) == frequency(s₂)
 _iscompatible(::Chebyshev, ::Chebyshev) = true
 _iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
-    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & _iscompatible(space(s₁), space(s₂))
+    (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))
 _iscompatible(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
     @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
 _iscompatible(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
     @inbounds _iscompatible(s₁[1], s₂[1])
 _iscompatible(s₁::CartesianPower, s₂::CartesianProduct) =
-    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & all(s₂ᵢ -> _iscompatible(space(s₁), s₂ᵢ), spaces(s₂))
+    (nspaces(s₁) == nspaces(s₂)) & all(s₂ᵢ -> _iscompatible(space(s₁), s₂ᵢ), spaces(s₂))
 _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
-    (nb_cartesian_product(s₁) == nb_cartesian_product(s₂)) & all(s₁ᵢ -> _iscompatible(s₁ᵢ, space(s₂)), spaces(s₁))
+    (nspaces(s₁) == nspaces(s₂)) & all(s₁ᵢ -> _iscompatible(s₁ᵢ, space(s₂)), spaces(s₁))
 
 # show
 
@@ -574,9 +574,9 @@ string_space(s::Taylor) = "Taylor(" * string(order(s)) * ")"
 string_space(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
 string_space(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
 
-string_space(s::CartesianPower) = string_space(space(s)) * _supscript(nb_cartesian_product(s))
-string_space(s::CartesianPower{<:TensorSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nb_cartesian_product(s))
-string_space(s::CartesianPower{<:CartesianSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nb_cartesian_product(s))
+string_space(s::CartesianPower) = string_space(space(s)) * _supscript(nspaces(s))
+string_space(s::CartesianPower{<:TensorSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nspaces(s))
+string_space(s::CartesianPower{<:CartesianSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nspaces(s))
 
 string_space(s::CartesianProduct) = cartesian_string_space(s[1]) * " × " * string_space(Base.tail(s))
 string_space(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = cartesian_string_space(s[1]) * " × " * cartesian_string_space(s[2])

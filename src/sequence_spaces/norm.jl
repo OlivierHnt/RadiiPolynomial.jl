@@ -1054,40 +1054,40 @@ _apply_dual(::ℓ∞{IdentityWeight}, space::CartesianSpace, A::AbstractVector) 
 for X ∈ (:ℓ¹, :ℓ∞)
     @eval begin
         function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
-            0 < nb_cartesian_product(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
+            0 < nspaces(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _norm(a, X)
         end
         function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
-            0 < nb_cartesian_product(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
+            0 < nspaces(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _norm(a, X)
         end
 
         function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
-            0 < nb_cartesian_product(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
+            0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _opnorm(A, X)
         end
         function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
-            0 < nb_cartesian_product(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
+            0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _opnorm(A, X)
         end
     end
 end
 
 function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    0 < nb_cartesian_product(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
+    0 < nspaces(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_norm2(a, X))
 end
 function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    0 < nb_cartesian_product(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
+    0 < nspaces(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_norm2(a, X))
 end
 
 function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
-    0 < nb_cartesian_product(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
+    0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_opnorm2(A, X))
 end
 function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},ℓ²{IdentityWeight}}) where {N}
-    0 < nb_cartesian_product(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
+    0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_opnorm2(A, X))
 end
 
@@ -1095,7 +1095,7 @@ end
 
 function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
     @inbounds r = norm(component(a, 1), X.inner)
-    @inbounds for i ∈ 2:nb_cartesian_product(space(a))
+    @inbounds for i ∈ 2:nspaces(space(a))
         r += norm(component(a, i), X.inner)
     end
     return r
@@ -1111,7 +1111,7 @@ _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace
 
 function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ¹{IdentityWeight}})
     @inbounds r = opnorm(component(A, 1), X.inner)
-    @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
+    @inbounds for i ∈ 2:nspaces(domain(A))
         r = max(r, opnorm(component(A, i), X.inner))
     end
     return r
@@ -1130,7 +1130,7 @@ _opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSp
 function _norm2(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
     @inbounds v = norm(component(a, 1), X.inner)
     r = v*v
-    @inbounds for i ∈ 2:nb_cartesian_product(space(a))
+    @inbounds for i ∈ 2:nspaces(space(a))
         v = norm(component(a, i), X.inner)
         r += v*v
     end
@@ -1156,7 +1156,7 @@ end
 function _opnorm2(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ²{IdentityWeight}})
     @inbounds v = opnorm(component(A, 1), X.inner)
     r = v*v
-    @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
+    @inbounds for i ∈ 2:nspaces(domain(A))
         v = opnorm(component(A, i), X.inner)
         r += v*v
     end
@@ -1183,7 +1183,7 @@ end
 
 function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
     @inbounds r = norm(component(a, 1), X.inner)
-    @inbounds for i ∈ 2:nb_cartesian_product(space(a))
+    @inbounds for i ∈ 2:nspaces(space(a))
         r = max(r, norm(component(a, i), X.inner))
     end
     return r
@@ -1199,7 +1199,7 @@ _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace
 
 function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,ℓ∞{IdentityWeight}})
     @inbounds r = opnorm(component(A, 1), X.inner)
-    @inbounds for i ∈ 2:nb_cartesian_product(domain(A))
+    @inbounds for i ∈ 2:nspaces(domain(A))
         r += opnorm(component(A, i), X.inner)
     end
     return r

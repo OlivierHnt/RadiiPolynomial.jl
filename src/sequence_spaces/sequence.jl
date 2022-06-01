@@ -173,7 +173,7 @@ Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{Int}) =
 # Cartesian spaces
 
 eachcomponent(a::Sequence{<:CartesianSpace}) =
-    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nb_cartesian_product(space(a))))
+    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
 
 Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
     Sequence(space(a)[i], view(coefficients(a), _component_findposition(i, space(a))))

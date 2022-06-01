@@ -562,6 +562,8 @@ _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
 
 Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, string_space(s))
 
+string_space(s::VectorSpace) = string(s)
+
 string_space(::ParameterSpace) = "𝕂"
 
 string_space(s::TensorSpace) = string_space(s[1]) * " ⨂ " * string_space(Base.tail(s))

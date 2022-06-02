@@ -455,7 +455,7 @@ end
 #
 
 function LinearAlgebra.opnorm(A::LinearOperator, ::ℓ∞{IdentityWeight}, ::ℓ∞{IdentityWeight})
-    z = zero(eltype(A))
+    z = abs(zero(eltype(A)))
     r = z
     A_ = coefficients(A)
     for i ∈ axes(A_, 1)

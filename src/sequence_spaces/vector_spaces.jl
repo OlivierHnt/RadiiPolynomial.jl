@@ -71,7 +71,8 @@ struct TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
     end
 end
 
-TensorSpace(spaces::T) where {T<:NTuple{N,BaseSpace} where {N}} = TensorSpace{T}(spaces)
+TensorSpace(spaces::T) where {T<:Tuple{Vararg{BaseSpace}}} = TensorSpace{T}(spaces)
+TensorSpace(spaces::BaseSpace...) = TensorSpace(spaces)
 
 spaces(s::TensorSpace) = s.spaces
 
@@ -440,14 +441,14 @@ Base.promote_rule(::Type{CartesianPower{T}}, ::Type{CartesianPower{S}}) where {T
     CartesianPower{promote_type(T, S)}
 
 """
-    CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+    CartesianProduct{T<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
 
-Cartesian space resulting from `N` cartesian products of some [`VectorSpace`](@ref).
+Cartesian space resulting from the cartesian product of some [`VectorSpace`](@ref).
 
 Fields:
 - `spaces :: T`
 """
-struct CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
+struct CartesianProduct{T<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
     spaces :: T
     function CartesianProduct{T}(spaces::T) where {N,T<:NTuple{N,VectorSpace}}
         N == 0 && return throw(DomainError(N, "CartesianProduct is only defined for at least one VectorSpace"))
@@ -455,7 +456,8 @@ struct CartesianProduct{T<:NTuple{N,VectorSpace} where {N}} <: CartesianSpace
     end
 end
 
-CartesianProduct(spaces::T) where {T<:NTuple{N,VectorSpace} where {N}} = CartesianProduct{T}(spaces)
+CartesianProduct(spaces::T) where {T<:Tuple{Vararg{VectorSpace}}} = CartesianProduct{T}(spaces)
+CartesianProduct(spaces::VectorSpace...) = CartesianProduct(spaces)
 
 spaces(s::CartesianProduct) = s.spaces
 

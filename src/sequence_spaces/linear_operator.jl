@@ -154,9 +154,6 @@ Base.@propagate_inbounds component(A::LinearOperator{<:VectorSpace,<:CartesianSp
 # show
 
 function Base.show(io::IO, ::MIME"text/plain", A::LinearOperator)
-    println(io,
-        "LinearOperator : " * string_space(domain(A)) * " -> " * string_space(codomain(A)) *
-        " with coefficients " * string(typeof(coefficients(A))) * ":"
-        )
+    println(io, "LinearOperator : ", string_space(domain(A)), " → ", string_space(codomain(A)), " with coefficients ", typeof(coefficients(A)), ":")
     Base.print_array(io, coefficients(A))
 end

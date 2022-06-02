@@ -570,8 +570,8 @@ string_space(s::VectorSpace) = string(s)
 
 string_space(::ParameterSpace) = "𝕂"
 
-string_space(s::TensorSpace) = string_space(s[1]) * " ⨂ " * string_space(Base.tail(s))
-string_space(s::TensorSpace{<:NTuple{2,BaseSpace}}) = string_space(s[1]) * " ⨂ " * string_space(s[2])
+string_space(s::TensorSpace) = string_space(s[1]) * " ⊗ " * string_space(Base.tail(s))
+string_space(s::TensorSpace{<:NTuple{2,BaseSpace}}) = string_space(s[1]) * " ⊗ " * string_space(s[2])
 string_space(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * string_space(s[1]) * ")"
 
 string_space(s::Taylor) = "Taylor(" * string(order(s)) * ")"
@@ -613,9 +613,14 @@ function _supscript_digit(i::Int)
     end
 end
 function _supscript(n::Int)
-    x = ""
-    for i ∈ reverse!(digits(n))
-        x *= _supscript_digit(i)
+    if 0 ≤ n ≤ 9
+        return _supscript_digit(n)
+    else
+        x = ""
+        while n > 0
+            n, d = divrem(n, 10)
+            x = string(_supscript_digit(d), x)
+        end
+        return x
     end
-    return x
 end

@@ -61,6 +61,8 @@ for F ∈ (:Derivative, :Integral)
             return project(ℱ, codomain_A, image(ℱ, codomain_A), _coeftype(ℱ, codomain_A, eltype(A))) * A
         end
 
+        LinearAlgebra.mul!(c::Sequence, ℱ::$F, a::Sequence, α::Number, β::Number) =
+            mul!(c, project(ℱ, space(a), space(c), eltype(c)), a, α, β)
         LinearAlgebra.mul!(C::LinearOperator, ℱ::$F, A::LinearOperator, α::Number, β::Number) =
             mul!(C, project(ℱ, codomain(A), codomain(C), eltype(C)), A, α, β)
         LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, ℱ::$F, α::Number, β::Number) =

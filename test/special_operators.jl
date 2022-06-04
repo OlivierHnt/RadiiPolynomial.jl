@@ -38,19 +38,24 @@
         #
         a_𝒯 = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         @test ∂¹(a_𝒯) == project(∂¹, Taylor(2), Taylor(1), Float64)(a_𝒯) ==
-            differentiate!(Sequence(Taylor(1), [Inf, Inf]), a_𝒯) == Sequence(Taylor(1), [-1.0, 2.0])
+            differentiate!(Sequence(Taylor(1), [Inf, Inf]), a_𝒯) == Sequence(Taylor(1), [-1.0, 2.0]) ==
+            mul!(Sequence(Taylor(1), [Inf, Inf]), ∂¹, a_𝒯) == Sequence(Taylor(1), [-1.0, 2.0])
         @test ∂⁴(a_𝒯) == project(∂⁴, Taylor(2), Taylor(0), Float64)(a_𝒯) ==
-            differentiate!(Sequence(Taylor(0), [Inf]), a_𝒯, 4) == Sequence(Taylor(0), [0.0])
+            differentiate!(Sequence(Taylor(0), [Inf]), a_𝒯, 4) ==
+            mul!(Sequence(Taylor(0), [Inf]), ∂⁴, a_𝒯) == Sequence(Taylor(0), [0.0])
         #
         a_ℱ = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
         @test ∂¹(a_ℱ) == project(∂¹, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
-            differentiate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ) == Sequence(Fourier(1, 1.0), [-0.5im, 0.0, 0.5im])
+            differentiate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ) ==
+            mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∂¹, a_ℱ) == Sequence(Fourier(1, 1.0), [-0.5im, 0.0, 0.5im])
         @test ∂⁴(a_ℱ) == project(∂⁴, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
-            differentiate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ, 4) == a_ℱ
+            differentiate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ, 4) ==
+            mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∂⁴, a_ℱ) == a_ℱ
         #
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
         @test ∂¹(a_𝒞) == project(∂¹, Chebyshev(2), Chebyshev(1), Float64)(a_𝒞) ==
-            differentiate!(Sequence(Chebyshev(1), [Inf, Inf]), a_𝒞) == Sequence(Chebyshev(1), [1.0, 2.0])
+            differentiate!(Sequence(Chebyshev(1), [Inf, Inf]), a_𝒞) ==
+            mul!(Sequence(Chebyshev(1), [Inf, Inf]), ∂¹, a_𝒞) == Sequence(Chebyshev(1), [1.0, 2.0])
         #
         a_𝑇 = Sequence(Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), collect(1.0:27.0))
         selectdim(a_𝑇, 2, 0) .= 0.0
@@ -58,7 +63,8 @@
         #
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:6.0+3.0+3.0))
         @test ∂¹(a) ==
-            differentiate!(Sequence(Taylor(1)^2 × Fourier(1, 1.0) × Chebyshev(1), fill(complex(Inf), 2*2+3+2)), a)
+            differentiate!(Sequence(Taylor(1)^2 × Fourier(1, 1.0) × Chebyshev(1), fill(complex(Inf), 2*2+3+2)), a) ==
+            mul!(Sequence(Taylor(1)^2 × Fourier(1, 1.0) × Chebyshev(1), fill(complex(Inf), 2*2+3+2)), ∂¹, a)
     end
 
     @testset "Integral" begin
@@ -68,24 +74,30 @@
         #
         a_𝒯 = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         @test ∫¹(a_𝒯) == project(∫¹, Taylor(2), Taylor(3), Float64)(a_𝒯) ==
-            integrate!(Sequence(Taylor(3), [Inf, Inf, Inf, Inf]), a_𝒯) == Sequence(Taylor(3), [0.0, 1.0, -1/2, 1/3])
+            integrate!(Sequence(Taylor(3), [Inf, Inf, Inf, Inf]), a_𝒯) ==
+            mul!(Sequence(Taylor(3), [Inf, Inf, Inf, Inf]), ∫¹, a_𝒯) == Sequence(Taylor(3), [0.0, 1.0, -1/2, 1/3])
         @test ∫²(a_𝒯) == project(∫², Taylor(2), Taylor(4), Float64)(a_𝒯) ==
-            integrate!(Sequence(Taylor(4), [Inf, Inf, Inf, Inf, Inf]), a_𝒯, 2) == Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12])
+            integrate!(Sequence(Taylor(4), [Inf, Inf, Inf, Inf, Inf]), a_𝒯, 2) ==
+            mul!(Sequence(Taylor(4), [Inf, Inf, Inf, Inf, Inf]), ∫², a_𝒯) == Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12])
         #
         a_ℱ = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
         @test ∫¹(a_ℱ) == project(∫¹, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
-            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ) == Sequence(Fourier(1, 1.0), [0.5im, 0.0, -0.5im])
+            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ) ==
+            mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∫¹, a_ℱ) == Sequence(Fourier(1, 1.0), [0.5im, 0.0, -0.5im])
         @test ∫²(a_ℱ) == project(∫², Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
-            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ, 2) == -a_ℱ
+            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ, 2) ==
+            mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∫², a_ℱ) == -a_ℱ
         #
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
-        @test ∫¹(a_𝒞) ≈ project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ≈
-            integrate!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), a_𝒞)
+        @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ==
+            mul!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), ∫¹, a_𝒞) ≈
+            ∫¹(a_𝒞) == integrate!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), a_𝒞)
         #
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:6.0+3.0+3.0))
         component(a, 2)[0] = 0.0
         @test ∫¹(a) ==
-            integrate!(Sequence(Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3), fill(complex(Inf), 8+3+4)), a)
+            integrate!(Sequence(Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3), fill(complex(Inf), 8+3+4)), a) ==
+            mul!(Sequence(Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3), fill(complex(Inf), 8+3+4)), ∫¹, a)
     end
 
     @testset "Scale" begin

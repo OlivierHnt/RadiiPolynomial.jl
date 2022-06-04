@@ -37,6 +37,9 @@ function Base.:*(𝒮::Scale, A::LinearOperator)
     return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
 end
 
+
+LinearAlgebra.mul!(c::Sequence, 𝒮::Scale, a::Sequence, α::Number, β::Number) =
+    mul!(c, project(𝒮, space(a), space(c), eltype(c)), a, α, β)
 LinearAlgebra.mul!(C::LinearOperator, 𝒮::Scale, A::LinearOperator, α::Number, β::Number) =
     mul!(C, project(𝒮, codomain(A), codomain(C), eltype(C)), A, α, β)
 LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number, β::Number) =

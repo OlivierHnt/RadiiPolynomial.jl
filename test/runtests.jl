@@ -1,5 +1,5 @@
 using Test
-using RadiiPolynomial, LinearAlgebra
+using RadiiPolynomial
 
 include("vector_spaces.jl")
 

@@ -454,9 +454,27 @@ end
 
 #
 
+function LinearAlgebra.opnorm(A::LinearOperator, ::ℓ¹{IdentityWeight}, ::ℓ¹{IdentityWeight})
+    r = z = abs(zero(eltype(A)))
+    A_ = coefficients(A)
+    for j ∈ axes(A_, 2)
+        s = z
+        @inbounds for i ∈ axes(A_, 1)
+            s += abs(A_[i,j])
+        end
+        r = max(r, s)
+    end
+    return r
+end
+
+function LinearAlgebra.opnorm(A::LinearOperator, ::ℓ²{IdentityWeight}, ::ℓ²{IdentityWeight})
+    X_1 = ℓ¹(IdentityWeight())
+    X_Inf = ℓ∞(IdentityWeight())
+    return sqrt(opnorm(A, X_1, X_1) * opnorm(A, X_Inf, X_Inf))
+end
+
 function LinearAlgebra.opnorm(A::LinearOperator, ::ℓ∞{IdentityWeight}, ::ℓ∞{IdentityWeight})
-    z = abs(zero(eltype(A)))
-    r = z
+    r = z = abs(zero(eltype(A)))
     A_ = coefficients(A)
     for i ∈ axes(A_, 1)
         s = z

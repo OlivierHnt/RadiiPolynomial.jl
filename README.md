@@ -2,10 +2,12 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://OlivierHnt.github.io/RadiiPolynomial.jl/dev)
-[![Codebase Graph](https://img.shields.io/badge/codebase-graph-yellow.svg)](https://octo-repo-visualization.vercel.app/?repo=OlivierHnt%2FRadiiPolynomial.jl)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5705258.svg)](https://doi.org/10.5281/zenodo.5705258)
+[![Codebase Graph](https://img.shields.io/badge/codebase-graph-yellow.svg)](https://octo-repo-visualization.vercel.app/?repo=OlivierHnt%2FRadiiPolynomial.jl)
 
 RadiiPolynomial.jl is a Julia package for computer-assisted proofs in dynamical systems.
+
+For information on using the RadiiPolynomial software, refer to the documentation of the [latest released version](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable) or the [version in development](https://OlivierHnt.github.io/RadiiPolynomial.jl/dev).
 
 ## Installing
 

@@ -11,7 +11,9 @@ For information on using the RadiiPolynomial software, refer to the documentatio
 
 ## Installing
 
-To install the package, use the following command inside the Julia REPL:
+The RadiiPolynomial software requires to [install Julia](https://julialang.org/downloads/) (v1.6 or above).
+
+Then, start Julia and execute the following command in the REPL:
 
 ```julia
 using Pkg; Pkg.add("RadiiPolynomial")

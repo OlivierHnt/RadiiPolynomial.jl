@@ -17,10 +17,10 @@ m_i \frac{d^2}{dt^2} \mathbf{r}_i
 \qquad
 U (\mathbf{r})
 :=
--\sum_{i<j} \frac{G m_i m_j}{|\mathbf{r}_i-\mathbf{r}_j|},
+-\sum_{i<j} \frac{G m_i m_j}{|\mathbf{r}_i - \mathbf{r}_j|},
 ```
 
-for ``i = 1,\dots,N``, with ``\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N) \in \R^{3N} \, : \, \mathbf{r}_i \neq \mathbf{r}_j , \,  i \neq j\}``, where ``G`` denotes the gravitational constant.
+for ``i = 1,\dots,N``, with ``\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N) \in \mathbb{R}^{3N} \, : \, \mathbf{r}_i \neq \mathbf{r}_j , \, i \neq j\}``, where ``G`` denotes the gravitational constant.
 
 In the following, we fix the centre of mass at the origin and scale ``G = 1``. Moreover, due to the symmetries of a spiderweb central configuration, it is sufficient to consider the accelerations of the ``n`` bodies on the positive horizontal axis, and the numbers ``r_1, \dots, r_n`` also denote the positions of the masses on this semi-axis.
 
@@ -31,30 +31,30 @@ Then, the original system of ODEs reduces to the following system of equations i
 ```math
 \lambda r_i
 =
--\sum_{k=1}^{\ell-1} \frac{m_i }{2^{3/2}r_i^2( 1 - \cos \theta_k )^{1/2}} -\frac{ m_0 }{r_i^2} - \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^n \sum_{k=0}^{\ell-1} \frac{m_j( r_i - r_j \cos \theta_k )}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{3/2}},
+-\sum_{k=1}^{\ell-1} \frac{m_i}{2^{3/2}r_i^2(1 - \cos(\theta_k))^{1/2}} -\frac{m_0}{r_i^2} - \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^n \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}},
 ```
 
-for ``i = 1, \dots, n``, with ``\theta_k := \frac{2\pi k}{\ell}`` and ``r = (r_1,\dots,r_n) \in \{ r \in \R^n \, : \, 0 < r_1 < \ldots < r_n\}``.
+for ``i = 1, \dots, n``, with ``\theta_k := \frac{2\pi k}{\ell}`` and ``r = (r_1,\dots,r_n) \in \mathbb{R}^n``.
 
 Thus, a spiderweb central configuration is a zero of the mapping ``F := (F_1, \dots, F_n) : \mathbb{R}^n \to \mathbb{R}^n`` given by
 
 ```math
 F_i(r) :=
-\lambda \, r_i + \frac{ m_i }{2^{3/2}r_i^2}\zeta_{\ell} + \frac{ m_0}{r_i^2} + \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j( r_i - r_j \cos \theta_k )}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{3/2}} , \qquad i =1,\, \dots,\, n,
+\lambda r_i + \frac{m_0}{r_i^2} + \frac{m_i}{2^{3/2}r_i^2}\zeta_{\ell} + \sum_{\begin{smallmatrix}j = 1 \\ j \neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}} , \qquad i = 1,\, \dots,\, n,
 ```
 
-where ``\zeta_{\ell} := \sum_{k=1}^{\ell-1} (1-\cos \theta_k)^{-1/2}``.
+where ``\zeta_{\ell} := \sum_{k=1}^{\ell-1} (1 - \cos(\theta_k))^{-1/2}``.
 
 The Jacobian matrix is given by
 
 ```math
 \frac{\partial}{\partial r_j} F_i(r) =
 \begin{cases}
-\displaystyle \lambda - \frac{ m_i }{r_i^3\sqrt{2}}\zeta_{\ell} - \frac{ 2m_0 }{r_i^3}
--\sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^{n} \frac{m_j}{2}\sum_{k=0}^{\ell-1}
-\frac{4r_i^2+r_j^2-8 r_i r_j \cos \theta_k + 3 r_j^2 \cos 2\theta_k}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k )^{5/2}},& j=i,\\
+\displaystyle \lambda - \frac{2m_0}{r_i^3} - \frac{m_i}{r_i^3\sqrt{2}}\zeta_{\ell}
+-\sum_{\begin{smallmatrix}j' = 1 \\ j' \neq i\end{smallmatrix}}^{n} \frac{m_{j'}}{2}\sum_{k=0}^{\ell-1}
+\frac{4r_i^2 + r_{j'}^2 - 8 r_i r_{j'} \cos(\theta_k) + 3 r_{j'}^2 \cos(2\theta_k)}{(r_i^2 + r_{j'}^2 - 2 r_i r_{j'} \cos(\theta_k))^{5/2}}, & j = i,\\
 \displaystyle -\frac{m_j}{2} \sum_{k=0}^{\ell-1}
-\frac{-4(r_i^2+r_j^2)\cos \theta_k + r_i r_j (7+ \cos 2\theta_k)}{( r_i^2 + r_j^2 - 2 r_i r_j \cos \theta_k)^{5/2}}, & j\neq i.
+\frac{-4(r_i^2 + r_j^2) \cos(\theta_k) + r_i r_j (7 + \cos(2\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{5/2}}, & j \neq i.
 \end{cases}
 ```
 

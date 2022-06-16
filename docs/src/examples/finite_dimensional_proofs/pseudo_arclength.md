@@ -74,21 +74,21 @@ function rigorous_pseudo_arclength(x_ini::Vector{Float64}, step_size::Float64, m
     Df = Matrix{Float64}(undef, n-1, n)
     v = vec(nullspace(Df!(Df, x_ini)))
     w = Vector{Float64}(undef, n)
-    x = Vector{Float64}(undef, n)
-    F = Vector{Float64}(undef, n)
-    DF = Matrix{Float64}(undef, n, n)
+    x = Sequence(ParameterSpace()^n, Vector{Float64}(undef, n))
+    F = Sequence(ParameterSpace()^n, Vector{Float64}(undef, n))
+    DF = LinearOperator(ParameterSpace()^n, ParameterSpace()^n, Matrix{Float64}(undef, n, n))
 
     # initialize variables for the proof
     R = 1e-2
     s = Interval(0.0, 1.0)
     Df_interval = Matrix{Interval{Float64}}(undef, n-1, n)
     v_interval = Vector{Interval{Float64}}(undef, n)
-    x₀_interval = Vector{Interval{Float64}}(undef, n)
-    x₀R_interval = Vector{Interval{Float64}}(undef, n)
-    F_interval = Vector{Interval{Float64}}(undef, n)
-    DF_interval = Matrix{Interval{Float64}}(undef, n, n)
-    Ω₁ = Vector{Interval{Float64}}(undef, n)
-    Ω₂ = Matrix{Interval{Float64}}(undef, n, n)
+    x₀_interval = Sequence(ParameterSpace()^n, Vector{Interval{Float64}}(undef, n))
+    x₀R_interval = Sequence(ParameterSpace()^n, Vector{Interval{Float64}}(undef, n))
+    F_interval = Sequence(ParameterSpace()^n, Vector{Interval{Float64}}(undef, n))
+    DF_interval = LinearOperator(ParameterSpace()^n, ParameterSpace()^n, Matrix{Interval{Float64}}(undef, n, n))
+    Ω₁ = Sequence(ParameterSpace()^n, Vector{Interval{Float64}}(undef, n))
+    Ω₂ = LinearOperator(ParameterSpace()^n, ParameterSpace()^n, Matrix{Interval{Float64}}(undef, n, n))
 
     k = 1
     while k ≤ max_iter && δ ≥ 1e-8
@@ -114,15 +114,13 @@ function rigorous_pseudo_arclength(x_ini::Vector{Float64}, step_size::Float64, m
             DF .= mid.(DF_interval)
             A = inv(DF)
 
-            Ω₁ .= Interval.(mag.(A * F_interval))
-            Ω₂ .= Interval.(mag.(A * DF_interval - I))
-            Y = norm(Ω₁, Inf)
-            Z₁ = opnorm(Ω₂, Inf)
+            Y = norm(mul!(Ω₁, A, F_interval), Inf)
+            Z₁ = opnorm(rsub!(mul!(Ω₂, A, DF_interval), I), Inf)
             ie = interval_of_existence(Y, Z₁, R)
             if isempty(ie)
                 δ /= 2
             else
-                push!(x_collection, copy(x))
+                push!(x_collection, copy(coefficients(x)))
                 push!(δ_collection, δ)
                 push!(ie_collection, ie)
                 δ *= 2

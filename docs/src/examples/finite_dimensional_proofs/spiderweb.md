@@ -73,44 +73,50 @@ We can now write our computer-assisted proof:
 ```@example
 using RadiiPolynomial
 
-function F_DF!(F::Vector{T}, DF::Matrix{T}, x::Vector{T}, xR::Vector{T}, m₀::T, m::Vector{T}, λ::T, n::Int, l::Int) where {T}
-    length(F) == size(DF, 1) == size(DF, 2) == length(x) == length(xR) == length(m) || return throw(DimensionMismatch)
-    π2_l = 2convert(T, π)/l
-    sqrt2 = sqrt(convert(T, 2))
-    DF .= Matrix{T}(I*λ, n, n)
-    @inbounds for j ∈ axes(DF, 2)
-        xⱼ² = x[j]*x[j]
-        xRⱼ² = xR[j]*xR[j]
-        @inbounds for i ∈ axes(DF, 1)
-            xᵢ², xᵢxⱼ = x[i]*x[i], x[i]*x[j]
-            xRᵢ², xRᵢxRⱼ = xR[i]*xR[i], xR[i]*xR[j]
-            xRᵢ³ = xRᵢ²*xR[i]
-            if j == 1
-                F[i] = λ*x[i] + m₀/xᵢ²
-            end
-            if i == j
-                DF[i,j] -= 2m₀/xRᵢ³
-            end
-            @inbounds for k ∈ 0:l-1
-                θ = k*π2_l
-                cosθ = cos(θ)
-                cos2θ = cos(2θ)
-                if i ≠ j
-                    d = sqrt(xᵢ² + xⱼ² - 2xᵢxⱼ*cosθ)
-                    dᵣ = sqrt(xRᵢ² + xRⱼ² - 2xRᵢxRⱼ*cosθ)
-                    dᵣ⁵2 = 2dᵣ*dᵣ*dᵣ*dᵣ*dᵣ
-                    F[i] += m[j]*(x[i] - x[j]*cosθ)/(d*d*d)
-                    DF[i,i] -= m[j]*(4xRᵢ² + xRⱼ² - 8xRᵢxRⱼ*cosθ + 3xRⱼ²*cos2θ)/dᵣ⁵2
-                    DF[i,j] -= m[j]*(-4(xRᵢ² + xRⱼ²)*cosθ + xRᵢxRⱼ*(7 + cos2θ))/dᵣ⁵2
-                elseif i == j && k > 0
-                    ζ = sqrt2*sqrt(1-cosθ)
-                    F[i] += m[i]/(2xᵢ²*ζ)
-                    DF[i,j] -= m[i]/(xRᵢ³*ζ)
+function F(x, m₀, m, λ, l)
+    T = eltype(x)
+    n = length(x)
+    π2l⁻¹ = 2convert(T, π)/l
+    F_ = Sequence(ParameterSpace()^n, Vector{T}(undef, n))
+    for i ∈ 1:n
+        F_[i] = λ*x[i] + m₀/x[i]^2
+        for k ∈ 1:l-1
+            θₖ = k*π2l⁻¹
+            F_[i] += m[i]/(2x[i]^2 * sqrt(2 - 2cos(θₖ)))
+        end
+        for j ∈ 1:n
+            if i ≠ j
+                for k ∈ 0:l-1
+                    θₖ = k*π2l⁻¹
+                    F_[i] += m[j]*(x[i] - x[j]*cos(θₖ))/sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^3
                 end
             end
         end
     end
-    return F, DF
+    return F_
+end
+
+function DF(x, m₀, m, λ, l)
+    T = eltype(x)
+    n = length(x)
+    π2l⁻¹ = 2convert(T, π)/l
+    DF_ = LinearOperator(ParameterSpace()^n, ParameterSpace()^n, zeros(T, n, n))
+    for j ∈ 1:n, i ∈ 1:n
+        if i == j
+            DF_[i,i] += λ - 2m₀/x[i]^3
+            for k ∈ 1:l-1
+                θₖ = k*π2l⁻¹
+                DF_[i,i] -= m[i]/(x[i]^3 * sqrt(2 - 2cos(θₖ)))
+            end
+        else
+            for k ∈ 0:l-1
+                θₖ = k*π2l⁻¹
+                DF_[i,i] -= m[j]*(4x[i]^2 + x[j]^2 - 8x[i]*x[j]*cos(θₖ) + 3x[j]^2*cos(2θₖ))/(2sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^5)
+                DF_[i,j] -= m[j]*(-4(x[i]^2 + x[j]^2)*cos(θₖ) + x[i]*x[j]*(7 + cos(2θₖ)))/(2sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^5)
+            end
+        end
+    end
+    return DF_
 end
 
 n = 18 # number of circles
@@ -122,31 +128,26 @@ m₀ = 0.0 # central mass
 m = fill(1/l, n) # vector of masses
 λ = -1.0
 
-x₀ = float.(1:n)
-F = Vector{Float64}(undef, n)
-DF = Matrix{Float64}(undef, n, n)
-newton!((F, DF, x) -> F_DF!(F, DF, x, x, m₀, m, λ, n, l),
-    x₀, F, DF;
-    tol = 1e-12, maxiter = 50, verbose = false)
-sort!(x₀)
+x₀ = Sequence(ParameterSpace()^n, float.(1:n))
+x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀;
+    tol = 1e-12, maxiter = 50)
 
 # proof
 
 m₀_interval = Interval(0.0)
-m_interval = fill(@interval(1/l), n)
+m_interval = fill(inv(Interval(l)), n)
 λ_interval = Interval(-1.0)
 
 R = 1e-12
 
 x₀_interval = Interval.(x₀)
 x₀R_interval = Interval.(inf.(x₀_interval .- R), sup.(x₀_interval .+ R))
-F_interval = Vector{Interval{Float64}}(undef, n)
-DF_interval = Matrix{Interval{Float64}}(undef, n, n)
-F_DF!(F_interval, DF_interval, x₀_interval, x₀R_interval, m₀_interval, m_interval, λ_interval, n, l)
+F_interval = F(x₀_interval, m₀_interval, m_interval, λ_interval, l)
+DF_interval = DF(x₀R_interval, m₀_interval, m_interval, λ_interval, l)
 A = inv(mid.(DF_interval))
 
-Y = norm(Interval.(mag.(A * F_interval)), Inf)
-Z₁ = opnorm(Interval.(mag.(A * DF_interval - I)), Inf)
+Y = norm(A * F_interval, Inf)
+Z₁ = opnorm(A * DF_interval - I, Inf)
 showfull(interval_of_existence(Y, Z₁, R))
 ```
 

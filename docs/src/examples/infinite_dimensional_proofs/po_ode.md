@@ -23,7 +23,7 @@ and ``* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu`` is the discrete convolut
 u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in \ell^1_\nu.
 ```
 
-For any sequence ``u \in X``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
+For any sequence ``u \in X_\textnormal{F}``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
 
 The Banach algebra ``X_\textnormal{F}`` is a suitable space to look for a periodic solution of the Lorenz equations. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 

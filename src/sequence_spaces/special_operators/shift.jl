@@ -142,6 +142,49 @@ _nzval(𝒮::Shift{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace
 _nzval(𝒮::Shift{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
     @inbounds _nzval(Shift(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1])
 
+# Taylor
+
+image(::Shift, s::Taylor) = s
+
+_coeftype(::Shift{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
+
+function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
+    τ = 𝒮.value
+    if iszero(τ)
+        coefficients(c) .= coefficients(a)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return c
+end
+
+function _apply!(C, 𝒮::Shift, space::Taylor, ::Val{D}, A) where {D}
+    τ = 𝒮.value
+    iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    return C
+end
+
+function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Taylor, A) where {T,N}
+    τ = 𝒮.value
+    if iszero(τ)
+        C .= A
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return C
+end
+
+_nzind_domain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
+_nzind_codomain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
+function _nzval(𝒮::Shift, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
+    τ = 𝒮.value
+    if iszero(τ)
+        return one(T)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
 # Fourier
 
 image(::Shift, s::Fourier) = s
@@ -213,6 +256,49 @@ function _nzval(𝒮::Shift, domain::Fourier, ::Fourier, ::Type{T}, i, j) where 
         return one(T)
     else
         return convert(T, cis(frequency(domain)*τ*i))
+    end
+end
+
+# Chebyshev
+
+image(::Shift, s::Chebyshev) = s
+
+_coeftype(::Shift{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
+
+function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
+    τ = 𝒮.value
+    if iszero(τ)
+        coefficients(c) .= coefficients(a)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return c
+end
+
+function _apply!(C, 𝒮::Shift, space::Chebyshev, ::Val{D}, A) where {D}
+    τ = 𝒮.value
+    iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    return C
+end
+
+function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Chebyshev, A) where {T,N}
+    τ = 𝒮.value
+    if iszero(τ)
+        C .= A
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return C
+end
+
+_nzind_domain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
+_nzind_codomain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
+function _nzval(𝒮::Shift, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
+    τ = 𝒮.value
+    if iszero(τ)
+        return one(T)
+    else # TODO: lift restriction
+        return throw(DomainError)
     end
 end
 

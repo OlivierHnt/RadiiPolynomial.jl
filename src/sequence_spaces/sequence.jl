@@ -63,10 +63,6 @@ Base.@propagate_inbounds function Base.getindex(a::Sequence, u::AbstractVector)
     end
     return v
 end
-Base.@propagate_inbounds Base.getindex(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}} =
-    getindex(coefficients(a), _findposition(α, space(a)))
-Base.@propagate_inbounds Base.getindex(a::Sequence{TensorSpace{T}}, u::NTuple{N,Any}) where {N,T<:NTuple{N,BaseSpace}} =
-    getindex(a, TensorIndices(map(_colon2indices, u, spaces(space(a)))))
 Base.@propagate_inbounds function Base.getindex(a::Sequence{TensorSpace{T}}, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
     v = Vector{eltype(a)}(undef, length(u))
     for (i, uᵢ) ∈ enumerate(u)
@@ -88,10 +84,6 @@ Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVect
     end
     return x
 end
-Base.@propagate_inbounds Base.setindex!(a::Sequence{TensorSpace{T}}, x, α::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}} =
-    setindex!(coefficients(a), x, _findposition(α, space(a)))
-Base.@propagate_inbounds Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::NTuple{N,Any}) where {N,T<:NTuple{N,BaseSpace}} =
-    setindex!(a, x, TensorIndices(map(_colon2indices, u, spaces(space(a)))))
 Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
     for (i, uᵢ) ∈ enumerate(u)
         a[uᵢ] = x[i]

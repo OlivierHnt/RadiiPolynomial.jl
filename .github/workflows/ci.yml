@@ -56,8 +56,9 @@ jobs:
             Pkg.instantiate()'
       - run: |
           julia --project=docs -e '
-            using Documenter: doctest
+            using Documenter: DocMeta, doctest
             using RadiiPolynomial
+            DocMeta.setdocmeta!(RadiiPolynomial, :DocTestSetup, :(using RadiiPolynomial))
             doctest(RadiiPolynomial)'
       - run: julia --project=docs docs/make.jl
         env:

@@ -1,6 +1,28 @@
+"""
+    Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
+
+Generic evaluation operator. A value of `nothing` indicates that no evaluation should be performed.
+
+See also: [`evaluate`](@ref) and [`evaluate!`](@ref).
+
+# Examples
+```jldoctest
+julia> Evaluation(1.0)
+Evaluation{Float64}(1.0)
+
+julia> Evaluation(1.0, nothing, 2.0)
+Evaluation{Tuple{Float64, Nothing, Float64}}((1.0, nothing, 2.0))
+```
+"""
 struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
     value :: T
+    Evaluation{T}(value::T) where {T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} = new{T}(value)
+    Evaluation{Tuple{}}(::Tuple{}) = throw(ArgumentError("Evaluation is only defined for at least one Number or Nothing"))
 end
+
+Evaluation(value::T) where {T<:Union{Nothing,Number}} = Evaluation{T}(value)
+Evaluation(value::T) where {T<:Tuple{Vararg{Union{Nothing,Number}}}} = Evaluation{T}(value)
+Evaluation(value::Union{Number,Nothing}...) = Evaluation(value)
 
 # fallback arithmetic methods
 
@@ -29,6 +51,13 @@ Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 (a::Sequence)(x) = evaluate(a, x)
 (a::Sequence)(x...) = evaluate(a, x)
 
+"""
+    evaluate(a::Sequence, x)
+
+Evaluates `a` at `x`.
+
+See also: [`evaluate!`](@ref) and [`Evaluation`](@ref).
+"""
 function evaluate(a::Sequence, x)
     ℰ = Evaluation(x)
     space_a = space(a)
@@ -39,6 +68,13 @@ function evaluate(a::Sequence, x)
     return c
 end
 
+"""
+    evaluate!(c::Sequence, a::Sequence, x)
+
+Evaluates `a` at `x`. The result is stored in `c` by overwritting it.
+
+See also: [`evaluate`](@ref) and [`Evaluation`](@ref).
+"""
 function evaluate!(c::Sequence, a::Sequence, x)
     ℰ = Evaluation(x)
     space_c = space(c)

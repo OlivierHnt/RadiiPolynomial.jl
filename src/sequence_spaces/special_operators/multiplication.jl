@@ -1,3 +1,8 @@
+"""
+    Multiplication{<:Sequence{<:SequenceSpace}}
+
+Multiplication operator associated to a [`Sequence`](@ref) in a [`SequenceSpace`](@ref).
+"""
 struct Multiplication{T<:Sequence{<:SequenceSpace}}
     sequence :: T
 end

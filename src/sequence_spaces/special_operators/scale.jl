@@ -1,6 +1,28 @@
+"""
+    Scale{<:Union{Number,Tuple{Vararg{Number}}}}
+
+Generic scale operator.
+
+See also: [`scale`](@ref) and [`scale!`](@ref).
+
+# Examples
+```jldoctest
+julia> Scale(1.0)
+Scale{Float64}(1.0)
+
+julia> Scale(1.0, 2.0)
+Scale{Tuple{Float64, Float64}}((1.0, 2.0))
+```
+"""
 struct Scale{T<:Union{Number,Tuple{Vararg{Number}}}}
     value :: T
+    Scale{T}(value::T) where {T<:Union{Number,Tuple{Vararg{Number}}}} = new{T}(value)
+    Scale{Tuple{}}(::Tuple{}) = throw(ArgumentError("Scale is only defined for at least one Number"))
 end
+
+Scale(value::T) where {T<:Number} = Scale{T}(value)
+Scale(value::T) where {T<:Tuple{Vararg{Number}}} = Scale{T}(value)
+Scale(value::Number...) = Scale(value)
 
 # fallback arithmetic methods
 
@@ -37,7 +59,6 @@ function Base.:*(𝒮::Scale, A::LinearOperator)
     return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
 end
 
-
 LinearAlgebra.mul!(c::Sequence, 𝒮::Scale, a::Sequence, α::Number, β::Number) =
     mul!(c, project(𝒮, space(a), space(c), eltype(c)), a, α, β)
 LinearAlgebra.mul!(C::LinearOperator, 𝒮::Scale, A::LinearOperator, α::Number, β::Number) =
@@ -50,6 +71,13 @@ LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number
 (𝒮::Scale)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
 
+"""
+    scale(a::Sequence, γ)
+
+Scales `a` by a factor `γ`.
+
+See also: [`scale!`](@ref) and [`Scale`](@ref).
+"""
 function scale(a::Sequence, γ)
     𝒮 = Scale(γ)
     space_a = space(a)
@@ -60,6 +88,13 @@ function scale(a::Sequence, γ)
     return c
 end
 
+"""
+    scale!(c::Sequence, a::Sequence, γ)
+
+Scales `a` by a factor `γ`. The result is stored in `c` by overwritting it.
+
+See also: [`scale`](@ref) and [`Scale`](@ref).
+"""
 function scale!(c::Sequence, a::Sequence, γ)
     𝒮 = Scale(γ)
     space_c = space(c)

@@ -1,5 +1,7 @@
 using Documenter, RadiiPolynomial
 
+DocMeta.setdocmeta!(RadiiPolynomial, :DocTestSetup, :(using RadiiPolynomial))
+
 makedocs(;
     modules = [RadiiPolynomial],
     authors = "Olivier Hénot",

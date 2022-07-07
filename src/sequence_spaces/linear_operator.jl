@@ -1,7 +1,7 @@
 """
     LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix}
 
-Compactly supported operator with effective domain and codomain.
+Compactly supported linear operator with effective domain and codomain.
 
 Fields:
 - `domain :: T`

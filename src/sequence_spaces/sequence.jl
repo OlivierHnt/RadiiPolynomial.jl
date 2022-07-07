@@ -1,7 +1,7 @@
 """
     Sequence{T<:VectorSpace,S<:AbstractVector}
 
-Compactly supported sequence of the given space.
+Compactly supported sequence in the given space.
 
 Fields:
 - `space :: T`

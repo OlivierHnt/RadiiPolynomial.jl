@@ -19,7 +19,13 @@ Base.union(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(union, (s�
 """
     ParameterSpace <: VectorSpace
 
-Space of a parameter corresponding to a commutative field.
+Parameter space corresponding to a commutative field.
+
+# Example
+```jldoctest
+julia> ParameterSpace()
+𝕂
+```
 """
 struct ParameterSpace <: VectorSpace end
 
@@ -56,19 +62,25 @@ Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but c
 abstract type BaseSpace <: SequenceSpace end
 
 """
-    TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
+    TensorSpace{<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
 
-[`SequenceSpace`](@ref) resulting from the tensor product of some [`BaseSpace`](@ref).
+Tensor space resulting from the tensor product of some [`BaseSpace`](@ref).
 
-Fields:
-- `spaces :: T`
+See also: [`⊗`](@ref).
+
+# Examples
+```jldoctest
+julia> s = TensorSpace(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
+Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+
+julia> spaces(s)
+(Taylor(1), Fourier{Float64}(2, 1.0), Chebyshev(3))
+```
 """
 struct TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
     spaces :: T
-    function TensorSpace{T}(spaces::T) where {N,T<:NTuple{N,BaseSpace}}
-        N == 0 && return throw(DomainError(N, "TensorSpace is only defined for at least one BaseSpace"))
-        return new{T}(spaces)
-    end
+    TensorSpace{T}(spaces::T) where {T<:Tuple{Vararg{BaseSpace}}} = new{T}(spaces)
+    TensorSpace{Tuple{}}(::Tuple{}) = throw(ArgumentError("TensorSpace is only defined for at least one BaseSpace"))
 end
 
 TensorSpace(spaces::T) where {T<:Tuple{Vararg{BaseSpace}}} = TensorSpace{T}(spaces)
@@ -78,6 +90,32 @@ spaces(s::TensorSpace) = s.spaces
 
 nspaces(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = N
 
+"""
+    ⊗(s₁::BaseSpace, s₂::BaseSpace)
+    ⊗(s₁::TensorSpace, s₂::TensorSpace)
+    ⊗(s₁::TensorSpace, s₂::BaseSpace)
+    ⊗(s₁::BaseSpace, s₂::TensorSpace)
+
+Creates a [`TensorSpace`](@ref) from the tensor product of some [`SequenceSpace`](@ref).
+
+See also: [`TensorSpace`](@ref).
+
+
+# Examples
+```jldoctest
+julia> Taylor(1) ⊗ Fourier(2, 1.0)
+Taylor(1) ⊗ Fourier{Float64}(2, 1.0)
+
+julia> Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+
+julia> Taylor(1) ⊗ (Fourier(2, 1.0) ⊗ Chebyshev(3))
+Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+
+julia> (Taylor(1) ⊗ Fourier(2, 1.0)) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+```
+"""
 ⊗(s₁::BaseSpace, s₂::BaseSpace) = TensorSpace((s₁, s₂))
 ⊗(s₁::TensorSpace, s₂::TensorSpace) = TensorSpace((s₁.spaces..., s₂.spaces...))
 ⊗(s₁::TensorSpace, s₂::BaseSpace) = TensorSpace((s₁.spaces..., s₂))
@@ -116,6 +154,20 @@ dimensions(s::TensorSpace) = map(dimension, s.spaces)
 _firstindex(s::TensorSpace) = map(_firstindex, s.spaces)
 _lastindex(s::TensorSpace) = map(_lastindex, s.spaces)
 
+"""
+    TensorIndices{<:Tuple}
+
+Multidimentional rectangular range of indices for some [`TensorSpace`](@ref).
+
+# Examples
+```jldoctest
+julia> TensorIndices((0:2, -1:1))
+TensorIndices{Tuple{UnitRange{Int64}, UnitRange{Int64}}}((0:2, -1:1))
+
+julia> indices(Taylor(2) ⊗ Fourier(1, 1.0))
+TensorIndices{Tuple{UnitRange{Int64}, UnitRange{Int64}}}((0:2, -1:1))
+```
+"""
 struct TensorIndices{T<:Tuple}
     iterators :: T
 end
@@ -185,8 +237,14 @@ Base.promote_rule(::Type{TensorSpace{T}}, ::Type{TensorSpace{S}}) where {T,S} =
 
 Taylor sequence space whose elements are Taylor sequences of a prescribed order.
 
-Fields:
-- `order :: Int`
+# Examples
+```jldoctest
+julia> s = Taylor(2)
+Taylor(2)
+
+julia> order(s)
+2
+```
 """
 struct Taylor <: BaseSpace
     order :: Int
@@ -218,13 +276,21 @@ _findposition(c::Colon, ::Taylor) = c
 #
 
 """
-    Fourier{T} <: BaseSpace
+    Fourier{<:Real} <: BaseSpace
 
 Fourier sequence space whose elements are Fourier sequences of a prescribed order and frequency.
 
-Fields:
-- `order :: Int`
-- `frequency :: T`
+# Examples
+```jldoctest
+julia> s = Fourier(2, 1.0)
+Fourier{Float64}(2, 1.0)
+
+julia> order(s)
+2
+
+julia> frequency(s)
+1.0
+```
 """
 struct Fourier{T<:Real} <: BaseSpace
     order :: Int
@@ -283,8 +349,14 @@ Base.promote_rule(::Type{Fourier{T}}, ::Type{Fourier{S}}) where {T<:Real,S<:Real
 
 Chebyshev sequence space whose elements are Chebyshev sequences of a prescribed order.
 
-Fields:
-- `order :: Int`
+# Examples
+```jldoctest
+julia> s = Chebyshev(2)
+Chebyshev(2)
+
+julia> order(s)
+2
+```
 """
 struct Chebyshev <: BaseSpace
     order :: Int
@@ -339,13 +411,23 @@ _component_findposition(u::AbstractVector{Int}, s::CartesianSpace) =
 _component_findposition(c::Colon, s::CartesianSpace) = c
 
 """
-    CartesianPower{T<:VectorSpace} <: CartesianSpace
+    CartesianPower{<:VectorSpace} <: CartesianSpace
 
-Cartesian space resulting from the cartesian products of a [`VectorSpace`](@ref).
+Cartesian space resulting from the cartesian product of the same [`VectorSpace`](@ref).
 
-Fields:
-- `space :: T`
-- `n :: Int`
+See also: [`^`](@ref), [`×`](@ref) and [`CartesianProduct`](@ref).
+
+# Examples
+```jldoctest
+julia> s = CartesianPower(Taylor(1), 3)
+Taylor(1)³
+
+julia> space(s)
+Taylor(1)
+
+julia> nspaces(s)
+3
+```
 """
 struct CartesianPower{T<:VectorSpace} <: CartesianSpace
     space :: T
@@ -365,6 +447,22 @@ spaces(s::CartesianPower) = fill(s.space, s.n)
 
 nspaces(s::CartesianPower) = s.n
 
+"""
+    ^(s::VectorSpace, n::Int)
+
+Creates a [`CartesianPower`](@ref) from `n` cartesian product(s) of `s`.
+
+See also: [`CartesianPower`](@ref), [`×`](@ref) and [`CartesianProduct`](@ref).
+
+# Examples
+```jldoctest
+julia> Taylor(1)^3
+Taylor(1)³
+
+julia> (Taylor(1)^3)^2
+(Taylor(1)³)²
+```
+"""
 Base.:^(s::VectorSpace, n::Int) = CartesianPower(s, n)
 
 Base.@propagate_inbounds function Base.getindex(s::CartesianPower, i::Int)
@@ -441,19 +539,28 @@ Base.promote_rule(::Type{CartesianPower{T}}, ::Type{CartesianPower{S}}) where {T
     CartesianPower{promote_type(T, S)}
 
 """
-    CartesianProduct{T<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
+    CartesianProduct{<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
 
 Cartesian space resulting from the cartesian product of some [`VectorSpace`](@ref).
 
-Fields:
-- `spaces :: T`
+See also: [`×`](@ref), [`^`](@ref) and [`CartesianPower`](@ref).
+
+# Examples
+```jldoctest
+julia> s = CartesianProduct(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
+Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+
+julia> spaces(s)
+(Taylor(1), Fourier{Float64}(2, 1.0), Chebyshev(3))
+
+julia> nspaces(s)
+3
+```
 """
 struct CartesianProduct{T<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
     spaces :: T
-    function CartesianProduct{T}(spaces::T) where {N,T<:NTuple{N,VectorSpace}}
-        N == 0 && return throw(DomainError(N, "CartesianProduct is only defined for at least one VectorSpace"))
-        return new{T}(spaces)
-    end
+    CartesianProduct{T}(spaces::T) where {N,T<:NTuple{N,VectorSpace}} = new{T}(spaces)
+    CartesianProduct{Tuple{}}(::Tuple{}) = throw(ArgumentError("CartesianProduct is only defined for at least one VectorSpace"))
 end
 
 CartesianProduct(spaces::T) where {T<:Tuple{Vararg{VectorSpace}}} = CartesianProduct{T}(spaces)
@@ -463,6 +570,34 @@ spaces(s::CartesianProduct) = s.spaces
 
 nspaces(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
 
+"""
+    ×(::VectorSpace, ::VectorSpace)
+    ×(::CartesianProduct, ::CartesianProduct)
+    ×(::CartesianProduct, ::VectorSpace)
+    ×(::VectorSpace, ::CartesianProduct)
+
+Creates a [`CartesianProduct`](@ref) from the cartesian product of some [`VectorSpace`](@ref).
+
+See also: [`CartesianProduct`](@ref), [`^`](@ref) and [`CartesianPower`](@ref).
+
+# Examples
+```jldoctest
+julia> Taylor(1) × Fourier(2, 1.0)
+Taylor(1) × Fourier{Float64}(2, 1.0)
+
+julia> Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
+Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+
+julia> (Taylor(1) × Fourier(2, 1.0)) × Chebyshev(3)
+Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+
+julia> Taylor(1) × (Fourier(2, 1.0) × Chebyshev(3))
+Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+
+julia> ParameterSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
+𝕂² × ((Taylor(1) ⊗ Fourier{Float64}(2, 1.0)) × Chebyshev(3))³
+```
+"""
 LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
 LinearAlgebra.:×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))
 LinearAlgebra.:×(s₁::CartesianProduct, s₂::VectorSpace) = CartesianProduct((s₁.spaces..., s₂))

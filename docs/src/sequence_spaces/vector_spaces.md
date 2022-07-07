@@ -136,6 +136,8 @@ indices(𝒯_otimes_ℱ_otimes_𝒞)
 
 ```@docs
 TensorSpace
+TensorIndices
+⊗
 ```
 
 ## Cartesian space
@@ -165,12 +167,12 @@ indices(𝒯²)
 
 ```@docs
 CartesianPower
+^(::VectorSpace, ::Int)
 ```
 
 ### Cartesian product
 
 A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@ref). The standard constructor for [`CartesianProduct`](@ref) is the `×` (`\times<TAB>`) operator.
-
 
 ```@repl vector_spaces
 𝒫_times_𝒯 = ParameterSpace() × Taylor(1) # CartesianProduct((ParameterSpace(), Taylor(1)))
@@ -181,4 +183,5 @@ indices(𝒫_times_𝒯)
 
 ```@docs
 CartesianProduct
+×(::VectorSpace, ::VectorSpace)
 ```

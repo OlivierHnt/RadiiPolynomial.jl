@@ -1,6 +1,28 @@
+"""
+    Shift{T<:Union{Number,Tuple{Vararg{Number}}}}
+
+Generic shift operator.
+
+See also: [`shift`](@ref) and [`shift!`](@ref).
+
+# Examples
+```jldoctest
+julia> Shift(1.0)
+Shift{Float64}(1.0)
+
+julia> Shift(1.0, 2.0)
+Shift{Tuple{Float64, Float64}}((1.0, 2.0))
+```
+"""
 struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}}
     value :: T
+    Shift{T}(value::T) where {T<:Union{Number,Tuple{Vararg{Number}}}} = new{T}(value)
+    Shift{Tuple{}}(::Tuple{}) = throw(ArgumentError("Shift is only defined for at least one Number"))
 end
+
+Shift(value::T) where {T<:Number} = Shift{T}(value)
+Shift(value::T) where {T<:Tuple{Vararg{Number}}} = Shift{T}(value)
+Shift(value::Number...) = Shift(value)
 
 # fallback arithmetic methods
 
@@ -49,6 +71,13 @@ LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, 𝒮::Shift, α::Number
 (𝒮::Shift)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.value)
 
+"""
+    shift(a::Sequence, τ)
+
+Shifts `a` by `τ`.
+
+See also: [`shift!`](@ref) and [`Shift`](@ref).
+"""
 function shift(a::Sequence, τ)
     𝒮 = Shift(τ)
     space_a = space(a)
@@ -59,6 +88,13 @@ function shift(a::Sequence, τ)
     return c
 end
 
+"""
+    shift!(c::Sequence, a::Sequence, τ)
+
+Shifts `a` by `τ`. The result is stored in `c` by overwritting it.
+
+See also: [`shift`](@ref) and [`Shift`](@ref).
+"""
 function shift!(c::Sequence, a::Sequence, τ)
     𝒮 = Shift(τ)
     space_c = space(c)

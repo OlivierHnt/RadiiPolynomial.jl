@@ -41,12 +41,18 @@ Identity weight.
 struct IdentityWeight <: Weight end
 
 """
-    GeometricWeight{T<:Real} <: Weight
+    GeometricWeight{<:Real} <: Weight
 
-Geometric weight.
+Geometric weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate > 0`.
 
-Fields:
-- `rate :: T`
+# Examples
+```jldoctest
+julia> w = GeometricWeight(1.0)
+GeometricWeight{Float64}(1.0)
+
+julia> rate(w)
+1.0
+```
 """
 struct GeometricWeight{T<:Real} <: Weight
     rate :: T
@@ -55,7 +61,9 @@ struct GeometricWeight{T<:Real} <: Weight
         return new{T}(rate)
     end
 end
+
 GeometricWeight(rate::T) where {T<:Real} = GeometricWeight{T}(rate)
+
 rate(weight::GeometricWeight) = weight.rate
 
 function geometricweight(a::Sequence{<:BaseSpace})
@@ -164,12 +172,18 @@ function _geometric_rate(::Chebyshev, A)
 end
 
 """
-    AlgebraicWeight{T<:Real} <: Weight
+    AlgebraicWeight{<:Real} <: Weight
 
-Algebraic weight.
+Algebraic weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate ≥ 0`.
 
-Fields:
-- `rate :: T`
+# Examples
+```jldoctest
+julia> w = AlgebraicWeight(1.0)
+AlgebraicWeight{Float64}(1.0)
+
+julia> rate(w)
+1.0
+```
 """
 struct AlgebraicWeight{T<:Real} <: Weight
     rate :: T
@@ -178,7 +192,9 @@ struct AlgebraicWeight{T<:Real} <: Weight
         return new{T}(rate)
     end
 end
+
 AlgebraicWeight(rate::T) where {T<:Real} = AlgebraicWeight{T}(rate)
+
 rate(weight::AlgebraicWeight) = weight.rate
 
 function algebraicweight(a::Sequence{<:BaseSpace})
@@ -288,12 +304,18 @@ function _algebraic_rate(::Chebyshev, A)
 end
 
 """
-    BesselWeight{T<:Real} <: Weight
+    BesselWeight{<:Real} <: Weight
 
-Bessel weight.
+Bessel weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate ≥ 0`.
 
-Fields:
-- `rate :: T`
+# Examples
+```jldoctest
+julia> w = BesselWeight(1.0)
+BesselWeight{Float64}(1.0)
+
+julia> rate(w)
+1.0
+```
 """
 struct BesselWeight{T<:Real} <: Weight
     rate :: T
@@ -302,7 +324,9 @@ struct BesselWeight{T<:Real} <: Weight
         return new{T}(rate)
     end
 end
+
 BesselWeight(rate::T) where {T<:Real} = BesselWeight{T}(rate)
+
 rate(weight::BesselWeight) = weight.rate
 
 _getindex(weight::BesselWeight, ::TensorSpace{<:NTuple{N,Fourier}}, α::NTuple{N,Int}) where {N} =
@@ -316,51 +340,84 @@ _getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = pow(one(weight.
 #-
 
 """
-    ℓ¹{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ¹{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
-``\\ell^1`` Banach space.
+Weighted ``\\ell^1`` space.
 
-Fields:
-- `weight :: T`
+# Examples
+```jldoctest
+julia> ℓ¹()
+ℓ¹{IdentityWeight}(IdentityWeight())
+
+julia> ℓ¹(GeometricWeight(1.0))
+ℓ¹{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+
+julia> ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
+ℓ¹{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+```
 """
 struct ℓ¹{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
     weight :: T
     ℓ¹{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    ℓ¹{Tuple{}}(::Tuple{}) = throw(ArgumentError("ℓ¹ is only defined for at least one Weight"))
 end
+
 ℓ¹(weight::T) where {T<:Weight} = ℓ¹{T}(weight)
 ℓ¹(weight::T) where {T<:Tuple{Vararg{Weight}}} = ℓ¹{T}(weight)
 ℓ¹() = ℓ¹{IdentityWeight}(IdentityWeight())
 ℓ¹(weight::Weight...) = ℓ¹(weight)
 
 """
-    ℓ²{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ²{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
-``\\ell^2`` Banach space.
+Weighted ``\\ell^2`` space.
 
-Fields:
-- `weight :: T`
+# Examples
+```jldoctest
+julia> ℓ²()
+ℓ²{IdentityWeight}(IdentityWeight())
+
+julia> ℓ²(BesselWeight(1.0))
+ℓ²{BesselWeight{Float64}}(BesselWeight{Float64}(1.0))
+
+julia> ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
+ℓ²{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float64}(1.0), GeometricWeight{Float64}(2.0)))
+```
 """
 struct ℓ²{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
     weight :: T
     ℓ²{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    ℓ²{Tuple{}}(::Tuple{}) = throw(ArgumentError("ℓ² is only defined for at least one Weight"))
 end
+
 ℓ²(weight::T) where {T<:Weight} = ℓ²{T}(weight)
 ℓ²(weight::T) where {T<:Tuple{Vararg{Weight}}} = ℓ²{T}(weight)
 ℓ²() = ℓ²{IdentityWeight}(IdentityWeight())
 ℓ²(weight::Weight...) = ℓ²(weight)
 
 """
-    ℓ∞{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ∞{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
-``\\ell^\\infty`` Banach space.
+Weighted ``\\ell^\\infty`` space.
 
-Fields:
-- `weight :: T`
+# Examples
+```jldoctest
+julia> ℓ∞()
+ℓ∞{IdentityWeight}(IdentityWeight())
+
+julia> ℓ∞(GeometricWeight(1.0))
+ℓ∞{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+
+julia> ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
+ℓ∞{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+```
 """
 struct ℓ∞{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
     weight :: T
     ℓ∞{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    ℓ∞{Tuple{}}(::Tuple{}) = throw(ArgumentError("ℓ∞ is only defined for at least one Weight"))
 end
+
 ℓ∞(weight::T) where {T<:Weight} = ℓ∞{T}(weight)
 ℓ∞(weight::T) where {T<:Tuple{Vararg{Weight}}} = ℓ∞{T}(weight)
 ℓ∞() = ℓ∞{IdentityWeight}(IdentityWeight())
@@ -369,13 +426,18 @@ end
 # normed cartesian space
 
 """
-    NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
+    NormedCartesianSpace{<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},<:BanachSpace} <: BanachSpace
 
 Cartesian Banach space.
 
-Fields:
-- `inner :: T`
-- `outer :: S`
+# Examples
+```jldoctest
+julia> NormedCartesianSpace(ℓ¹(), ℓ∞())
+NormedCartesianSpace{ℓ¹{IdentityWeight}, ℓ∞{IdentityWeight}}(ℓ¹{IdentityWeight}(IdentityWeight()), ℓ∞{IdentityWeight}(IdentityWeight()))
+
+julia> NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞())
+NormedCartesianSpace{Tuple{ℓ¹{IdentityWeight}, ℓ²{IdentityWeight}}, ℓ∞{IdentityWeight}}((ℓ¹{IdentityWeight}(IdentityWeight()), ℓ²{IdentityWeight}(IdentityWeight())), ℓ∞{IdentityWeight}(IdentityWeight()))
+```
 """
 struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
     inner :: T

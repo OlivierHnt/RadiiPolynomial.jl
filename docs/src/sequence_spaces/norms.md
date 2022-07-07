@@ -82,10 +82,10 @@ norm(a, ℓ²(BesselWeight(2.0)))
 ℓ²
 ℓ∞
 Weight
+IdentityWeight
+GeometricWeight
 AlgebraicWeight
 BesselWeight
-GeometricWeight
-IdentityWeight
 ```
 
 ## Normed cartesian space

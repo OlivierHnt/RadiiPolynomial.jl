@@ -1,3 +1,19 @@
+"""
+    Derivative{T<:Union{Int,Tuple{Vararg{Int}}}}
+
+Generic derivative operator.
+
+See also: [`differentiate`](@ref) and [`differentiate!`](@ref).
+
+# Examples
+```jldoctest
+julia> Derivative(1)
+Derivative{Int64}(1)
+
+julia> Derivative(1, 2)
+Derivative{Tuple{Int64, Int64}}((1, 2))
+```
+"""
 struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}}
     order :: T
     function Derivative{T}(order::T) where {T<:Int}
@@ -8,9 +24,29 @@ struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}}
         any(n -> n < 0, order) && return throw(DomainError(order, "Derivative is only defined for positive integers"))
         return new{T}(order)
     end
+    Derivative{Tuple{}}(::Tuple{}) = throw(ArgumentError("Derivative is only defined for at least one Int"))
 end
-Derivative(order::T) where {T<:Union{Int,Tuple{Vararg{Int}}}} = Derivative{T}(order)
 
+Derivative(order::T) where {T<:Int} = Derivative{T}(order)
+Derivative(order::T) where {T<:Tuple{Vararg{Int}}} = Derivative{T}(order)
+Derivative(order::Int...) = Derivative(order)
+
+"""
+    Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
+
+Generic integral operator.
+
+See also: [`integrate`](@ref) and [`integrate!`](@ref).
+
+# Examples
+```jldoctest
+julia> Integral(1)
+Integral{Int64}(1)
+
+julia> Integral(1, 2)
+Integral{Tuple{Int64, Int64}}((1, 2))
+```
+"""
 struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
     order :: T
     function Integral{T}(order::T) where {T<:Int}
@@ -21,8 +57,12 @@ struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
         any(n -> n < 0, order) && return throw(DomainError(order, "Integral is only defined for positive integers"))
         return new{T}(order)
     end
+    Integral{Tuple{}}(::Tuple{}) = throw(ArgumentError("Integral is only defined for at least one Int"))
 end
-Integral(order::T) where {T<:Union{Int,Tuple{Vararg{Int}}}} = Integral{T}(order)
+
+Integral(order::T) where {T<:Int} = Integral{T}(order)
+Integral(order::T) where {T<:Tuple{Vararg{Int}}} = Integral{T}(order)
+Integral(order::Int...) = Integral(order)
 
 # fallback arithmetic methods
 
@@ -72,7 +112,74 @@ end
 
 #
 
-for (F, f, f!) ∈ ((:Derivative, :differentiate, :differentiate!), (:Integral, :integrate, :integrate!))
+"""
+    differentiate(a::Sequence, α=1)
+
+Computes the `α`-th derivative of `a`.
+
+See also: [`differentiate!`](@ref) and [`Derivative`](@ref).
+"""
+function differentiate(a::Sequence, α=1)
+    𝒟 = Derivative(α)
+    space_a = space(a)
+    new_space = image(𝒟, space_a)
+    CoefType = _coeftype(𝒟, space_a, eltype(a))
+    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+    _apply!(c, 𝒟, a)
+    return c
+end
+
+"""
+    differentiate!(c::Sequence, a::Sequence, α=1)
+
+Computes the `α`-th derivative of `a`. The result is stored in `c` by overwritting it.
+
+See also: [`differentiate`](@ref) and [`Derivative`](@ref).
+"""
+function differentiate!(c::Sequence, a::Sequence, α=1)
+    𝒟 = Derivative(α)
+    space_c = space(c)
+    new_space = image(𝒟, space(a))
+    space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $𝒟(a) has space $new_space"))
+    _apply!(c, 𝒟, a)
+    return c
+end
+
+
+"""
+    integrate(a::Sequence, α=1)
+
+Computes the `α`-th integral of `a`.
+
+See also: [`integrate!`](@ref) and [`Integral`](@ref).
+"""
+function integrate(a::Sequence, α=1)
+    ℐ = Integral(α)
+    space_a = space(a)
+    new_space = image(ℐ, space_a)
+    CoefType = _coeftype(ℐ, space_a, eltype(a))
+    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+    _apply!(c, ℐ, a)
+    return c
+end
+
+"""
+    integrate!(c::Sequence, a::Sequence, α=1)
+
+Computes the `α`-th integral of `a`. The result is stored in `c` by overwritting it.
+
+See also: [`integrate`](@ref) and [`Integral`](@ref).
+"""
+function integrate!(c::Sequence, a::Sequence, α=1)
+    ℐ = Integral(α)
+    space_c = space(c)
+    new_space = image(ℐ, space(a))
+    space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℐ(a) has space $new_space"))
+    _apply!(c, ℐ, a)
+    return c
+end
+
+for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
     @eval begin
         Base.:*(ℱ₁::$F{Int}, ℱ₂::$F{Int}) = $F(ℱ₁.order + ℱ₂.order)
         Base.:*(ℱ₁::$F{NTuple{N,Int}}, ℱ₂::$F{NTuple{N,Int}}) where {N} = $F(map(+, ℱ₁.order, ℱ₂.order))
@@ -83,25 +190,6 @@ for (F, f, f!) ∈ ((:Derivative, :differentiate, :differentiate!), (:Integral, 
 
         (ℱ::$F)(a::Sequence) = *(ℱ, a)
         Base.:*(ℱ::$F, a::Sequence) = $f(a, ℱ.order)
-
-        function $f(a::Sequence, α=1)
-            ℱ = $F(α)
-            space_a = space(a)
-            new_space = image(ℱ, space_a)
-            CoefType = _coeftype(ℱ, space_a, eltype(a))
-            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-            _apply!(c, ℱ, a)
-            return c
-        end
-
-        function $f!(c::Sequence, a::Sequence, α=1)
-            ℱ = $F(α)
-            space_c = space(c)
-            new_space = image(ℱ, space(a))
-            space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℱ(a) has space $new_space"))
-            _apply!(c, ℱ, a)
-            return c
-        end
 
         function project(ℱ::$F, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
             _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))

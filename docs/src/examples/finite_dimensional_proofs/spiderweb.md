@@ -58,19 +58,9 @@ The Jacobian matrix is given by
 \end{cases}
 ```
 
-Consider the fixed-point operator ``T : \mathbb{R}^n \to \mathbb{R}^n`` defined by
+The mapping ``F`` and its Jacobian, denoted ``DF``, may be implemented as follows:
 
-```math
-T(x) := x - A F(x),
-```
-
-where ``A : \mathbb{R}^n \to \mathbb{R}^n`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in \mathbb{R}^n`` of ``F``.
-
-Let ``R > 0``. According to the [first-order Radii Polynomial Theorem](@ref first_order_RPT), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_\infty`` which can be readily computed with interval arithmetic.
-
-We can now write our computer-assisted proof:
-
-```@example
+```@example spiderweb
 using RadiiPolynomial
 
 function F(x, m₀, m, λ, l)
@@ -118,41 +108,65 @@ function DF(x, m₀, m, λ, l)
     end
     return DF_
 end
+nothing # hide
+```
 
+Consider the fixed-point operator ``T : \mathbb{R}^n \to \mathbb{R}^n`` defined by
+
+```math
+T(x) := x - A F(x),
+```
+
+where ``A : \mathbb{R}^n \to \mathbb{R}^n`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in \mathbb{R}^n`` of ``F``.
+
+Given an initial guess, the numerical zero ``x_0`` of ``F`` may be obtained by Newton's method:
+
+```@example spiderweb
 n = 18 # number of circles
 l = 100 # number of masses per circle
-
-# numerical solution
 
 m₀ = 0.0 # central mass
 m = fill(1/l, n) # vector of masses
 λ = -1.0
 
-x₀ = Sequence(ParameterSpace()^n, float.(1:n))
-x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀;
-    tol = 1e-12, maxiter = 50)
+x₀ = Sequence(ParameterSpace()^n, collect(range(1.0; stop = 3.0, length = n)))
 
-# proof
+x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀)
+nothing # hide
+```
+
+Let ``R > 0``. According to the [first-order Radii Polynomial Theorem](@ref first_order_RPT), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_\infty`` which can be readily computed with interval arithmetic.
+
+The computer-assisted proof may be implemented as follows:
+
+```@example spiderweb
+R = 1e-12
 
 m₀_interval = Interval(0.0)
 m_interval = fill(inv(Interval(l)), n)
 λ_interval = Interval(-1.0)
 
-R = 1e-12
-
 x₀_interval = Interval.(x₀)
 x₀R_interval = Interval.(inf.(x₀_interval .- R), sup.(x₀_interval .+ R))
+
 F_interval = F(x₀_interval, m₀_interval, m_interval, λ_interval, l)
 DF_interval = DF(x₀R_interval, m₀_interval, m_interval, λ_interval, l)
+
 A = inv(mid.(DF_interval))
 
 Y = norm(A * F_interval, Inf)
+
 Z₁ = opnorm(A * DF_interval - I, Inf)
+
 showfull(interval_of_existence(Y, Z₁, R))
 ```
 
-The following figure[^2] shows the numerical approximation of the proven spiderweb central configuration.
+The following animation[^2] shows the numerical approximation of the proven spiderweb central configuration for some given initial velocity.
 
 [^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
-![](../../assets/spiderweb.svg)
+```@raw html
+<video width="800" height="400" controls autoplay loop>
+  <source src="../../../assets/spiderweb.mp4" type="video/mp4">
+</video>
+```

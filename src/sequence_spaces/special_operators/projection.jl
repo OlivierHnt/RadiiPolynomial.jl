@@ -49,6 +49,8 @@ function project!(C::LinearOperator, A::LinearOperator)
     return C
 end
 
+project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence) = project!(Sequence(codomain(C), vec(coefficients(C))), a)
+
 function _project!(C::LinearOperator, A::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_C, codomain_C = domain(C), codomain(C)

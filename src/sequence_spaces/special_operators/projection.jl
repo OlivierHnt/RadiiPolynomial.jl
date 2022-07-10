@@ -11,7 +11,7 @@ end
 function project!(c::Sequence, a::Sequence)
     space_a = space(a)
     space_c = space(c)
-    _iscompatible(space_a, space_c) || return throw(ArgumentError("spaces must be compatible: c has $space_c, a has space $space_a"))
+    _iscompatible(space_a, space_c) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a has space $space_a"))
     _project!(c, a)
     return c
 end

@@ -4,12 +4,12 @@ Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T : U \to X`` an o
 
 ## [First-order Radii Polynomial Theorem](@id first_order_RPT)
 
-Suppose ``T \in C^1(U, X)`` and ``Y, Z_1 \geq 0`` satisfy
+Suppose ``T \in C^1(U, X)`` and ``Y, Z_1 \ge 0`` satisfy
 
 ```math
 \begin{aligned}
-|T(x_0) - x_0|_X &\leq Y,\\
-\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_{\mathscr{B}(X, X)} &\leq Z_1,
+|T(x_0) - x_0|_X &\le Y,\\
+\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_{\mathscr{B}(X, X)} &\le Z_1,
 \end{aligned}
 ```
 
@@ -22,7 +22,7 @@ p(r) := Y + (Z_1 - 1) r.
 If there exists a *radius* ``r_0 \in [0, R]`` such that
 
 ```math
-p(r_0) \leq 0 \qquad \text{and} \qquad Z_1 < 1,
+p(r_0) \le 0 \qquad \text{and} \qquad Z_1 < 1,
 ```
 
 then ``T`` has a unique fixed-point in ``\text{cl}( B_{r_0} (x_0) )``.
@@ -31,13 +31,13 @@ then ``T`` has a unique fixed-point in ``\text{cl}( B_{r_0} (x_0) )``.
 
 ### ``C^1`` condition
 
-Suppose ``T \in C^1(U, X)`` and ``Y, Z_1, Z_2 \geq 0`` satisfy
+Suppose ``T \in C^1(U, X)`` and ``Y, Z_1, Z_2 \ge 0`` satisfy
 
 ```math
 \begin{aligned}
-|T(x_0) - x_0|_X &\leq Y,\\
-|DT(x_0)|_{\mathscr{B}(X, X)} &\leq Z_1,\\
-|DT(x) - DT(x_0)|_{\mathscr{B}(X, X)} &\leq Z_2 |x - x_0|, \qquad \text{for all } x \in \text{cl}( B_R(x_0) ),
+|T(x_0) - x_0|_X &\le Y,\\
+|DT(x_0)|_{\mathscr{B}(X, X)} &\le Z_1,\\
+|DT(x) - DT(x_0)|_{\mathscr{B}(X, X)} &\le Z_2 |x - x_0|, \qquad \text{for all } x \in \text{cl}( B_R(x_0) ),
 \end{aligned}
 ```
 
@@ -50,20 +50,20 @@ p(r) := Y + (Z_1 - 1) r + \frac{Z_2}{2} r^2.
 If there exists a *radius* ``r_0 \in [0, R]`` such that
 
 ```math
-p(r_0) \leq 0 \qquad \text{and} \qquad Z_1 + Z_2 r_0 < 1,
+p(r_0) \le 0 \qquad \text{and} \qquad Z_1 + Z_2 r_0 < 1,
 ```
 
 then ``T`` has a unique fixed-point in ``\text{cl}( B_{r_0} (x_0) )``.
 
 ### [``C^2`` condition](@id C2_condition_RPT)
 
-Suppose ``T \in C^2(U, X)`` and ``Y, Z_1, Z_2 \geq 0`` satisfy
+Suppose ``T \in C^2(U, X)`` and ``Y, Z_1, Z_2 \ge 0`` satisfy
 
 ```math
 \begin{aligned}
-|T(x_0) - x_0|_X &\leq Y,\\
-|DT(x_0)|_{\mathscr{B}(X, X)} &\leq Z_1,\\
-\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq Z_2,
+|T(x_0) - x_0|_X &\le Y,\\
+|DT(x_0)|_{\mathscr{B}(X, X)} &\le Z_1,\\
+\sup_{x \in \text{cl}( B_R(x_0) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\le Z_2,
 \end{aligned}
 ```
 
@@ -76,7 +76,7 @@ p(r) := Y + (Z_1 - 1) r + \frac{Z_2}{2} r^2.
 If there exists a *radius* ``r_0 \in [0, R]`` such that
 
 ```math
-p(r_0) \leq 0 \qquad \text{and} \qquad Z_2 r_0 < 1,
+p(r_0) \le 0 \qquad \text{and} \qquad Z_2 r_0 < 1,
 ```
 
 then ``T`` has a unique fixed-point in ``\text{cl}( B_{r_0} (x_0) )``.

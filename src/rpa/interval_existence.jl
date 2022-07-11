@@ -1,7 +1,7 @@
 """
     interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, R::T) where {T<:Real}
 
-Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\leq 0`` and ``Z_1 < 1`` for all ``r \\in I``.
+Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` and ``Z_1 < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, R::T) where {T<:Real}
     if !(Y ≥ 0 && Z₁ ≥ 0 && R ≥ 0)
@@ -21,7 +21,7 @@ struct C¹Condition end
 """
     interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C¹Condition) where {T<:Real}
 
-Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\leq 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
+Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C¹Condition) where {T<:Real}
     if !(Y ≥ 0 && Z₁ ≥ 0 && Z₂ ≥ 0 && R ≥ 0)
@@ -62,7 +62,7 @@ struct C²Condition end
 """
     interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C²Condition) where {T<:Real}
 
-Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\leq 0`` and ``Z_2 r < 1`` for all ``r \\in I``.
+Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_2 r < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C²Condition) where {T<:Real}
     if !(Y ≥ 0 && Z₁ ≥ 0 && Z₂ ≥ 0 && R ≥ 0)

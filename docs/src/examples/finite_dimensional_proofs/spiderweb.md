@@ -167,6 +167,6 @@ The following animation[^2] shows the numerical approximation of the proven spid
 
 ```@raw html
 <video width="800" height="400" controls autoplay loop>
-  <source src="../../../assets/spiderweb.mp4" type="video/mp4">
+  <source src="../spiderweb.mp4" type="video/mp4">
 </video>
 ```

@@ -46,9 +46,9 @@ Weight
 
 Given a set of indices ``\mathscr{I}^\prime \subset \mathbb{Z}``:
 
-- an [`AlgebraicWeight`](@ref) of rate ``s \geq 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``.
+- an [`AlgebraicWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``.
 
-- a [`BesselWeight`](@ref) of rate ``s \geq 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``. This weight is specific to [`ℓ²`](@ref) and [`Fourier`](@ref) as it describes the [Sobolev space](https://en.wikipedia.org/wiki/Sobolev_space) ``H^s``.
+- a [`BesselWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``. This weight is specific to [`ℓ²`](@ref) and [`Fourier`](@ref) as it describes the [Sobolev space](https://en.wikipedia.org/wiki/Sobolev_space) ``H^s``.
 
 - a [`GeometricWeight`](@ref) of rate ``\nu > 0`` is defined by ``w(\alpha) := \nu^{|\alpha|}`` for all ``\alpha \in \mathscr{I}^\prime``.
 

@@ -1,6 +1,6 @@
-# Periodic orbit for ordinary differential equations (ODE)
+# Periodic orbit of the Lorenz system
 
-In this example, we will prove the existence of a periodic orbit of the Lorenz equations
+In this example, we will prove the existence of a periodic orbit of the Lorenz system
 
 ```math
 \frac{d}{dt} u(t) = f(u(t), \sigma, \rho, \beta) :=
@@ -8,12 +8,12 @@ In this example, we will prove the existence of a periodic orbit of the Lorenz e
 \sigma(u_2(t) - u_1(t))\\
 u_1(t)(\rho - u_3(t)) - u_2(t)\\
 u_1(t) u_2(t) - \beta u_3(t)
-\end{pmatrix}.
+\end{pmatrix}, \qquad \sigma, \rho, \beta \in \mathbb{R}.
 ```
 
 The vector field ``f`` and its derivative with respect to ``u``, denoted ``Df``, may be implemented as follows:
 
-```@example po_ode
+```@example lorenz_po
 using RadiiPolynomial
 
 function f!(f, u, σ, ρ, β)
@@ -40,21 +40,21 @@ end
 nothing # hide
 ```
 
-Let ``\nu > 1`` and ``X_\textnormal{F} := (\ell^1_\nu, *)`` where
+Let ``\nu > 1``,
 
 ```math
-\ell^1_\nu := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{\ell^1_\nu} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}
+X_\textnormal{F} := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{X_\textnormal{F}} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}
 ```
 
-and ``* : \ell^1_\nu \times \ell^1_\nu \to \ell^1_\nu`` is the discrete convolution given by
+and ``* : X_\textnormal{F} \times X_\textnormal{F} \to X_\textnormal{F}`` be the discrete convolution given by
 
 ```math
-u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in \ell^1_\nu.
+u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in X_\textnormal{F}.
 ```
 
 For any sequence ``u \in X_\textnormal{F}``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
 
-The Banach algebra ``X_\textnormal{F}`` is a suitable space to look for a periodic solution of the Lorenz equations. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
+The Banach space ``X_\textnormal{F}`` is a suitable space to represent a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 
 [^1]: A. Hungria, J.-P. Lessard and J. D. Mireles James, [Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach](https://doi.org/10.1090/mcom/3046), *Mathematics of Computation*, **85** (2016), 1427-1459.
 
@@ -72,10 +72,10 @@ where ``\xi \in \mathbb{R}^3`` is a chosen approximate position on the periodic 
 
 The mapping ``F`` and its Fréchet derivative, denoted ``DF``, may be implemented as follows:
 
-```@example po_ode
+```@example lorenz_po
 function F_DF!(F, DF, x, σ, ρ, β)
     γ, u = x[1], component(x, 2)
-    DF .= zero(eltype(DF))
+    DF .= 0
 
     F[1] =
         (sum(coefficients(component(u, 1))) - 10.205222700615433) * 24.600655549587863 +
@@ -104,13 +104,13 @@ where ``A : X \to X`` is the injective operator corresponding to a numerical app
 
 Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained by Newton's method:
 
-```@example po_ode
+```@example lorenz_po
 σ, ρ, β = 10.0, 28.0, 8/3
 
 n = 400
 
 x̄ = Sequence(ParameterSpace() × Fourier(n, 1.0)^3, zeros(ComplexF64, 1+3*(2n+1)))
-x̄[1] = 9.150971830259179/2π # approximate inverse of the frequency
+x̄[1] = 9.150971830259179/2π # γ, i.e. approximate inverse of the frequency
 component(component(x̄, 2), 1)[0:14] =
     [6.25, -0.66 - 1.45im, 0.6 - 1.2im, 1.11 - 0.26im, 0.77 + 0.57im,
     0.08 + 0.76im, -0.35 + 0.45im, -0.39 + 0.13im, -0.37 - 0.0008im, -0.44 - 0.23im,
@@ -129,7 +129,7 @@ component(component(x̄, 2), 3)[-14:-1] .= conj.(component(component(x̄, 2), 3)
 
 newton!((F, DF, x) -> F_DF!(F, DF, x, σ, ρ, β), x̄)
 
-# impose that x̄[1] is real and component(x̄, 2) is a real Fourier series
+# impose that x̄[1] is real and component(x̄, 2) are the coefficients of a real Fourier series
 x̄[1] = real(x̄[1])
 for i ∈ 1:3
     component(component(x̄, 2), i)[0] = real(component(component(x̄, 2), i)[0])
@@ -144,7 +144,7 @@ To this end, consider the truncation operator
 ```math
 (\pi^n u)_k :=
 \begin{cases}
-u_k, & |k| \leq n,\\
+u_k, & |k| \le n,\\
 0, & |k| > n,
 \end{cases}
 \qquad \textnormal{for all } u \in X_\textnormal{F}.
@@ -156,13 +156,13 @@ Thus, denoting ``\bar{u} := (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 
 ```math
 \begin{aligned}
-|T(\bar{x}) - \bar{x}|_X &\leq
+|T(\bar{x}) - \bar{x}|_X &\le
 |\pi^n A \pi^n F(\bar{x})|_X + \frac{\bar{\gamma}}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3},\\
-|DT(\bar{x})|_{\mathscr{B}(X, X)} &\leq
+|DT(\bar{x})|_{\mathscr{B}(X, X)} &\le
 |\pi^n A \pi^n DF(\bar{x}) \pi^{2n} - \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3} +\\
 &\qquad \frac{\bar{\gamma}}{n+1}
 \max \left(2 \sigma, 1 + |\bar{u}_1|_{X_\textnormal{F}} + |\rho - \bar{u}_3|_{X_\textnormal{F}}, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}}\right),\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\leq
+\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\le
 2\left(|\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \Big(\bar{\gamma} + R +\\
 &\qquad \max \left(2 \sigma, 1 + \rho + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_3|_{X_\textnormal{F}} + 2R, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}} + 2R\right)\Big).
 \end{aligned}
@@ -170,14 +170,14 @@ Thus, denoting ``\bar{u} := (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 
 The computer-assisted proof may be implemented as follows:
 
-```@example po_ode
+```@example lorenz_po
 ν = Interval(1.01)
 X_Fourier = ℓ¹(GeometricWeight(ν))
 X_Fourier³ = NormedCartesianSpace(X_Fourier, ℓ∞())
 X = NormedCartesianSpace((ℓ∞(), X_Fourier³), ℓ∞())
 R = 1e-8
 
-σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), @interval(8/3)
+σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), 8.0/Interval(3.0)
 
 x̄_interval = Sequence(ParameterSpace() × Fourier(n, Interval(1.0))^3, Interval.(coefficients(x̄)))
 γ̄_interval = real(x̄_interval[1])
@@ -216,6 +216,6 @@ The following animation[^2] shows the numerical approximation of the proven peri
 
 ```@raw html
 <video width="800" height="400" controls autoplay loop>
-  <source src="../../../assets/lorenz_po.mp4" type="video/mp4">
+  <source src="../lorenz_po.mp4" type="video/mp4">
 </video>
 ```

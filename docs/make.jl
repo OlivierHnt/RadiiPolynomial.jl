@@ -26,9 +26,13 @@ makedocs(;
                 "examples/finite_dimensional_proofs/pseudo_arclength.md"
             ],
             "Infinite-dimensional proofs" => [
-                "examples/infinite_dimensional_proofs/ivp.md",
-                "examples/infinite_dimensional_proofs/po_ode.md",
-                "examples/infinite_dimensional_proofs/unstable_manifolds_eq_dde.md"
+                "Ordinary differential equations (ODE)" => [
+                    "examples/infinite_dimensional_proofs/ode/logistic_ivp.md",
+                    "examples/infinite_dimensional_proofs/ode/lorenz_po.md"
+                ],
+                "Delay differential equations (DDE)" => [
+                    "examples/infinite_dimensional_proofs/dde/ikeda_W_u.md"
+                ]
             ]
         ]
     ]

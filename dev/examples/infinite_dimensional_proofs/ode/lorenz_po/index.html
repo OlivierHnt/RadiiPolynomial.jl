@@ -26,18 +26,18 @@ function Df!(Df, u, σ, ρ, β)
     project!(component(Df, 3, 2), Multiplication(u₁))
     project!(component(Df, 3, 3), Multiplication(-β*one(u₃)))
     return Df
-end</code></pre><p>Let <span>$\nu &gt; 1$</span>,</p><p class="math-container">\[X_\textnormal{F} := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{X_\textnormal{F}} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}\]</p><p>and <span>$* : X_\textnormal{F} \times X_\textnormal{F} \to X_\textnormal{F}$</span> be the discrete convolution given by</p><p class="math-container">\[u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in X_\textnormal{F}.\]</p><p>For any sequence <span>$u \in X_\textnormal{F}$</span>, the Fourier series <span>$\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}$</span>, for some frequency <span>$\omega &gt; 0$</span>, defines an analytic <span>$2\pi\omega^{-1}$</span>-periodic function in <span>$C^\omega(\mathbb{R}, \mathbb{C})$</span>; while the discrete convolution <span>$*$</span> corresponds to the product of Fourier series in sequence space.</p><p>The Banach space <span>$X_\textnormal{F}$</span> is a suitable space to represent a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.<sup class="footnote-reference"><a id="citeref-1" href="#footnote-1">[1]</a></sup></p><p>Define the Banach space <span>$X := \mathbb{C} \times X_\textnormal{F}^3$</span> endowed with the norm <span>$|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})$</span>. It follows that the sequence of coefficients of a <span>$2\pi\gamma$</span>-periodic Fourier series solving the Lorenz equations is a zero of the mapping <span>$F : X \to X$</span> given by</p><p class="math-container">\[F(x) :=
+end</code></pre><p>Let <span>$\nu &gt; 1$</span>,</p><p class="math-container">\[X_\textnormal{F} := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{X_\textnormal{F}} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}\]</p><p>and <span>$* : X_\textnormal{F} \times X_\textnormal{F} \to X_\textnormal{F}$</span> be the discrete convolution given by</p><p class="math-container">\[u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in X_\textnormal{F}.\]</p><p>For any sequence <span>$u \in X_\textnormal{F}$</span>, the Fourier series <span>$\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}$</span>, for some frequency <span>$\omega &gt; 0$</span>, defines an analytic <span>$2\pi\omega^{-1}$</span>-periodic function in <span>$C^\omega(\mathbb{R}, \mathbb{C})$</span>; while the discrete convolution <span>$*$</span> corresponds to the product of Fourier series in sequence space.</p><p>The Banach space <span>$X_\textnormal{F}$</span> is a suitable space to represent each component of a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.<sup class="footnote-reference"><a id="citeref-1" href="#footnote-1">[1]</a></sup></p><p>Define the Banach space <span>$X := \mathbb{C} \times X_\textnormal{F}^3$</span> endowed with the norm <span>$|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})$</span> for all <span>$x = (\gamma, u_1, u_2, u_3) \in X$</span>. It follows that the sequence of coefficients of a <span>$2\pi\gamma$</span>-periodic Fourier series solving the Lorenz equations is a zero of the mapping <span>$F : X \to X$</span> given by</p><p class="math-container">\[F(x) :=
 \begin{pmatrix}
 \sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
 \left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
-\end{pmatrix}, \qquad \text{for all } x := (\gamma, u_1, u_2, u_3) \in X,\]</p><p>where <span>$\xi \in \mathbb{R}^3$</span> is a chosen approximate position on the periodic orbit and <span>$\eta \in \mathbb{R}^3$</span> the corresponding approximate tangent vector at <span>$\xi$</span>. By means of the <em>phase condition</em> <span>$\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j$</span>, the translation invariance of the periodic orbit is removed.</p><p>The mapping <span>$F$</span> and its Fréchet derivative, denoted <span>$DF$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function F_DF!(F, DF, x, σ, ρ, β)
+\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in X,\]</p><p>where <span>$\xi \in \mathbb{R}^3$</span> is a chosen approximate position on the periodic orbit and <span>$\eta \in \mathbb{R}^3$</span> the corresponding approximate tangent vector at <span>$\xi$</span>. By means of the <em>phase condition</em> <span>$\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j$</span>, the translation invariance of the periodic orbit is removed.</p><p>The mapping <span>$F$</span> and its Fréchet derivative, denoted <span>$DF$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function F_DF!(F, DF, x, σ, ρ, β)
     γ, u = x[1], component(x, 2)
     DF .= 0
 
     F[1] =
-        (sum(coefficients(component(u, 1))) - 10.205222700615433) * 24.600655549587863 +
-        (sum(coefficients(component(u, 2))) - 11.899530531689562) * (-2.4927169722923335) +
-        (sum(coefficients(component(u, 3))) - 27.000586375896557) * 71.81142025024573
+        (sum(component(u, 1)) - 10.205222700615433) * 24.600655549587863 +
+        (sum(component(u, 2)) - 11.899530531689562) * (-2.4927169722923335) +
+        (sum(component(u, 3)) - 27.000586375896557) * 71.81142025024573
     component(component(DF, 1, 2), 1)[1,:] .= 24.600655549587863
     component(component(DF, 1, 2), 2)[1,:] .= -2.4927169722923335
     component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
@@ -47,7 +47,7 @@ end</code></pre><p>Let <span>$\nu &gt; 1$</span>,</p><p class="math-container">\
     project!(component(DF, 2, 2), γ * Df!(component(DF, 2, 2), u, σ, ρ, β) - Derivative(1))
 
     return F, DF
-end</code></pre><p>Consider the fixed-point operator <span>$T : X \to X$</span> defined by</p><p class="math-container">\[T(x) := x - A F(x),\]</p><p>where <span>$A : X \to X$</span> is the injective operator corresponding to a numerical approximation of <span>$DF(\bar{x})^{-1}$</span> for some numerical zero <span>$\bar{x} := (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X$</span> of <span>$F$</span>.</p><p>Given an initial guess, the numerical zero <span>$\bar{x}$</span> of <span>$F$</span> may be obtained by Newton&#39;s method:</p><pre><code class="language-julia hljs">σ, ρ, β = 10.0, 28.0, 8/3
+end</code></pre><p>Consider the fixed-point operator <span>$T : X \to X$</span> defined by</p><p class="math-container">\[T(x) := x - A F(x),\]</p><p>where <span>$A : X \to X$</span> is an injective operator corresponding to an approximation of <span>$DF(\bar{x})^{-1}$</span> for some numerical zero <span>$\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X$</span> of <span>$F$</span>.</p><p>Given an initial guess, the numerical zero <span>$\bar{x}$</span> of <span>$F$</span> may be obtained by Newton&#39;s method:</p><pre><code class="language-julia hljs">σ, ρ, β = 10.0, 28.0, 8/3
 
 n = 400
 
@@ -85,13 +85,14 @@ end</code></pre><pre class="documenter-example-output"><code class="nohighlight 
           3          3.6251e-01          3.8761e-02
           4          8.0576e-03          1.5302e-03
           5          1.2868e-05          1.7584e-05
-          6          1.7964e-09          2.5733e-10
-          7          1.8323e-13          1.2438e-13</code></pre><p>Let <span>$R &gt; 0$</span>. Since <span>$T \in C^2(X, X)$</span> we may use the <a href="../../../../radii_polynomial_approach/#C2_condition_RPT">second-order Radii Polynomial Theorem with <span>$C^2$</span> condition</a> such that we need to estimate <span>$|T(\bar{x}) - \bar{x}|_X$</span>, <span>$|DT(\bar{x})|_{\mathscr{B}(X, X)}$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}$</span>.</p><p>To this end, consider the truncation operator</p><p class="math-container">\[(\pi^n u)_k :=
+          6          1.7964e-09          2.5734e-10
+          7          1.3906e-12          1.2475e-13
+          8          1.6657e-13          1.3458e-14</code></pre><p>Let <span>$R &gt; 0$</span>. Since <span>$T \in C^2(X, X)$</span> we may use the <a href="../../../../radii_polynomial_approach/#C2_condition_RPT">second-order Radii Polynomial Theorem with <span>$C^2$</span> condition</a> such that we need to estimate <span>$|T(\bar{x}) - \bar{x}|_X$</span>, <span>$|DT(\bar{x})|_{\mathscr{B}(X, X)}$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}$</span>.</p><p>To this end, consider the truncation operator</p><p class="math-container">\[(\pi^n u)_k :=
 \begin{cases}
 u_k, &amp; |k| \le n,\\
 0, &amp; |k| &gt; n,
 \end{cases}
-\qquad \textnormal{for all } u \in X_\textnormal{F}.\]</p><p>Using the same symbol, this projection extends naturally to <span>$X_\textnormal{F}^3$</span> and <span>$X$</span> by acting on each component as follows <span>$\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$u := (u_1, u_2, u_3) \in X_\textnormal{F}^3$</span>, and <span>$\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$x := (\gamma, u_1, u_2, u_3) \in X$</span>. For each of the Banach spaces <span>$X_\textnormal{F}, X_\textnormal{F}^3, X$</span>, we define the complementary operator <span>$\pi^{\infty(n)} := I - \pi^n$</span>.</p><p>Thus, denoting <span>$\bar{u} := (\bar{u}_1, \bar{u}_2, \bar{u}_3)$</span>, we have</p><p class="math-container">\[\begin{aligned}
+\qquad \textnormal{for all } u \in X_\textnormal{F}.\]</p><p>Using the same symbol, this projection extends naturally to <span>$X_\textnormal{F}^3$</span> and <span>$X$</span> by acting on each component as follows <span>$\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$u = (u_1, u_2, u_3) \in X_\textnormal{F}^3$</span>, and <span>$\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)$</span>, for all <span>$x = (\gamma, u_1, u_2, u_3) \in X$</span>. For each of the Banach spaces <span>$X_\textnormal{F}, X_\textnormal{F}^3, X$</span>, we define the complementary operator <span>$\pi^{\infty(n)} := I - \pi^n$</span>.</p><p>Thus, denoting <span>$\bar{u} = (\bar{u}_1, \bar{u}_2, \bar{u}_3)$</span>, we have</p><p class="math-container">\[\begin{aligned}
 |T(\bar{x}) - \bar{x}|_X &amp;\le
 |\pi^n A \pi^n F(\bar{x})|_X + \frac{\bar{\gamma}}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3},\\
 |DT(\bar{x})|_{\mathscr{B}(X, X)} &amp;\le
@@ -102,9 +103,9 @@ u_k, &amp; |k| \le n,\\
 2\left(|\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \Big(\bar{\gamma} + R +\\
 &amp;\qquad \max \left(2 \sigma, 1 + \rho + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_3|_{X_\textnormal{F}} + 2R, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}} + 2R\right)\Big).
 \end{aligned}\]</p><p>The computer-assisted proof may be implemented as follows:</p><pre><code class="language-julia hljs">ν = Interval(1.01)
-X_Fourier = ℓ¹(GeometricWeight(ν))
-X_Fourier³ = NormedCartesianSpace(X_Fourier, ℓ∞())
-X = NormedCartesianSpace((ℓ∞(), X_Fourier³), ℓ∞())
+X_F = ℓ¹(GeometricWeight(ν))
+X_F³ = NormedCartesianSpace(X_F, ℓ∞())
+X = NormedCartesianSpace((ℓ∞(), X_F³), ℓ∞())
 R = 1e-8
 
 σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), 8.0/Interval(3.0)
@@ -122,21 +123,21 @@ for i ∈ 1:3
     component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
     component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
 end
-A = Interval.(inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval)))))
+A = inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval))))
 bound_tail_A = inv(Interval(n+1))
 
-Y = norm(A*F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_Fourier³)
+Y = norm(A * F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_F³)
 
-Z₁ = opnorm(A*DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_Fourier³) +
+Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_F³) +
     bound_tail_A * γ̄_interval * max(2σ_interval,
-        1 + norm(component(ū_interval, 1), X_Fourier) + norm(ρ_interval-component(ū_interval, 3), X_Fourier),
-        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier))
+        1 + norm(component(ū_interval, 1), X_F) + norm(ρ_interval-component(ū_interval, 3), X_F),
+        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F))
 
-Z₂ = (opnorm(A, X) + bound_tail_A) * 2 * (γ̄_interval + R +
+Z₂ = (opnorm(Interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
     max(2σ_interval,
-        1 + ρ_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 3), X_Fourier) + 2R,
-        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier) + 2R))
+        1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
+        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Interval(4.127534230763232e-9, 1.0e-8)</code></pre><p>The following animation<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).</p><video width="800" height="400" controls autoplay loop>
+showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Interval(4.129784363214373e-9, 1.0e-8)</code></pre><p>The following animation<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).</p><video width="800" height="400" controls autoplay loop>
   <source src="../lorenz_po.mp4" type="video/mp4">
-</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>A. Hungria, J.-P. Lessard and J. D. Mireles James, <a href="https://doi.org/10.1090/mcom/3046">Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach</a>, <em>Mathematics of Computation</em>, <strong>85</strong> (2016), 1427-1459.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../logistic_ivp/">« Initial value problem of the logistic equation</a><a class="docs-footer-nextpage" href="../../dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.20 on <span class="colophon-date" title="Monday 11 July 2022 03:03">Monday 11 July 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>A. Hungria, J.-P. Lessard and J. D. Mireles James, <a href="https://doi.org/10.1090/mcom/3046">Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach</a>, <em>Mathematics of Computation</em>, <strong>85</strong> (2016), 1427-1459.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../logistic_ivp/">« Initial value problem of the logistic equation</a><a class="docs-footer-nextpage" href="../../dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.21 on <span class="colophon-date" title="Tuesday 19 July 2022 17:09">Tuesday 19 July 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

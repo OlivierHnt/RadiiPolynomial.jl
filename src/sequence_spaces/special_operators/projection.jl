@@ -34,6 +34,24 @@ function _project!(c::Sequence, a::Sequence)
     return c
 end
 
+# UniformScaling
+
+function project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(J)) where {T}
+    _iscompatible(domain_dest, codomain_dest) || return throw(ArgumentError("spaces must be compatible: destination domain is $domain_dest, destination codomain is $codomain_dest"))
+    C = LinearOperator(domain_dest, codomain_dest, zeros(T, dimension(codomain_dest), dimension(domain_dest)))
+    _radd!(C, J)
+    return C
+end
+
+function project!(C::LinearOperator, J::UniformScaling)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    coefficients(C) .= zero(eltype(C))
+    _radd!(C, J)
+    return C
+end
+
 #
 
 function project(A::LinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(A)) where {T}

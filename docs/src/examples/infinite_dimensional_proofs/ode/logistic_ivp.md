@@ -66,7 +66,7 @@ Consider the fixed-point operator ``T : X \to X`` defined by
 T(x) := x - A F(x),
 ```
 
-where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} \in X`` of ``F``.
+where ``A : X \to X`` is an injective operator corresponding to an approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} \in X`` of ``F``.
 
 Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained by Newton's method:
 
@@ -118,14 +118,14 @@ DF_interval = DF(x̄_interval, space(x̄_interval), space(x̄_interval), eltype(
 
 tail_F_interval = copy(F_interval)
 tail_F_interval[0:n] .= Interval(0.0)
-A = Interval.(inv(mid.(DF_interval)))
+A = inv(mid.(DF_interval))
 bound_tail_A = inv(Interval(n+1))
 
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
 
 Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x̄_interval - 1, X)
 
-Z₂ = 2ν * (opnorm(A, X) + bound_tail_A)
+Z₂ = 2ν * (opnorm(Interval.(A), X) + bound_tail_A)
 
 showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
 ```

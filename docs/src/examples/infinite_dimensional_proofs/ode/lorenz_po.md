@@ -54,18 +54,18 @@ u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z
 
 For any sequence ``u \in X_\textnormal{F}``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
 
-The Banach space ``X_\textnormal{F}`` is a suitable space to represent a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
+The Banach space ``X_\textnormal{F}`` is a suitable space to represent each component of a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 
 [^1]: A. Hungria, J.-P. Lessard and J. D. Mireles James, [Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach](https://doi.org/10.1090/mcom/3046), *Mathematics of Computation*, **85** (2016), 1427-1459.
 
-Define the Banach space ``X := \mathbb{C} \times X_\textnormal{F}^3`` endowed with the norm ``|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})``. It follows that the sequence of coefficients of a ``2\pi\gamma``-periodic Fourier series solving the Lorenz equations is a zero of the mapping ``F : X \to X`` given by
+Define the Banach space ``X := \mathbb{C} \times X_\textnormal{F}^3`` endowed with the norm ``|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})`` for all ``x = (\gamma, u_1, u_2, u_3) \in X``. It follows that the sequence of coefficients of a ``2\pi\gamma``-periodic Fourier series solving the Lorenz equations is a zero of the mapping ``F : X \to X`` given by
 
 ```math
 F(x) :=
 \begin{pmatrix}
 \sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
 \left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
-\end{pmatrix}, \qquad \text{for all } x := (\gamma, u_1, u_2, u_3) \in X,
+\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in X,
 ```
 
 where ``\xi \in \mathbb{R}^3`` is a chosen approximate position on the periodic orbit and ``\eta \in \mathbb{R}^3`` the corresponding approximate tangent vector at ``\xi``. By means of the *phase condition* ``\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j``, the translation invariance of the periodic orbit is removed.
@@ -78,9 +78,9 @@ function F_DF!(F, DF, x, σ, ρ, β)
     DF .= 0
 
     F[1] =
-        (sum(coefficients(component(u, 1))) - 10.205222700615433) * 24.600655549587863 +
-        (sum(coefficients(component(u, 2))) - 11.899530531689562) * (-2.4927169722923335) +
-        (sum(coefficients(component(u, 3))) - 27.000586375896557) * 71.81142025024573
+        (sum(component(u, 1)) - 10.205222700615433) * 24.600655549587863 +
+        (sum(component(u, 2)) - 11.899530531689562) * (-2.4927169722923335) +
+        (sum(component(u, 3)) - 27.000586375896557) * 71.81142025024573
     component(component(DF, 1, 2), 1)[1,:] .= 24.600655549587863
     component(component(DF, 1, 2), 2)[1,:] .= -2.4927169722923335
     component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
@@ -100,7 +100,7 @@ Consider the fixed-point operator ``T : X \to X`` defined by
 T(x) := x - A F(x),
 ```
 
-where ``A : X \to X`` is the injective operator corresponding to a numerical approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} := (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X`` of ``F``.
+where ``A : X \to X`` is an injective operator corresponding to an approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X`` of ``F``.
 
 Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained by Newton's method:
 
@@ -150,9 +150,9 @@ u_k, & |k| \le n,\\
 \qquad \textnormal{for all } u \in X_\textnormal{F}.
 ```
 
-Using the same symbol, this projection extends naturally to ``X_\textnormal{F}^3`` and ``X`` by acting on each component as follows ``\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``u := (u_1, u_2, u_3) \in X_\textnormal{F}^3``, and ``\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``x := (\gamma, u_1, u_2, u_3) \in X``. For each of the Banach spaces ``X_\textnormal{F}, X_\textnormal{F}^3, X``, we define the complementary operator ``\pi^{\infty(n)} := I - \pi^n``.
+Using the same symbol, this projection extends naturally to ``X_\textnormal{F}^3`` and ``X`` by acting on each component as follows ``\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``u = (u_1, u_2, u_3) \in X_\textnormal{F}^3``, and ``\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``x = (\gamma, u_1, u_2, u_3) \in X``. For each of the Banach spaces ``X_\textnormal{F}, X_\textnormal{F}^3, X``, we define the complementary operator ``\pi^{\infty(n)} := I - \pi^n``.
 
-Thus, denoting ``\bar{u} := (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
+Thus, denoting ``\bar{u} = (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 
 ```math
 \begin{aligned}
@@ -172,9 +172,9 @@ The computer-assisted proof may be implemented as follows:
 
 ```@example lorenz_po
 ν = Interval(1.01)
-X_Fourier = ℓ¹(GeometricWeight(ν))
-X_Fourier³ = NormedCartesianSpace(X_Fourier, ℓ∞())
-X = NormedCartesianSpace((ℓ∞(), X_Fourier³), ℓ∞())
+X_F = ℓ¹(GeometricWeight(ν))
+X_F³ = NormedCartesianSpace(X_F, ℓ∞())
+X = NormedCartesianSpace((ℓ∞(), X_F³), ℓ∞())
 R = 1e-8
 
 σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), 8.0/Interval(3.0)
@@ -192,20 +192,20 @@ for i ∈ 1:3
     component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
     component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
 end
-A = Interval.(inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval)))))
+A = inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval))))
 bound_tail_A = inv(Interval(n+1))
 
-Y = norm(A*F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_Fourier³)
+Y = norm(A * F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_F³)
 
-Z₁ = opnorm(A*DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_Fourier³) +
+Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_F³) +
     bound_tail_A * γ̄_interval * max(2σ_interval,
-        1 + norm(component(ū_interval, 1), X_Fourier) + norm(ρ_interval-component(ū_interval, 3), X_Fourier),
-        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier))
+        1 + norm(component(ū_interval, 1), X_F) + norm(ρ_interval-component(ū_interval, 3), X_F),
+        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F))
 
-Z₂ = (opnorm(A, X) + bound_tail_A) * 2 * (γ̄_interval + R +
+Z₂ = (opnorm(Interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
     max(2σ_interval,
-        1 + ρ_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 3), X_Fourier) + 2R,
-        β_interval + norm(component(ū_interval, 1), X_Fourier) + norm(component(ū_interval, 2), X_Fourier) + 2R))
+        1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
+        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
 
 showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
 ```

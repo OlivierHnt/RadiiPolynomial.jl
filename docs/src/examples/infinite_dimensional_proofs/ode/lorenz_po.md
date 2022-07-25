@@ -68,7 +68,7 @@ F(x) :=
 \end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in X,
 ```
 
-where ``\xi \in \mathbb{R}^3`` is a chosen approximate position on the periodic orbit and ``\eta \in \mathbb{R}^3`` the corresponding approximate tangent vector at ``\xi``. By means of the *phase condition* ``\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j``, the translation invariance of the periodic orbit is removed.
+where ``\xi \in \mathbb{R}^3`` is a chosen approximate position of the periodic orbit at ``t = 0`` and ``\eta \in \mathbb{R}^3`` the corresponding approximate tangent vector at ``\xi``. By means of the *phase condition* ``\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j``, the translation invariance of the periodic orbit is removed.
 
 The mapping ``F`` and its Fréchet derivative, denoted ``DF``, may be implemented as follows:
 

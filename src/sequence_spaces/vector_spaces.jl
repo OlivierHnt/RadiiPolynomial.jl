@@ -100,7 +100,6 @@ Creates a [`TensorSpace`](@ref) from the tensor product of some [`SequenceSpace`
 
 See also: [`TensorSpace`](@ref).
 
-
 # Examples
 ```jldoctest
 julia> Taylor(1) ⊗ Fourier(2, 1.0)

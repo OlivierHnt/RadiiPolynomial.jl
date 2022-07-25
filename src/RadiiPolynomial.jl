@@ -28,9 +28,9 @@ include("sequence_spaces/broadcast.jl")
 #
 
 include("sequence_spaces/norm.jl")
-    export BanachSpace, ℓ¹, ℓ², ℓ∞, Weight, IdentityWeight, GeometricWeight,
-        geometricweight, AlgebraicWeight, algebraicweight, BesselWeight, rate,
-        NormedCartesianSpace
+    export Weight, IdentityWeight, GeometricWeight, geometricweight,
+        AlgebraicWeight, algebraicweight, BesselWeight, rate,
+        BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace
 
 #
 

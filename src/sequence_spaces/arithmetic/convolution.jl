@@ -378,7 +378,7 @@ function _convolution!(C, A, B, α, space_c::Taylor, space_a::Taylor, space_b::T
     @inbounds for j ∈ max(i-order_a, 0):min(i, order_b)
         v += A[i-j+1] * B[j+1]
     end
-    C[i+1] += v * α
+    @inbounds C[i+1] += v * α
     return C
 end
 
@@ -404,7 +404,7 @@ function _convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b:
     @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
         v += A[i-j+order_a+1] * B[j+order_b+1]
     end
-    C[i+order_c+1] += v * α
+    @inbounds C[i+order_c+1] += v * α
     return C
 end
 
@@ -430,7 +430,7 @@ function _convolution!(C, A, B, α, space_c::Chebyshev, space_a::Chebyshev, spac
     @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
         v += A[abs(i-j)+1] * B[abs(j)+1]
     end
-    C[i+1] += v * α
+    @inbounds C[i+1] += v * α
     return C
 end
 

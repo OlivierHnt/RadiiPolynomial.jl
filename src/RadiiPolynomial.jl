@@ -8,17 +8,13 @@ include("utilities.jl")
 
 # Vector spaces
 
-import LinearAlgebra: ×
-
 include("sequence_spaces/vector_spaces.jl")
     export VectorSpace, ParameterSpace, SequenceSpace, BaseSpace,
         TensorSpace, ⊗, TensorIndices, Taylor, Fourier, Chebyshev,
-        CartesianSpace, CartesianPower, CartesianProduct
+        CartesianSpace, CartesianPower, CartesianProduct, ×
 
     export order, frequency, space, spaces, dimension, dimensions, indices,
         nspaces
-
-    export ×
 
 # Sequences and linear operators
 

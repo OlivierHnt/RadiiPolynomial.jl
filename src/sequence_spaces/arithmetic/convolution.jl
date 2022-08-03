@@ -253,7 +253,7 @@ function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     _mul!(c, a, b, true, false)
     return c
 end
-function LinearAlgebra.mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
+function mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
     space_c = space(c)
     new_space = image(*, space(a), space(b))
     _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a*b has space $new_space"))

@@ -1,7 +1,7 @@
 if isdefined(LinearAlgebra, :PivotingStrategy)
-    _qr_nopivot!(A) = qr!(A, NoPivot())
+    _qr_nopivot!(A) = LinearAlgebra.qr!(A, LinearAlgebra.NoPivot())
 else # Julia v1.6
-    _qr_nopivot!(A) = qr!(A, Val(false))
+    _qr_nopivot!(A) = LinearAlgebra.qr!(A, Val(false))
 end
 
 #
@@ -335,27 +335,12 @@ Abstract type for all Banach spaces.
 """
 abstract type BanachSpace end
 
-
-
-struct Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-    weight :: T
-    Ell1{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    Ell1{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell1 is only defined for at least one Weight"))
-end
-
-Ell1(weight::T) where {T<:Weight} = Ell1{T}(weight)
-Ell1(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell1{T}(weight)
-Ell1() = Ell1{IdentityWeight}(IdentityWeight())
-Ell1(weight::Weight...) = Ell1(weight)
-
-const ℓ¹ = Ell1
-
 """
     Ell1{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^1`` space.
 
-Unicode alias `ℓ¹` can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL, and in many editors.
+Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL, and in many editors.
 
 See also: [`Ell2`](@ref) and [`EllInf`](@ref).
 
@@ -371,29 +356,44 @@ julia> Ell1(GeometricWeight(1.0), AlgebraicWeight(2.0))
 Ell1{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
 ```
 """
-Ell1, ℓ¹
-
-
-
-struct Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+struct Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
     weight :: T
-    Ell2{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    Ell2{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell2 is only defined for at least one Weight"))
+    Ell1{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    Ell1{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell1 is only defined for at least one Weight"))
 end
 
-Ell2(weight::T) where {T<:Weight} = Ell2{T}(weight)
-Ell2(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell2{T}(weight)
-Ell2() = Ell2{IdentityWeight}(IdentityWeight())
-Ell2(weight::Weight...) = Ell2(weight)
+Ell1(weight::T) where {T<:Weight} = Ell1{T}(weight)
+Ell1(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell1{T}(weight)
+Ell1() = Ell1{IdentityWeight}(IdentityWeight())
+Ell1(weight::Weight...) = Ell1(weight)
 
-const ℓ² = Ell2
+"""
+    ℓ¹{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+
+Unicode alias of [`Ell1`](@ref) representing the weighted ``\\ell^1`` space.
+
+See also: [`Ell2`](@ref) and [`EllInf`](@ref).
+
+# Examples
+```jldoctest
+julia> ℓ¹()
+Ell1{IdentityWeight}(IdentityWeight())
+
+julia> ℓ¹(GeometricWeight(1.0))
+Ell1{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+
+julia> ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
+Ell1{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+```
+"""
+const ℓ¹ = Ell1
 
 """
     Ell2{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^2`` space.
 
-Unicode alias `ℓ²` can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL, and in many editors.
+Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL, and in many editors.
 
 See also: [`Ell1`](@ref) and [`EllInf`](@ref).
 
@@ -409,29 +409,44 @@ julia> Ell2(BesselWeight(1.0), GeometricWeight(2.0))
 Ell2{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float64}(1.0), GeometricWeight{Float64}(2.0)))
 ```
 """
-Ell2, ℓ²
-
-
-
-struct EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+struct Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
     weight :: T
-    EllInf{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    EllInf{Tuple{}}(::Tuple{}) = throw(ArgumentError("EllInf is only defined for at least one Weight"))
+    Ell2{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    Ell2{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell2 is only defined for at least one Weight"))
 end
 
-EllInf(weight::T) where {T<:Weight} = EllInf{T}(weight)
-EllInf(weight::T) where {T<:Tuple{Vararg{Weight}}} = EllInf{T}(weight)
-EllInf() = EllInf{IdentityWeight}(IdentityWeight())
-EllInf(weight::Weight...) = EllInf(weight)
+Ell2(weight::T) where {T<:Weight} = Ell2{T}(weight)
+Ell2(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell2{T}(weight)
+Ell2() = Ell2{IdentityWeight}(IdentityWeight())
+Ell2(weight::Weight...) = Ell2(weight)
 
-const ℓ∞ = EllInf
+"""
+    ℓ²{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+
+Unicode alias of [`Ell2`](@ref) representing the weighted ``\\ell^2`` space.
+
+See also: [`Ell1`](@ref) and [`EllInf`](@ref).
+
+# Examples
+```jldoctest
+julia> ℓ²()
+Ell2{IdentityWeight}(IdentityWeight())
+
+julia> ℓ²(BesselWeight(1.0))
+Ell2{BesselWeight{Float64}}(BesselWeight{Float64}(1.0))
+
+julia> ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
+Ell2{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float64}(1.0), GeometricWeight{Float64}(2.0)))
+```
+"""
+const ℓ² = Ell2
 
 """
     EllInf{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^\\infty`` space.
 
-Unicode alias `ℓ∞` can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL, and in many editors.
+Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL, and in many editors.
 
 See also: [`Ell1`](@ref) and [`Ell2`](@ref).
 
@@ -447,9 +462,37 @@ julia> EllInf(GeometricWeight(1.0), AlgebraicWeight(2.0))
 EllInf{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
 ```
 """
-EllInf, ℓ∞
+struct EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    weight :: T
+    EllInf{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
+    EllInf{Tuple{}}(::Tuple{}) = throw(ArgumentError("EllInf is only defined for at least one Weight"))
+end
 
+EllInf(weight::T) where {T<:Weight} = EllInf{T}(weight)
+EllInf(weight::T) where {T<:Tuple{Vararg{Weight}}} = EllInf{T}(weight)
+EllInf() = EllInf{IdentityWeight}(IdentityWeight())
+EllInf(weight::Weight...) = EllInf(weight)
 
+"""
+    ℓ∞{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+
+Unicode alias of [`EllInf`](@ref) representing the weighted ``\\ell^\\infty`` space.
+
+See also: [`Ell1`](@ref) and [`Ell2`](@ref).
+
+# Examples
+```jldoctest
+julia> ℓ∞()
+EllInf{IdentityWeight}(IdentityWeight())
+
+julia> ℓ∞(GeometricWeight(1.0))
+EllInf{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+
+julia> ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
+EllInf{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+```
+"""
+const ℓ∞ = EllInf
 
 # normed cartesian space
 
@@ -476,9 +519,9 @@ end
 
 # fallback methods
 
-LinearAlgebra.opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
+opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
 
-function LinearAlgebra.opnorm(A::LinearOperator, X_domain::BanachSpace, X_codomain::BanachSpace)
+function opnorm(A::LinearOperator, X_domain::BanachSpace, X_codomain::BanachSpace)
     codomain_A = codomain(A)
     A_ = coefficients(A)
     @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), X_codomain)
@@ -491,7 +534,7 @@ function LinearAlgebra.opnorm(A::LinearOperator, X_domain::BanachSpace, X_codoma
     return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X_domain)
 end
 
-function LinearAlgebra.norm(a::Sequence, p::Real=Inf)
+function norm(a::Sequence, p::Real=Inf)
     if p == 1
         return norm(a, Ell1(IdentityWeight()))
     elseif p == 2
@@ -503,7 +546,7 @@ function LinearAlgebra.norm(a::Sequence, p::Real=Inf)
     end
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator, p::Real=Inf)
+function opnorm(A::LinearOperator, p::Real=Inf)
     if p == 1
         return opnorm(A, Ell1(IdentityWeight()))
     elseif p == 2
@@ -519,8 +562,8 @@ end
 
 for T ∈ (:Ell1, :Ell2, :EllInf)
     @eval begin
-        LinearAlgebra.norm(a::Sequence, X::$T{<:Weight}) = _apply(X, space(a), coefficients(a))
-        function LinearAlgebra.norm(a::Sequence{TensorSpace{S}}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
+        norm(a::Sequence, X::$T{<:Weight}) = _apply(X, space(a), coefficients(a))
+        function norm(a::Sequence{TensorSpace{S}}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
             space_a = space(a)
             A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
             return _apply(X, space_a, A)
@@ -530,9 +573,9 @@ for T ∈ (:Ell1, :Ell2, :EllInf)
         _apply(X::$T, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
             @inbounds _apply($T(X.weight[1]), space[1], A)
 
-        LinearAlgebra.opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::$T{<:Weight}) =
+        opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::$T{<:Weight}) =
             _apply_dual(X, domain(A), vec(coefficients(A)))
-        function LinearAlgebra.opnorm(A::LinearOperator{TensorSpace{S},ParameterSpace}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
+        function opnorm(A::LinearOperator{TensorSpace{S},ParameterSpace}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
             domain_A = domain(A)
             A_ = _no_alloc_reshape(coefficients(A), dimensions(domain_A))
             return _apply_dual(X, domain_A, A_)
@@ -546,7 +589,7 @@ end
 
 #
 
-function LinearAlgebra.opnorm(A::LinearOperator, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight})
+function opnorm(A::LinearOperator, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight})
     r = z = abs(zero(eltype(A)))
     A_ = coefficients(A)
     for j ∈ axes(A_, 2)
@@ -559,13 +602,13 @@ function LinearAlgebra.opnorm(A::LinearOperator, ::Ell1{IdentityWeight}, ::Ell1{
     return r
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator, ::Ell2{IdentityWeight}, ::Ell2{IdentityWeight})
+function opnorm(A::LinearOperator, ::Ell2{IdentityWeight}, ::Ell2{IdentityWeight})
     X_1 = Ell1(IdentityWeight())
     X_Inf = EllInf(IdentityWeight())
     return sqrt(opnorm(A, X_1, X_1) * opnorm(A, X_Inf, X_Inf))
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator, ::EllInf{IdentityWeight}, ::EllInf{IdentityWeight})
+function opnorm(A::LinearOperator, ::EllInf{IdentityWeight}, ::EllInf{IdentityWeight})
     r = z = abs(zero(eltype(A)))
     A_ = coefficients(A)
     for i ∈ axes(A_, 1)
@@ -1163,40 +1206,40 @@ _apply_dual(::EllInf{IdentityWeight}, space::CartesianSpace, A::AbstractVector) 
 
 for X ∈ (:Ell1, :EllInf)
     @eval begin
-        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
+        function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
             0 < nspaces(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _norm(a, X)
         end
-        function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
+        function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
             0 < nspaces(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _norm(a, X)
         end
 
-        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
+        function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
             0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _opnorm(A, X)
         end
-        function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
+        function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
             0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _opnorm(A, X)
         end
     end
 end
 
-function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
+function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
     0 < nspaces(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_norm2(a, X))
 end
-function LinearAlgebra.norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
+function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
     0 < nspaces(space(a)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_norm2(a, X))
 end
 
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
+function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
     0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_opnorm2(A, X))
 end
-function LinearAlgebra.opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
+function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
     0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_opnorm2(A, X))
 end

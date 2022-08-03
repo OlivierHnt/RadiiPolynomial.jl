@@ -9,15 +9,11 @@ Base.:*(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), *
 Base.:/(A::LinearOperator, b::Number) = LinearOperator(domain(A), codomain(A), /(coefficients(A), b))
 Base.:\(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), \(b, coefficients(A)))
 
-LinearAlgebra.rmul!(A::LinearOperator, b::Number) =
-    LinearOperator(domain(A), codomain(A), rmul!(coefficients(A), b))
-LinearAlgebra.lmul!(b::Number, A::LinearOperator) =
-    LinearOperator(domain(A), codomain(A), lmul!(b, coefficients(A)))
+rmul!(A::LinearOperator, b::Number) =  LinearOperator(domain(A), codomain(A), rmul!(coefficients(A), b))
+lmul!(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), lmul!(b, coefficients(A)))
 
-LinearAlgebra.rdiv!(A::LinearOperator, b::Number) =
-    LinearOperator(domain(A), codomain(A), rdiv!(coefficients(A), b))
-LinearAlgebra.ldiv!(b::Number, A::LinearOperator) =
-    LinearOperator(domain(A), codomain(A), ldiv!(b, coefficients(A)))
+rdiv!(A::LinearOperator, b::Number) = LinearOperator(domain(A), codomain(A), rdiv!(coefficients(A), b))
+ldiv!(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), ldiv!(b, coefficients(A)))
 
 function Base.:*(A::LinearOperator, B::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
@@ -29,7 +25,7 @@ function Base.:*(A::LinearOperator, B::LinearOperator)
     return C
 end
 
-function LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
+function mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Number, β::Number)
     _iscompatible(domain(C), domain(B)) & _iscompatible(codomain(C), codomain(A)) & _iscompatible(domain(A), codomain(B)) || return throw(ArgumentError("spaces must be compatible"))
     _mul!(C, A, B, α, β)
     return C
@@ -70,14 +66,14 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
     return C
 end
 
-function LinearAlgebra.rmul!(A::LinearOperator, B::LinearOperator)
+function rmul!(A::LinearOperator, B::LinearOperator)
     domain_A = domain(A)
     codomain_B = codomain(B)
     _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     return LinearOperator(domain(B), codomain(A), rmul!(coefficients(A), coefficients(B)))
 end
 
-function LinearAlgebra.lmul!(A::LinearOperator, B::LinearOperator)
+function lmul!(A::LinearOperator, B::LinearOperator)
     domain_A = domain(A)
     codomain_B = codomain(B)
     _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
@@ -681,7 +677,7 @@ end
 
 #
 
-function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
     _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
@@ -691,8 +687,8 @@ function Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagon
     _radd!(C, J)
     return C
 end
-Base.:+(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = +(A, J)
-function Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+Base.:+(J::LinearAlgebra.Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = +(A, J)
+function Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     domain_A = domain(A)
     codomain_A = codomain(A)
     _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
@@ -702,7 +698,7 @@ function Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagon
     _rsub!(C, J)
     return C
 end
-function Base.:-(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
+function Base.:-(J::LinearAlgebra.Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
     codomain_A = codomain(A)
     _iscompatible(domain_A, codomain_A) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
@@ -713,20 +709,20 @@ function Base.:-(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpa
     return C
 end
 
-function radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+function radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     domain_A = domain(A)
     _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _radd!(A, J)
     return A
 end
-ladd!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = radd!(A, J)
-function rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+ladd!(J::LinearAlgebra.Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = radd!(A, J)
+function rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     domain_A = domain(A)
     _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     _rsub!(A, J)
     return A
 end
-function lsub!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
+function lsub!(J::LinearAlgebra.Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
     domain_A = domain(A)
     _iscompatible(domain_A, codomain(A)) & (_deep_nspaces(domain_A) == length(J.diag)) || return throw(ArgumentError("spaces must be compatible"))
     A_ = coefficients(A)
@@ -735,7 +731,7 @@ function lsub!(J::Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace
     return A
 end
 
-function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     k = 0
     @inbounds for i ∈ 1:nspaces(domain(A))
         Aᵢ = component(A, i, i)
@@ -743,7 +739,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagona
         if domain_Aᵢ isa CartesianSpace
             k_ = k + 1
             k += _deep_nspaces(domain_Aᵢ)
-            _radd!(Aᵢ, Diagonal(view(J.diag, k_:k)))
+            _radd!(Aᵢ, LinearAlgebra.Diagonal(view(J.diag, k_:k)))
         else
             k += 1
             _radd!(Aᵢ, J.diag[k])
@@ -751,7 +747,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagona
     end
     return A
 end
-function _rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagonal{<:UniformScaling})
+function _rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling})
     k = 0
     @inbounds for i ∈ 1:nspaces(domain(A))
         Aᵢ = component(A, i, i)
@@ -759,7 +755,7 @@ function _rsub!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Diagona
         if domain_Aᵢ isa CartesianSpace
             k_ = k + 1
             k += _deep_nspaces(domain_Aᵢ)
-            _rsub!(Aᵢ, Diagonal(view(J.diag, k_:k)))
+            _rsub!(Aᵢ, LinearAlgebra.Diagonal(view(J.diag, k_:k)))
         else
             k += 1
             _radd!(Aᵢ, -J.diag[k])

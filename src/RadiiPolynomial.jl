@@ -1,11 +1,14 @@
 module RadiiPolynomial
 
     using Printf, Reexport
-    @reexport using IntervalArithmetic, LinearAlgebra, SparseArrays
+    import LinearAlgebra, SparseArrays
+    @reexport using IntervalArithmetic
 
 include("utilities.jl")
 
-# Sequence spaces
+# Vector spaces
+
+import LinearAlgebra: ×
 
 include("sequence_spaces/vector_spaces.jl")
     export VectorSpace, ParameterSpace, SequenceSpace, BaseSpace,
@@ -15,7 +18,9 @@ include("sequence_spaces/vector_spaces.jl")
     export order, frequency, space, spaces, dimension, dimensions, indices,
         nspaces
 
-#
+    export ×
+
+# Sequences and linear operators
 
 include("sequence_spaces/sequence.jl")
     export Sequence
@@ -25,18 +30,20 @@ include("sequence_spaces/broadcast.jl")
 
     export coefficients, eachcol, eachrow, eachcomponent, component
 
-#
+# Banach spaces
+
+import LinearAlgebra: norm, opnorm
 
 include("sequence_spaces/norm.jl")
     export Weight, IdentityWeight, GeometricWeight, geometricweight,
         AlgebraicWeight, algebraicweight, BesselWeight, rate,
         BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace
 
-#
+    export norm, opnorm
 
-include("sequence_spaces/linear_algebra.jl")
+# Arithmetic
 
-#
+import LinearAlgebra: mul!, rmul!, lmul!, rdiv!, ldiv!, UniformScaling, I
 
 include("sequence_spaces/arithmetic/add_conv_image.jl")
 include("sequence_spaces/arithmetic/sequence.jl")
@@ -50,7 +57,9 @@ include("sequence_spaces/arithmetic/convolution.jl")
 include("sequence_spaces/arithmetic/fft.jl")
     export fft_size, fft, fft!, ifft!, rifft!
 
-#
+    export mul!, rmul!, lmul!, rdiv!, ldiv!, UniformScaling, I
+
+# Special operators
 
 include("sequence_spaces/special_operators/projection.jl")
     export project, project!
@@ -65,7 +74,7 @@ include("sequence_spaces/special_operators/scale.jl")
 include("sequence_spaces/special_operators/shift.jl")
     export Shift, shift, shift!
 
-# Radii polynomial
+# Radii polynomial approach
 
 include("rpa/interval_existence.jl")
     export interval_of_existence, C¹Condition, C²Condition

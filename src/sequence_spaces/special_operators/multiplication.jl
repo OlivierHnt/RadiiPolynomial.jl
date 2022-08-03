@@ -30,12 +30,9 @@ function Base.:*(ℳ::Multiplication, A::LinearOperator)
     return project(ℳ, codomain_A, image(*, space(ℳ.sequence), codomain_A)) * A
 end
 
-LinearAlgebra.mul!(c::Sequence, ℳ::Multiplication, a::Sequence, α::Number, β::Number) =
-    mul!(c, ℳ.sequence, a, α, β)
-LinearAlgebra.mul!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator, α::Number, β::Number) =
-    mul!(C, project(ℳ, codomain(A), codomain(C), eltype(C)), A, α, β)
-LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication, α::Number, β::Number) =
-    mul!(C, A, project(ℳ, domain(C), domain(A), eltype(C)), α, β)
+mul!(c::Sequence, ℳ::Multiplication, a::Sequence, α::Number, β::Number) = mul!(c, ℳ.sequence, a, α, β)
+mul!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℳ, codomain(A), codomain(C), eltype(C)), A, α, β)
+mul!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication, α::Number, β::Number) = mul!(C, A, project(ℳ, domain(C), domain(A), eltype(C)), α, β)
 
 #
 
@@ -57,7 +54,7 @@ end
 Base.:/(ℳ::Multiplication, a::Number) = Multiplication(/(ℳ.sequence, a))
 Base.:\(a::Number, ℳ::Multiplication) = Multiplication(\(a, ℳ.sequence))
 
-LinearAlgebra.opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
+opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
 
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}
     _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(ArgumentError("spaces must be compatible"))

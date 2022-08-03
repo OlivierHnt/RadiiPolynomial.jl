@@ -597,10 +597,10 @@ julia> ParameterSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
 𝕂² × ((Taylor(1) ⊗ Fourier{Float64}(2, 1.0)) × Chebyshev(3))³
 ```
 """
-LinearAlgebra.:×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
-LinearAlgebra.:×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))
-LinearAlgebra.:×(s₁::CartesianProduct, s₂::VectorSpace) = CartesianProduct((s₁.spaces..., s₂))
-LinearAlgebra.:×(s₁::VectorSpace, s₂::CartesianProduct) = CartesianProduct((s₁, s₂.spaces...))
+×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))
+×(s₁::CartesianProduct, s₂::CartesianProduct) = CartesianProduct((s₁.spaces..., s₂.spaces...))
+×(s₁::CartesianProduct, s₂::VectorSpace) = CartesianProduct((s₁.spaces..., s₂))
+×(s₁::VectorSpace, s₂::CartesianProduct) = CartesianProduct((s₁, s₂.spaces...))
 
 Base.@propagate_inbounds Base.getindex(s::CartesianProduct, i::Int) = getindex(s.spaces, i)
 Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractRange{Int}) = CartesianProduct(getindex(s.spaces, u))

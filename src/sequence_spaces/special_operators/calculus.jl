@@ -101,12 +101,9 @@ for F ∈ (:Derivative, :Integral)
             return project(ℱ, codomain_A, image(ℱ, codomain_A), _coeftype(ℱ, codomain_A, eltype(A))) * A
         end
 
-        LinearAlgebra.mul!(c::Sequence, ℱ::$F, a::Sequence, α::Number, β::Number) =
-            mul!(c, project(ℱ, space(a), space(c), eltype(c)), a, α, β)
-        LinearAlgebra.mul!(C::LinearOperator, ℱ::$F, A::LinearOperator, α::Number, β::Number) =
-            mul!(C, project(ℱ, codomain(A), codomain(C), eltype(C)), A, α, β)
-        LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, ℱ::$F, α::Number, β::Number) =
-            mul!(C, A, project(ℱ, domain(C), domain(A), eltype(C)), α, β)
+        mul!(c::Sequence, ℱ::$F, a::Sequence, α::Number, β::Number) = mul!(c, project(ℱ, space(a), space(c), eltype(c)), a, α, β)
+        mul!(C::LinearOperator, ℱ::$F, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℱ, codomain(A), codomain(C), eltype(C)), A, α, β)
+        mul!(C::LinearOperator, A::LinearOperator, ℱ::$F, α::Number, β::Number) = mul!(C, A, project(ℱ, domain(C), domain(A), eltype(C)), α, β)
     end
 end
 
@@ -195,7 +192,7 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
             _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
             ind_domain = _findposition_nzind_domain(ℱ, domain, codomain)
             ind_codomain = _findposition_nzind_codomain(ℱ, domain, codomain)
-            C = LinearOperator(domain, codomain, sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
+            C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
             _project!(C, ℱ)
             return C
         end

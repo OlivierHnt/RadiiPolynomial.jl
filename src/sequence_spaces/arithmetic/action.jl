@@ -12,7 +12,7 @@ function Base.:*(A::LinearOperator, b::Sequence)
     return c
 end
 
-function LinearAlgebra.mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
+function mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     _iscompatible(space(c), codomain(A)) & _iscompatible(domain(A), space(b)) || return throw(ArgumentError("spaces must be compatible"))
     _mul!(c, A, b, α, β)
     return c

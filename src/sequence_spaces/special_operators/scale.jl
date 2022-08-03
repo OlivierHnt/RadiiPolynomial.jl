@@ -59,12 +59,9 @@ function Base.:*(𝒮::Scale, A::LinearOperator)
     return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
 end
 
-LinearAlgebra.mul!(c::Sequence, 𝒮::Scale, a::Sequence, α::Number, β::Number) =
-    mul!(c, project(𝒮, space(a), space(c), eltype(c)), a, α, β)
-LinearAlgebra.mul!(C::LinearOperator, 𝒮::Scale, A::LinearOperator, α::Number, β::Number) =
-    mul!(C, project(𝒮, codomain(A), codomain(C), eltype(C)), A, α, β)
-LinearAlgebra.mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number, β::Number) =
-    mul!(C, A, project(𝒮, domain(C), domain(A), eltype(C)), α, β)
+mul!(c::Sequence, 𝒮::Scale, a::Sequence, α::Number, β::Number) = mul!(c, project(𝒮, space(a), space(c), eltype(c)), a, α, β)
+mul!(C::LinearOperator, 𝒮::Scale, A::LinearOperator, α::Number, β::Number) = mul!(C, project(𝒮, codomain(A), codomain(C), eltype(C)), A, α, β)
+mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number, β::Number) = mul!(C, A, project(𝒮, domain(C), domain(A), eltype(C)), α, β)
 
 #
 
@@ -108,7 +105,7 @@ function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
-    C = LinearOperator(domain, codomain, sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
+    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
     _project!(C, 𝒮)
     return C
 end

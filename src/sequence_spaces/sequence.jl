@@ -22,6 +22,9 @@ end
 Sequence(space::T, coefficients::S) where {T<:VectorSpace,S<:AbstractVector} =
     Sequence{T,S}(space, coefficients)
 
+Sequence(coefficients::AbstractVector) =
+    Sequence(ParameterSpace()^length(coefficients), coefficients)
+
 space(a::Sequence) = a.space
 
 coefficients(a::Sequence) = a.coefficients

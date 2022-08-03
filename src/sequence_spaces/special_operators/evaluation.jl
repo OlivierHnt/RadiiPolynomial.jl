@@ -85,26 +85,40 @@ function evaluate!(c::Sequence, a::Sequence, x)
 end
 
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
-    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
-    _project!(C, ℰ, _memo(domain, codomain, T))
+    _project!(C, ℰ, _memo(domain, T))
     return C
 end
 
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)
     codomain_C = codomain(C)
-    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    _iscompatible(ℰ, domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
     CoefType = eltype(C)
     coefficients(C) .= zero(CoefType)
-    _project!(C, ℰ, _memo(domain_C, codomain_C, CoefType))
+    _project!(C, ℰ, _memo(domain_C, CoefType))
     return C
 end
 
+_iscompatible(::Evaluation, ::VectorSpace, ::VectorSpace) = false
+_iscompatible(::Evaluation, s₁::SequenceSpace, s₂::SequenceSpace) = _iscompatible(s₁, s₂)
+_iscompatible(::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, ::SequenceSpace, ::ParameterSpace) = true
+_iscompatible(::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, ::SequenceSpace, ::SequenceSpace) = true
+_iscompatible(ℰ::Evaluation, s₁::CartesianPower, s₂::CartesianPower) =
+    (nspaces(s₁) == nspaces(s₂)) & _iscompatible(ℰ, space(s₁), space(s₂))
+_iscompatible(ℰ::Evaluation, s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
+    @inbounds _iscompatible(ℰ, s₁[1], s₂[1]) & _iscompatible(ℰ, Base.tail(s₁), Base.tail(s₂))
+_iscompatible(ℰ::Evaluation, s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
+    @inbounds _iscompatible(ℰ, s₁[1], s₂[1])
+_iscompatible(ℰ::Evaluation, s₁::CartesianPower, s₂::CartesianProduct) =
+    (nspaces(s₁) == nspaces(s₂)) & all(s₂ᵢ -> _iscompatible(ℰ, space(s₁), s₂ᵢ), spaces(s₂))
+_iscompatible(ℰ::Evaluation, s₁::CartesianProduct, s₂::CartesianPower) =
+    (nspaces(s₁) == nspaces(s₂)) & all(s₁ᵢ -> _iscompatible(ℰ, s₁ᵢ, space(s₂)), spaces(s₁))
+
 # Sequence spaces
 
-_memo(s₁::TensorSpace, s₂::TensorSpace, ::Type{T}) where {T} =
-    map((s₁ᵢ, s₂ᵢ) -> _memo(s₁ᵢ, s₂ᵢ, T), spaces(s₁), spaces(s₂))
+_memo(s::TensorSpace, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(s))
 
 image(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), ℰ.value, spaces(s)))
@@ -151,6 +165,28 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Eval
     end
     return C
 end
+function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, memo)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    CoefType = eltype(C)
+    α = _findindex_constant(codomain_C)
+    image_ℰ = image(ℰ, domain_C)
+    α′ = _findindex_constant(image_ℰ)
+    @inbounds for β ∈ indices(domain_C)
+        C[α,β] = _getindex(ℰ, domain_C, image_ℰ, CoefType, α′, β, memo)
+    end
+    return C
+end
+function _project!(C::LinearOperator{<:SequenceSpace,ParameterSpace}, ℰ::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, memo)
+    domain_C = domain(C)
+    CoefType = eltype(C)
+    image_ℰ = image(ℰ, domain_C)
+    α′ = _findindex_constant(image_ℰ)
+    @inbounds for β ∈ indices(domain_C)
+        C[1,β] = _getindex(ℰ, domain_C, image_ℰ, CoefType, α′, β, memo)
+    end
+    return C
+end
 
 _getindex(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T} =
     @inbounds _getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]) * _getindex(Evaluation(Base.tail(ℰ.value)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β), Base.tail(memo))
@@ -159,7 +195,7 @@ _getindex(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, domain::TensorSpace{<
 
 # Taylor
 
-_memo(::Taylor, ::Taylor, ::Type) = nothing
+_memo(::Taylor, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::Taylor) = s
 image(::Evaluation, ::Taylor) = Taylor(0)
@@ -240,7 +276,7 @@ end
 
 # Fourier
 
-_memo(::Fourier, ::Fourier, ::Type) = nothing
+_memo(::Fourier, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::Fourier) = s
 image(::Evaluation, s::Fourier) = Fourier(0, frequency(s))
@@ -391,7 +427,7 @@ end
 
 # Chebyshev
 
-_memo(::Chebyshev, ::Chebyshev, ::Type{T}) where {T} = Dict{Int,T}()
+_memo(::Chebyshev, ::Type{T}) where {T} = Dict{Int,T}()
 
 image(::Evaluation{Nothing}, s::Chebyshev) = s
 image(::Evaluation, ::Chebyshev) = Chebyshev(0)
@@ -579,17 +615,15 @@ end
 
 # Cartesian spaces
 
-_memo(s₁::CartesianSpace, s₂::CartesianSpace, ::Type{T}) where {T} =
-    @inbounds _memo(s₁[1], s₂[1], T)
+_memo(s::CartesianPower, ::Type{T}) where {T} = _memo(space(s), T)
 
-image(ℰ::Evaluation, s::CartesianPower) =
-    CartesianPower(image(ℰ, space(s)), nspaces(s))
+image(ℰ::Evaluation, s::CartesianPower) = CartesianPower(image(ℰ, space(s)), nspaces(s))
 
-image(ℰ::Evaluation, s::CartesianProduct) =
-    CartesianProduct(map(sᵢ -> image(ℰ, sᵢ), spaces(s)))
+_coeftype(ℰ::Evaluation, s::CartesianPower, ::Type{T}) where {T} = _coeftype(ℰ, space(s), T)
 
-_coeftype(ℰ::Evaluation, s::CartesianPower, ::Type{T}) where {T} =
-    _coeftype(ℰ, space(s), T)
+_memo(s::CartesianProduct, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(s))
+
+image(ℰ::Evaluation, s::CartesianProduct) = CartesianProduct(map(sᵢ -> image(ℰ, sᵢ), spaces(s)))
 
 _coeftype(ℰ::Evaluation, s::CartesianProduct, ::Type{T}) where {T} =
     @inbounds promote_type(_coeftype(ℰ, s[1], T), _coeftype(ℰ, Base.tail(s), T))
@@ -612,9 +646,15 @@ function _apply!(c::Sequence{CartesianProduct{T}}, ℰ::Evaluation, a) where {T<
     return c
 end
 
-function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℰ::Evaluation, memo)
+function _project!(C::LinearOperator{<:CartesianPower,<:CartesianSpace}, ℰ::Evaluation, memo)
     @inbounds for i ∈ 1:nspaces(domain(C))
         _project!(component(C, i, i), ℰ, memo)
+    end
+    return C
+end
+function _project!(C::LinearOperator{<:CartesianProduct,<:CartesianSpace}, ℰ::Evaluation, memo)
+    @inbounds for i ∈ 1:nspaces(domain(C))
+        _project!(component(C, i, i), ℰ, memo[i])
     end
     return C
 end

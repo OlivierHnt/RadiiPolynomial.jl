@@ -55,7 +55,7 @@ ladd!(𝒮::Scale, A::LinearOperator) = ladd!(project(𝒮, domain(A), codomain(
 lsub!(𝒮::Scale, A::LinearOperator) = lsub!(project(𝒮, domain(A), codomain(A), eltype(A)), A)
 
 function Base.:*(𝒮::Scale, A::LinearOperator)
-    codomain_A = domain(A)
+    codomain_A = codomain(A)
     return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
 end
 

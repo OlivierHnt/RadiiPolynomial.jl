@@ -61,13 +61,11 @@ The Jacobian matrix is given by
 The mapping ``F`` and its Jacobian, denoted ``DF``, may be implemented as follows:
 
 ```@example spiderweb
-using RadiiPolynomial
-
 function F(x, m₀, m, λ, l)
     T = eltype(x)
     n = length(x)
     π2l⁻¹ = 2convert(T, π)/l
-    F_ = Sequence(ParameterSpace()^n, Vector{T}(undef, n))
+    F_ = Vector{T}(undef, n)
     for i ∈ 1:n
         F_[i] = λ*x[i] + m₀/x[i]^2
         for k ∈ 1:l-1
@@ -90,7 +88,7 @@ function DF(x, m₀, m, λ, l)
     T = eltype(x)
     n = length(x)
     π2l⁻¹ = 2convert(T, π)/l
-    DF_ = LinearOperator(ParameterSpace()^n, ParameterSpace()^n, zeros(T, n, n))
+    DF_ = zeros(T, n, n)
     for j ∈ 1:n, i ∈ 1:n
         if i == j
             DF_[i,i] += λ - 2m₀/x[i]^3
@@ -122,6 +120,8 @@ where ``A : \mathbb{R}^n \to \mathbb{R}^n`` is the injective operator correspond
 Given an initial guess, the numerical zero ``x_0`` of ``F`` may be obtained by Newton's method:
 
 ```@example spiderweb
+using RadiiPolynomial
+
 n = 18 # number of circles
 l = 100 # number of masses per circle
 
@@ -129,7 +129,7 @@ m₀ = 0.0 # central mass
 m = fill(1/l, n) # vector of masses
 λ = -1.0
 
-x₀ = Sequence(ParameterSpace()^n, collect(range(1.0; stop = 3.0, length = n)))
+x₀ = collect(range(1.0; stop = 3.0, length = n))
 
 x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀)
 nothing # hide
@@ -154,9 +154,9 @@ DF_interval = DF(x₀R_interval, m₀_interval, m_interval, λ_interval, l)
 
 A = inv(mid.(DF_interval))
 
-Y = norm(A * F_interval, Inf)
+Y = norm(Sequence(A * F_interval), Inf)
 
-Z₁ = opnorm(A * DF_interval - I, Inf)
+Z₁ = opnorm(LinearOperator(A * DF_interval - I), Inf)
 
 showfull(interval_of_existence(Y, Z₁, R))
 ```

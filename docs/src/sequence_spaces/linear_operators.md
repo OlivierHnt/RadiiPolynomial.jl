@@ -43,7 +43,7 @@ LinearOperator
 
 ## Arithmetic
 
-The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `+̄` (`+\bar<TAB>`) and `-̄` (`-\bar<TAB>`) give the result projected in the smallest compatible domain and codomain between the operands.
+The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `+̄` (`+\bar<tab>`) and `-̄` (`-\bar<tab>`) give the result projected in the smallest compatible domain and codomain between the operands.
 
 ```@repl linear_operators
 C = LinearOperator(Taylor(1), Taylor(1), [1 2 ; 3 4])

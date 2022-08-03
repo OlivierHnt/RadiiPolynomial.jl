@@ -42,7 +42,7 @@ Sequence
 
 ## Arithmetic
 
-The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `+̄` (`+\bar<TAB>`) and `-̄` (`-\bar<TAB>`) give the result projected in the smallest compatible space between the operands.
+The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `+̄` (`+\bar<tab>`) and `-̄` (`-\bar<tab>`) give the result projected in the smallest compatible space between the operands.
 
 ```@repl sequences
 c = Sequence(Taylor(1), [0, 1])
@@ -53,7 +53,7 @@ c +̄ d # project(c + d, Taylor(1))
 c -̄ d # project(c - d, Taylor(1))
 ```
 
-The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*` and `^` functions. Their *bar* counterparts `*̄` (`*\bar<TAB>`) and `^̄` (`^\bar<TAB>`) give the result projected in the smallest compatible space between the operands; in general, `*̄` is not associative.
+The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*` and `^` functions. Their *bar* counterparts `*̄` (`*\bar<tab>`) and `^̄` (`^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `*̄` is not associative.
 
 ```@repl sequences
 c * d

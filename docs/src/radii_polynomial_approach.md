@@ -90,7 +90,5 @@ The infimum of the interval of existence gives the sharpest computed a posterior
 The `interval_of_existence` method returns an `Interval` such that ``p`` is negative.
 
 ```@docs
-interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, R::T) where {T<:Real}
-interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C¹Condition) where {T<:Real}
-interval_of_existence(Y::Interval{T}, Z₁::Interval{T}, Z₂::Interval{T}, R::T, ::C²Condition) where {T<:Real}
+interval_of_existence
 ```

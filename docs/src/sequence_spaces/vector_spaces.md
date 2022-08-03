@@ -8,7 +8,7 @@ RadiiPolynomial defines a variety of vector spaces to represent the Banach space
 
 All spaces mentioned below are a subtype of the abstract type [`VectorSpace`](@ref).
 
-```julia
+```
 VectorSpace
 ├─ CartesianSpace
 │  ├─ CartesianPower
@@ -44,7 +44,7 @@ ParameterSpace
 
 [`SequenceSpace`](@ref) is the abstract type for all sequence spaces.
 
-```julia
+```
 SequenceSpace
 ├─ BaseSpace
 │  ├─ Chebyshev
@@ -61,7 +61,7 @@ SequenceSpace
 
 [`BaseSpace`](@ref) is the abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but can be interlaced to form one.
 
-```julia
+```
 BaseSpace
 ├─ Chebyshev
 ├─ Fourier
@@ -122,7 +122,7 @@ Chebyshev
 
 ### Tensor space
 
-A [`TensorSpace`](@ref) is the tensor product of some [`BaseSpace`](@ref). The standard constructor for [`TensorSpace`](@ref) is the `⊗` (`\otimes<TAB>`) operator.
+A [`TensorSpace`](@ref) is the tensor product of some [`BaseSpace`](@ref). The standard constructor for [`TensorSpace`](@ref) is the `⊗` (`\otimes<tab>`) operator.
 
 ```@repl vector_spaces
 𝒯_otimes_ℱ_otimes_𝒞 = Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1) # TensorSpace((Taylor(1), Fourier(1, 1.0), Chebyshev(1)))
@@ -144,7 +144,7 @@ TensorIndices
 
 [`CartesianSpace`](@ref) is the abstract type for all cartesian spaces.
 
-```julia
+```
 CartesianSpace
 ├─ CartesianPower
 └─ CartesianProduct
@@ -172,7 +172,7 @@ CartesianPower
 
 ### Cartesian product
 
-A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@ref). The standard constructor for [`CartesianProduct`](@ref) is the `×` (`\times<TAB>`) operator.
+A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@ref). The standard constructor for [`CartesianProduct`](@ref) is the `×` (`\times<tab>`) operator.
 
 ```@repl vector_spaces
 𝒫_times_𝒯 = ParameterSpace() × Taylor(1) # CartesianProduct((ParameterSpace(), Taylor(1)))
@@ -183,5 +183,5 @@ indices(𝒫_times_𝒯)
 
 ```@docs
 CartesianProduct
-×(::VectorSpace, ::VectorSpace)
+×
 ```

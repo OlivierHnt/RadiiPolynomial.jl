@@ -65,7 +65,7 @@ F(x) :=
 \begin{pmatrix}
 \sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
 \left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
-\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in X,
+\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in \text{domain}(F),
 ```
 
 where ``\xi \in \mathbb{R}^3`` is a chosen approximate position of the periodic orbit at ``t = 0`` and ``\eta \in \mathbb{R}^3`` the corresponding approximate tangent vector at ``\xi``. By means of the *phase condition* ``\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j``, the translation invariance of the periodic orbit is removed.

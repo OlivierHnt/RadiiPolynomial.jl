@@ -23,7 +23,7 @@ makedocs(;
         "Examples" => [
             "Finite-dimensional proofs" => [
                 "examples/finite_dimensional_proofs/spiderweb.md",
-                "examples/finite_dimensional_proofs/pseudo_arclength.md"
+                "examples/finite_dimensional_proofs/fhn_pseudo_arclength.md"
             ],
             "Infinite-dimensional proofs" => [
                 "Ordinary differential equations (ODE)" => [

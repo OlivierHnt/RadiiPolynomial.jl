@@ -8,12 +8,12 @@ The choice of the Banach space to apply the Radii Polynomial Theorem (cf. Sectio
 
 Accordingly, the spaces introduced in Section [Vector spaces](@ref vector_spaces) are not normed a priori. The norm of a [`Sequence`](@ref) or a [`LinearOperator`](@ref) is obtained via the functions `norm` and `opnorm` respectively; in both cases, one must specify a [`BanachSpace`](@ref).
 
-```julia
+```
 BanachSpace
 ├─ NormedCartesianSpace
-├─ ℓ¹
-├─ ℓ²
-└─ ℓ∞
+├─ Ell1
+├─ Ell2
+└─ EllInf
 ```
 
 ```@docs
@@ -34,9 +34,9 @@ Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{
 
 where ``w : \mathscr{I} \to (0, +\infty)`` is a weight function.
 
-The Banach spaces [`ℓ¹`](@ref) (`\ell<TAB>\^1<TAB>`), [`ℓ²`](@ref) (`\ell<TAB>\^2<TAB>`) and [`ℓ∞`](@ref) (`\ell<TAB>\infty<TAB>`) wraps one or multiple [`Weight`](@ref).
+The Banach spaces [`ℓ¹`](@ref) (`\ell<tab>\^1<tab>`), [`ℓ²`](@ref) (`\ell<tab>\^2<tab>`) and [`ℓ∞`](@ref) (`\ell<tab>\infty<tab>`) wraps one or multiple [`Weight`](@ref).
 
-```julia
+```
 Weight
 ├─ AlgebraicWeight
 ├─ BesselWeight
@@ -78,8 +78,11 @@ norm(a, ℓ²(BesselWeight(2.0)))
 ```
 
 ```@docs
+Ell1
 ℓ¹
+Ell2
 ℓ²
+EllInf
 ℓ∞
 Weight
 IdentityWeight

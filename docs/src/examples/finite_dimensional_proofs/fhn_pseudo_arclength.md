@@ -51,7 +51,7 @@ DF(x, v) = [transpose(v) ; Df(x)]
 nothing # hide
 ```
 
-Given an initial guess, the numerical zero ``x_0`` of ``F`` may be obtained by Newton's method:
+Next, we perform Newton's method:
 
 ```@example fhn_pseudo_arclength
 using RadiiPolynomial

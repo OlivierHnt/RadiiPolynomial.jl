@@ -43,6 +43,26 @@ function Base.:-(ℰ::Evaluation, A::LinearOperator)
     return rsub!(project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))), A)
 end
 
+add!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation) = add!(C, A, project(ℰ, domain(A), codomain(A), eltype(C)))
+add!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator) = add!(C, project(ℰ, domain(A), codomain(A), eltype(C)), A)
+sub!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation) = sub!(C, A, project(ℰ, domain(A), codomain(A), eltype(C)))
+sub!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator) = sub!(C, project(ℰ, domain(A), codomain(A), eltype(C)), A)
+
+radd!(A::LinearOperator, ℰ::Evaluation) = radd!(A, project(ℰ, domain(A), codomain(A), eltype(A)))
+rsub!(A::LinearOperator, ℰ::Evaluation) = rsub!(A, project(ℰ, domain(A), codomain(A), eltype(A)))
+
+ladd!(ℰ::Evaluation, A::LinearOperator) = ladd!(project(ℰ, domain(A), codomain(A), eltype(A)), A)
+lsub!(ℰ::Evaluation, A::LinearOperator) = lsub!(project(ℰ, domain(A), codomain(A), eltype(A)), A)
+
+function Base.:*(ℰ::Evaluation, A::LinearOperator)
+    codomain_A = codomain(A)
+    return project(ℰ, codomain_A, image(ℰ, codomain_A), _coeftype(ℰ, codomain_A, eltype(A))) * A
+end
+
+mul!(c::Sequence, ℰ::Evaluation, a::Sequence, α::Number, β::Number) = mul!(c, project(ℰ, space(a), space(c), eltype(c)), a, α, β)
+mul!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℰ, codomain(A), codomain(C), eltype(C)), A, α, β)
+mul!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation, α::Number, β::Number) = mul!(C, A, project(ℰ, domain(C), domain(A), eltype(C)), α, β)
+
 #
 
 (ℰ::Evaluation)(a::Sequence) = *(ℰ, a)

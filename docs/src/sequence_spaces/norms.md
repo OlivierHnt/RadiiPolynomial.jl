@@ -34,7 +34,7 @@ Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{
 
 where ``w : \mathscr{I} \to (0, +\infty)`` is a weight function.
 
-The Banach spaces [`ℓ¹`](@ref) (`\ell<tab>\^1<tab>`), [`ℓ²`](@ref) (`\ell<tab>\^2<tab>`) and [`ℓ∞`](@ref) (`\ell<tab>\infty<tab>`) wraps one or multiple [`Weight`](@ref).
+The Banach spaces [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref) wraps one or multiple [`Weight`](@ref).
 
 ```
 Weight
@@ -48,33 +48,35 @@ Given a set of indices ``\mathscr{I}^\prime \subset \mathbb{Z}``:
 
 - an [`AlgebraicWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``.
 
-- a [`BesselWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``. This weight is specific to [`ℓ²`](@ref) and [`Fourier`](@ref) as it describes the [Sobolev space](https://en.wikipedia.org/wiki/Sobolev_space) ``H^s``.
+- a [`BesselWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) := (1 + |\alpha|)^s`` for all ``\alpha \in \mathscr{I}^\prime``. This weight is specific to [`Ell2`](@ref) and [`Fourier`](@ref) as it describes the [Sobolev space](https://en.wikipedia.org/wiki/Sobolev_space) ``H^s``.
 
 - a [`GeometricWeight`](@ref) of rate ``\nu > 0`` is defined by ``w(\alpha) := \nu^{|\alpha|}`` for all ``\alpha \in \mathscr{I}^\prime``.
 
-- an [`IdentityWeight`](@ref) is defined by ``w(\alpha) := 1`` for all ``\alpha \in \mathscr{I}^\prime``. This is the default weight for [`ℓ¹`](@ref), [`ℓ²`](@ref) and [`ℓ∞`](@ref).
+- an [`IdentityWeight`](@ref) is defined by ``w(\alpha) := 1`` for all ``\alpha \in \mathscr{I}^\prime``. This is the default weight for [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
 
 ```@repl norms
 a = Sequence(Taylor(2), [1.0, 1.0, 1.0]); # 1 + x + x^2
-norm(a, ℓ¹(AlgebraicWeight(1.0)))
+norm(a, Ell1(AlgebraicWeight(1.0)))
 b = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5]); # cos(x)
-norm(b, ℓ²(BesselWeight(2.0)))
+norm(b, Ell2(BesselWeight(2.0)))
 c = Sequence(Chebyshev(2), [1.0, 0.5, 0.5]); # 1 + 2(x/2 + (2x^2 - 1)/2)
-norm(c, ℓ∞()) # ℓ∞() == ℓ∞(IdentityWeight())
+norm(c, EllInf()) # EllInf() == EllInf(IdentityWeight())
 ```
+
+Note that [`ℓ¹`](@ref) (`\ell<tab>\^1<tab>`), [`ℓ²`](@ref) (`\ell<tab>\^2<tab>`) and [`ℓ∞`](@ref) (`\ell<tab>\infty<tab>`) are the respective unicode aliases of [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
 
 In the context of a ``d``-dimensional [`TensorSpace`](@ref), one prescribes weights ``w_1, \dots, w_d`` for each dimension. The weight is defined by ``w(\alpha) = w_1(\alpha_1) \times \dots \times w_d(\alpha_d)`` for all ``\alpha = (\alpha_1, \dots, \alpha_d) \in \mathscr{I}^{\prime\prime}`` where ``\mathscr{I}^{\prime\prime} \subset \mathbb{Z}^d`` is the appropriate set of indices.
 
 ```@repl norms
 a = Sequence(Taylor(2) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(2), ones(3*5*3));
-norm(a, ℓ¹((AlgebraicWeight(1.0), GeometricWeight(2.0), IdentityWeight())))
+norm(a, Ell1((AlgebraicWeight(1.0), GeometricWeight(2.0), IdentityWeight())))
 ```
 
 However, the ``d``-dimensional version of [`BesselWeight`](@ref) is defined by ``w(\alpha) := (1 + |\alpha_1| + \dots + |\alpha_d|)^s`` for all ``\alpha = (\alpha_1, \dots, \alpha_d) \in \mathbb{Z}^d``. Only one [`BesselWeight`](@ref) is required for every [`Fourier`](@ref) space composing the [`TensorSpace`](@ref).
 
 ```@repl norms
 a = Sequence(Fourier(2, 1.0) ⊗ Fourier(3, 1.0), ones(5*7));
-norm(a, ℓ²(BesselWeight(2.0)))
+norm(a, Ell2(BesselWeight(2.0)))
 ```
 
 ```@docs

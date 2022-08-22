@@ -42,24 +42,24 @@ Sequence
 
 ## Arithmetic
 
-The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `+̄` (`+\bar<tab>`) and `-̄` (`-\bar<tab>`) give the result projected in the smallest compatible space between the operands.
+The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `add_bar` (unicode alias `+\bar<tab>`) and `sub_bar` (unicode alias `-\bar<tab>`) give the result projected in the smallest compatible space between the operands.
 
 ```@repl sequences
 c = Sequence(Taylor(1), [0, 1])
 d = Sequence(Taylor(2), [1, 2, 1])
 c + d
 c - d
-c +̄ d # project(c + d, Taylor(1))
-c -̄ d # project(c - d, Taylor(1))
+add_bar(c, d) # project(c + d, Taylor(1))
+sub_bar(c, d) # project(c - d, Taylor(1))
 ```
 
-The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*` and `^` functions. Their *bar* counterparts `*̄` (`*\bar<tab>`) and `^̄` (`^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `*̄` is not associative.
+The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*` and `^` functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.
 
 ```@repl sequences
 c * d
 c ^ 3
-c *̄ d # project(c * d, Taylor(1))
-c ^̄ 3 # project(c ^ 3, Taylor(1))
+mul_bar(c, d) # project(c * d, Taylor(1))
+pow_bar(c, 3) # project(c ^ 3, Taylor(1))
 ```
 
 To improve performance, the FFT algorithm may be used to compute discrete convolutions via the [Convolution Theorem](https://en.wikipedia.org/wiki/Convolution_theorem). However, the performance gain is tempered with the loss of accuracy which may stop the decay of the coefficients.
@@ -74,7 +74,7 @@ To circumvent machine precision limitations, the `banach_rounding!` method enclo
 
 [^1]: J.-P. Lessard, [Computing discrete convolutions with verified accuracy via Banach algebras and the FFT](https://doi.org/10.21136/AM.2018.0082-18), *Applications of Mathematics*, **63** (2018), 219-235.
 
-The rounding strategy for `*`, `^`, `*̄` and `^̄` is integrated in the functions `banach_rounding_mul`, `banach_rounding_pow`, `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
+The rounding strategy for `*`, `^`, `mul_bar` and `pow_bar` is integrated in the functions `banach_rounding_mul`, `banach_rounding_pow`, `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
 
 ```@repl sequences
 X = ℓ¹(GeometricWeight(Interval(10_000.0)))

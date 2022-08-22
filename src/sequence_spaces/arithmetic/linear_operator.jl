@@ -165,7 +165,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
     end
 end
 
-for (f, _f!) ∈ ((:+̄, :_add!), (:-̄, :_sub!))
+for (f, _f!) ∈ ((:add_bar, :_add!), (:sub_bar, :_sub!))
     @eval function $f(A::LinearOperator, B::LinearOperator)
         domain_A, codomain_A = domain(A), codomain(A)
         domain_B, codomain_B = domain(B), codomain(B)

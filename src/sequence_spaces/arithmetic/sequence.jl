@@ -55,7 +55,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
     end
 end
 
-for (f, _f!) ∈ ((:+̄, :_add!), (:-̄, :_sub!))
+for (f, _f!) ∈ ((:add_bar, :_add!), (:sub_bar, :_sub!))
     @eval function $f(a::Sequence, b::Sequence)
         new_space = image($f, space(a), space(b))
         CoefType = promote_type(eltype(a), eltype(b))

@@ -246,8 +246,8 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     _mul!(c, a, b, true, false)
     return c
 end
-function *̄(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    new_space = image(*̄, space(a), space(b))
+function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
+    new_space = image(mul_bar, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _mul!(c, a, b, true, false)
@@ -283,7 +283,7 @@ end
 function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(bound_ab, X)
-    new_space = image(*̄, space(a), space(b))
+    new_space = image(mul_bar, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     banach_rounding!(c, bound_ab, X, rounding_order)
@@ -468,8 +468,8 @@ function Base.:^(a::Sequence{<:SequenceSpace}, n::Int)
     end
     return c
 end
-function ^̄(a::Sequence{<:SequenceSpace}, n::Int)
-    n < 0 && return throw(DomainError(n, "^̄ is only defined for positive integers"))
+function pow_bar(a::Sequence{<:SequenceSpace}, n::Int)
+    n < 0 && return throw(DomainError(n, "pow_bar is only defined for positive integers"))
     n == 0 && return one(a)
     n == 1 && return copy(a)
     n == 2 && return _sqr_bar(a)
@@ -486,7 +486,7 @@ function ^̄(a::Sequence{<:SequenceSpace}, n::Int)
         while (t -= 1) ≥ 0
             a = _sqr_bar(a)
         end
-        c = c *̄ a
+        c = mul_bar(c, a)
     end
     return c
 end
@@ -498,7 +498,7 @@ function _sqr(a::Sequence{<:SequenceSpace})
     return c
 end
 function _sqr_bar(a::Sequence{<:SequenceSpace})
-    new_space = image(^̄, space(a), 2)
+    new_space = image(pow_bar, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     _add_sqr!(c, a, _max_order(new_space))
@@ -564,7 +564,7 @@ function _banach_rounding_sqr_bar(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
     rounding_order = banach_rounding_order(bound_a², X)
-    new_space = image(^̄, space(a), 2)
+    new_space = image(pow_bar, space(a), 2)
     CoefType = eltype(a)
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     banach_rounding!(c, bound_a², X, rounding_order)

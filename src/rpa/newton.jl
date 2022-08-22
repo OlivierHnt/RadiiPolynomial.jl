@@ -24,22 +24,28 @@ function _newton_verbose(F_DF, x₀::Number, tol, maxiter)
     _display_newton_info(tol, maxiter)
     F, DF = F_DF(x₀)
     nF = abs(F)
-    AF = DF \ F
-    nAF = abs(AF)
-    _display_newton_iteration(0, nF, nAF)
-    nF ≤ tol && return x₀, true
+    _display_newton_nF(0, nF)
+    if nF ≤ tol
+        println()
+        return x₀, true
+    end
     x = x₀
     i = 1
     while i ≤ maxiter && isfinite(nF)
+        AF = DF \ F
+        nAF = abs(AF)
+        _display_newton_nAF(nAF)
         x -= AF
         F, DF = F_DF(x)
         nF = abs(F)
-        AF = DF \ F
-        nAF = abs(AF)
-        _display_newton_iteration(i, nF, nAF)
-        nF ≤ tol && return x, true
+        _display_newton_nF(i, nF)
+        if nF ≤ tol
+            println()
+            return x, true
+        end
         i += 1
     end
+    println()
     return x, false
 end
 
@@ -63,22 +69,28 @@ function _newton_verbose(F_DF, x₀, tol, maxiter)
     _display_newton_info(tol, maxiter)
     F, DF = F_DF(x₀)
     nF = norm(F, Inf)
-    AF = DF \ F
-    nAF = norm(AF, Inf)
-    _display_newton_iteration(0, nF, nAF)
-    nF ≤ tol && return x₀, true
+    _display_newton_nF(0, nF)
+    if nF ≤ tol
+        println()
+        return x₀, true
+    end
     x = copy(x₀)
     i = 1
     while i ≤ maxiter && isfinite(nF)
+        AF = DF \ F
+        nAF = norm(AF, Inf)
+        _display_newton_nAF(nAF)
         x .-= AF
         F, DF = F_DF(x)
         nF = norm(F, Inf)
-        AF = DF \ F
-        nAF = norm(AF, Inf)
-        _display_newton_iteration(i, nF, nAF)
-        nF ≤ tol && return x, true
+        _display_newton_nF(i, nF)
+        if nF ≤ tol
+            println()
+            return x, true
+        end
         i += 1
     end
+    println()
     return x, false
 end
 
@@ -128,30 +140,38 @@ function _newton_verbose!(F_DF!, x₀, F, DF, tol, maxiter)
     _display_newton_info(tol, maxiter)
     F_DF!(F, DF, x₀)
     nF = norm(F, Inf)
-    AF = DF \ F
-    nAF = norm(AF, Inf)
-    _display_newton_iteration(0, nF, nAF)
-    nF ≤ tol && return x₀, true
+    _display_newton_nF(0, nF)
+    if nF ≤ tol
+        println()
+        return x₀, true
+    end
     i = 1
     while i ≤ maxiter && isfinite(nF)
+        AF = DF \ F
+        nAF = norm(AF, Inf)
+        _display_newton_nAF(nAF)
         x₀ .-= AF
         F_DF!(F, DF, x₀)
         nF = norm(F, Inf)
-        AF = DF \ F
-        nAF = norm(AF, Inf)
-        _display_newton_iteration(i, nF, nAF)
-        nF ≤ tol && return x₀, true
+        _display_newton_nF(i, nF)
+        if nF ≤ tol
+            println()
+            return x₀, true
+        end
         i += 1
     end
+    println()
     return x₀, false
 end
 
 #
 
 function _display_newton_info(tol, maxiter)
-    println("Newton's method: ∞-norm, tol = ", tol, ", maxiter = ", maxiter)
-    println("      iteration        |F(x)|              |AF(x)|")
-    println("---------------------------------------------------------")
+    println("Newton's method: Inf-norm, tol = ", tol, ", maxiter = ", maxiter)
+    println("      iteration        |F(x)|")
+    println("-------------------------------------")
 end
 
-_display_newton_iteration(i, nF, nAF) = @printf("%11d %19.4e %19.4e\n", i, nF, nAF)
+_display_newton_nF(i, nF) = @printf("%11d %19.4e", i, nF)
+
+_display_newton_nAF(nAF) = @printf("        |DF(x)\\F(x)| = %10.4e\n", nAF)

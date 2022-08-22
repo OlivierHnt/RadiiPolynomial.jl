@@ -21,8 +21,6 @@ The right-hand side of the above equation is an infinite dimensional endomorphis
 The characteristic function ``\Psi`` and its derivative with respect to ``\lambda``, denoted ``D\Psi``, may be implemented as follows:
 
 ```@example ikeda_W_u
-using RadiiPolynomial
-
 Ψ(λ, c, τ) = λ - (1 - 3c^2) * exp(-τ*λ)
 
 DΨ(λ, c, τ) = 1 + τ * (1 - 3c^2) * exp(-τ*λ)
@@ -34,11 +32,13 @@ For the cubic Ikeda equation, the equilibria are ``0``, ``1`` or ``-1``. For the
 For the equilibrium ``c = 0``, we may use the [first-order Radii Polynomial Theorem](@ref first_order_RPT) to rigorously compute the unstable eigenvalue:
 
 ```@example ikeda_W_u
-τ = 1.59..1.59
+using RadiiPolynomial
 
 λ̄₀, success = newton(λ -> (Ψ(λ, 0.0, 1.59), DΨ(λ, 0.0, 1.59)), 0.5)
 
 R = 1e-14
+
+τ = Interval(1.59)
 
 Y = abs(Ψ(Interval(λ̄₀), 0.0, τ))
 Z₁ = abs(1 - DΨ(λ̄₀, 0.0, mid(τ)) \ DΨ(λ̄₀ ± R, 0.0, τ))

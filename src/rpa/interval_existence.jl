@@ -1,6 +1,3 @@
-_supremum(x::Real) = x
-_supremum(x::Interval) = sup(x)
-
 """
     interval_of_existence(Y::Real, Z₁::Real, R::Real)
 

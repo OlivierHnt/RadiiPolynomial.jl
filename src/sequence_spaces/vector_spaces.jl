@@ -96,7 +96,7 @@ nspaces(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = N
     ⊗(s₁::TensorSpace, s₂::BaseSpace)
     ⊗(s₁::BaseSpace, s₂::TensorSpace)
 
-Creates a [`TensorSpace`](@ref) from the tensor product of some [`SequenceSpace`](@ref).
+Create a [`TensorSpace`](@ref) from the tensor product of some [`SequenceSpace`](@ref).
 
 See also: [`TensorSpace`](@ref).
 
@@ -449,7 +449,7 @@ nspaces(s::CartesianPower) = s.n
 """
     ^(s::VectorSpace, n::Int)
 
-Creates a [`CartesianPower`](@ref) from `n` cartesian product(s) of `s`.
+Create a [`CartesianPower`](@ref) from `n` cartesian product(s) of `s`.
 
 See also: [`CartesianPower`](@ref), [`×`](@ref) and [`CartesianProduct`](@ref).
 
@@ -575,7 +575,7 @@ nspaces(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
     ×(::CartesianProduct, ::VectorSpace)
     ×(::VectorSpace, ::CartesianProduct)
 
-Creates a [`CartesianProduct`](@ref) from the cartesian product of some [`VectorSpace`](@ref).
+Create a [`CartesianProduct`](@ref) from the cartesian product of some [`VectorSpace`](@ref).
 
 See also: [`CartesianProduct`](@ref), [`^`](@ref) and [`CartesianPower`](@ref).
 

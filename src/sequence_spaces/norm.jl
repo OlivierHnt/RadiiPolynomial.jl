@@ -34,6 +34,8 @@ struct IdentityWeight <: Weight end
 
 Geometric weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate > 0`.
 
+See also: [`geometricweight`](@ref).
+
 # Examples
 ```jldoctest
 julia> w = GeometricWeight(1.0)
@@ -54,6 +56,24 @@ end
 GeometricWeight(rate::T) where {T<:Real} = GeometricWeight{T}(rate)
 
 rate(weight::GeometricWeight) = weight.rate
+
+"""
+    geometricweight(a::Sequence{<:SequenceSpace})
+
+Compute an approximation of the geometric decay rate of `a` by performing the ordinary least squares method on the logarithm of the absolute value of the coefficients of `a`.
+
+See also: [`GeometricWeight`](@ref).
+
+# Examples
+```jldoctest
+julia> geometricweight(Sequence(Taylor(10), [inv(2.0^i) for i in 0:10]))
+GeometricWeight{Float64}(2.0000000000000004)
+
+julia> geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2.0^i * 3.0^abs(j)) for i in 0:10, j in -3:3])))
+(GeometricWeight{Float64}(2.0), GeometricWeight{Float64}(2.999999999999999))
+```
+"""
+geometricweight(::Sequence{<:SequenceSpace})
 
 function geometricweight(a::Sequence{<:BaseSpace})
     rate = _geometric_rate(space(a), coefficients(a))
@@ -165,6 +185,8 @@ end
 
 Algebraic weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate ≥ 0`.
 
+See also: [`algebraicweight`](@ref).
+
 # Examples
 ```jldoctest
 julia> w = AlgebraicWeight(1.0)
@@ -185,6 +207,24 @@ end
 AlgebraicWeight(rate::T) where {T<:Real} = AlgebraicWeight{T}(rate)
 
 rate(weight::AlgebraicWeight) = weight.rate
+
+"""
+    algebraicweight(a::Sequence{<:SequenceSpace})
+
+Compute an approximation of the algebraic decay rate of `a` by performing the ordinary least squares method on the logarithm of the absolute value of the coefficients of `a`.
+
+See also: [`AlgebraicWeight`](@ref).
+
+# Examples
+```jldoctest
+julia> algebraicweight(Sequence(Taylor(10), [inv((1.0 + i)^2) for i in 0:10]))
+AlgebraicWeight{Float64}(1.9999999999999973)
+
+julia> algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((1.0 + i)^2 * (1.0 + abs(j))^3) for i in 0:10, j in -3:3])))
+(AlgebraicWeight{Float64}(2.0000000000000004), AlgebraicWeight{Float64}(2.9999999999999982))
+```
+"""
+algebraicweight(::Sequence{<:SequenceSpace})
 
 function algebraicweight(a::Sequence{<:BaseSpace})
     rate = _algebraic_rate(space(a), coefficients(a))
@@ -519,21 +559,11 @@ end
 
 # fallback methods
 
-opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
+"""
+    norm(a::Sequence, p::Real=Inf)
 
-function opnorm(A::LinearOperator, X_domain::BanachSpace, X_codomain::BanachSpace)
-    codomain_A = codomain(A)
-    A_ = coefficients(A)
-    @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), X_codomain)
-    sz = size(A_, 2)
-    v = Vector{typeof(v₁)}(undef, sz)
-    @inbounds v[1] = v₁
-    @inbounds for i ∈ 2:sz
-        v[i] = norm(Sequence(codomain_A, view(A_, :, i)), X_codomain)
-    end
-    return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X_domain)
-end
-
+Compute the `p`-norm of `a`.
+"""
 function norm(a::Sequence, p::Real=Inf)
     if p == 1
         return norm(a, Ell1(IdentityWeight()))
@@ -546,6 +576,11 @@ function norm(a::Sequence, p::Real=Inf)
     end
 end
 
+"""
+    opnorm(A::LinearOperator, p::Real=Inf)
+
+Compute the operator norm of `A` induced by the `p`-norm.
+"""
 function opnorm(A::LinearOperator, p::Real=Inf)
     if p == 1
         return opnorm(A, Ell1(IdentityWeight()))
@@ -558,7 +593,46 @@ function opnorm(A::LinearOperator, p::Real=Inf)
     end
 end
 
+"""
+    opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
+
+Compute the operator norm of `A` by interpreting `domain(A)` as `X` and `codomain(A)` as `Y`.
+"""
+function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
+    codomain_A = codomain(A)
+    A_ = coefficients(A)
+    @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), Y)
+    sz = size(A_, 2)
+    v = Vector{typeof(v₁)}(undef, sz)
+    @inbounds v[1] = v₁
+    @inbounds for i ∈ 2:sz
+        v[i] = norm(Sequence(codomain_A, view(A_, :, i)), Y)
+    end
+    return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X)
+end
+
+"""
+    opnorm(A::LinearOperator, X::BanachSpace)
+
+Compute the operator norm of `A` by interpreting `domain(A)` and `codomain(A)` as `X`.
+"""
+opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
+
 #
+
+"""
+    norm(a::Sequence, X::BanachSpace)
+
+Compute the norm of `a` by interpreting `space(a)` as `X`.
+"""
+norm(::Sequence, ::BanachSpace)
+
+"""
+    opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::BanachSpace)
+
+Compute the operator norm of `A` by interpreting `domain(A)` as `X`.
+"""
+opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)
 
 for T ∈ (:Ell1, :Ell2, :EllInf)
     @eval begin

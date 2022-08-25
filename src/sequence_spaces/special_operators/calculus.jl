@@ -112,7 +112,7 @@ end
 """
     differentiate(a::Sequence, α=1)
 
-Computes the `α`-th derivative of `a`.
+Compute the `α`-th derivative of `a`.
 
 See also: [`differentiate!`](@ref) and [`Derivative`](@ref).
 """
@@ -129,7 +129,7 @@ end
 """
     differentiate!(c::Sequence, a::Sequence, α=1)
 
-Computes the `α`-th derivative of `a`. The result is stored in `c` by overwritting it.
+Compute the `α`-th derivative of `a`. The result is stored in `c` by overwritting it.
 
 See also: [`differentiate`](@ref) and [`Derivative`](@ref).
 """
@@ -146,7 +146,7 @@ end
 """
     integrate(a::Sequence, α=1)
 
-Computes the `α`-th integral of `a`.
+Compute the `α`-th integral of `a`.
 
 See also: [`integrate!`](@ref) and [`Integral`](@ref).
 """
@@ -163,7 +163,7 @@ end
 """
     integrate!(c::Sequence, a::Sequence, α=1)
 
-Computes the `α`-th integral of `a`. The result is stored in `c` by overwritting it.
+Compute the `α`-th integral of `a`. The result is stored in `c` by overwritting it.
 
 See also: [`integrate`](@ref) and [`Integral`](@ref).
 """

@@ -71,7 +71,7 @@ Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.value)
 """
     shift(a::Sequence, τ)
 
-Shifts `a` by `τ`.
+Shift `a` by `τ`.
 
 See also: [`shift!`](@ref) and [`Shift`](@ref).
 """
@@ -88,7 +88,7 @@ end
 """
     shift!(c::Sequence, a::Sequence, τ)
 
-Shifts `a` by `τ`. The result is stored in `c` by overwritting it.
+Shift `a` by `τ`. The result is stored in `c` by overwritting it.
 
 See also: [`shift`](@ref) and [`Shift`](@ref).
 """

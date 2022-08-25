@@ -74,7 +74,7 @@ Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 """
     evaluate(a::Sequence, x)
 
-Evaluates `a` at `x`.
+Evaluate `a` at `x`.
 
 See also: [`evaluate!`](@ref) and [`Evaluation`](@ref).
 """
@@ -91,7 +91,7 @@ end
 """
     evaluate!(c::Sequence, a::Sequence, x)
 
-Evaluates `a` at `x`. The result is stored in `c` by overwritting it.
+Evaluate `a` at `x`. The result is stored in `c` by overwritting it.
 
 See also: [`evaluate`](@ref) and [`Evaluation`](@ref).
 """

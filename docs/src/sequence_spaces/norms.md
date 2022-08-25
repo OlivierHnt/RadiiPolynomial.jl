@@ -18,6 +18,8 @@ BanachSpace
 
 ```@docs
 BanachSpace
+RadiiPolynomial.norm
+RadiiPolynomial.opnorm
 ```
 
 ## ``\ell^1``, ``\ell^2`` and ``\ell^\infty``
@@ -89,7 +91,9 @@ EllInf
 Weight
 IdentityWeight
 GeometricWeight
+geometricweight
 AlgebraicWeight
+algebraicweight
 BesselWeight
 ```
 

@@ -1,7 +1,7 @@
 """
     interval_of_existence(Y::Real, Z₁::Real, R::Real)
 
-Returns an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` and ``Z_1 < 1`` for all ``r \\in I``.
+Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` and ``Z_1 < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y_::Real, Z₁_::Real, R_::Real)
     Y, Z₁, R = _supremum(Y_), _supremum(Z₁_), _supremum(R_)
@@ -26,7 +26,7 @@ struct C¹Condition end
 """
     interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real, ::C¹Condition)
 
-Returns an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
+Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C¹Condition)
     Y, Z₁, Z₂, R = _supremum(Y_), _supremum(Z₁_), _supremum(Z₂_), _supremum(R_)
@@ -73,7 +73,7 @@ struct C²Condition end
 """
     interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real, ::C²Condition)
 
-Returns the interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_2 r < 1`` for all ``r \\in I``.
+Return the interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_2 r < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C²Condition)
     Y, Z₁, Z₂, R = _supremum(Y_), _supremum(Z₁_), _supremum(Z₂_), _supremum(R_)

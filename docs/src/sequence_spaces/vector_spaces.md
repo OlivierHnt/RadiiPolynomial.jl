@@ -167,7 +167,7 @@ indices(𝒯²)
 
 ```@docs
 CartesianPower
-^(::VectorSpace, ::Int)
+RadiiPolynomial.:^
 ```
 
 ### Cartesian product
@@ -183,5 +183,5 @@ indices(𝒫_times_𝒯)
 
 ```@docs
 CartesianProduct
-×
+RadiiPolynomial.:×
 ```

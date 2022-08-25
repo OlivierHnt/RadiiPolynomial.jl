@@ -71,7 +71,7 @@ Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
 """
     scale(a::Sequence, γ)
 
-Scales `a` by a factor `γ`.
+Scale `a` by a factor `γ`.
 
 See also: [`scale!`](@ref) and [`Scale`](@ref).
 """
@@ -88,7 +88,7 @@ end
 """
     scale!(c::Sequence, a::Sequence, γ)
 
-Scales `a` by a factor `γ`. The result is stored in `c` by overwritting it.
+Scale `a` by a factor `γ`. The result is stored in `c` by overwritting it.
 
 See also: [`scale`](@ref) and [`Scale`](@ref).
 """

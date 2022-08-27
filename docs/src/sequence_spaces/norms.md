@@ -24,7 +24,7 @@ RadiiPolynomial.opnorm
 
 ## ``\ell^1``, ``\ell^2`` and ``\ell^\infty``
 
-Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}``. Consider the weighted ``\ell^1, \ell^2, \ell^\infty`` spaces defined by
+Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}``. Consider the weighted ``\ell^1, \ell^2, \ell^\infty`` spaces (cf. [``\ell^p`` spaces](https://en.wikipedia.org/wiki/Sequence_space#ℓp_spaces)) defined by
 
 ```math
 \begin{aligned}

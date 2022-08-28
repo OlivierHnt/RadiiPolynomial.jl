@@ -245,8 +245,8 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
         Base.:*(ℱ₁::$F{NTuple{N,Int}}, ℱ₂::$F{NTuple{N,Int}}) where {N} = $F(map(+, ℱ₁.order, ℱ₂.order))
 
         Base.:^(ℱ::$F{Int}, n::Int) = $F(ℱ.order * n)
-        Base.:^(ℱ::$F{NTuple{N,Int}}, n::Int) where {N} = $F(map(αᵢ -> *(αᵢ, n), ℱ.order))
-        Base.:^(ℱ::$F{NTuple{N,Int}}, α::NTuple{N,Int}) where {N} = $F(map(*, ℱ.order, α))
+        Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Int) = $F(map(αᵢ -> *(αᵢ, n), ℱ.order))
+        Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Int}) where {N} = $F(map(*, ℱ.order, n))
 
         (ℱ::$F)(a::Sequence) = *(ℱ, a)
         Base.:*(ℱ::$F, a::Sequence) = $f(a, ℱ.order)

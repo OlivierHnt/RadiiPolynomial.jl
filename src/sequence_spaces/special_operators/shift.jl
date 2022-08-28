@@ -65,6 +65,13 @@ mul!(C::LinearOperator, A::LinearOperator, 𝒮::Shift, α::Number, β::Number) 
 
 #
 
+Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(𝒮₁.value + 𝒮₂.value)
+Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, 𝒮₁.value, 𝒮₂.value))
+
+Base.:^(𝒮::Shift{<:Number}, n::Int) = Shift(𝒮.value * n)
+Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Int) = Shift(map(τᵢ -> *(τᵢ, n), 𝒮.value))
+Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Shift(map(*, 𝒮.value, n))
+
 (𝒮::Shift)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.value)
 

@@ -65,6 +65,13 @@ mul!(C::LinearOperator, A::LinearOperator, 𝒮::Scale, α::Number, β::Number) 
 
 #
 
+Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(𝒮₁.value * 𝒮₂.value)
+Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, 𝒮₁.value, 𝒮₂.value))
+
+Base.:^(𝒮::Scale{<:Number}, n::Int) = Scale(𝒮.value ^ n)
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Int) = Scale(map(γᵢ -> ^(γᵢ, n), 𝒮.value))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Scale(map(^, 𝒮.value, n))
+
 (𝒮::Scale)(a::Sequence) = *(𝒮, a)
 Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
 

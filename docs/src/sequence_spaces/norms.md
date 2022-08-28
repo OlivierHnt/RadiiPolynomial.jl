@@ -16,12 +16,6 @@ BanachSpace
 └─ EllInf
 ```
 
-```@docs
-BanachSpace
-RadiiPolynomial.norm
-RadiiPolynomial.opnorm
-```
-
 ## ``\ell^1``, ``\ell^2`` and ``\ell^\infty``
 
 Let ``\mathscr{I}`` be a set of indices such that ``\mathscr{I} \subset \mathbb{Z}^d`` for some ``d \in \mathbb{N}``. Consider the weighted ``\ell^1, \ell^2, \ell^\infty`` spaces (cf. [``\ell^p`` spaces](https://en.wikipedia.org/wiki/Sequence_space#ℓp_spaces)) defined by
@@ -81,22 +75,6 @@ a = Sequence(Fourier(2, 1.0) ⊗ Fourier(3, 1.0), ones(5*7));
 norm(a, Ell2(BesselWeight(2.0)))
 ```
 
-```@docs
-Ell1
-ℓ¹
-Ell2
-ℓ²
-EllInf
-ℓ∞
-Weight
-IdentityWeight
-GeometricWeight
-geometricweight
-AlgebraicWeight
-algebraicweight
-BesselWeight
-```
-
 ## Normed cartesian space
 
 For the norm of a [`CartesianSpace`](@ref), one may use a [`NormedCartesianSpace`](@ref) to either:
@@ -109,6 +87,24 @@ norm(a, NormedCartesianSpace(ℓ¹(), ℓ∞()))
 norm(a, NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞()))
 ```
 
+## API
+
 ```@docs
+BanachSpace
+RadiiPolynomial.norm
+RadiiPolynomial.opnorm
+Weight
+IdentityWeight
+GeometricWeight
+geometricweight
+AlgebraicWeight
+algebraicweight
+BesselWeight
+Ell1
+ℓ¹
+Ell2
+ℓ²
+EllInf
+ℓ∞
 NormedCartesianSpace
 ```

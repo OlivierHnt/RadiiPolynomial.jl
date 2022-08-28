@@ -37,10 +37,6 @@ component(component(B, 2, 2), 2, 2)
 
 Similarly, the function `eachcomponent` returns a `Generator` whose iterates yield each [`LinearOperator`](@ref) composing the cartesian space.
 
-```@docs
-LinearOperator
-```
-
 ## Arithmetic
 
 The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `add_bar` (unicode alias `+\bar<tab>`) and `sub_bar` (unicode alias `-\bar<tab>`) give the result projected in the smallest compatible domain and codomain between the operands.
@@ -72,4 +68,10 @@ Conversely, the operator `\` between a [`LinearOperator`](@ref) and a [`Sequence
 x = Sequence(Taylor(2), [1, 1, 1])
 C * x # C(x)
 D \ x
+```
+
+## API
+
+```@docs
+LinearOperator
 ```

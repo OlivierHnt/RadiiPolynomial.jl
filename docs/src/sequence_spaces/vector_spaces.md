@@ -22,10 +22,6 @@ VectorSpace
    └─ TensorSpace
 ```
 
-```@docs
-VectorSpace
-```
-
 ## Parameter space
 
 A [`ParameterSpace`](@ref) represents the commutative field of a parameter. This is the standard space to use for an unfolding parameter.
@@ -34,10 +30,6 @@ A [`ParameterSpace`](@ref) represents the commutative field of a parameter. This
 𝒫 = ParameterSpace()
 dimension(𝒫)
 indices(𝒫)
-```
-
-```@docs
-ParameterSpace
 ```
 
 ## Sequence space
@@ -53,10 +45,6 @@ SequenceSpace
 └─ TensorSpace
 ```
 
-```@docs
-SequenceSpace
-```
-
 ### BaseSpace
 
 [`BaseSpace`](@ref) is the abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but can be interlaced to form one.
@@ -68,10 +56,6 @@ BaseSpace
 └─ Taylor
 ```
 
-```@docs
-BaseSpace
-```
-
 #### Taylor
 
 For a given order ``n``, a [`Taylor`](@ref) sequence space is the span of ``\{\phi_0, \dots, \phi_n\}`` where ``\phi_k(t) := t^k`` for ``k = 0, \dots, n`` and ``t \in [-\nu, \nu]`` for some appropriate ``\nu > 0``.
@@ -81,10 +65,6 @@ For a given order ``n``, a [`Taylor`](@ref) sequence space is the span of ``\{\p
 order(𝒯)
 dimension(𝒯)
 indices(𝒯)
-```
-
-```@docs
-Taylor
 ```
 
 #### Fourier
@@ -99,10 +79,6 @@ dimension(ℱ)
 indices(ℱ)
 ```
 
-```@docs
-Fourier
-```
-
 #### Chebyshev
 
 For a given order ``n``, a [`Chebyshev`](@ref) sequence space is the span of ``\{\phi_0, \phi_1, \dots, \phi_n\}`` where ``\phi_0(t) := 1``, ``\phi_1(t) := t`` and ``\phi_k(t) := 2 t \phi_{k-1}(t) - \phi_{k-2}(t)`` for ``k = 2, \dots, n`` and ``t \in [-1, 1]``.
@@ -114,10 +90,6 @@ It is important to note that the coefficients ``\{a_0, a_1, \dots, a_n\}`` assoc
 order(𝒞)
 dimension(𝒞)
 indices(𝒞)
-```
-
-```@docs
-Chebyshev
 ```
 
 ### Tensor space
@@ -134,12 +106,6 @@ dimensions(𝒯_otimes_ℱ_otimes_𝒞)
 indices(𝒯_otimes_ℱ_otimes_𝒞)
 ```
 
-```@docs
-TensorSpace
-TensorIndices
-⊗
-```
-
 ## Cartesian space
 
 [`CartesianSpace`](@ref) is the abstract type for all cartesian spaces.
@@ -148,10 +114,6 @@ TensorIndices
 CartesianSpace
 ├─ CartesianPower
 └─ CartesianProduct
-```
-
-```@docs
-CartesianSpace
 ```
 
 ### Cartesian power
@@ -165,11 +127,6 @@ dimension(𝒯²)
 indices(𝒯²)
 ```
 
-```@docs
-CartesianPower
-RadiiPolynomial.:^
-```
-
 ### Cartesian product
 
 A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@ref). The standard constructor for [`CartesianProduct`](@ref) is the `×` (`\times<tab>`) operator.
@@ -181,7 +138,22 @@ dimension(𝒫_times_𝒯)
 indices(𝒫_times_𝒯)
 ```
 
+## API
+
 ```@docs
+VectorSpace
+ParameterSpace
+SequenceSpace
+BaseSpace
+Taylor
+Fourier
+Chebyshev
+TensorSpace
+TensorIndices
+⊗
+CartesianSpace
+CartesianPower
+RadiiPolynomial.:^
 CartesianProduct
 RadiiPolynomial.:×
 ```

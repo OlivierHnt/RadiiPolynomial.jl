@@ -16,6 +16,14 @@ function project!(c::Sequence, a::Sequence)
     return c
 end
 
+project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A)) where {T} =
+    project!(Sequence(space_dest, Vector{T}(undef, dimension(space_dest))), A)
+
+function project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})
+    project!(LinearOperator(domain(A), space(c), reshape(coefficients(c), :, 1)), A)
+    return c
+end
+
 function _project!(c::Sequence, a::Sequence)
     space_a = space(a)
     space_c = space(c)
@@ -67,7 +75,13 @@ function project!(C::LinearOperator, A::LinearOperator)
     return C
 end
 
-project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence) = project!(Sequence(codomain(C), vec(coefficients(C))), a)
+project(a::Sequence, domain_dest::ParameterSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(a)) where {T} =
+    project!(LinearOperator(domain_dest, codomain_dest, Matrix{T}(undef, dimension(codomain_dest), 1)), a)
+
+function project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence)
+    project!(Sequence(codomain(C), vec(coefficients(C))), a)
+    return C
+end
 
 function _project!(C::LinearOperator, A::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)

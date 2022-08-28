@@ -1,5 +1,12 @@
-# fallback methods
+#
 
+"""
+    project(a::Sequence, space_dest::VectorSpace, ::Type{T}=eltype(a))
+
+Represent `a` as a [`Sequence`](@ref) in `space_dest`.
+
+See also: [`project!`](@ref).
+"""
 function project(a::Sequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T}
     space_a = space(a)
     _iscompatible(space_a, space_dest) || return throw(ArgumentError("spaces must be compatible: a has space $space_a, destination space is $space_dest"))
@@ -8,6 +15,13 @@ function project(a::Sequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) wher
     return c
 end
 
+"""
+    project!(c::Sequence, a::Sequence)
+
+Represent `a` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c` by overwriting it.
+
+See also: [`project`](@ref).
+"""
 function project!(c::Sequence, a::Sequence)
     space_a = space(a)
     space_c = space(c)
@@ -16,9 +30,23 @@ function project!(c::Sequence, a::Sequence)
     return c
 end
 
+"""
+    project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A))
+
+Represent `A` as a [`Sequence`](@ref) in `space_dest`.
+
+See also: [`project!`](@ref).
+"""
 project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A)) where {T} =
     project!(Sequence(space_dest, Vector{T}(undef, dimension(space_dest))), A)
 
+"""
+    project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})
+
+Represent `A` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c` by overwriting it.
+
+See also: [`project`](@ref).
+"""
 function project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})
     project!(LinearOperator(domain(A), space(c), reshape(coefficients(c), :, 1)), A)
     return c
@@ -44,6 +72,13 @@ end
 
 # UniformScaling
 
+"""
+    project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(J))
+
+Represent `J` as a [`LinearOperator`](@ref) from `domain_dest` to `codomain_dest`.
+
+See also: [`project!`](@ref).
+"""
 function project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(J)) where {T}
     _iscompatible(domain_dest, codomain_dest) || return throw(ArgumentError("spaces must be compatible: destination domain is $domain_dest, destination codomain is $codomain_dest"))
     C = LinearOperator(domain_dest, codomain_dest, zeros(T, dimension(codomain_dest), dimension(domain_dest)))
@@ -51,6 +86,13 @@ function project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::Vec
     return C
 end
 
+"""
+    project!(C::LinearOperator, J::UniformScaling)
+
+Represent `J` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref).
+"""
 function project!(C::LinearOperator, J::UniformScaling)
     domain_C = domain(C)
     codomain_C = codomain(C)
@@ -62,6 +104,13 @@ end
 
 #
 
+"""
+    project(A::LinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(A))
+
+Represent `A` as a [`LinearOperator`](@ref) from `domain_dest` to `codomain_dest`.
+
+See also: [`project!`](@ref).
+"""
 function project(A::LinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(A)) where {T}
     _iscompatible(domain(A), domain_dest) & _iscompatible(codomain(A), codomain_dest) || return throw(ArgumentError("spaces must be compatible"))
     C = LinearOperator(domain_dest, codomain_dest, Matrix{T}(undef, dimension(codomain_dest), dimension(domain_dest)))
@@ -69,15 +118,36 @@ function project(A::LinearOperator, domain_dest::VectorSpace, codomain_dest::Vec
     return C
 end
 
+"""
+    project!(C::LinearOperator, A::LinearOperator)
+
+Represent `A` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref).
+"""
 function project!(C::LinearOperator, A::LinearOperator)
     _iscompatible(domain(A), domain(C)) & _iscompatible(codomain(A), codomain(C)) || return throw(ArgumentError("spaces must be compatible"))
     _project!(C, A)
     return C
 end
 
+"""
+    project(a::Sequence, ::ParameterSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(a))
+
+Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain_dest`.
+
+See also: [`project!`](@ref).
+"""
 project(a::Sequence, domain_dest::ParameterSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(a)) where {T} =
     project!(LinearOperator(domain_dest, codomain_dest, Matrix{T}(undef, dimension(codomain_dest), 1)), a)
 
+"""
+    project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence)
+
+Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref).
+"""
 function project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence)
     project!(Sequence(codomain(C), vec(coefficients(C))), a)
     return C

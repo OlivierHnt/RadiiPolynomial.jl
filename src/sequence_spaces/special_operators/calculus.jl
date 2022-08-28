@@ -129,7 +129,7 @@ end
 """
     differentiate!(c::Sequence, a::Sequence, α=1)
 
-Compute the `α`-th derivative of `a`. The result is stored in `c` by overwritting it.
+Compute the `α`-th derivative of `a`. The result is stored in `c` by overwriting it.
 
 See also: [`differentiate`](@ref) and [`Derivative`](@ref).
 """
@@ -142,6 +142,37 @@ function differentiate!(c::Sequence, a::Sequence, α=1)
     return c
 end
 
+"""
+    project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+
+Represent `𝒟` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref), [`Derivative`](@ref), [`differentiate`](@ref) and [`differentiate!`](@ref).
+"""
+function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    ind_domain = _findposition_nzind_domain(𝒟, domain, codomain)
+    ind_codomain = _findposition_nzind_codomain(𝒟, domain, codomain)
+    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
+    _project!(C, 𝒟)
+    return C
+end
+
+"""
+    project!(C::LinearOperator, 𝒟::Derivative)
+
+Represent `𝒟` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref), [`Derivative`](@ref), [`differentiate`](@ref) and [`differentiate!`](@ref).
+"""
+function project!(C::LinearOperator, 𝒟::Derivative)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    coefficients(C) .= zero(eltype(C))
+    _project!(C, 𝒟)
+    return C
+end
 
 """
     integrate(a::Sequence, α=1)
@@ -163,7 +194,7 @@ end
 """
     integrate!(c::Sequence, a::Sequence, α=1)
 
-Compute the `α`-th integral of `a`. The result is stored in `c` by overwritting it.
+Compute the `α`-th integral of `a`. The result is stored in `c` by overwriting it.
 
 See also: [`integrate`](@ref) and [`Integral`](@ref).
 """
@@ -174,6 +205,38 @@ function integrate!(c::Sequence, a::Sequence, α=1)
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℐ(a) has space $new_space"))
     _apply!(c, ℐ, a)
     return c
+end
+
+"""
+    project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+
+Represent `ℐ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref), [`Integral`](@ref), [`integrate`](@ref) and [`integrate!`](@ref).
+"""
+function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    ind_domain = _findposition_nzind_domain(ℐ, domain, codomain)
+    ind_codomain = _findposition_nzind_codomain(ℐ, domain, codomain)
+    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
+    _project!(C, ℐ)
+    return C
+end
+
+"""
+    project!(C::LinearOperator, ℐ::Integral)
+
+Represent `ℐ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref), [`Integral`](@ref), [`integrate`](@ref) and [`integrate!`](@ref).
+"""
+function project!(C::LinearOperator, ℐ::Integral)
+    domain_C = domain(C)
+    codomain_C = codomain(C)
+    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    coefficients(C) .= zero(eltype(C))
+    _project!(C, ℐ)
+    return C
 end
 
 for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
@@ -187,24 +250,6 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
 
         (ℱ::$F)(a::Sequence) = *(ℱ, a)
         Base.:*(ℱ::$F, a::Sequence) = $f(a, ℱ.order)
-
-        function project(ℱ::$F, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
-            _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
-            ind_domain = _findposition_nzind_domain(ℱ, domain, codomain)
-            ind_codomain = _findposition_nzind_codomain(ℱ, domain, codomain)
-            C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-            _project!(C, ℱ)
-            return C
-        end
-
-        function project!(C::LinearOperator, ℱ::$F)
-            domain_C = domain(C)
-            codomain_C = codomain(C)
-            _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
-            coefficients(C) .= zero(eltype(C))
-            _project!(C, ℱ)
-            return C
-        end
 
         _findposition_nzind_domain(ℱ::$F, domain, codomain) =
             _findposition(_nzind_domain(ℱ, domain, codomain), domain)

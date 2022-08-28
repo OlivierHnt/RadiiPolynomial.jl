@@ -88,7 +88,7 @@ end
 """
     shift!(c::Sequence, a::Sequence, τ)
 
-Shift `a` by `τ`. The result is stored in `c` by overwritting it.
+Shift `a` by `τ`. The result is stored in `c` by overwriting it.
 
 See also: [`shift`](@ref) and [`Shift`](@ref).
 """
@@ -101,6 +101,13 @@ function shift!(c::Sequence, a::Sequence, τ)
     return c
 end
 
+"""
+    project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref), [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
+"""
 function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
@@ -110,6 +117,13 @@ function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type
     return C
 end
 
+"""
+    project!(C::LinearOperator, 𝒮::Shift)
+
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref), [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
+"""
 function project!(C::LinearOperator, 𝒮::Shift)
     domain_C = domain(C)
     codomain_C = codomain(C)

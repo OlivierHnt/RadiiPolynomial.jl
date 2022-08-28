@@ -56,6 +56,13 @@ Base.:\(a::Number, ℳ::Multiplication) = Multiplication(\(a, ℳ.sequence))
 
 opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
 
+"""
+    project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence))
+
+Represent `ℳ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref) and [`Multiplication`](@ref).
+"""
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}
     _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(ArgumentError("spaces must be compatible"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
@@ -63,6 +70,13 @@ function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceS
     return C
 end
 
+"""
+    project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
+
+Represent `ℳ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref) and [`Multiplication`](@ref).
+"""
 function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
     domain_C = domain(C)
     _iscompatible(domain_C, codomain(C)) & _iscompatible(space(ℳ.sequence), domain_C) || return throw(ArgumentError("spaces must be compatible"))

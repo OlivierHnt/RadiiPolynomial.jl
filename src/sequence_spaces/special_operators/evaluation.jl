@@ -91,7 +91,7 @@ end
 """
     evaluate!(c::Sequence, a::Sequence, x)
 
-Evaluate `a` at `x`. The result is stored in `c` by overwritting it.
+Evaluate `a` at `x`. The result is stored in `c` by overwriting it.
 
 See also: [`evaluate`](@ref) and [`Evaluation`](@ref).
 """
@@ -104,6 +104,13 @@ function evaluate!(c::Sequence, a::Sequence, x)
     return c
 end
 
+"""
+    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+
+Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref), [`Evaluation`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+"""
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
@@ -111,6 +118,13 @@ function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::
     return C
 end
 
+"""
+    project!(C::LinearOperator, ℰ::Evaluation)
+
+Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref), [`Evaluation`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+"""
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)
     codomain_C = codomain(C)

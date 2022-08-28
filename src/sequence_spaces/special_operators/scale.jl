@@ -88,7 +88,7 @@ end
 """
     scale!(c::Sequence, a::Sequence, γ)
 
-Scale `a` by a factor `γ`. The result is stored in `c` by overwritting it.
+Scale `a` by a factor `γ`. The result is stored in `c` by overwriting it.
 
 See also: [`scale`](@ref) and [`Scale`](@ref).
 """
@@ -101,6 +101,13 @@ function scale!(c::Sequence, a::Sequence, γ)
     return c
 end
 
+"""
+    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!`](@ref), [`Scale`](@ref), [`scale`](@ref) and [`scale!`](@ref).
+"""
 function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
@@ -110,6 +117,13 @@ function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type
     return C
 end
 
+"""
+    project!(C::LinearOperator, 𝒮::Scale)
+
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+
+See also: [`project`](@ref), [`Scale`](@ref), [`scale`](@ref) and [`scale!`](@ref).
+"""
 function project!(C::LinearOperator, 𝒮::Scale)
     domain_C = domain(C)
     codomain_C = codomain(C)

@@ -168,15 +168,15 @@ TensorIndices{Tuple{UnitRange{Int64}, UnitRange{Int64}}}((0:2, -1:1))
 ```
 """
 struct TensorIndices{T<:Tuple}
-    iterators :: T
+    indices :: T
 end
-Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = getindex(Base.Iterators.ProductIterator(a.iterators), i)
-Base.length(a::TensorIndices) = length(Base.Iterators.ProductIterator(a.iterators))
-Base.iterate(a::TensorIndices) = iterate(Base.Iterators.ProductIterator(a.iterators))
-Base.iterate(a::TensorIndices, state) = iterate(Base.Iterators.ProductIterator(a.iterators), state)
-Base.issubset(a::TensorIndices, b::TensorIndices) = all(issubset.(a.iterators, b.iterators))
-Base.intersect(a::TensorIndices, b::TensorIndices) = TensorIndices(intersect.(a.iterators, b.iterators))
-Base.union(a::TensorIndices, b::TensorIndices) = TensorIndices(union.(a.iterators, b.iterators))
+Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = getindex(Base.Iterators.ProductIterator(a.indices), i)
+Base.length(a::TensorIndices) = length(Base.Iterators.ProductIterator(a.indices))
+Base.iterate(a::TensorIndices) = iterate(Base.Iterators.ProductIterator(a.indices))
+Base.iterate(a::TensorIndices, state) = iterate(Base.Iterators.ProductIterator(a.indices), state)
+Base.issubset(a::TensorIndices, b::TensorIndices) = all(issubset.(a.indices, b.indices))
+Base.intersect(a::TensorIndices, b::TensorIndices) = TensorIndices(intersect.(a.indices, b.indices))
+Base.union(a::TensorIndices, b::TensorIndices) = TensorIndices(union.(a.indices, b.indices))
 
 indices(s::TensorSpace) = TensorIndices(map(indices, s.spaces))
 

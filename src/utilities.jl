@@ -1,7 +1,5 @@
 _supremum(x::Real) = x
 _supremum(x::Interval) = sup(x)
-_infimum(x::Real) = x
-_infimum(x::Interval) = inf(x)
 
 # Allocation free reshaping (cf. Issue #36313)
 _no_alloc_reshape(a, dims) = invoke(Base._reshape, Tuple{AbstractArray,typeof(dims)}, a, dims)

@@ -30,11 +30,15 @@ Identity weight.
 struct IdentityWeight <: Weight end
 
 """
-    GeometricWeight{<:Real} <: Weight
+    GeometricWeight{T<:Real} <: Weight
 
-Geometric weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate > 0`.
+Geometric weight associated with a given `rate` satisfying `isfinite(rate) & (rate > 0)`.
 
-See also: [`geometricweight`](@ref).
+Field:
+- `rate :: T`
+
+See also: [`geometricweight`](@ref), [`IdentityWeight`](@ref),
+[`AlgebraicWeight`](@ref), [`algebraicweight`](@ref) and [`BesselWeight`](@ref).
 
 # Examples
 ```jldoctest
@@ -60,9 +64,12 @@ rate(weight::GeometricWeight) = weight.rate
 """
     geometricweight(a::Sequence{<:SequenceSpace})
 
-Compute an approximation of the geometric decay rate of `a` by performing the ordinary least squares method on the logarithm of the absolute value of the coefficients of `a`.
+Compute an approximation of the geometric decay rate of `a` by performing the
+ordinary least squares method on the logarithm of the absolute value of the
+coefficients of `a`.
 
-See also: [`GeometricWeight`](@ref).
+See also: [`GeometricWeight`](@ref), [`IdentityWeight`](@ref),
+[`AlgebraicWeight`](@ref), [`algebraicweight`](@ref) and [`BesselWeight`](@ref).
 
 # Examples
 ```jldoctest
@@ -181,11 +188,15 @@ function _geometric_rate(::Chebyshev, A)
 end
 
 """
-    AlgebraicWeight{<:Real} <: Weight
+    AlgebraicWeight{T<:Real} <: Weight
 
-Algebraic weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate ≥ 0`.
+Algebraic weight associated with a given `rate` satisfying `isfinite(rate) & (rate ≥ 0)`.
 
-See also: [`algebraicweight`](@ref).
+Field:
+- `rate :: T`
+
+See also: [`algebraicweight`](@ref), [`IdentityWeight`](@ref),
+[`GeometricWeight`](@ref), [`geometricweight`](@ref) and [`BesselWeight`](@ref).
 
 # Examples
 ```jldoctest
@@ -211,9 +222,12 @@ rate(weight::AlgebraicWeight) = weight.rate
 """
     algebraicweight(a::Sequence{<:SequenceSpace})
 
-Compute an approximation of the algebraic decay rate of `a` by performing the ordinary least squares method on the logarithm of the absolute value of the coefficients of `a`.
+Compute an approximation of the algebraic decay rate of `a` by performing the
+ordinary least squares method on the logarithm of the absolute value of the
+coefficients of `a`.
 
-See also: [`AlgebraicWeight`](@ref).
+See also: [`AlgebraicWeight`](@ref), [`IdentityWeight`](@ref),
+[`GeometricWeight`](@ref), [`geometricweight`](@ref) and [`BesselWeight`](@ref).
 
 # Examples
 ```jldoctest
@@ -333,9 +347,15 @@ function _algebraic_rate(::Chebyshev, A)
 end
 
 """
-    BesselWeight{<:Real} <: Weight
+    BesselWeight{T<:Real} <: Weight
 
-Bessel weight associated to some `rate::Real` satisfying `isfinite(rate)` and `rate ≥ 0`.
+Bessel weight associated with a given `rate` satisfying `isfinite(rate) & (rate ≥ 0)`.
+
+Field:
+- `rate :: T`
+
+See also: [`IdentityWeight`](@ref), [`GeometricWeight`](@ref), [`geometricweight`](@ref),
+[`AlgebraicWeight`](@ref) and [`algebraicweight`](@ref).
 
 # Examples
 ```jldoctest
@@ -376,11 +396,21 @@ Abstract type for all Banach spaces.
 abstract type BanachSpace end
 
 """
-    Ell1{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^1`` space.
 
-Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL, and in many editors.
+Field:
+- `weight :: T`
+
+Constructors:
+- `Ell1(::Weight)`
+- `Ell1(::Tuple{Vararg{Weight}})`
+- `Ell1()`: equivalent to `Ell1(IdentityWeight())`
+- `Ell1(weight::Weight...)`: equivalent to `Ell1(weight)`
+
+Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL
+and in many editors.
 
 See also: [`Ell2`](@ref) and [`EllInf`](@ref).
 
@@ -408,11 +438,12 @@ Ell1() = Ell1{IdentityWeight}(IdentityWeight())
 Ell1(weight::Weight...) = Ell1(weight)
 
 """
-    ℓ¹{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ¹(::Weight)
+    ℓ¹(::Tuple{Vararg{Weight}})
+    ℓ¹()
+    ℓ¹(::Weight...)
 
 Unicode alias of [`Ell1`](@ref) representing the weighted ``\\ell^1`` space.
-
-See also: [`Ell2`](@ref) and [`EllInf`](@ref).
 
 # Examples
 ```jldoctest
@@ -429,11 +460,21 @@ Ell1{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight
 const ℓ¹ = Ell1
 
 """
-    Ell2{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^2`` space.
 
-Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL, and in many editors.
+Field:
+- `weight :: T`
+
+Constructors:
+- `Ell2(::Weight)`
+- `Ell2(::Tuple{Vararg{Weight}})`
+- `Ell2()`: equivalent to `Ell2(IdentityWeight())`
+- `Ell2(weight::Weight...)`: equivalent to `Ell2(weight)`
+
+Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL
+and in many editors.
 
 See also: [`Ell1`](@ref) and [`EllInf`](@ref).
 
@@ -461,11 +502,12 @@ Ell2() = Ell2{IdentityWeight}(IdentityWeight())
 Ell2(weight::Weight...) = Ell2(weight)
 
 """
-    ℓ²{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ²(::Weight)
+    ℓ²(::Tuple{Vararg{Weight}})
+    ℓ²()
+    ℓ²(::Weight...)
 
 Unicode alias of [`Ell2`](@ref) representing the weighted ``\\ell^2`` space.
-
-See also: [`Ell1`](@ref) and [`EllInf`](@ref).
 
 # Examples
 ```jldoctest
@@ -482,11 +524,21 @@ Ell2{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float
 const ℓ² = Ell2
 
 """
-    EllInf{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
 
 Weighted ``\\ell^\\infty`` space.
 
-Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL, and in many editors.
+Field:
+- `weight :: T`
+
+Constructors:
+- `EllInf(::Weight)`
+- `EllInf(::Tuple{Vararg{Weight}})`
+- `EllInf()`: equivalent to `EllInf(IdentityWeight())`
+- `EllInf(weight::Weight...)`: equivalent to `EllInf(weight)`
+
+Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL
+and in many editors.
 
 See also: [`Ell1`](@ref) and [`Ell2`](@ref).
 
@@ -514,11 +566,12 @@ EllInf() = EllInf{IdentityWeight}(IdentityWeight())
 EllInf(weight::Weight...) = EllInf(weight)
 
 """
-    ℓ∞{<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
+    ℓ∞(::Weight)
+    ℓ∞(::Tuple{Vararg{Weight}})
+    ℓ∞()
+    ℓ∞(::Weight...)
 
 Unicode alias of [`EllInf`](@ref) representing the weighted ``\\ell^\\infty`` space.
-
-See also: [`Ell1`](@ref) and [`Ell2`](@ref).
 
 # Examples
 ```jldoctest
@@ -537,9 +590,13 @@ const ℓ∞ = EllInf
 # normed cartesian space
 
 """
-    NormedCartesianSpace{<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},<:BanachSpace} <: BanachSpace
+    NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
 
 Cartesian Banach space.
+
+Fields:
+- `inner :: T`
+- `outer :: S`
 
 See also: [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
 
@@ -557,12 +614,19 @@ struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:
     outer :: S
 end
 
-# fallback methods
+#
 
 """
     norm(a::Sequence, p::Real=Inf)
 
-Compute the `p`-norm of `a`.
+Compute the `p`-norm of `a`. Only `p` equal to `1`, `2` or `Inf` is supported.
+
+This is equivalent to:
+- `norm(a, Ell1(IdentityWeight()))` if `p == 1`
+- `norm(a, Ell2(IdentityWeight()))` if `p == 2`
+- `norm(a, EllInf(IdentityWeight()))` if `p == Inf`
+
+See also: [`norm(::Sequence, ::BanachSpace)`](@ref).
 """
 function norm(a::Sequence, p::Real=Inf)
     if p == 1
@@ -572,14 +636,24 @@ function norm(a::Sequence, p::Real=Inf)
     elseif p == Inf
         return norm(a, EllInf(IdentityWeight()))
     else
-        return throw(ArgumentError("p-norm is only supported for p = 1, 2, Inf"))
+        return throw(ArgumentError("p-norm is only supported for p equal to 1, 2 or Inf"))
     end
 end
 
 """
     opnorm(A::LinearOperator, p::Real=Inf)
 
-Compute the operator norm of `A` induced by the `p`-norm.
+Compute the operator norm of `A` induced by the `p`-norm. Only `p` equal to `1`,
+`2` or `Inf` is supported.
+
+This is equivalent to:
+- `opnorm(A, Ell1(IdentityWeight()))` if `p == 1`
+- `opnorm(A, Ell2(IdentityWeight()))` if `p == 2`
+- `opnorm(A, EllInf(IdentityWeight()))` if `p == Inf`
+
+See also: [`opnorm(::LinearOperator, ::BanachSpace)`](@ref),
+[`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
+[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
 """
 function opnorm(A::LinearOperator, p::Real=Inf)
     if p == 1
@@ -589,14 +663,19 @@ function opnorm(A::LinearOperator, p::Real=Inf)
     elseif p == Inf
         return opnorm(A, EllInf(IdentityWeight()))
     else
-        return throw(ArgumentError("p-norm is only supported for p = 1, 2, Inf"))
+        return throw(ArgumentError("p-norm is only supported for p equal to 1, 2 or Inf"))
     end
 end
 
 """
     opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
 
-Compute the operator norm of `A` by interpreting `domain(A)` as `X` and `codomain(A)` as `Y`.
+Compute the operator norm of `A` where `X` is the Banach space corresponding to
+`domain(A)` and `Y` the Banach space corresponding to `codomain(A)`.
+
+See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
+[`opnorm(::LinearOperator, ::BanachSpace)`](@ref) and
+[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
 """
 function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
     codomain_A = codomain(A)
@@ -614,7 +693,12 @@ end
 """
     opnorm(A::LinearOperator, X::BanachSpace)
 
-Compute the operator norm of `A` by interpreting `domain(A)` and `codomain(A)` as `X`.
+Compute the operator norm of `A` where `X` is the Banach space corresponding to
+both `domain(A)` and `codomain(A)`.
+
+See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
+[`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
+[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
 """
 opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
 
@@ -624,13 +708,20 @@ opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
     norm(a::Sequence, X::BanachSpace)
 
 Compute the norm of `a` by interpreting `space(a)` as `X`.
+
+See also: [`norm(::Sequence, ::Real=Inf)`](@ref).
 """
 norm(::Sequence, ::BanachSpace)
 
 """
     opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::BanachSpace)
 
-Compute the operator norm of `A` by interpreting `domain(A)` as `X`.
+Compute the operator norm of `A` where `X` is the Banach space corresponding to
+`domain(A)`.
+
+See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
+[`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
+[`opnorm(::LinearOperator, ::BanachSpace)`](@ref).
 """
 opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)
 

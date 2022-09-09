@@ -3,7 +3,17 @@
 
 Generic derivative operator.
 
-See also: [`differentiate`](@ref) and [`differentiate!`](@ref).
+Field:
+- `order :: T`
+
+Constructors:
+- `Derivative(::Int)`
+- `Derivative(::Tuple{Vararg{Int}})`
+- `Derivative(order::Int...)`: equivalent to `Derivative(order)`
+
+See also: [`differentiate`](@ref), [`differentiate!`](@ref),
+[`project(::Derivative, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`project!(::LinearOperator, ::Derivative)`](@ref).
 
 # Examples
 ```jldoctest
@@ -36,7 +46,17 @@ Derivative(order::Int...) = Derivative(order)
 
 Generic integral operator.
 
-See also: [`integrate`](@ref) and [`integrate!`](@ref).
+Field:
+- `order :: T`
+
+Constructors:
+- `Integral(::Int)`
+- `Integral(::Tuple{Vararg{Int}})`
+- `Integral(order::Int...)`: equivalent to `Integral(order)`
+
+See also: [`integrate`](@ref), [`integrate!`](@ref),
+[`project(::Integral, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`project!(::LinearOperator, ::Integral)`](@ref).
 
 # Examples
 ```jldoctest
@@ -110,11 +130,32 @@ end
 #
 
 """
+    *(𝒟::Derivative, a::Sequence)
+
+Compute the `𝒟.order`-th derivative of `a`; equivalent to `differentiate(a, 𝒟.order)`.
+
+See also: [`(::Derivative)(::Sequence)`](@ref), [`Derivative`](@ref),
+[`differentiate`](@ref) and [`differentiate!`](@ref).
+"""
+Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, 𝒟.order)
+
+"""
+    (𝒟::Derivative)(a::Sequence)
+
+Compute the `𝒟.order`-th derivative of `a`; equivalent to `differentiate(a, 𝒟.order)`.
+
+See also: [`*(::Derivative, ::Sequence)`](@ref), [`Derivative`](@ref),
+[`differentiate`](@ref) and [`differentiate!`](@ref).
+"""
+(𝒟::Derivative)(a::Sequence) = *(𝒟, a)
+
+"""
     differentiate(a::Sequence, α=1)
 
 Compute the `α`-th derivative of `a`.
 
-See also: [`differentiate!`](@ref) and [`Derivative`](@ref).
+See also: [`differentiate!`](@ref), [`Derivative`](@ref),
+[`*(::Derivative, ::Sequence)`](@ref) and [`(::Derivative)(::Sequence)`](@ref).
 """
 function differentiate(a::Sequence, α=1)
     𝒟 = Derivative(α)
@@ -131,7 +172,8 @@ end
 
 Compute the `α`-th derivative of `a`. The result is stored in `c` by overwriting it.
 
-See also: [`differentiate`](@ref) and [`Derivative`](@ref).
+See also: [`differentiate`](@ref), [`Derivative`](@ref),
+[`*(::Derivative, ::Sequence)`](@ref) and [`(::Derivative)(::Sequence)`](@ref).
 """
 function differentiate!(c::Sequence, a::Sequence, α=1)
     𝒟 = Derivative(α)
@@ -147,7 +189,7 @@ end
 
 Represent `𝒟` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref), [`Derivative`](@ref), [`differentiate`](@ref) and [`differentiate!`](@ref).
+See also: [`project!(::LinearOperator, ::Derivative)`](@ref) and [`Derivative`](@ref).
 """
 function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
@@ -161,9 +203,11 @@ end
 """
     project!(C::LinearOperator, 𝒟::Derivative)
 
-Represent `𝒟` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `𝒟` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref), [`Derivative`](@ref), [`differentiate`](@ref) and [`differentiate!`](@ref).
+See also: [`project(::Derivative, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`Derivative`](@ref).
 """
 function project!(C::LinearOperator, 𝒟::Derivative)
     domain_C = domain(C)
@@ -175,11 +219,32 @@ function project!(C::LinearOperator, 𝒟::Derivative)
 end
 
 """
+    *(ℐ::Integral, a::Sequence)
+
+Compute the `ℐ.order`-th integral of `a`; equivalent to `integrate(a, ℐ.order)`.
+
+See also: [`(::Integral)(::Sequence)`](@ref), [`Integral`](@ref),
+[`integrate`](@ref) and [`integrate!`](@ref).
+"""
+Base.:*(ℐ::Integral, a::Sequence) = integrate(a, ℐ.order)
+
+"""
+    (ℐ::Integral)(a::Sequence)
+
+Compute the `ℐ.order`-th integral of `a`; equivalent to `integrate(a, ℐ.order)`.
+
+See also: [`*(::Integral, ::Sequence)`](@ref), [`Integral`](@ref),
+[`integrate`](@ref) and [`integrate!`](@ref).
+"""
+(ℐ::Integral)(a::Sequence) = *(ℐ, a)
+
+"""
     integrate(a::Sequence, α=1)
 
 Compute the `α`-th integral of `a`.
 
-See also: [`integrate!`](@ref) and [`Integral`](@ref).
+See also: [`integrate!`](@ref), [`Integral`](@ref),
+[`*(::Integral, ::Sequence)`](@ref) and [`(::Integral)(::Sequence)`](@ref).
 """
 function integrate(a::Sequence, α=1)
     ℐ = Integral(α)
@@ -196,7 +261,8 @@ end
 
 Compute the `α`-th integral of `a`. The result is stored in `c` by overwriting it.
 
-See also: [`integrate`](@ref) and [`Integral`](@ref).
+See also: [`integrate`](@ref), [`Integral`](@ref),
+[`*(::Integral, ::Sequence)`](@ref) and [`(::Integral)(::Sequence)`](@ref).
 """
 function integrate!(c::Sequence, a::Sequence, α=1)
     ℐ = Integral(α)
@@ -212,7 +278,7 @@ end
 
 Represent `ℐ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref), [`Integral`](@ref), [`integrate`](@ref) and [`integrate!`](@ref).
+See also: [`project!(::LinearOperator, ::Integral)`](@ref) and [`Integral`](@ref).
 """
 function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
@@ -226,9 +292,11 @@ end
 """
     project!(C::LinearOperator, ℐ::Integral)
 
-Represent `ℐ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `ℐ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref), [`Integral`](@ref), [`integrate`](@ref) and [`integrate!`](@ref).
+See also: [`project(::Integral, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`Integral`](@ref)
 """
 function project!(C::LinearOperator, ℐ::Integral)
     domain_C = domain(C)
@@ -247,9 +315,6 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
         Base.:^(ℱ::$F{Int}, n::Int) = $F(ℱ.order * n)
         Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Int) = $F(map(αᵢ -> *(αᵢ, n), ℱ.order))
         Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Int}) where {N} = $F(map(*, ℱ.order, n))
-
-        (ℱ::$F)(a::Sequence) = *(ℱ, a)
-        Base.:*(ℱ::$F, a::Sequence) = $f(a, ℱ.order)
 
         _findposition_nzind_domain(ℱ::$F, domain, codomain) =
             _findposition(_nzind_domain(ℱ, domain, codomain), domain)

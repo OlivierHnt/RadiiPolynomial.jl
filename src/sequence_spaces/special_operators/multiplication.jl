@@ -1,7 +1,20 @@
 """
-    Multiplication{<:Sequence{<:SequenceSpace}}
+    Multiplication{T<:Sequence{<:SequenceSpace}}
 
-Multiplication operator associated to a [`Sequence`](@ref) in a [`SequenceSpace`](@ref).
+Multiplication operator associated with a given [`Sequence`](@ref).
+
+Field:
+- `sequence :: T`
+
+Constructor:
+- `Multiplication(::Sequence{<:SequenceSpace})`
+
+See also: [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref),
+[`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref),
+[`project(ℳ::Multiplication, ::SequenceSpace, ::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}`](@ref),
+[`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)`](@ref)
+and [`Multiplication`](@ref).
 """
 struct Multiplication{T<:Sequence{<:SequenceSpace}}
     sequence :: T
@@ -36,8 +49,31 @@ mul!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication, α::Number, β::
 
 #
 
-(ℳ::Multiplication)(a::Sequence) = *(ℳ, a)
+"""
+    *(ℳ::Multiplication, a::Sequence)
+
+Compute the discrete convolution (associated with `space(ℳ.sequence)` and
+`space(a)`) of `ℳ.sequence` and `a`; equivalent to `ℳ.sequence * a`.
+
+See also: [`(::Multiplication)(::Sequence)`](@ref), [`Multiplication`](@ref),
+[`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref)
+and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
+"""
 Base.:*(ℳ::Multiplication, a::Sequence) = *(ℳ.sequence, a)
+
+"""
+    (ℳ::Multiplication)(a::Sequence)
+
+Compute the discrete convolution (associated with `space(ℳ.sequence)` and
+`space(a)`) of `ℳ.sequence` and `a`; equivalent to `ℳ.sequence * a`.
+
+See also: [`*(::Multiplication, ::Sequence)`](@ref), [`Multiplication`](@ref),
+[`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref)
+and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
+"""
+(ℳ::Multiplication)(a::Sequence) = *(ℳ, a)
 
 Base.:+(ℳ::Multiplication) = Multiplication(+(ℳ.sequence))
 Base.:-(ℳ::Multiplication) = Multiplication(-(ℳ.sequence))
@@ -61,7 +97,8 @@ opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
 
 Represent `ℳ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref) and [`Multiplication`](@ref).
+See also: [`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)`](@ref)
+and [`Multiplication`](@ref).
 """
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}
     _iscompatible(domain, codomain) & _iscompatible(space(ℳ.sequence), domain) || return throw(ArgumentError("spaces must be compatible"))
@@ -73,9 +110,11 @@ end
 """
     project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
 
-Represent `ℳ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `ℳ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref) and [`Multiplication`](@ref).
+See also: [`project(ℳ::Multiplication, ::SequenceSpace, ::SequenceSpace, ::Type{T}=eltype(ℳ.sequence)) where {T}`](@ref)
+and [`Multiplication`](@ref).
 """
 function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
     domain_C = domain(C)

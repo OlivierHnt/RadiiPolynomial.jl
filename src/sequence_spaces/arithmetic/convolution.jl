@@ -239,6 +239,16 @@ _max_order(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> typemax
 _max_order(::TensorSpace{<:NTuple{N,BaseSpace}}, rounding_order::NTuple{N,Int}) where {N} =
     ntuple(i -> rounding_order[i]-1, Val(N))
 
+"""
+    *(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
+
+Compute the discrete convolution (associated with `space(a)` and `space(b)`) of
+`a` and `b`.
+
+See also: [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref),
+[`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref), [`banach_rounding_mul`](@ref)
+and [`banach_rounding_mul!`](@ref) and [`banach_rounding_pow`](@ref).
+"""
 function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -246,6 +256,7 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     _mul!(c, a, b, true, false)
     return c
 end
+
 function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(mul_bar, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
@@ -253,6 +264,19 @@ function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     _mul!(c, a, b, true, false)
     return c
 end
+
+"""
+    mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
+
+Compute `project(a * b, space(c)) * α + c * β` in-place. The result is stored in
+`c` by overwriting it.
+
+Note: `c` must not be aliased with either `a` or `b`.
+
+See also: [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref), [`banach_rounding_mul`](@ref),
+[`banach_rounding_mul!`](@ref) and [`banach_rounding_pow`](@ref).
+"""
 function mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
     space_c = space(c)
     new_space = image(*, space(a), space(b))
@@ -270,6 +294,18 @@ function _mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Se
     return c
 end
 
+"""
+    banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
+
+Compute the discrete convolution (associated with `space(a)` and `space(b)`) of
+`a` and `b`. A cut-off order is estimated such that the coefficients of the
+output beyond this order are rigorously enclosed.
+
+See also: [`banach_rounding_mul!`](@ref), [`banach_rounding_pow`](@ref),
+[`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref)
+and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
+"""
 function banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(bound_ab, X)
@@ -280,6 +316,7 @@ function banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:Sequenc
     _add_mul!(c, a, b, true, _max_order(new_space, rounding_order))
     return c
 end
+
 function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     bound_ab = norm(a, X) * norm(b, X)
     rounding_order = banach_rounding_order(bound_ab, X)
@@ -290,6 +327,20 @@ function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:Seq
     _add_mul!(c, a, b, true, _max_order(new_space, rounding_order))
     return c
 end
+
+"""
+    banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
+
+Compute `project(banach_rounding_mul(a, b, X), space(c))` in-place. The result
+is stored in `c` by overwriting it.
+
+Note: `c` must not be aliased with either `a` or `b`.
+
+See also: [`banach_rounding_mul`](@ref), [`banach_rounding_pow`](@ref),
+[`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref)
+and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
+"""
 function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X::ℓ¹)
     space_c = space(c)
     new_space = image(*, space(a), space(b))
@@ -446,6 +497,16 @@ end
 
 #
 
+"""
+    ^(a::Sequence{<:SequenceSpace}, n::Int)
+
+Compute the discrete convolution (associated with `space(a)`) of `a` with itself
+`n` times.
+
+See also: [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref),
+[`banach_rounding_mul`](@ref), [`banach_rounding_mul!`](@ref) and [`banach_rounding_pow`](@ref).
+"""
 function Base.:^(a::Sequence{<:SequenceSpace}, n::Int)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
     n == 0 && return one(a)
@@ -468,6 +529,7 @@ function Base.:^(a::Sequence{<:SequenceSpace}, n::Int)
     end
     return c
 end
+
 function pow_bar(a::Sequence{<:SequenceSpace}, n::Int)
     n < 0 && return throw(DomainError(n, "pow_bar is only defined for positive integers"))
     n == 0 && return one(a)
@@ -490,6 +552,7 @@ function pow_bar(a::Sequence{<:SequenceSpace}, n::Int)
     end
     return c
 end
+
 function _sqr(a::Sequence{<:SequenceSpace})
     new_space = image(^, space(a), 2)
     CoefType = eltype(a)
@@ -497,6 +560,7 @@ function _sqr(a::Sequence{<:SequenceSpace})
     _add_sqr!(c, a, _max_order(new_space))
     return c
 end
+
 function _sqr_bar(a::Sequence{<:SequenceSpace})
     new_space = image(pow_bar, space(a), 2)
     CoefType = eltype(a)
@@ -505,6 +569,18 @@ function _sqr_bar(a::Sequence{<:SequenceSpace})
     return c
 end
 
+"""
+    banach_rounding_pow(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
+
+Compute the discrete convolution (associated with `space(a)`) of `a` with itself
+`n` times. A cut-off order is estimated such that the coefficients of the output
+beyond this order are rigorously enclosed.
+
+See also: [`banach_rounding_mul`](@ref), [`banach_rounding_mul!`](@ref),
+[`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
+[`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref)
+and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
+"""
 function banach_rounding_pow(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     n < 0 && return throw(DomainError(n, "banach_rounding_pow is only defined for positive integers"))
     n == 0 && return one(a)
@@ -527,6 +603,7 @@ function banach_rounding_pow(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     end
     return c
 end
+
 function banach_rounding_pow_bar(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     n < 0 && return throw(DomainError(n, "banach_rounding_pow_bar is only defined for positive integers"))
     n == 0 && return one(a)
@@ -549,6 +626,7 @@ function banach_rounding_pow_bar(a::Sequence{<:SequenceSpace}, n::Int, X::ℓ¹)
     end
     return c
 end
+
 function _banach_rounding_sqr(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     norm_a = norm(a, X)
     bound_a² = norm_a * norm_a
@@ -560,6 +638,7 @@ function _banach_rounding_sqr(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     _add_sqr!(c, a, _max_order(new_space, rounding_order))
     return c
 end
+
 function _banach_rounding_sqr_bar(a::Sequence{<:SequenceSpace}, X::ℓ¹)
     norm_a = norm(a, X)
     bound_a² = norm_a * norm_a

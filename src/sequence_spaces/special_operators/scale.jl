@@ -1,9 +1,19 @@
 """
-    Scale{<:Union{Number,Tuple{Vararg{Number}}}}
+    Scale{T<:Union{Number,Tuple{Vararg{Number}}}}
 
 Generic scale operator.
 
-See also: [`scale`](@ref) and [`scale!`](@ref).
+Field:
+- `value :: T`
+
+Constructors:
+- `Scale(::Number)`
+- `Scale(::Tuple{Vararg{Number}})`
+- `Scale(value::Number...)`: equivalent to `Scale(value)`
+
+See also: [`scale`](@ref), [`scale!`](@ref),
+[`project(::Scale, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`project!(::LinearOperator, ::Scale)`](@ref).
 
 # Examples
 ```jldoctest
@@ -72,15 +82,33 @@ Base.:^(𝒮::Scale{<:Number}, n::Int) = Scale(𝒮.value ^ n)
 Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Int) = Scale(map(γᵢ -> ^(γᵢ, n), 𝒮.value))
 Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Scale(map(^, 𝒮.value, n))
 
-(𝒮::Scale)(a::Sequence) = *(𝒮, a)
+"""
+    *(𝒮::Scale, a::Sequence)
+
+Scale `a` by a factor `𝒮.value`; equivalent to `scale(a, 𝒮.value)`.
+
+See also: [`(::Scale)(::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
+[`scale!`](@ref).
+"""
 Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
+
+"""
+    (𝒮::Scale)(a::Sequence)
+
+Scale `a` by a factor `𝒮.value`; equivalent to `scale(a, 𝒮.value)`.
+
+See also: [`*(::Scale, ::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
+[`scale!`](@ref).
+"""
+(𝒮::Scale)(a::Sequence) = *(𝒮, a)
 
 """
     scale(a::Sequence, γ)
 
 Scale `a` by a factor `γ`.
 
-See also: [`scale!`](@ref) and [`Scale`](@ref).
+See also: [`scale!`](@ref), [`Scale`](@ref), [`*(::Scale, ::Sequence)`](@ref)
+and [`(::Scale)(::Sequence)`](@ref).
 """
 function scale(a::Sequence, γ)
     𝒮 = Scale(γ)
@@ -97,7 +125,8 @@ end
 
 Scale `a` by a factor `γ`. The result is stored in `c` by overwriting it.
 
-See also: [`scale`](@ref) and [`Scale`](@ref).
+See also: [`scale`](@ref), [`Scale`](@ref), [`*(::Scale, ::Sequence)`](@ref)
+and [`(::Scale)(::Sequence)`](@ref).
 """
 function scale!(c::Sequence, a::Sequence, γ)
     𝒮 = Scale(γ)
@@ -113,7 +142,7 @@ end
 
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref), [`Scale`](@ref), [`scale`](@ref) and [`scale!`](@ref).
+See also: [`project!(::LinearOperator, ::Scale)`](@ref) and [`Scale`](@ref)
 """
 function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
@@ -127,9 +156,11 @@ end
 """
     project!(C::LinearOperator, 𝒮::Scale)
 
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref), [`Scale`](@ref), [`scale`](@ref) and [`scale!`](@ref).
+See also: [`project(::Scale, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`Scale`](@ref)
 """
 function project!(C::LinearOperator, 𝒮::Scale)
     domain_C = domain(C)

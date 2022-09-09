@@ -57,14 +57,26 @@ abstract type SequenceSpace <: VectorSpace end
 """
     BaseSpace <: SequenceSpace
 
-Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but can be interlaced to form one.
+Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but
+can be interlaced to form one.
 """
 abstract type BaseSpace <: SequenceSpace end
 
 """
-    TensorSpace{<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
+    TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
 
 Tensor space resulting from the tensor product of some [`BaseSpace`](@ref).
+
+Field:
+- `spaces :: T`
+
+Constructors:
+- `TensorSpace(::Tuple{Vararg{BaseSpace}})`
+- `TensorSpace(spaces::BaseSpace...)`: equivalent to `TensorSpace(spaces)`
+- `⊗(s₁::BaseSpace, s₂::BaseSpace)`: equivalent to `TensorSpace((s₁, s₂))`
+- `⊗(s₁::TensorSpace, s₂::TensorSpace)`: equivalent to `TensorSpace((s₁.spaces..., s₂.spaces...))`
+- `⊗(s₁::TensorSpace, s₂::BaseSpace)`: equivalent to `TensorSpace((s₁.spaces..., s₂))`
+- `⊗(s₁::BaseSpace, s₂::TensorSpace)`: equivalent to `TensorSpace((s₁, s₂.spaces...))`
 
 See also: [`⊗`](@ref).
 
@@ -236,6 +248,14 @@ Base.promote_rule(::Type{TensorSpace{T}}, ::Type{TensorSpace{S}}) where {T,S} =
 
 Taylor sequence space whose elements are Taylor sequences of a prescribed order.
 
+Field:
+- `order :: Int`
+
+Constructor:
+- `Taylor(::Int)`
+
+See also: [`Fourier`](@ref) and [`Chebyshev`](@ref).
+
 # Examples
 ```jldoctest
 julia> s = Taylor(2)
@@ -275,9 +295,18 @@ _findposition(c::Colon, ::Taylor) = c
 #
 
 """
-    Fourier{<:Real} <: BaseSpace
+    Fourier{T<:Real} <: BaseSpace
 
 Fourier sequence space whose elements are Fourier sequences of a prescribed order and frequency.
+
+Fields:
+- `order :: Int`
+- `frequency :: T`
+
+Constructor:
+- `Fourier(::Int, ::Real)`
+
+See also: [`Taylor`](@ref) and [`Chebyshev`](@ref).
 
 # Examples
 ```jldoctest
@@ -348,6 +377,14 @@ Base.promote_rule(::Type{Fourier{T}}, ::Type{Fourier{S}}) where {T<:Real,S<:Real
 
 Chebyshev sequence space whose elements are Chebyshev sequences of a prescribed order.
 
+Field:
+- `order :: Int`
+
+Constructor:
+- `Chebyshev(::Int)`
+
+See also: [`Taylor`](@ref) and [`Fourier`](@ref).
+
 # Examples
 ```jldoctest
 julia> s = Chebyshev(2)
@@ -410,11 +447,19 @@ _component_findposition(u::AbstractVector{Int}, s::CartesianSpace) =
 _component_findposition(c::Colon, s::CartesianSpace) = c
 
 """
-    CartesianPower{<:VectorSpace} <: CartesianSpace
+    CartesianPower{T<:VectorSpace} <: CartesianSpace
 
 Cartesian space resulting from the cartesian product of the same [`VectorSpace`](@ref).
 
-See also: [`^`](@ref), [`×`](@ref) and [`CartesianProduct`](@ref).
+Fields:
+- `space :: T`
+- `n :: Int`
+
+Constructors:
+- `CartesianPower(::VectorSpace, ::Int)`
+- `^(::VectorSpace, ::Int)`: equivalent to `CartesianPower(::VectorSpace, ::Int)`
+
+See also: [`^(::VectorSpace, ::Int)`](@ref), [`CartesianProduct`](@ref) and [`×`](@ref).
 
 # Examples
 ```jldoctest
@@ -451,7 +496,7 @@ nspaces(s::CartesianPower) = s.n
 
 Create a [`CartesianPower`](@ref) from `n` cartesian product(s) of `s`.
 
-See also: [`CartesianPower`](@ref), [`×`](@ref) and [`CartesianProduct`](@ref).
+See also: [`CartesianPower`](@ref), [`CartesianProduct`](@ref), [`×`](@ref).
 
 # Examples
 ```jldoctest
@@ -538,11 +583,22 @@ Base.promote_rule(::Type{CartesianPower{T}}, ::Type{CartesianPower{S}}) where {T
     CartesianPower{promote_type(T, S)}
 
 """
-    CartesianProduct{<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
+    CartesianProduct{T<:Tuple{Vararg{VectorSpace}}} <: CartesianSpace
 
 Cartesian space resulting from the cartesian product of some [`VectorSpace`](@ref).
 
-See also: [`×`](@ref), [`^`](@ref) and [`CartesianPower`](@ref).
+Field:
+- `spaces :: T`
+
+Constructors:
+- `CartesianProduct(::Tuple{Vararg{VectorSpace}})`
+- `CartesianProduct(spaces::VectorSpace...)`: equivalent to `CartesianProduct(spaces)`
+- `×(s₁::VectorSpace, s₂::VectorSpace)`: equivalent to `CartesianProduct((s₁, s₂))`
+- `×(s₁::CartesianProduct, s₂::CartesianProduct)`: equivalent to `CartesianProduct((s₁.spaces..., s₂.spaces...))`
+- `×(s₁::CartesianProduct, s₂::VectorSpace)`: equivalent to `CartesianProduct((s₁.spaces..., s₂))`
+- `×(s₁::VectorSpace, s₂::CartesianProduct)`: equivalent to `CartesianProduct((s₁, s₂.spaces...))`
+
+See also: [`×`](@ref), [`CartesianPower`](@ref), [`^(::VectorSpace, ::Int)`](@ref).
 
 # Examples
 ```jldoctest
@@ -577,7 +633,7 @@ nspaces(::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} = N
 
 Create a [`CartesianProduct`](@ref) from the cartesian product of some [`VectorSpace`](@ref).
 
-See also: [`CartesianProduct`](@ref), [`^`](@ref) and [`CartesianPower`](@ref).
+See also: [`CartesianProduct`](@ref), [`CartesianPower`](@ref) and [`^(::VectorSpace, ::Int)`](@ref).
 
 # Examples
 ```jldoctest

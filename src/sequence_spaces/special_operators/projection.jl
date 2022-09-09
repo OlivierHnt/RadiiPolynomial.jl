@@ -18,7 +18,8 @@ end
 """
     project!(c::Sequence, a::Sequence)
 
-Represent `a` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c` by overwriting it.
+Represent `a` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c`
+by overwriting it.
 
 See also: [`project`](@ref).
 """
@@ -43,7 +44,8 @@ project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace
 """
     project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})
 
-Represent `A` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c` by overwriting it.
+Represent `A` as a [`Sequence`](@ref) in `space(c)`. The result is stored in `c`
+by overwriting it.
 
 See also: [`project`](@ref).
 """
@@ -89,7 +91,8 @@ end
 """
     project!(C::LinearOperator, J::UniformScaling)
 
-Represent `J` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `J` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
 See also: [`project`](@ref).
 """
@@ -121,7 +124,8 @@ end
 """
     project!(C::LinearOperator, A::LinearOperator)
 
-Represent `A` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `A` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
 See also: [`project`](@ref).
 """
@@ -144,7 +148,8 @@ project(a::Sequence, domain_dest::ParameterSpace, codomain_dest::VectorSpace, ::
 """
     project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence)
 
-Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
 See also: [`project`](@ref).
 """

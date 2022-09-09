@@ -3,7 +3,17 @@
 
 Generic shift operator.
 
-See also: [`shift`](@ref) and [`shift!`](@ref).
+Field:
+- `value :: T`
+
+Constructors:
+- `Shift(::Number)`
+- `Shift(::Tuple{Vararg{Number}})`
+- `Shift(value::Number...)`: equivalent to `Shift(value)`
+
+See also: [`shift`](@ref), [`shift!`](@ref),
+[`project(::Shift, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`project!(::LinearOperator, ::Shift)`](@ref).
 
 # Examples
 ```jldoctest
@@ -72,15 +82,33 @@ Base.:^(𝒮::Shift{<:Number}, n::Int) = Shift(𝒮.value * n)
 Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Int) = Shift(map(τᵢ -> *(τᵢ, n), 𝒮.value))
 Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Shift(map(*, 𝒮.value, n))
 
-(𝒮::Shift)(a::Sequence) = *(𝒮, a)
+"""
+    *(𝒮::Shift, a::Sequence)
+
+Shift `a` by `𝒮.value`; equivalent to `shift(a, 𝒮.value)`.
+
+See also: [`(::Shift)(::Sequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
+[`shift!`](@ref).
+"""
 Base.:*(𝒮::Shift, a::Sequence) = shift(a, 𝒮.value)
+
+"""
+    (𝒮::Shift)(a::Sequence)
+
+Shift `a` by `𝒮.value`; equivalent to `shift(a, 𝒮.value)`.
+
+See also: [`*(::Shift, ::Sequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
+[`shift!`](@ref).
+"""
+(𝒮::Shift)(a::Sequence) = *(𝒮, a)
 
 """
     shift(a::Sequence, τ)
 
 Shift `a` by `τ`.
 
-See also: [`shift!`](@ref) and [`Shift`](@ref).
+See also: [`shift!`](@ref), [`Shift`](@ref), [`*(::Shift, ::Sequence)`](@ref)
+and [`(::Shift)(::Sequence)`](@ref).
 """
 function shift(a::Sequence, τ)
     𝒮 = Shift(τ)
@@ -97,7 +125,8 @@ end
 
 Shift `a` by `τ`. The result is stored in `c` by overwriting it.
 
-See also: [`shift`](@ref) and [`Shift`](@ref).
+See also: [`shift`](@ref), [`Shift`](@ref), [`*(::Shift, ::Sequence)`](@ref)
+and [`(::Shift)(::Sequence)`](@ref).
 """
 function shift!(c::Sequence, a::Sequence, τ)
     𝒮 = Shift(τ)
@@ -113,7 +142,7 @@ end
 
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref), [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
+See also: [`project!(::LinearOperator, ::Shift)`](@ref) and [`Shift`](@ref).
 """
 function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
@@ -127,9 +156,11 @@ end
 """
     project!(C::LinearOperator, 𝒮::Shift)
 
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`. The result is stored in `C` by overwriting it.
+Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref), [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
+See also: [`project(::Shift, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`Shift`](@ref).
 """
 function project!(C::LinearOperator, 𝒮::Shift)
     domain_C = domain(C)

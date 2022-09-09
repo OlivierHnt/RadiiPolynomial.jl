@@ -1,9 +1,20 @@
 """
     Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
 
-Generic evaluation operator. A value of `nothing` indicates that no evaluation should be performed.
+Generic evaluation operator. A value of `nothing` indicates that no evaluation
+should be performed.
 
-See also: [`evaluate`](@ref) and [`evaluate!`](@ref).
+Field:
+- `value :: T`
+
+Constructors:
+- `Evaluation(::Union{Nothing,Number})`
+- `Evaluation(::Tuple{Vararg{Union{Nothing,Number}}})`
+- `Evaluation(value::Union{Number,Nothing}...)`: equivalent to `Evaluation(value)`
+
+See also: [`evaluate`](@ref), [`evaluate!`](@ref),
+[`project(::Evaluation, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`project!(::LinearOperator, ::Evaluation)`](@ref).
 
 # Examples
 ```jldoctest
@@ -65,18 +76,45 @@ mul!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation, α::Number, β::Numb
 
 #
 
-(ℰ::Evaluation)(a::Sequence) = *(ℰ, a)
+"""
+    *(ℰ::Evaluation, a::Sequence)
+
+Evaluate `a` at `ℰ.value`; equivalent to `evaluate(a, ℰ.value)`.
+
+See also: [`(::Evaluation)(::Sequence)`](@ref), [`Evaluation`](@ref),
+[`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+"""
 Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
 
+"""
+    (ℰ::Evaluation)(a::Sequence)
+
+Evaluate `a` at `ℰ.value`; equivalent to `evaluate(a, ℰ.value)`.
+
+See also: [`*(::Evaluation, ::Sequence)`](@ref), [`Evaluation`](@ref),
+[`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+"""
+(ℰ::Evaluation)(a::Sequence) = *(ℰ, a)
+
+"""
+    (a::Sequence)(x, y...)
+
+Evaluate `a` at `(x, y...)`; equivalent to `evaluate(a, (x, y...))` or
+`evaluate(a, x)` if `y` is not provided.
+
+See also: [`evaluate`](@ref), [`evaluate!`](@ref), [`Evaluation`](@ref),
+[`*(::Evaluation, ::Sequence)`](@ref) and [`(::Evaluation)(::Sequence)`](@ref).
+"""
+(a::Sequence)(x, y...) = evaluate(a, (x, y...))
 (a::Sequence)(x) = evaluate(a, x)
-(a::Sequence)(x...) = evaluate(a, x)
 
 """
     evaluate(a::Sequence, x)
 
 Evaluate `a` at `x`.
 
-See also: [`evaluate!`](@ref) and [`Evaluation`](@ref).
+See also: [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate!`](@ref), [`Evaluation`](@ref),
+[`*(::Evaluation, ::Sequence)`](@ref) and [`(::Evaluation)(::Sequence)`](@ref).
 """
 function evaluate(a::Sequence, x)
     ℰ = Evaluation(x)
@@ -93,7 +131,8 @@ end
 
 Evaluate `a` at `x`. The result is stored in `c` by overwriting it.
 
-See also: [`evaluate`](@ref) and [`Evaluation`](@ref).
+See also: [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref), [`Evaluation`](@ref),
+[`*(::Evaluation, ::Sequence)`](@ref) and [`(::Evaluation)(::Sequence)`](@ref).
 """
 function evaluate!(c::Sequence, a::Sequence, x)
     ℰ = Evaluation(x)
@@ -109,7 +148,7 @@ end
 
 Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
-See also: [`project!`](@ref), [`Evaluation`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+See also: [`project!(::LinearOperator, ::Evaluation)`](@ref) and [`Evaluation`](@ref).
 """
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
     _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
@@ -121,9 +160,11 @@ end
 """
     project!(C::LinearOperator, ℰ::Evaluation)
 
-Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`. The result is stored in `C` by overwriting it.
+Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+The result is stored in `C` by overwriting it.
 
-See also: [`project`](@ref), [`Evaluation`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+and [`Evaluation`](@ref).
 """
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)

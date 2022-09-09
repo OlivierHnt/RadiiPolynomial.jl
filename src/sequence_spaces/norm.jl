@@ -709,13 +709,19 @@ _apply_dual(::EllInf{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @in
 # SequenceSpace
 
 _apply(::Ell1{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sum(abs, A)
+_apply(::Ell1{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sum(abs, A)
 _apply_dual(::Ell1{IdentityWeight}, space::TensorSpace, A::AbstractVector) = _apply(EllInf(IdentityWeight()), space, A)
+_apply_dual(::Ell1{IdentityWeight}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = _apply(EllInf(IdentityWeight()), space, A)
 
 _apply(::Ell2{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sqrt(sum(abs2, A))
+_apply(::Ell2{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sqrt(sum(abs2, A))
 _apply_dual(::Ell2{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sqrt(sum(abs2, A))
+_apply_dual(::Ell2{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sqrt(sum(abs2, A))
 
 _apply(::EllInf{IdentityWeight}, ::TensorSpace, A::AbstractVector) = maximum(abs, A)
+_apply(::EllInf{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = maximum(abs, A)
 _apply_dual(::EllInf{IdentityWeight}, space::TensorSpace, A::AbstractVector) = _apply(Ell1(IdentityWeight()), space, A)
+_apply_dual(::EllInf{IdentityWeight}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = _apply(Ell1(IdentityWeight()), space, A)
 
 # Taylor
 

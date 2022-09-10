@@ -73,11 +73,11 @@ See also: [`GeometricWeight`](@ref), [`IdentityWeight`](@ref),
 
 # Examples
 ```jldoctest
-julia> geometricweight(Sequence(Taylor(10), [inv(2.0^i) for i in 0:10]))
-GeometricWeight{Float64}(2.0000000000000004)
+julia> rate(geometricweight(Sequence(Taylor(10), [inv(2.0^i) for i in 0:10]))) ≈ 2
+true
 
-julia> geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2.0^i * 3.0^abs(j)) for i in 0:10, j in -3:3])))
-(GeometricWeight{Float64}(2.0), GeometricWeight{Float64}(2.999999999999999))
+julia> rate.(geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2.0^i * 3.0^abs(j)) for i in 0:10, j in -3:3])))) .≈ (2, 3)
+(true, true)
 ```
 """
 geometricweight(::Sequence{<:SequenceSpace})
@@ -231,11 +231,11 @@ See also: [`AlgebraicWeight`](@ref), [`IdentityWeight`](@ref),
 
 # Examples
 ```jldoctest
-julia> algebraicweight(Sequence(Taylor(10), [inv((1.0 + i)^2) for i in 0:10]))
-AlgebraicWeight{Float64}(1.9999999999999973)
+julia> rate(algebraicweight(Sequence(Taylor(10), [inv((1.0 + i)^2) for i in 0:10]))) ≈ 2
+true
 
-julia> algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((1.0 + i)^2 * (1.0 + abs(j))^3) for i in 0:10, j in -3:3])))
-(AlgebraicWeight{Float64}(2.0000000000000004), AlgebraicWeight{Float64}(2.9999999999999982))
+julia> rate.(algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((1.0 + i)^2 * (1.0 + abs(j))^3) for i in 0:10, j in -3:3])))) .≈ (2, 3)
+(true, true)
 ```
 """
 algebraicweight(::Sequence{<:SequenceSpace})

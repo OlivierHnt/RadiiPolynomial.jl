@@ -6,7 +6,7 @@ using RadiiPolynomial
 
 The choice of the Banach space to apply the Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)) is integral to the success of the computer-assisted proof. In practice, it is useful to tune the Banach space on the fly to adjust the norm estimates.
 
-Accordingly, the spaces introduced in Section [Vector spaces](@ref vector_spaces) are not normed a priori. The norm of a [`Sequence`](@ref) or a [`LinearOperator`](@ref) is obtained via the functions `norm` and `opnorm` respectively; in both cases, one must specify a [`BanachSpace`](@ref).
+Accordingly, the spaces introduced in Section [Vector spaces](@ref vector_spaces) are not normed a priori. The norm of a [`Sequence`](@ref) or a [`LinearOperator`](@ref) is obtained via the functions [`norm`](@ref) and [`opnorm`](@ref) respectively; in both cases, one must specify a [`BanachSpace`](@ref).
 
 ```
 BanachSpace
@@ -91,8 +91,8 @@ norm(a, NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞()))
 
 ```@docs
 BanachSpace
-RadiiPolynomial.norm
-RadiiPolynomial.opnorm
+norm
+opnorm
 Weight
 IdentityWeight
 GeometricWeight

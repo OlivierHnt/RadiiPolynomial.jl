@@ -49,7 +49,7 @@ add_bar(c, d) # project(c + d, Taylor(1))
 sub_bar(c, d) # project(c - d, Taylor(1))
 ```
 
-The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*` and `^` functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.
+The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref) and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref) functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.
 
 ```@repl sequences
 c * d
@@ -70,7 +70,7 @@ To circumvent machine precision limitations, the `banach_rounding!` method enclo
 
 [^1]: J.-P. Lessard, [Computing discrete convolutions with verified accuracy via Banach algebras and the FFT](https://doi.org/10.21136/AM.2018.0082-18), *Applications of Mathematics*, **63** (2018), 219-235.
 
-The rounding strategy for `*`, `^`, `mul_bar` and `pow_bar` is integrated in the functions `banach_rounding_mul`, `banach_rounding_pow`, `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
+The rounding strategy for [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref), [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref), `mul_bar` and `pow_bar` is integrated in the functions [`banach_rounding_mul`](@ref), [`banach_rounding_mul!`](@ref), [`banach_rounding_pow`](@ref), `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
 
 ```@repl sequences
 X = ℓ¹(GeometricWeight(Interval(10_000.0)))
@@ -81,4 +81,10 @@ banach_rounding!(x³_fft, norm(x, X) ^ 3, X, 5)
 
 ```@docs
 Sequence
+*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})
+mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)
+banach_rounding_mul
+banach_rounding_mul!
+^(::Sequence{<:SequenceSpace}, ::Int)
+banach_rounding_pow
 ```

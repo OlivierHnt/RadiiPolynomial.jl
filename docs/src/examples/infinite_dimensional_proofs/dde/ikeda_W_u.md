@@ -12,7 +12,7 @@ The linearization at some equilibrium ``c \in \mathbb{R}`` yields
 \frac{d}{dt} v(t) = (1 - 3c^2) v(t-\tau).
 ```
 
-The right-hand side of the above equation is an infinite dimensional endomorphism acting on ``C([-\tau, 0], \mathbb{R})``. Its compactness guarantees that the spectrum is comprised of eigenvalues accumulating at ``0``; in particular, there are finitely many eigenvalues whose real parts are strictly positive. As a matter of fact, an eigenvector ``\xi \in C([-\tau, 0], \mathbb{C})`` associated to an eigenvalue ``\lambda \in \mathbb{C}`` is given by ``\xi(s) = e^{s \lambda} \xi(0)``, for all ``s \in [-\tau, 0]`` and ``\xi(0) \neq 0``, such that
+The right-hand side of the above equation is an infinite dimensional endomorphism acting on ``C([-\tau, 0], \mathbb{R})``. Its compactness guarantees that the spectrum is comprised of eigenvalues accumulating at ``0``; in particular, there are finitely many eigenvalues whose real parts are strictly positive. As a matter of fact, an eigenvector ``\xi \in C([-\tau, 0], \mathbb{C})`` associated with an eigenvalue ``\lambda \in \mathbb{C}`` is given by ``\xi(s) = e^{s \lambda} \xi(0)``, for all ``s \in [-\tau, 0]`` and ``\xi(0) \neq 0``, such that
 
 ```math
 \Psi(\lambda) := \lambda - (1 - 3c^2) e^{-\tau \lambda} = 0.

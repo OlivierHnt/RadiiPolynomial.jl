@@ -95,9 +95,7 @@ A finite dimensional truncation of [`Evaluation`](@ref) may be obtained via [`pr
 project(Evaluation(0.1), Taylor(2), image(Evaluation(0.1), Taylor(2)), Float64)
 ```
 
-This results in a Sequence with a space. Can be lifted if evaluation has no nothing
-
-Furthermore, in the context of `Evaluation`, the concept of compatibility is more permissive to allow manipulating `Evaluation` more like a functional:
+Furthermore, in the context of [`Evaluation`](@ref), the concept of compatibility between two [`VectorSpace`](@ref) is more permissive to allow manipulating [`Evaluation`](@ref) more like a functional:
 
 ```@repl special_operators
 project(Evaluation(0.1), Taylor(2), ParameterSpace(), Float64)

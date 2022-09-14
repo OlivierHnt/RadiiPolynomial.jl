@@ -681,11 +681,17 @@ function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
     codomain_A = codomain(A)
     A_ = coefficients(A)
     @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), Y)
+    T = typeof(v₁)
     sz = size(A_, 2)
-    v = Vector{typeof(v₁)}(undef, sz)
+    v = Vector{T}(undef, sz)
     @inbounds v[1] = v₁
     @inbounds for i ∈ 2:sz
-        v[i] = norm(Sequence(codomain_A, view(A_, :, i)), Y)
+        A_view = view(A_, :, i)
+        if iszero(A_view)
+            v[i] = zero(T)
+        else
+            v[i] = norm(Sequence(codomain_A, A_view), Y)
+        end
     end
     return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X)
 end

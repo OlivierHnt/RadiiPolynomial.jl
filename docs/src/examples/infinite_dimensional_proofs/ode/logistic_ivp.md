@@ -42,20 +42,25 @@ The mapping ``F`` and its Fréchet derivative, denoted ``DF``, may be implemente
 ```@example logistic_ivp
 using RadiiPolynomial
 
-function F(x::Sequence{Taylor})
-    f = x*(1 - x)
-    F_ = Sequence(Taylor(order(f)+1), Vector{eltype(x)}(undef, length(f)+1))
-    F_[0] = x[0] - 0.5
-    F_[1:end] .= Derivative(1) * x - f
-    return F_
+function F!(F, x)
+    F[0] = x[0] - 0.5
+
+    v = differentiate(x) - x*(1 - x)
+    for α ∈ 1:order(F)
+        F[α] = v[α-1]
+    end
+
+    return F
 end
 
-function DF(x::Sequence{Taylor}, domain::Taylor, codomain::Taylor, ::Type{CoefType}) where {CoefType}
-    DF_ = LinearOperator(domain, codomain, zeros(CoefType, dimension(codomain), dimension(domain)))
-    DF_[0,0] = one(CoefType)
-    DF_[1:end,:] .= Derivative(1) -
-        project(Multiplication(1 - 2x), domain, Taylor(order(codomain)-1), CoefType)
-    return DF_
+function DF!(DF, x)
+    DF .= 0
+
+    DF[0,0] = 1
+
+    DF[1:end,:] .= Derivative(1) - project(Multiplication(1 - 2x), domain(DF), Taylor(order(codomain(DF))-1))
+
+    return DF
 end
 nothing # hide
 ```
@@ -75,7 +80,7 @@ n = 27
 
 x̄ = Sequence(Taylor(n), zeros(n+1))
 
-x̄, success = newton(x -> (project(F(x), space(x)), DF(x, space(x), space(x), eltype(x))), x̄)
+x̄, success = newton!((F, DF, x) -> (F!(F, x), DF!(DF, x)), x̄)
 nothing # hide
 ```
 
@@ -113,13 +118,19 @@ R = Inf
 
 x̄_interval = Interval.(x̄)
 
-F_interval = F(x̄_interval)
-DF_interval = DF(x̄_interval, space(x̄_interval), space(x̄_interval), eltype(x̄_interval))
+F_interval = Sequence(Taylor(2n+1), similar(coefficients(x̄_interval), 2n+2))
+F!(F_interval, x̄_interval)
 
 tail_F_interval = copy(F_interval)
 tail_F_interval[0:n] .= Interval(0.0)
+
+DF_interval = LinearOperator(Taylor(n), Taylor(n), similar(coefficients(x̄_interval), n+1, n+1))
+DF!(DF_interval, x̄_interval)
+
 A = inv(mid.(DF_interval))
 bound_tail_A = inv(Interval(n+1))
+
+# computation of the bounds
 
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
 

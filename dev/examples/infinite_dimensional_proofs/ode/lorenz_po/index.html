@@ -30,9 +30,8 @@ end</code></pre><p>Let <span>$\nu &gt; 1$</span>,</p><p class="math-container">\
 \begin{pmatrix}
 \sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
 \left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
-\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in \text{domain}(F),\]</p><p>where <span>$\xi \in \mathbb{R}^3$</span> is a chosen approximate position of the periodic orbit at <span>$t = 0$</span> and <span>$\eta \in \mathbb{R}^3$</span> the corresponding approximate tangent vector at <span>$\xi$</span>. By means of the <em>phase condition</em> <span>$\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j$</span>, the translation invariance of the periodic orbit is removed.</p><p>The mapping <span>$F$</span> and its Fréchet derivative, denoted <span>$DF$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function F_DF!(F, DF, x, σ, ρ, β)
+\end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in \text{domain}(F),\]</p><p>where <span>$\xi \in \mathbb{R}^3$</span> is a chosen approximate position of the periodic orbit at <span>$t = 0$</span> and <span>$\eta \in \mathbb{R}^3$</span> the corresponding approximate tangent vector at <span>$\xi$</span>. By means of the <em>phase condition</em> <span>$\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j$</span>, the translation invariance of the periodic orbit is removed.</p><p>The mapping <span>$F$</span> and its Fréchet derivative, denoted <span>$DF$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function F!(F, x, σ, ρ, β)
     γ, u = x[1], component(x, 2)
-    DF .= 0
 
     F[1] =
         (sum(component(u, 1)) - 10.205222700615433) * 24.600655549587863 +
@@ -43,11 +42,21 @@ end</code></pre><p>Let <span>$\nu &gt; 1$</span>,</p><p class="math-container">\
     component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
 
     project!(component(F, 2), γ * f!(component(F, 2), u, σ, ρ, β) - differentiate(u))
+
+    return F
+end
+
+function DF!(DF, x, σ, ρ, β)
+    γ, u = x[1], component(x, 2)
+
+    DF .= 0
+
     f!(component(DF, 2, 1), u, σ, ρ, β)
+
     project!(component(DF, 2, 2), γ * Df!(component(DF, 2, 2), u, σ, ρ, β) - Derivative(1))
 
-    return F, DF
-end</code></pre><p>Consider the fixed-point operator <span>$T : X \to X$</span> defined by</p><p class="math-container">\[T(x) := x - A F(x),\]</p><p>where <span>$A : X \to X$</span> is an injective operator corresponding to an approximation of <span>$DF(\bar{x})^{-1}$</span> for some numerical zero <span>$\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X$</span> of <span>$F$</span>.</p><p>Given an initial guess, the numerical zero <span>$\bar{x}$</span> of <span>$F$</span> may be obtained by Newton&#39;s method:</p><pre><code class="language-julia hljs">σ, ρ, β = 10.0, 28.0, 8/3
+    return DF
+end</code></pre><p>Consider the fixed-point operator <span>$T : X \to X$</span> defined by</p><p class="math-container">\[T(x) := x - A F(x),\]</p><p>where <span>$A : X \to X$</span> is an injective operator corresponding to an approximation of <span>$DF(\bar{x})^{-1}$</span> for some numerical zero <span>$\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X$</span> of <span>$F$</span>.</p><p>Given an initial guess, the numerical zero <span>$\bar{x}$</span> of <span>$F$</span> may be obtained by Newton&#39;s method:</p><pre><code class="language- hljs">σ, ρ, β = 10.0, 28.0, 8/3
 
 n = 400
 
@@ -69,24 +78,14 @@ component(component(x̄, 2), 1)[-14:-1] .= conj.(component(component(x̄, 2), 1)
 component(component(x̄, 2), 2)[-14:-1] .= conj.(component(component(x̄, 2), 2)[14:-1:1])
 component(component(x̄, 2), 3)[-14:-1] .= conj.(component(component(x̄, 2), 3)[14:-1:1])
 
-newton!((F, DF, x) -&gt; F_DF!(F, DF, x, σ, ρ, β), x̄)
+newton!((F, DF, x) -&gt; (F!(F, x, σ, ρ, β), DF!(DF, x, σ, ρ, β)), x̄)
 
 # impose that x̄[1] is real and component(x̄, 2) are the coefficients of a real Fourier series
 x̄[1] = real(x̄[1])
 for i ∈ 1:3
     component(component(x̄, 2), i)[0] = real(component(component(x̄, 2), i)[0])
     component(component(x̄, 2), i)[-n:-1] .= conj.(component(component(x̄, 2), i)[n:-1:1])
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Newton&#39;s method: Inf-norm, tol = 1.0e-12, maxiter = 15
-      iteration        |F(x)|
--------------------------------------
-          0          1.6564e+01        |DF(x)\F(x)| = 8.9136e-01
-          1          3.0854e+00        |DF(x)\F(x)| = 4.5753e-01
-          2          6.3059e-01        |DF(x)\F(x)| = 3.0791e-01
-          3          3.6251e-01        |DF(x)\F(x)| = 3.8761e-02
-          4          8.0576e-03        |DF(x)\F(x)| = 1.5302e-03
-          5          1.2868e-05        |DF(x)\F(x)| = 1.7584e-05
-          6          1.7964e-09        |DF(x)\F(x)| = 2.5734e-10
-          7          1.4839e-13</code></pre><p>Let <span>$R &gt; 0$</span>. Since <span>$T \in C^2(X, X)$</span> we may use the <a href="../../../../radii_polynomial_approach/#C2_condition_RPT">second-order Radii Polynomial Theorem with <span>$C^2$</span> condition</a> such that we need to estimate <span>$|T(\bar{x}) - \bar{x}|_X$</span>, <span>$|DT(\bar{x})|_{\mathscr{B}(X, X)}$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}$</span>.</p><p>To this end, consider the truncation operator</p><p class="math-container">\[(\pi^n u)_k :=
+end</code></pre><p>Let <span>$R &gt; 0$</span>. Since <span>$T \in C^2(X, X)$</span> we may use the <a href="../../../../radii_polynomial_approach/#C2_condition_RPT">second-order Radii Polynomial Theorem with <span>$C^2$</span> condition</a> such that we need to estimate <span>$|T(\bar{x}) - \bar{x}|_X$</span>, <span>$|DT(\bar{x})|_{\mathscr{B}(X, X)}$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}$</span>.</p><p>To this end, consider the truncation operator</p><p class="math-container">\[(\pi^n u)_k :=
 \begin{cases}
 u_k, &amp; |k| \le n,\\
 0, &amp; |k| &gt; n,
@@ -101,7 +100,7 @@ u_k, &amp; |k| \le n,\\
 \sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &amp;\le
 2\left(|\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \Big(\bar{\gamma} + R +\\
 &amp;\qquad \max \left(2 \sigma, 1 + \rho + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_3|_{X_\textnormal{F}} + 2R, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}} + 2R\right)\Big).
-\end{aligned}\]</p><p>The computer-assisted proof may be implemented as follows:</p><pre><code class="language-julia hljs">ν = Interval(1.01)
+\end{aligned}\]</p><p>The computer-assisted proof may be implemented as follows:</p><pre><code class="language- hljs">ν = Interval(1.01)
 X_F = ℓ¹(GeometricWeight(ν))
 X_F³ = NormedCartesianSpace(X_F, ℓ∞())
 X = NormedCartesianSpace((ℓ∞(), X_F³), ℓ∞())
@@ -114,16 +113,21 @@ x̄_interval = Sequence(ParameterSpace() × Fourier(n, Interval(1.0))^3, Interva
 ū_interval = component(x̄_interval, 2)
 
 F_interval = Sequence(ParameterSpace() × Fourier(2n, Interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
-DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coefficients(x̄_interval), length(x̄_interval), length(F_interval)))
-F_DF!(F_interval, DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
+F!(F_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
 
 tail_f_interval = zero(component(F_interval, 2))
 for i ∈ 1:3
     component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
     component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
 end
+
+DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coefficients(x̄_interval), length(x̄_interval), length(F_interval)))
+DF!(DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
+
 A = inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval))))
 bound_tail_A = inv(Interval(n+1))
+
+# computation of the bounds
 
 Y = norm(A * F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_F³)
 
@@ -137,6 +141,6 @@ Z₂ = (opnorm(Interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
         1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
         β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Interval(4.126313791330837e-9, 1.0e-8)</code></pre><p>The following animation<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).</p><video width="800" height="400" controls autoplay loop>
+showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))</code></pre><p>The following animation<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).</p><video width="800" height="400" controls autoplay loop>
   <source src="../lorenz_po.mp4" type="video/mp4">
-</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>A. Hungria, J.-P. Lessard and J. D. Mireles James, <a href="https://doi.org/10.1090/mcom/3046">Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach</a>, <em>Mathematics of Computation</em>, <strong>85</strong> (2016), 1427-1459.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../logistic_ivp/">« Initial value problem of the logistic equation</a><a class="docs-footer-nextpage" href="../../dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Saturday 10 September 2022 23:00">Saturday 10 September 2022</span>. Using Julia version 1.8.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>A. Hungria, J.-P. Lessard and J. D. Mireles James, <a href="https://doi.org/10.1090/mcom/3046">Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach</a>, <em>Mathematics of Computation</em>, <strong>85</strong> (2016), 1427-1459.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../logistic_ivp/">« Initial value problem of the logistic equation</a><a class="docs-footer-nextpage" href="../../dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 14 September 2022 11:55">Wednesday 14 September 2022</span>. Using Julia version 1.8.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

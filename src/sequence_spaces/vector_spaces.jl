@@ -10,6 +10,8 @@ Base.issubset(::VectorSpace, ::VectorSpace) = false
 Base.intersect(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(intersect, (s₁, s₂)))
 Base.union(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(union, (s₁, s₂)))
 
+dimension(s::VectorSpace) = length(indices(s))
+
 
 
 

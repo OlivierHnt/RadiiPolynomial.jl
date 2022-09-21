@@ -90,14 +90,35 @@ Base.eltype(::Type{LinearOperator{T,S,R}}) where {T,S,R} = eltype(R)
 
 # getindex, view, setindex!
 
-Base.@propagate_inbounds Base.getindex(A::LinearOperator, α, β) =
-    getindex(coefficients(A), _findposition(α, codomain(A)), _findposition(β, domain(A)))
+Base.@propagate_inbounds function Base.getindex(A::LinearOperator, α, β)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    @boundscheck(
+        (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
+        throw(BoundsError((indices(codomain_A), indices(domain_A)), (α, β)))
+        )
+    return getindex(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A))
+end
 
-Base.@propagate_inbounds Base.view(A::LinearOperator, α, β) =
-    view(coefficients(A), _findposition(α, codomain(A)), _findposition(β, domain(A)))
+Base.@propagate_inbounds function Base.view(A::LinearOperator, α, β)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    @boundscheck(
+        (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
+        throw(BoundsError((indices(codomain_A), indices(domain_A)), (α, β)))
+        )
+    return view(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A))
+end
 
-Base.@propagate_inbounds Base.setindex!(A::LinearOperator, x, α, β) =
-    setindex!(coefficients(A), x, _findposition(α, codomain(A)), _findposition(β, domain(A)))
+Base.@propagate_inbounds function Base.setindex!(A::LinearOperator, x, α, β)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    @boundscheck(
+        (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
+        throw(BoundsError((indices(codomain_A), indices(domain_A)), (α, β)))
+        )
+    return setindex!(coefficients(A), x, _findposition(α, codomain_A), _findposition(β, domain_A))
+end
 
 # ==, iszero, isapprox
 

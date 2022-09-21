@@ -12,6 +12,16 @@ Base.union(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(union, (s�
 
 dimension(s::VectorSpace) = length(indices(s))
 
+_checkbounds_indices(::Colon, ::VectorSpace) = true
+_checkbounds_indices(α, s::VectorSpace) = __checkbounds_indices(α, s)
+_checkbounds_indices(u::AbstractRange, s::VectorSpace) =
+    __checkbounds_indices(first(u), s) & __checkbounds_indices(last(u), s)
+_checkbounds_indices(u::AbstractVector, s::VectorSpace) =
+    all(uᵢ -> __checkbounds_indices(uᵢ, s), u)
+
+__checkbounds_indices(::Colon, ::VectorSpace) = true
+__checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
+
 
 
 
@@ -40,6 +50,8 @@ dimension(::ParameterSpace) = 1
 _firstindex(::ParameterSpace) = 1
 _lastindex(::ParameterSpace) = 1
 indices(::ParameterSpace) = Base.OneTo(1)
+
+__checkbounds_indices(α::Int, ::ParameterSpace) = isone(α)
 
 _findposition(i, ::ParameterSpace) = i
 
@@ -194,6 +206,16 @@ Base.union(a::TensorIndices, b::TensorIndices) = TensorIndices(union.(a.indices,
 
 indices(s::TensorSpace) = TensorIndices(map(indices, s.spaces))
 
+_checkbounds_indices(α::Tuple, s::TensorSpace) = false
+_checkbounds_indices(α::NTuple{N,Any}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    @inbounds(_checkbounds_indices(α[1], s[1])) & _checkbounds_indices(Base.tail(α), Base.tail(s))
+_checkbounds_indices(α::Tuple{Any}, s::TensorSpace{<:Tuple{BaseSpace}}) =
+    @inbounds _checkbounds_indices(α[1], s[1])
+_checkbounds_indices(u::TensorIndices, s::TensorSpace) = _checkbounds_indices(u.indices, s)
+_checkbounds_indices(α::NTuple{N,Colon}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    true
+_checkbounds_indices(α::Tuple{Colon}, s::TensorSpace{<:Tuple{BaseSpace}}) = true
+
 _findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> 0, Val(N))
 
 _findposition(α::Tuple{Int}, s::TensorSpace{<:Tuple{BaseSpace}}) =
@@ -287,6 +309,8 @@ _firstindex(::Taylor) = 0
 _lastindex(s::Taylor) = s.order
 indices(s::Taylor) = 0:s.order
 
+__checkbounds_indices(α::Int, s::Taylor) = 0 ≤ α ≤ order(s)
+
 _findindex_constant(::Taylor) = 0
 
 _findposition(i::Int, ::Taylor) = i + 1
@@ -355,6 +379,8 @@ _firstindex(s::Fourier) = -s.order
 _lastindex(s::Fourier) = s.order
 indices(s::Fourier) = -s.order:s.order
 
+__checkbounds_indices(α::Int, s::Fourier) = -order(s) ≤ α ≤ order(s)
+
 _findindex_constant(::Fourier) = 0
 
 _findposition(i::Int, s::Fourier) = i + s.order + 1
@@ -415,6 +441,8 @@ dimension(s::Chebyshev) = s.order + 1
 _firstindex(::Chebyshev) = 0
 _lastindex(s::Chebyshev) = s.order
 indices(s::Chebyshev) = 0:s.order
+
+__checkbounds_indices(α::Int, s::Chebyshev) = 0 ≤ α ≤ order(s)
 
 _findindex_constant(::Chebyshev) = 0
 

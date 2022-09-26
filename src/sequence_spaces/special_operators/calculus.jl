@@ -940,7 +940,7 @@ function _nzind_domain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshev)
     if 𝒟.order == 0
         return collect(0:min(order(domain), order(codomain)))
     elseif 𝒟.order == 1
-        len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain))
+        len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain); init = 0)
         v = Vector{Int}(undef, len)
         l = 0
         @inbounds for j ∈ 1:order(domain)
@@ -958,7 +958,7 @@ function _nzind_codomain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshe
     if 𝒟.order == 0
         return collect(0:min(order(domain), order(codomain)))
     elseif 𝒟.order == 1
-        len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain))
+        len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain); init = 0)
         v = Vector{Int}(undef, len)
         l = 0
         @inbounds for j ∈ 1:order(domain)

@@ -73,44 +73,8 @@ struct C²Condition end
 """
     interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real, ::C²Condition)
 
-Return the interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_2 r < 1`` for all ``r \\in I``.
+Return the interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
 function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C²Condition)
-    Y, Z₁, Z₂, R = _supremum(Y_), _supremum(Z₁_), _supremum(Z₂_), _supremum(R_)
-    NewType = float(promote_type(typeof(Y), typeof(Z₁), typeof(Z₂), typeof(R)))
-    if Z₂ == 0
-        return interval_of_existence(Y, Z₁, R)
-    elseif !(Y ≥ 0 && isfinite(Y) && Z₁ ≥ 0 && isfinite(Z₁) && Z₂ ≥ 0 && isfinite(Z₂) && R ≥ 0)
-        return throw(DomainError((Y, Z₁, Z₂, R), "Y, Z₁ and Z₂ must be positive and finite, R must be positive"))
-    else
-        b = Z₁ - one(Interval{NewType})
-        Δ = b*b - 2*(Interval(Z₂)*Y)
-        if inf(Δ) < 0 # complex roots
-            return emptyinterval(NewType)
-        else # real roots
-            sqrtΔ = sqrt(Δ)
-            r₁ = -(sqrtΔ + b)/Z₂
-            r₁_sup = NewType(sup(r₁), RoundUp)
-            if 0 ≤ r₁_sup ≤ R && sup(Interval(Z₂) * r₁_sup) < 1
-                r₂ = (sqrtΔ - b)/Z₂
-                r₂_inf = NewType(inf(r₂), RoundDown)
-                if r₁_sup > r₂_inf
-                    return emptyinterval(NewType)
-                elseif 0 ≤ r₂_inf ≤ R && sup(Interval(Z₂) * r₂_inf) < 1
-                    return Interval(r₁_sup, r₂_inf)
-                elseif sup(Interval(Z₂) * R) < 1
-                    return Interval(r₁_sup, R)
-                else
-                    x = NewType(prevfloat(inf(inv(Z₂))), RoundDown)
-                    if r₁_sup ≤ x ≤ r₂_inf && x ≤ R
-                        return Interval(r₁_sup, x)
-                    else
-                        return Interval(r₁_sup)
-                    end
-                end
-            else
-                return emptyinterval(NewType)
-            end
-        end
-    end
+    interval_of_existence(Y_, Z₁_, Z₂_, R_, C¹Condition())
 end

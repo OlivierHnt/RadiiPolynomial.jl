@@ -76,7 +76,7 @@ p(r) := Y + (Z_1 - 1) r + \frac{Z_2}{2} r^2.
 If there exists a *radius* ``r_0 \in [0, R]`` such that
 
 ```math
-p(r_0) \le 0 \qquad \text{and} \qquad Z_2 r_0 < 1,
+p(r_0) \le 0 \qquad \text{and} \qquad Z_1 + Z_2 r_0 < 1,
 ```
 
 then ``T`` has a unique fixed-point in ``\text{cl}( B_{r_0} (x_0) )``.

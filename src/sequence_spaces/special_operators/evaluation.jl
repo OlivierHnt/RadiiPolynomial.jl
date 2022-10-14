@@ -1,5 +1,5 @@
 """
-    Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
+    Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: SpecialOperator
 
 Generic evaluation operator. A value of `nothing` indicates that no evaluation
 should be performed.
@@ -25,7 +25,7 @@ julia> Evaluation(1.0, nothing, 2.0)
 Evaluation{Tuple{Float64, Nothing, Float64}}((1.0, nothing, 2.0))
 ```
 """
-struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}}
+struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: SpecialOperator
     value :: T
     Evaluation{T}(value::T) where {T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} = new{T}(value)
     Evaluation{Tuple{}}(::Tuple{}) = throw(ArgumentError("Evaluation is only defined for at least one Number or Nothing"))
@@ -34,47 +34,6 @@ end
 Evaluation(value::T) where {T<:Union{Nothing,Number}} = Evaluation{T}(value)
 Evaluation(value::T) where {T<:Tuple{Vararg{Union{Nothing,Number}}}} = Evaluation{T}(value)
 Evaluation(value::Union{Number,Nothing}...) = Evaluation(value)
-
-# fallback arithmetic methods
-
-function Base.:+(A::LinearOperator, ℰ::Evaluation)
-    domain_A = domain(A)
-    return ladd!(A, project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))))
-end
-function Base.:+(ℰ::Evaluation, A::LinearOperator)
-    domain_A = domain(A)
-    return radd!(project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))), A)
-end
-function Base.:-(A::LinearOperator, ℰ::Evaluation)
-    domain_A = domain(A)
-    return lsub!(A, project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))))
-end
-function Base.:-(ℰ::Evaluation, A::LinearOperator)
-    domain_A = domain(A)
-    return rsub!(project(ℰ, domain_A, codomain(A), _coeftype(ℰ, domain_A, eltype(A))), A)
-end
-
-add!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation) = add!(C, A, project(ℰ, domain(A), codomain(A), eltype(C)))
-add!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator) = add!(C, project(ℰ, domain(A), codomain(A), eltype(C)), A)
-sub!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation) = sub!(C, A, project(ℰ, domain(A), codomain(A), eltype(C)))
-sub!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator) = sub!(C, project(ℰ, domain(A), codomain(A), eltype(C)), A)
-
-radd!(A::LinearOperator, ℰ::Evaluation) = radd!(A, project(ℰ, domain(A), codomain(A), eltype(A)))
-rsub!(A::LinearOperator, ℰ::Evaluation) = rsub!(A, project(ℰ, domain(A), codomain(A), eltype(A)))
-
-ladd!(ℰ::Evaluation, A::LinearOperator) = ladd!(project(ℰ, domain(A), codomain(A), eltype(A)), A)
-lsub!(ℰ::Evaluation, A::LinearOperator) = lsub!(project(ℰ, domain(A), codomain(A), eltype(A)), A)
-
-function Base.:*(ℰ::Evaluation, A::LinearOperator)
-    codomain_A = codomain(A)
-    return project(ℰ, codomain_A, image(ℰ, codomain_A), _coeftype(ℰ, codomain_A, eltype(A))) * A
-end
-
-mul!(c::Sequence, ℰ::Evaluation, a::Sequence, α::Number, β::Number) = mul!(c, project(ℰ, space(a), space(c), eltype(c)), a, α, β)
-mul!(C::LinearOperator, ℰ::Evaluation, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℰ, codomain(A), codomain(C), eltype(C)), A, α, β)
-mul!(C::LinearOperator, A::LinearOperator, ℰ::Evaluation, α::Number, β::Number) = mul!(C, A, project(ℰ, domain(C), domain(A), eltype(C)), α, β)
-
-#
 
 """
     *(ℰ::Evaluation, a::Sequence)

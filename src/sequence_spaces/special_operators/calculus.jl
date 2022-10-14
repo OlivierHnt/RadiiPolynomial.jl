@@ -1,5 +1,5 @@
 """
-    Derivative{T<:Union{Int,Tuple{Vararg{Int}}}}
+    Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
 
 Generic derivative operator.
 
@@ -24,7 +24,7 @@ julia> Derivative(1, 2)
 Derivative{Tuple{Int64, Int64}}((1, 2))
 ```
 """
-struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}}
+struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
     order :: T
     function Derivative{T}(order::T) where {T<:Int}
         order < 0 && return throw(DomainError(order, "Derivative is only defined for positive integers"))
@@ -42,7 +42,7 @@ Derivative(order::T) where {T<:Tuple{Vararg{Int}}} = Derivative{T}(order)
 Derivative(order::Int...) = Derivative(order)
 
 """
-    Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
+    Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
 
 Generic integral operator.
 
@@ -67,7 +67,7 @@ julia> Integral(1, 2)
 Integral{Tuple{Int64, Int64}}((1, 2))
 ```
 """
-struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}}
+struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
     order :: T
     function Integral{T}(order::T) where {T<:Int}
         order < 0 && return throw(DomainError(order, "Integral is only defined for positive integers"))
@@ -83,51 +83,6 @@ end
 Integral(order::T) where {T<:Int} = Integral{T}(order)
 Integral(order::T) where {T<:Tuple{Vararg{Int}}} = Integral{T}(order)
 Integral(order::Int...) = Integral(order)
-
-# fallback arithmetic methods
-
-for F ∈ (:Derivative, :Integral)
-    @eval begin
-        function Base.:+(A::LinearOperator, ℱ::$F)
-            domain_A = domain(A)
-            return A + project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A)))
-        end
-        function Base.:+(ℱ::$F, A::LinearOperator)
-            domain_A = domain(A)
-            return project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A))) + A
-        end
-        function Base.:-(A::LinearOperator, ℱ::$F)
-            domain_A = domain(A)
-            return A - project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A)))
-        end
-        function Base.:-(ℱ::$F, A::LinearOperator)
-            domain_A = domain(A)
-            return project(ℱ, domain_A, codomain(A), _coeftype(ℱ, domain_A, eltype(A))) - A
-        end
-
-        add!(C::LinearOperator, A::LinearOperator, ℱ::$F) = add!(C, A, project(ℱ, domain(A), codomain(A), eltype(C)))
-        add!(C::LinearOperator, ℱ::$F, A::LinearOperator) = add!(C, project(ℱ, domain(A), codomain(A), eltype(C)), A)
-        sub!(C::LinearOperator, A::LinearOperator, ℱ::$F) = sub!(C, A, project(ℱ, domain(A), codomain(A), eltype(C)))
-        sub!(C::LinearOperator, ℱ::$F, A::LinearOperator) = sub!(C, project(ℱ, domain(A), codomain(A), eltype(C)), A)
-
-        radd!(A::LinearOperator, ℱ::$F) = radd!(A, project(ℱ, domain(A), codomain(A), eltype(A)))
-        rsub!(A::LinearOperator, ℱ::$F) = rsub!(A, project(ℱ, domain(A), codomain(A), eltype(A)))
-
-        ladd!(ℱ::$F, A::LinearOperator) = ladd!(project(ℱ, domain(A), codomain(A), eltype(A)), A)
-        lsub!(ℱ::$F, A::LinearOperator) = lsub!(project(ℱ, domain(A), codomain(A), eltype(A)), A)
-
-        function Base.:*(ℱ::$F, A::LinearOperator)
-            codomain_A = codomain(A)
-            return project(ℱ, codomain_A, image(ℱ, codomain_A), _coeftype(ℱ, codomain_A, eltype(A))) * A
-        end
-
-        mul!(c::Sequence, ℱ::$F, a::Sequence, α::Number, β::Number) = mul!(c, project(ℱ, space(a), space(c), eltype(c)), a, α, β)
-        mul!(C::LinearOperator, ℱ::$F, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℱ, codomain(A), codomain(C), eltype(C)), A, α, β)
-        mul!(C::LinearOperator, A::LinearOperator, ℱ::$F, α::Number, β::Number) = mul!(C, A, project(ℱ, domain(C), domain(A), eltype(C)), α, β)
-    end
-end
-
-#
 
 """
     *(𝒟::Derivative, a::Sequence)

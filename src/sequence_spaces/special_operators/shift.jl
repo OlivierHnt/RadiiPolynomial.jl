@@ -1,5 +1,5 @@
 """
-    Shift{T<:Union{Number,Tuple{Vararg{Number}}}}
+    Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
 
 Generic shift operator.
 
@@ -24,7 +24,7 @@ julia> Shift(1.0, 2.0)
 Shift{Tuple{Float64, Float64}}((1.0, 2.0))
 ```
 """
-struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}}
+struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
     value :: T
     Shift{T}(value::T) where {T<:Union{Number,Tuple{Vararg{Number}}}} = new{T}(value)
     Shift{Tuple{}}(::Tuple{}) = throw(ArgumentError("Shift is only defined for at least one Number"))
@@ -33,47 +33,6 @@ end
 Shift(value::T) where {T<:Number} = Shift{T}(value)
 Shift(value::T) where {T<:Tuple{Vararg{Number}}} = Shift{T}(value)
 Shift(value::Number...) = Shift(value)
-
-# fallback arithmetic methods
-
-function Base.:+(A::LinearOperator, 𝒮::Shift)
-    domain_A = domain(A)
-    return A + project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
-end
-function Base.:+(𝒮::Shift, A::LinearOperator)
-    domain_A = domain(A)
-    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) + A
-end
-function Base.:-(A::LinearOperator, 𝒮::Shift)
-    domain_A = domain(A)
-    return A - project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A)))
-end
-function Base.:-(𝒮::Shift, A::LinearOperator)
-    domain_A = domain(A)
-    return project(𝒮, domain_A, codomain(A), _coeftype(𝒮, domain_A, eltype(A))) - A
-end
-
-add!(C::LinearOperator, A::LinearOperator, 𝒮::Shift) = add!(C, A, project(𝒮, domain(A), codomain(A), eltype(C)))
-add!(C::LinearOperator, 𝒮::Shift, A::LinearOperator) = add!(C, project(𝒮, domain(A), codomain(A), eltype(C)), A)
-sub!(C::LinearOperator, A::LinearOperator, 𝒮::Shift) = sub!(C, A, project(𝒮, domain(A), codomain(A), eltype(C)))
-sub!(C::LinearOperator, 𝒮::Shift, A::LinearOperator) = sub!(C, project(𝒮, domain(A), codomain(A), eltype(C)), A)
-
-radd!(A::LinearOperator, 𝒮::Shift) = radd!(A, project(𝒮, domain(A), codomain(A), eltype(A)))
-rsub!(A::LinearOperator, 𝒮::Shift) = rsub!(A, project(𝒮, domain(A), codomain(A), eltype(A)))
-
-ladd!(𝒮::Shift, A::LinearOperator) = ladd!(project(𝒮, domain(A), codomain(A), eltype(A)), A)
-lsub!(𝒮::Shift, A::LinearOperator) = lsub!(project(𝒮, domain(A), codomain(A), eltype(A)), A)
-
-function Base.:*(𝒮::Shift, A::LinearOperator)
-    codomain_A = codomain(A)
-    return project(𝒮, codomain_A, image(𝒮, codomain_A), _coeftype(𝒮, codomain_A, eltype(A))) * A
-end
-
-mul!(c::Sequence, 𝒮::Shift, a::Sequence, α::Number, β::Number) = mul!(c, project(𝒮, space(a), space(c), eltype(c)), a, α, β)
-mul!(C::LinearOperator, 𝒮::Shift, A::LinearOperator, α::Number, β::Number) = mul!(C, project(𝒮, codomain(A), codomain(C), eltype(C)), A, α, β)
-mul!(C::LinearOperator, A::LinearOperator, 𝒮::Shift, α::Number, β::Number) = mul!(C, A, project(𝒮, domain(C), domain(A), eltype(C)), α, β)
-
-#
 
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(𝒮₁.value + 𝒮₂.value)
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, 𝒮₁.value, 𝒮₂.value))

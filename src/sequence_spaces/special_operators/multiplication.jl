@@ -1,5 +1,5 @@
 """
-    Multiplication{T<:Sequence{<:SequenceSpace}}
+    Multiplication{T<:Sequence{<:SequenceSpace}} <: SpecialOperator
 
 Multiplication operator associated with a given [`Sequence`](@ref).
 
@@ -16,38 +16,9 @@ See also: [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
 [`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)`](@ref)
 and [`Multiplication`](@ref).
 """
-struct Multiplication{T<:Sequence{<:SequenceSpace}}
+struct Multiplication{T<:Sequence{<:SequenceSpace}} <: SpecialOperator
     sequence :: T
 end
-
-# fallback arithmetic methods
-
-Base.:+(A::LinearOperator, ℳ::Multiplication) = A + project(ℳ, domain(A), codomain(A))
-Base.:+(ℳ::Multiplication, A::LinearOperator) = project(ℳ, domain(A), codomain(A)) + A
-Base.:-(A::LinearOperator, ℳ::Multiplication) = A - project(ℳ, domain(A), codomain(A))
-Base.:-(ℳ::Multiplication, A::LinearOperator) = project(ℳ, domain(A), codomain(A)) - A
-
-add!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication) = add!(C, A, project(ℳ, domain(A), codomain(A), eltype(C)))
-add!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator) = add!(C, project(ℳ, domain(A), codomain(A), eltype(C)), A)
-sub!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication) = sub!(C, A, project(ℳ, domain(A), codomain(A), eltype(C)))
-sub!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator) = sub!(C, project(ℳ, domain(A), codomain(A), eltype(C)), A)
-
-radd!(A::LinearOperator, ℳ::Multiplication) = radd!(A, project(ℳ, domain(A), codomain(A), eltype(A)))
-rsub!(A::LinearOperator, ℳ::Multiplication) = rsub!(A, project(ℳ, domain(A), codomain(A), eltype(A)))
-
-ladd!(ℳ::Multiplication, A::LinearOperator) = ladd!(project(ℳ, domain(A), codomain(A), eltype(A)), A)
-lsub!(ℳ::Multiplication, A::LinearOperator) = lsub!(project(ℳ, domain(A), codomain(A), eltype(A)), A)
-
-function Base.:*(ℳ::Multiplication, A::LinearOperator)
-    codomain_A = codomain(A)
-    return project(ℳ, codomain_A, image(*, space(ℳ.sequence), codomain_A)) * A
-end
-
-mul!(c::Sequence, ℳ::Multiplication, a::Sequence, α::Number, β::Number) = mul!(c, ℳ.sequence, a, α, β)
-mul!(C::LinearOperator, ℳ::Multiplication, A::LinearOperator, α::Number, β::Number) = mul!(C, project(ℳ, codomain(A), codomain(C), eltype(C)), A, α, β)
-mul!(C::LinearOperator, A::LinearOperator, ℳ::Multiplication, α::Number, β::Number) = mul!(C, A, project(ℳ, domain(C), domain(A), eltype(C)), α, β)
-
-#
 
 """
     *(ℳ::Multiplication, a::Sequence)
@@ -91,6 +62,11 @@ Base.:/(ℳ::Multiplication, a::Number) = Multiplication(/(ℳ.sequence, a))
 Base.:\(a::Number, ℳ::Multiplication) = Multiplication(\(a, ℳ.sequence))
 
 opnorm(ℳ::Multiplication, X::BanachSpace) = norm(ℳ.sequence, X)
+
+# for consistency with other SpecialOperator
+image(ℳ::Multiplication, s::SequenceSpace) = image(*, space(ℳ.sequence), s)
+_coeftype(ℳ::Multiplication, ::SequenceSpace, ::Type{T}) where {T} =
+    promote_type(eltype(ℳ.sequence), T)
 
 """
     project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(ℳ.sequence))

@@ -61,6 +61,7 @@ include("sequence_spaces/arithmetic/fft.jl")
 
 include("sequence_spaces/special_operators/projection.jl")
     export project, project!
+include("sequence_spaces/special_operators/special_operator.jl")
 include("sequence_spaces/special_operators/multiplication.jl")
     export Multiplication
 include("sequence_spaces/special_operators/calculus.jl")

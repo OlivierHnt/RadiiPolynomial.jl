@@ -21,14 +21,12 @@ function interval_of_existence(Y_::Real, Z₁_::Real, R_::Real)
     end
 end
 
-struct C¹Condition end
-
 """
-    interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real, ::C¹Condition)
+    interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real)
 
 Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
-function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C¹Condition)
+function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real)
     Y, Z₁, Z₂, R = _supremum(Y_), _supremum(Z₁_), _supremum(Z₂_), _supremum(R_)
     NewType = float(promote_type(typeof(Y), typeof(Z₁), typeof(Z₂), typeof(R)))
     if Z₂ == 0
@@ -66,15 +64,4 @@ function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C
             end
         end
     end
-end
-
-struct C²Condition end
-
-"""
-    interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real, ::C²Condition)
-
-Return the interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
-"""
-function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real, ::C²Condition)
-    interval_of_existence(Y_, Z₁_, Z₂_, R_, C¹Condition())
 end

@@ -147,7 +147,7 @@ for i ∈ 1:3
 end
 ```
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
 To this end, consider the truncation operator
 
@@ -222,7 +222,7 @@ Z₂ = (opnorm(Interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
         1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
         β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
+showfull(interval_of_existence(Y, Z₁, Z₂, R))
 ```
 
 The following animation[^2] shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).

@@ -93,7 +93,7 @@ T(x, s) := x - A F(x, s),
 
 where ``A : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``D_x F(x_0(s), s)^{-1}`` for all ``s \in [0, 1]``.
 
-Let ``R > 0``. We use a uniform version of the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty``, ``|D_x T(x_0(s), s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x^2 T(x, s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
+Let ``R > 0``. We use a uniform version of the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty``, ``|D_x T(x_0(s), s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x^2 T(x, s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
 
 ```math
 |T(x_0(s), s) - x_0(s)|_\infty = \left|A \begin{pmatrix} 0 \\ f(x_0(s)) \end{pmatrix} \right|_\infty, \qquad \text{for all } s \in [0,1].
@@ -120,7 +120,7 @@ Z₁ = opnorm(LinearOperator(A * DF_interval - I), Inf)
 a, ϵ = 5, 1
 Z₂ = opnorm(LinearOperator(Interval.(A)), Inf) * max(2abs(a) + 2 + 6(abs(x₀_interval[2]) + R), 2abs(ϵ))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
+showfull(interval_of_existence(Y, Z₁, Z₂, R))
 ```
 
 Whenever the proof is successful, we proceed to the next iteration of the pseudo-arclength continuation and repeat the above strategy.

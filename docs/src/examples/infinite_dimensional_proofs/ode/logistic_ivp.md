@@ -84,7 +84,7 @@ x̄, success = newton!((F, DF, x) -> (F!(F, x), DF!(DF, x)), x̄)
 nothing # hide
 ```
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem with ``C^2`` condition](@ref C2_condition_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
 
 To this end, consider the truncation operator
 
@@ -138,7 +138,7 @@ Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x̄_interval -
 
 Z₂ = 2ν * (opnorm(Interval.(A), X) + bound_tail_A)
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R, C²Condition()))
+showfull(interval_of_existence(Y, Z₁, Z₂, R))
 ```
 
 The following figure[^2] shows the numerical approximation of the proven solution in the interval ``[-2, 2]`` along with the theoretical solution ``t \mapsto (1 + e^{-t})^{-1}``.

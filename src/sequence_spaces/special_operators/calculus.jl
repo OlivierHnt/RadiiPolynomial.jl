@@ -140,13 +140,13 @@ function differentiate!(c::Sequence, a::Sequence, α=1)
 end
 
 """
-    project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+    project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒟, domain, Float64))
 
 Represent `𝒟` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Derivative)`](@ref) and [`Derivative`](@ref).
 """
-function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒟, domain, Float64)) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒟, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒟, domain, codomain)
@@ -229,13 +229,13 @@ function integrate!(c::Sequence, a::Sequence, α=1)
 end
 
 """
-    project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+    project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℐ, domain, Float64))
 
 Represent `ℐ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Integral)`](@ref) and [`Integral`](@ref).
 """
-function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℐ, domain, Float64)) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(ℐ, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(ℐ, domain, codomain)

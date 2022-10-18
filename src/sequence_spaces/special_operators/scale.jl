@@ -97,13 +97,13 @@ function scale!(c::Sequence, a::Sequence, γ)
 end
 
 """
-    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(𝒮.value)))
 
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Scale)`](@ref) and [`Scale`](@ref)
 """
-function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(𝒮.value))) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)

@@ -103,13 +103,13 @@ function evaluate!(c::Sequence, a::Sequence, x)
 end
 
 """
-    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T})
+    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(ℰ.value)))
 
 Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Evaluation)`](@ref) and [`Evaluation`](@ref).
 """
-function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}) where {T}
+function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(ℰ.value))) where {T}
     _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℰ, _memo(domain, T))

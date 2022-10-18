@@ -34,27 +34,29 @@ Scale(value::T) where {T<:Number} = Scale{T}(value)
 Scale(value::T) where {T<:Tuple{Vararg{Number}}} = Scale{T}(value)
 Scale(value::Number...) = Scale(value)
 
-Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(𝒮₁.value * 𝒮₂.value)
-Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, 𝒮₁.value, 𝒮₂.value))
+value(𝒮::Scale) = 𝒮.value
 
-Base.:^(𝒮::Scale{<:Number}, n::Int) = Scale(𝒮.value ^ n)
-Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Int) = Scale(map(γᵢ -> ^(γᵢ, n), 𝒮.value))
-Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Scale(map(^, 𝒮.value, n))
+Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
+Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))
+
+Base.:^(𝒮::Scale{<:Number}, n::Int) = Scale(value(𝒮) ^ n)
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Int) = Scale(map(γᵢ -> ^(γᵢ, n), value(𝒮)))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Scale(map(^, value(𝒮), n))
 
 """
     *(𝒮::Scale, a::Sequence)
 
-Scale `a` by a factor `𝒮.value`; equivalent to `scale(a, 𝒮.value)`.
+Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
 
 See also: [`(::Scale)(::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
 [`scale!`](@ref).
 """
-Base.:*(𝒮::Scale, a::Sequence) = scale(a, 𝒮.value)
+Base.:*(𝒮::Scale, a::Sequence) = scale(a, value(𝒮))
 
 """
     (𝒮::Scale)(a::Sequence)
 
-Scale `a` by a factor `𝒮.value`; equivalent to `scale(a, 𝒮.value)`.
+Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
 
 See also: [`*(::Scale, ::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
 [`scale!`](@ref).
@@ -97,13 +99,13 @@ function scale!(c::Sequence, a::Sequence, γ)
 end
 
 """
-    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(𝒮.value)))
+    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(value(𝒮))))
 
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Scale)`](@ref) and [`Scale`](@ref)
 """
-function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(𝒮.value))) where {T}
+function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(value(𝒮)))) where {T}
     _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
@@ -139,12 +141,12 @@ _findposition_nzind_codomain(𝒮::Scale, domain, codomain) =
 # Sequence spaces
 
 image(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((γᵢ, sᵢ) -> image(Scale(γᵢ), sᵢ), 𝒮.value, spaces(s)))
+    TensorSpace(map((γᵢ, sᵢ) -> image(Scale(γᵢ), sᵢ), value(𝒮), spaces(s)))
 
 _coeftype(𝒮::Scale, s::TensorSpace, ::Type{T}) where {T} =
-    @inbounds promote_type(_coeftype(Scale(𝒮.value[1]), s[1], T), _coeftype(Scale(Base.tail(𝒮.value)), Base.tail(s), T))
+    @inbounds promote_type(_coeftype(Scale(value(𝒮)[1]), s[1], T), _coeftype(Scale(Base.tail(value(𝒮))), Base.tail(s), T))
 _coeftype(𝒮::Scale, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
-    @inbounds _coeftype(Scale(𝒮.value[1]), s[1], T)
+    @inbounds _coeftype(Scale(value(𝒮)[1]), s[1], T)
 
 function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Scale, a)
     space_a = space(a)
@@ -155,19 +157,19 @@ function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Scale, a)
 end
 
 _apply!(C, 𝒮::Scale, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _apply!(C, Scale(𝒮.value[1]), space[1], Val(N₂-N₁+1), _apply!(C, Scale(Base.tail(𝒮.value)), Base.tail(space), A))
+    @inbounds _apply!(C, Scale(value(𝒮)[1]), space[1], Val(N₂-N₁+1), _apply!(C, Scale(Base.tail(value(𝒮))), Base.tail(space), A))
 
 _apply!(C, 𝒮::Scale, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray) =
-    @inbounds _apply!(C, Scale(𝒮.value[1]), space[1], A)
+    @inbounds _apply!(C, Scale(value(𝒮)[1]), space[1], A)
 
 for (_f, __f) ∈ ((:_nzind_domain, :__nzind_domain), (:_nzind_codomain, :__nzind_codomain))
     @eval begin
         $_f(𝒮::Scale{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
             TensorIndices($__f(𝒮, domain, codomain))
         $__f(𝒮::Scale, domain::TensorSpace, codomain) =
-            @inbounds ($_f(Scale(𝒮.value[1]), domain[1], codomain[1]), $__f(Scale(Base.tail(𝒮.value)), Base.tail(domain), Base.tail(codomain))...)
+            @inbounds ($_f(Scale(value(𝒮)[1]), domain[1], codomain[1]), $__f(Scale(Base.tail(value(𝒮))), Base.tail(domain), Base.tail(codomain))...)
         $__f(𝒮::Scale, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain) =
-            @inbounds ($_f(Scale(𝒮.value[1]), domain[1], codomain[1]),)
+            @inbounds ($_f(Scale(value(𝒮)[1]), domain[1], codomain[1]),)
     end
 end
 
@@ -182,9 +184,9 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, 𝒮::Sca
 end
 
 _nzval(𝒮::Scale{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T} =
-    @inbounds _nzval(Scale(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval(Scale(Base.tail(𝒮.value)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
+    @inbounds _nzval(Scale(value(𝒮)[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval(Scale(Base.tail(value(𝒮))), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
 _nzval(𝒮::Scale{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
-    @inbounds _nzval(Scale(𝒮.value[1]), domain[1], codomain[1], T, α[1], β[1])
+    @inbounds _nzval(Scale(value(𝒮)[1]), domain[1], codomain[1], T, α[1], β[1])
 
 # Taylor
 
@@ -193,7 +195,7 @@ image(::Scale, s::Taylor) = s
 _coeftype(::Scale{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Taylor}, 𝒮::Scale, a)
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         coefficients(c) .= coefficients(a)
     else
@@ -208,7 +210,7 @@ function _apply!(c::Sequence{Taylor}, 𝒮::Scale, a)
 end
 
 function _apply!(C, 𝒮::Scale, space::Taylor, ::Val{D}, A) where {D}
-    γ = 𝒮.value
+    γ = value(𝒮)
     if !isone(γ)
         γⁱ = one(γ)
         @inbounds for i ∈ 1:order(space)
@@ -220,7 +222,7 @@ function _apply!(C, 𝒮::Scale, space::Taylor, ::Val{D}, A) where {D}
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Taylor, A) where {T,N}
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         C .= A
     else
@@ -237,7 +239,7 @@ end
 _nzind_domain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
 _nzind_codomain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         return one(T)
     else
@@ -247,7 +249,7 @@ end
 
 # Fourier
 
-image(𝒮::Scale, s::Fourier) = Fourier(order(s), frequency(s)*𝒮.value)
+image(𝒮::Scale, s::Fourier) = Fourier(order(s), frequency(s)*value(𝒮))
 
 _coeftype(::Scale, ::Fourier, ::Type{T}) where {T} = T
 
@@ -280,7 +282,7 @@ image(::Scale, s::Chebyshev) = s
 _coeftype(::Scale{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒮::Scale, a)
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
@@ -290,13 +292,13 @@ function _apply!(c::Sequence{Chebyshev}, 𝒮::Scale, a)
 end
 
 function _apply!(C, 𝒮::Scale, space::Chebyshev, ::Val{D}, A) where {D}
-    γ = 𝒮.value
+    γ = value(𝒮)
     isone(γ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Chebyshev, A) where {T,N}
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         C .= A
     else # TODO: lift restriction
@@ -308,7 +310,7 @@ end
 _nzind_domain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
 _nzind_codomain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
-    γ = 𝒮.value
+    γ = value(𝒮)
     if isone(γ)
         return one(T)
     else # TODO: lift restriction

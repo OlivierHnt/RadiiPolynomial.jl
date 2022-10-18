@@ -41,6 +41,8 @@ Derivative(order::T) where {T<:Int} = Derivative{T}(order)
 Derivative(order::T) where {T<:Tuple{Vararg{Int}}} = Derivative{T}(order)
 Derivative(order::Int...) = Derivative(order)
 
+order(𝒟::Derivative) = 𝒟.order
+
 """
     Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
 
@@ -84,20 +86,22 @@ Integral(order::T) where {T<:Int} = Integral{T}(order)
 Integral(order::T) where {T<:Tuple{Vararg{Int}}} = Integral{T}(order)
 Integral(order::Int...) = Integral(order)
 
+order(ℐ::Integral) = ℐ.order
+
 """
     *(𝒟::Derivative, a::Sequence)
 
-Compute the `𝒟.order`-th derivative of `a`; equivalent to `differentiate(a, 𝒟.order)`.
+Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
 
 See also: [`(::Derivative)(::Sequence)`](@ref), [`Derivative`](@ref),
 [`differentiate`](@ref) and [`differentiate!`](@ref).
 """
-Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, 𝒟.order)
+Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, order(𝒟))
 
 """
     (𝒟::Derivative)(a::Sequence)
 
-Compute the `𝒟.order`-th derivative of `a`; equivalent to `differentiate(a, 𝒟.order)`.
+Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
 
 See also: [`*(::Derivative, ::Sequence)`](@ref), [`Derivative`](@ref),
 [`differentiate`](@ref) and [`differentiate!`](@ref).
@@ -176,17 +180,17 @@ end
 """
     *(ℐ::Integral, a::Sequence)
 
-Compute the `ℐ.order`-th integral of `a`; equivalent to `integrate(a, ℐ.order)`.
+Compute the `order(ℐ)`-th integral of `a`; equivalent to `integrate(a, order(ℐ))`.
 
 See also: [`(::Integral)(::Sequence)`](@ref), [`Integral`](@ref),
 [`integrate`](@ref) and [`integrate!`](@ref).
 """
-Base.:*(ℐ::Integral, a::Sequence) = integrate(a, ℐ.order)
+Base.:*(ℐ::Integral, a::Sequence) = integrate(a, order(ℐ))
 
 """
     (ℐ::Integral)(a::Sequence)
 
-Compute the `ℐ.order`-th integral of `a`; equivalent to `integrate(a, ℐ.order)`.
+Compute the `order(ℐ)`-th integral of `a`; equivalent to `integrate(a, order(ℐ))`.
 
 See also: [`*(::Integral, ::Sequence)`](@ref), [`Integral`](@ref),
 [`integrate`](@ref) and [`integrate!`](@ref).
@@ -264,12 +268,12 @@ end
 
 for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
     @eval begin
-        Base.:*(ℱ₁::$F{Int}, ℱ₂::$F{Int}) = $F(ℱ₁.order + ℱ₂.order)
-        Base.:*(ℱ₁::$F{NTuple{N,Int}}, ℱ₂::$F{NTuple{N,Int}}) where {N} = $F(map(+, ℱ₁.order, ℱ₂.order))
+        Base.:*(ℱ₁::$F{Int}, ℱ₂::$F{Int}) = $F(order(ℱ₁) + order(ℱ₂))
+        Base.:*(ℱ₁::$F{NTuple{N,Int}}, ℱ₂::$F{NTuple{N,Int}}) where {N} = $F(map(+, order(ℱ₁), order(ℱ₂)))
 
-        Base.:^(ℱ::$F{Int}, n::Int) = $F(ℱ.order * n)
-        Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Int) = $F(map(αᵢ -> *(αᵢ, n), ℱ.order))
-        Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Int}) where {N} = $F(map(*, ℱ.order, n))
+        Base.:^(ℱ::$F{Int}, n::Int) = $F(order(ℱ) * n)
+        Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Int) = $F(map(αᵢ -> *(αᵢ, n), order(ℱ)))
+        Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Int}) where {N} = $F(map(*, order(ℱ), n))
 
         _findposition_nzind_domain(ℱ::$F, domain, codomain) =
             _findposition(_nzind_domain(ℱ, domain, codomain), domain)
@@ -284,12 +288,12 @@ end
 for F ∈ (:Derivative, :Integral)
     @eval begin
         image(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-            TensorSpace(map((αᵢ, sᵢ) -> image($F(αᵢ), sᵢ), ℱ.order, spaces(s)))
+            TensorSpace(map((αᵢ, sᵢ) -> image($F(αᵢ), sᵢ), order(ℱ), spaces(s)))
 
         _coeftype(ℱ::$F, s::TensorSpace, ::Type{T}) where {T} =
-            @inbounds promote_type(_coeftype($F(ℱ.order[1]), s[1], T), _coeftype($F(Base.tail(ℱ.order)), Base.tail(s), T))
+            @inbounds promote_type(_coeftype($F(order(ℱ)[1]), s[1], T), _coeftype($F(Base.tail(order(ℱ))), Base.tail(s), T))
         _coeftype(ℱ::$F, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
-            @inbounds _coeftype($F(ℱ.order[1]), s[1], T)
+            @inbounds _coeftype($F(order(ℱ)[1]), s[1], T)
 
         function _apply!(c::Sequence{<:TensorSpace}, ℱ::$F, a)
             space_a = space(a)
@@ -300,16 +304,16 @@ for F ∈ (:Derivative, :Integral)
         end
 
         _apply!(C, ℱ::$F, space::TensorSpace, A) =
-            @inbounds _apply!(C, $F(ℱ.order[1]), space[1], _apply($F(Base.tail(ℱ.order)), Base.tail(space), A))
+            @inbounds _apply!(C, $F(order(ℱ)[1]), space[1], _apply($F(Base.tail(order(ℱ))), Base.tail(space), A))
 
         _apply!(C, ℱ::$F, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-            @inbounds _apply!(C, $F(ℱ.order[1]), space[1], A)
+            @inbounds _apply!(C, $F(order(ℱ)[1]), space[1], A)
 
         _apply(ℱ::$F, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-            @inbounds _apply($F(ℱ.order[1]), space[1], Val(N₂-N₁+1), _apply($F(Base.tail(ℱ.order)), Base.tail(space), A))
+            @inbounds _apply($F(order(ℱ)[1]), space[1], Val(N₂-N₁+1), _apply($F(Base.tail(order(ℱ))), Base.tail(space), A))
 
         _apply(ℱ::$F, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
-            @inbounds _apply($F(ℱ.order[1]), space[1], Val(N), A)
+            @inbounds _apply($F(order(ℱ)[1]), space[1], Val(N), A)
     end
 end
 
@@ -319,9 +323,9 @@ for F ∈ (:Derivative, :Integral)
             $_f(ℱ::$F{NTuple{N,Int}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
                 TensorIndices($__f(ℱ, domain, codomain))
             $__f(ℱ::$F, domain::TensorSpace, codomain) =
-                @inbounds ($_f($F(ℱ.order[1]), domain[1], codomain[1]), $__f($F(Base.tail(ℱ.order)), Base.tail(domain), Base.tail(codomain))...)
+                @inbounds ($_f($F(order(ℱ)[1]), domain[1], codomain[1]), $__f($F(Base.tail(order(ℱ))), Base.tail(domain), Base.tail(codomain))...)
             $__f(ℱ::$F, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain) =
-                @inbounds ($_f($F(ℱ.order[1]), domain[1], codomain[1]),)
+                @inbounds ($_f($F(order(ℱ)[1]), domain[1], codomain[1]),)
         end
     end
 
@@ -337,20 +341,20 @@ for F ∈ (:Derivative, :Integral)
         end
 
         _nzval(ℱ::$F{NTuple{N,Int}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T} =
-            @inbounds _nzval($F(ℱ.order[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval($F(Base.tail(ℱ.order)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
+            @inbounds _nzval($F(order(ℱ)[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval($F(Base.tail(order(ℱ))), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
         _nzval(ℱ::$F{Tuple{Int}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
-            @inbounds _nzval($F(ℱ.order[1]), domain[1], codomain[1], T, α[1], β[1])
+            @inbounds _nzval($F(order(ℱ)[1]), domain[1], codomain[1], T, α[1], β[1])
     end
 end
 
 # Taylor
 
-image(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-𝒟.order))
+image(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
 
 _coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = typeof(zero(T)*0)
 
 function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
@@ -373,7 +377,7 @@ function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
 end
 
 function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         C .= A
     else
@@ -395,7 +399,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where 
 end
 
 function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = 𝒟.order
+    n = order(𝒟)
     CoefType = _coeftype(𝒟, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -420,13 +424,13 @@ function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}
 end
 
 _nzind_domain(𝒟::Derivative, domain::Taylor, codomain::Taylor) =
-    𝒟.order:min(order(domain), order(codomain)+𝒟.order)
+    order(𝒟):min(order(domain), order(codomain)+order(𝒟))
 
 _nzind_codomain(𝒟::Derivative, domain::Taylor, codomain::Taylor) =
-    0:min(order(domain)-𝒟.order, order(codomain))
+    0:min(order(domain)-order(𝒟), order(codomain))
 
 function _nzval(𝒟::Derivative, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     p = one(T)*1
     for k ∈ 1:n
         p *= i+k
@@ -434,12 +438,12 @@ function _nzval(𝒟::Derivative, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     return convert(T, p)
 end
 
-image(ℐ::Integral, s::Taylor) = Taylor(order(s)+ℐ.order)
+image(ℐ::Integral, s::Taylor) = Taylor(order(s)+order(ℐ))
 
 _coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = typeof(inv(one(T)*1)*zero(T))
 
 function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         coefficients(c) .= coefficients(a)
     elseif n == 1
@@ -459,7 +463,7 @@ function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
 end
 
 function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         C .= A
     elseif n == 1
@@ -480,7 +484,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
 end
 
 function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = ℐ.order
+    n = order(ℐ)
     CoefType = _coeftype(ℐ, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -504,13 +508,13 @@ function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) w
 end
 
 _nzind_domain(ℐ::Integral, domain::Taylor, codomain::Taylor) =
-    0:min(order(domain), order(codomain)-ℐ.order)
+    0:min(order(domain), order(codomain)-order(ℐ))
 
 _nzind_codomain(ℐ::Integral, domain::Taylor, codomain::Taylor) =
-    ℐ.order:min(order(domain)+ℐ.order, order(codomain))
+    order(ℐ):min(order(domain)+order(ℐ), order(codomain))
 
 _nzval(ℐ::Integral, s₁::Taylor, s₂::Taylor, ::Type{T}, i, j) where {T} =
-    convert(T, inv(_nzval(Derivative(ℐ.order), s₁, s₂, T, j, i)))
+    convert(T, inv(_nzval(Derivative(order(ℐ)), s₁, s₂, T, j, i)))
 
 # Fourier
 
@@ -519,7 +523,7 @@ image(::Derivative, s::Fourier) = s
 _coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(zero(T)*0*zero(S)))
 
 function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
@@ -554,7 +558,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
 end
 
 function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         C .= A
     else
@@ -590,7 +594,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
 end
 
 function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = 𝒟.order
+    n = order(𝒟)
     CoefType = _coeftype(𝒟, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -644,7 +648,7 @@ function _nzind_codomain(::Derivative, domain::Fourier, codomain::Fourier)
 end
 
 function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         return one(T)
     else
@@ -667,7 +671,7 @@ image(::Integral, s::Fourier) = s
 _coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(S)*one(T)*1)*zero(S)))
 
 function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
@@ -702,7 +706,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
 end
 
 function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T}
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         C .= A
     else
@@ -738,7 +742,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
 end
 
 function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = ℐ.order
+    n = order(ℐ)
     CoefType = _coeftype(ℐ, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -792,7 +796,7 @@ function _nzind_codomain(::Integral, domain::Fourier, codomain::Fourier)
 end
 
 function _nzval(ℐ::Integral, domain::Fourier, ::Fourier, ::Type{T}, i, j) where {T}
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         return one(T)
     else
@@ -816,12 +820,12 @@ end
 
 # Chebyshev
 
-image(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-𝒟.order))
+image(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
 
 _coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = typeof(zero(T)*0)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         coefficients(c) .= coefficients(a)
     elseif n == 1
@@ -845,7 +849,7 @@ function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
 end
 
 function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         C .= A
     elseif n == 1
@@ -868,7 +872,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) whe
 end
 
 function _apply(𝒟::Derivative, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = 𝒟.order
+    n = order(𝒟)
     CoefType = _coeftype(𝒟, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -892,9 +896,9 @@ function _apply(𝒟::Derivative, space::Chebyshev, ::Val{D}, A::AbstractArray{T
 end
 
 function _nzind_domain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshev)
-    if 𝒟.order == 0
+    if order(𝒟) == 0
         return collect(0:min(order(domain), order(codomain)))
-    elseif 𝒟.order == 1
+    elseif order(𝒟) == 1
         len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain); init = 0)
         v = Vector{Int}(undef, len)
         l = 0
@@ -910,9 +914,9 @@ function _nzind_domain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshev)
 end
 
 function _nzind_codomain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshev)
-    if 𝒟.order == 0
+    if order(𝒟) == 0
         return collect(0:min(order(domain), order(codomain)))
-    elseif 𝒟.order == 1
+    elseif order(𝒟) == 1
         len = sum(j -> length((j-1)%2:2:min(j-1, order(codomain))), 1:order(domain); init = 0)
         v = Vector{Int}(undef, len)
         l = 0
@@ -929,7 +933,7 @@ function _nzind_codomain(𝒟::Derivative, domain::Chebyshev, codomain::Chebyshe
 end
 
 function _nzval(𝒟::Derivative, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
-    n = 𝒟.order
+    n = order(𝒟)
     if n == 0
         return one(T)
     elseif n == 1
@@ -939,12 +943,12 @@ function _nzval(𝒟::Derivative, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) whe
     end
 end
 
-image(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+ℐ.order)
+image(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
 
 _coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = typeof(zero(T)/1)
 
 function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         coefficients(c) .= coefficients(a)
     elseif n == 1
@@ -979,7 +983,7 @@ function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
 end
 
 function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where {T}
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         C .= A
     elseif n == 1
@@ -1018,7 +1022,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where 
 end
 
 function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = ℐ.order
+    n = order(ℐ)
     CoefType = _coeftype(ℐ, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
@@ -1059,9 +1063,9 @@ function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}
 end
 
 function _nzind_domain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
-    if ℐ.order == 0
+    if order(ℐ) == 0
         return collect(0:min(order(domain), order(codomain)))
-    elseif ℐ.order == 1
+    elseif order(ℐ) == 1
         v = mapreduce(vcat, 0:order(domain)) do j
             if j < 2
                 j+1 ≤ order(codomain) && return [j, j]
@@ -1079,9 +1083,9 @@ function _nzind_domain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
 end
 
 function _nzind_codomain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
-    if ℐ.order == 0
+    if order(ℐ) == 0
         return collect(0:min(order(domain), order(codomain)))
-    elseif ℐ.order == 1
+    elseif order(ℐ) == 1
         v = mapreduce(vcat, 0:order(domain)) do j
             if j < 2
                 j+1 ≤ order(codomain) && return [0, j+1]
@@ -1099,7 +1103,7 @@ function _nzind_codomain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
 end
 
 function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
-    n = ℐ.order
+    n = order(ℐ)
     if n == 0
         return one(T)
     elseif n == 1

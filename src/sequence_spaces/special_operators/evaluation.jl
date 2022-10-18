@@ -35,20 +35,22 @@ Evaluation(value::T) where {T<:Union{Nothing,Number}} = Evaluation{T}(value)
 Evaluation(value::T) where {T<:Tuple{Vararg{Union{Nothing,Number}}}} = Evaluation{T}(value)
 Evaluation(value::Union{Number,Nothing}...) = Evaluation(value)
 
+value(ℰ::Evaluation) = ℰ.value
+
 """
     *(ℰ::Evaluation, a::Sequence)
 
-Evaluate `a` at `ℰ.value`; equivalent to `evaluate(a, ℰ.value)`.
+Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
 
 See also: [`(::Evaluation)(::Sequence)`](@ref), [`Evaluation`](@ref),
 [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
 """
-Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, ℰ.value)
+Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, value(ℰ))
 
 """
     (ℰ::Evaluation)(a::Sequence)
 
-Evaluate `a` at `ℰ.value`; equivalent to `evaluate(a, ℰ.value)`.
+Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
 
 See also: [`*(::Evaluation, ::Sequence)`](@ref), [`Evaluation`](@ref),
 [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
@@ -103,13 +105,13 @@ function evaluate!(c::Sequence, a::Sequence, x)
 end
 
 """
-    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(ℰ.value)))
+    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(value(ℰ))))
 
 Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Evaluation)`](@ref) and [`Evaluation`](@ref).
 """
-function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(ℰ.value))) where {T}
+function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, typeof(value(ℰ)))) where {T}
     _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℰ, _memo(domain, T))
@@ -155,12 +157,12 @@ _iscompatible(ℰ::Evaluation, s₁::CartesianProduct, s₂::CartesianPower) =
 _memo(s::TensorSpace, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(s))
 
 image(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), ℰ.value, spaces(s)))
+    TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), value(ℰ), spaces(s)))
 
 _coeftype(ℰ::Evaluation, s::TensorSpace, ::Type{T}) where {T} =
-    @inbounds promote_type(_coeftype(Evaluation(ℰ.value[1]), s[1], T), _coeftype(Evaluation(Base.tail(ℰ.value)), Base.tail(s), T))
+    @inbounds promote_type(_coeftype(Evaluation(value(ℰ)[1]), s[1], T), _coeftype(Evaluation(Base.tail(value(ℰ))), Base.tail(s), T))
 _coeftype(ℰ::Evaluation, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
-    @inbounds _coeftype(Evaluation(ℰ.value[1]), s[1], T)
+    @inbounds _coeftype(Evaluation(value(ℰ)[1]), s[1], T)
 
 function _apply!(c::Sequence{<:TensorSpace}, ℰ::Evaluation, a)
     space_a = space(a)
@@ -171,24 +173,24 @@ function _apply!(c::Sequence{<:TensorSpace}, ℰ::Evaluation, a)
 end
 
 _effective_dimensions(ℰ::Evaluation{<:Tuple{Nothing,Vararg{Union{Nothing,Number}}}}, space::TensorSpace) =
-    (dimension(space[1]), _effective_dimensions(Evaluation(Base.tail(ℰ.value)), Base.tail(space))...)
+    (dimension(space[1]), _effective_dimensions(Evaluation(Base.tail(value(ℰ))), Base.tail(space))...)
 _effective_dimensions(::Evaluation{<:Tuple{Nothing}}, space::TensorSpace) =
     (dimension(space[1]),)
 _effective_dimensions(ℰ::Evaluation, space::TensorSpace) =
-    _effective_dimensions(Evaluation(Base.tail(ℰ.value)), Base.tail(space))
+    _effective_dimensions(Evaluation(Base.tail(value(ℰ))), Base.tail(space))
 _effective_dimensions(::Evaluation{<:Tuple{Number}}, ::TensorSpace) = ()
 
 _apply!(C, ℰ::Evaluation, space::TensorSpace, A) =
-    @inbounds _apply!(C, Evaluation(ℰ.value[1]), space[1], _apply(Evaluation(Base.tail(ℰ.value)), Base.tail(space), A))
+    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], _apply(Evaluation(Base.tail(value(ℰ))), Base.tail(space), A))
 
 _apply!(C, ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply!(C, Evaluation(ℰ.value[1]), space[1], A)
+    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], A)
 
 _apply(ℰ::Evaluation, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _apply(Evaluation(ℰ.value[1]), space[1], Val(N₂-N₁+1), _apply(Evaluation(Base.tail(ℰ.value)), Base.tail(space), A))
+    @inbounds _apply(Evaluation(value(ℰ)[1]), space[1], Val(N₂-N₁+1), _apply(Evaluation(Base.tail(value(ℰ))), Base.tail(space), A))
 
 _apply(ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
-    @inbounds _apply(Evaluation(ℰ.value[1]), space[1], Val(N), A)
+    @inbounds _apply(Evaluation(value(ℰ)[1]), space[1], Val(N), A)
 
 function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Evaluation, memo)
     domain_C = domain(C)
@@ -223,9 +225,9 @@ function _project!(C::LinearOperator{<:SequenceSpace,ParameterSpace}, ℰ::Evalu
 end
 
 _getindex(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β, memo) where {N,T} =
-    @inbounds _getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]) * _getindex(Evaluation(Base.tail(ℰ.value)), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β), Base.tail(memo))
+    @inbounds _getindex(Evaluation(value(ℰ)[1]), domain[1], codomain[1], T, α[1], β[1], memo[1]) * _getindex(Evaluation(Base.tail(value(ℰ))), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β), Base.tail(memo))
 _getindex(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β, memo) where {T} =
-    @inbounds _getindex(Evaluation(ℰ.value[1]), domain[1], codomain[1], T, α[1], β[1], memo[1])
+    @inbounds _getindex(Evaluation(value(ℰ)[1]), domain[1], codomain[1], T, α[1], β[1], memo[1])
 
 # Taylor
 
@@ -242,7 +244,7 @@ function _apply!(c::Sequence{Taylor}, ::Evaluation{Nothing}, a)
     return c
 end
 function _apply!(c::Sequence{Taylor}, ℰ::Evaluation, a)
-    x = ℰ.value
+    x = value(ℰ)
     if iszero(x)
         @inbounds c[0] = a[0]
     else
@@ -260,7 +262,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Taylor, A)
     return C
 end
 function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Taylor, A) where {T}
-    x = ℰ.value
+    x = value(ℰ)
     if iszero(x)
         @inbounds C .= selectdim(A, 1, 1)
     else
@@ -275,7 +277,7 @@ end
 
 _apply(::Evaluation{Nothing}, ::Taylor, ::Val, A::AbstractArray) = A
 function _apply(ℰ::Evaluation, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    x = ℰ.value
+    x = value(ℰ)
     CoefType = _coeftype(ℰ, space, T)
     if iszero(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
@@ -293,7 +295,7 @@ _getindex(::Evaluation{Nothing}, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) wher
     ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) where {T}
     if i == 0
-        x = ℰ.value
+        x = value(ℰ)
         if j == 0
             return one(T)
         else
@@ -325,7 +327,7 @@ function _apply!(c::Sequence{<:Fourier}, ::Evaluation{Nothing}, a)
 end
 _apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a) = __apply!(c, ℰ, a)
 function __apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(a)
     if iszero(x)
         @inbounds c[0] = a[0]
@@ -348,7 +350,7 @@ function __apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
     return c
 end
 function __apply!(c::Sequence{<:Fourier,<:AbstractVector{<:Union{Interval,Complex{<:Interval}}}}, ℰ::Evaluation, a)
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(a)
     @inbounds c[0] = a[0]
     if iszero(x)
@@ -371,7 +373,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Fourier, A)
 end
 _apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A) = __apply!(C, ℰ, space, A)
 function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
     if iszero(x)
@@ -389,7 +391,7 @@ function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
     return C
 end
 function __apply!(C::AbstractArray{<:Union{Interval,Complex{<:Interval}}}, ℰ::Evaluation, space::Fourier, A)
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
     if iszero(x)
@@ -409,7 +411,7 @@ end
 _apply(::Evaluation{Nothing}, ::Fourier, ::Val, A::AbstractArray) = A
 _apply(ℰ::Evaluation, space::Fourier, d::Val, A::AbstractArray) = __apply(ℰ, space, d, A, _coeftype(ℰ, space, eltype(A)))
 function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}, ::Type{CoefType}) where {D,T,N,CoefType}
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if iszero(x)
@@ -427,7 +429,7 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     return C
 end
 function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}, ::Type{CoefType}) where {D,T,N,CoefType<:Union{Interval,Complex{<:Interval}}}
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if iszero(x)
@@ -448,7 +450,7 @@ _getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, 
     ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
-        x = ℰ.value
+        x = value(ℰ)
         if j == 0 || iszero(x)
             return one(T)
         else
@@ -474,7 +476,7 @@ function _apply!(c::Sequence{Chebyshev}, ::Evaluation{Nothing}, a)
     return c
 end
 function _apply!(c::Sequence{Chebyshev}, ℰ::Evaluation, a)
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(a)
     if iszero(x)
         c[0] = a[0]
@@ -518,7 +520,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Chebyshev, A)
     return C
 end
 function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, A) where {T}
-    x = ℰ.value
+    x = value(ℰ)
     ord = order(space)
     if iszero(x)
         @inbounds C .= selectdim(A, 1, 1)
@@ -560,7 +562,7 @@ end
 
 _apply(::Evaluation{Nothing}, ::Chebyshev, ::Val, A::AbstractArray) = A
 function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    x = ℰ.value
+    x = value(ℰ)
     CoefType = _coeftype(ℰ, space, T)
     ord = order(space)
     if iszero(x)
@@ -612,7 +614,7 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
         if j == 0
             return one(T)
         else
-            x = ℰ.value
+            x = value(ℰ)
             if iszero(x)
                 if isodd(j)
                     return zero(T)

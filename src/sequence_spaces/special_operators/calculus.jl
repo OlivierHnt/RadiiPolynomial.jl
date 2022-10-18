@@ -12,7 +12,7 @@ Constructors:
 - `Derivative(order::Int...)`: equivalent to `Derivative(order)`
 
 See also: [`differentiate`](@ref), [`differentiate!`](@ref),
-[`project(::Derivative, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+[`project(::Derivative, ::VectorSpace, ::VectorSpace)`](@ref)
 and [`project!(::LinearOperator, ::Derivative)`](@ref).
 
 # Examples
@@ -57,7 +57,7 @@ Constructors:
 - `Integral(order::Int...)`: equivalent to `Integral(order)`
 
 See also: [`integrate`](@ref), [`integrate!`](@ref),
-[`project(::Integral, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
+[`project(::Integral, ::VectorSpace, ::VectorSpace)`](@ref)
 and [`project!(::LinearOperator, ::Integral)`](@ref).
 
 # Examples
@@ -165,8 +165,8 @@ end
 Represent `𝒟` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(::Derivative, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`Derivative`](@ref).
+See also: [`project(::Derivative, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Derivative`](@ref).
 """
 function project!(C::LinearOperator, 𝒟::Derivative)
     domain_C = domain(C)
@@ -254,8 +254,8 @@ end
 Represent `ℐ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(::Integral, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`Integral`](@ref)
+See also: [`project(::Integral, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Integral`](@ref)
 """
 function project!(C::LinearOperator, ℐ::Integral)
     domain_C = domain(C)

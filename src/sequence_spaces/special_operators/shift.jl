@@ -12,8 +12,8 @@ Constructors:
 - `Shift(value::Number...)`: equivalent to `Shift(value)`
 
 See also: [`shift`](@ref), [`shift!`](@ref),
-[`project(::Shift, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`project!(::LinearOperator, ::Shift)`](@ref).
+[`project(::Shift, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`project!(::LinearOperator, ::Shift)`](@ref).
 
 # Examples
 ```jldoctest
@@ -120,8 +120,8 @@ end
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(::Shift, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`Shift`](@ref).
+See also: [`project(::Shift, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Shift`](@ref).
 """
 function project!(C::LinearOperator, 𝒮::Shift)
     domain_C = domain(C)

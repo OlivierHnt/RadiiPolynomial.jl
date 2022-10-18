@@ -12,8 +12,8 @@ Constructors:
 - `Scale(value::Number...)`: equivalent to `Scale(value)`
 
 See also: [`scale`](@ref), [`scale!`](@ref),
-[`project(::Scale, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`project!(::LinearOperator, ::Scale)`](@ref).
+[`project(::Scale, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`project!(::LinearOperator, ::Scale)`](@ref).
 
 # Examples
 ```jldoctest
@@ -120,8 +120,8 @@ end
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(::Scale, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`Scale`](@ref)
+See also: [`project(::Scale, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Scale`](@ref)
 """
 function project!(C::LinearOperator, 𝒮::Scale)
     domain_C = domain(C)

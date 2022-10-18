@@ -13,8 +13,8 @@ Constructors:
 - `Evaluation(value::Union{Number,Nothing}...)`: equivalent to `Evaluation(value)`
 
 See also: [`evaluate`](@ref), [`evaluate!`](@ref),
-[`project(::Evaluation, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`project!(::LinearOperator, ::Evaluation)`](@ref).
+[`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`project!(::LinearOperator, ::Evaluation)`](@ref).
 
 # Examples
 ```jldoctest
@@ -124,8 +124,8 @@ end
 Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}`](@ref)
-and [`Evaluation`](@ref).
+See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Evaluation`](@ref).
 """
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)

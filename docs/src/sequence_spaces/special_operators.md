@@ -45,7 +45,7 @@ a * b
 ℳ * b # ℳ(b)
 ```
 
-A finite dimensional truncation of [`Multiplication`](@ref) may be obtained via [`project`](@ref) or [`project!`](@ref).
+A finite dimensional truncation of [`Multiplication`](@ref) may be obtained via [`project`](@ref project(::Multiplication, ::SequenceSpace, ::SequenceSpace)) or [`project!`](@ref project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)).
 
 ```@repl special_operators
 project(ℳ, Taylor(2), image(*, Taylor(1), Taylor(2)))
@@ -89,7 +89,7 @@ c = Sequence(Taylor(1)^2, [1, 1, 2, 2]); # 1 + x, 2 + 2x
 evaluate(c, 0.1) # Evaluation(0.1) * c
 ```
 
-A finite dimensional truncation of [`Evaluation`](@ref) may be obtained via [`project`](@ref project(::Evaluation, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}) or [`project!`](@ref project!(::LinearOperator, ::Evaluation)):
+A finite dimensional truncation of [`Evaluation`](@ref) may be obtained via [`project`](@ref project(::Evaluation, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Evaluation)):
 
 ```@repl special_operators
 project(Evaluation(0.1), Taylor(2), image(Evaluation(0.1), Taylor(2)), Float64)
@@ -115,7 +115,7 @@ scale(a, 2)
 𝒮 * a # 𝒮(a)
 ```
 
-A finite dimensional truncation of [`Scale`](@ref) may be obtained via [`project`](@ref project(::Scale, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}) or [`project!`](@ref project!(::LinearOperator, ::Scale)):
+A finite dimensional truncation of [`Scale`](@ref) may be obtained via [`project`](@ref project(::Scale, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Scale)):
 
 ```@repl special_operators
 project(Scale(2), Taylor(2), image(Scale(2), Taylor(2)), Float64)
@@ -135,7 +135,7 @@ shift(a, π)
 𝒮 * a # 𝒮(a)
 ```
 
-A finite dimensional truncation of [`Shift`](@ref) may be obtained via [`project`](@ref project(::Shift, ::VectorSpace, ::VectorSpace, ::Type{T}) where {T}) or [`project!`](@ref project!(::LinearOperator, ::Shift)):
+A finite dimensional truncation of [`Shift`](@ref) may be obtained via [`project`](@ref project(::Shift, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Shift)):
 
 ```@repl special_operators
 project(Shift(π), Fourier(1, 1.0), image(Shift(π), Fourier(1, 1.0)), Complex{Float64})

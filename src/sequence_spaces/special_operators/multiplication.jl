@@ -12,7 +12,7 @@ Constructor:
 See also: [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref),
 [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref),
 [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref),
-[`project(ℳ::Multiplication, ::SequenceSpace, ::SequenceSpace, ::Type{T}=eltype(sequence(ℳ))) where {T}`](@ref),
+[`project(::Multiplication, ::SequenceSpace, ::SequenceSpace)`](@ref),
 [`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)`](@ref)
 and [`Multiplication`](@ref).
 """
@@ -91,7 +91,7 @@ end
 Represent `ℳ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
 The result is stored in `C` by overwriting it.
 
-See also: [`project(ℳ::Multiplication, ::SequenceSpace, ::SequenceSpace, ::Type{T}=eltype(sequence(ℳ))) where {T}`](@ref)
+See also: [`project(::Multiplication, ::SequenceSpace, ::SequenceSpace)`](@ref)
 and [`Multiplication`](@ref).
 """
 function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)

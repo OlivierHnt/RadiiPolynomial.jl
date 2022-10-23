@@ -130,12 +130,24 @@ Base.iszero(A::LinearOperator) = iszero(coefficients(A))
 Base.isapprox(A::LinearOperator, B::LinearOperator; kwargs...) =
     codomain(A) == codomain(B) && domain(A) == domain(B) && isapprox(coefficients(A), coefficients(B); kwargs...)
 
-# copy, similar
+# copy, similar, zeros, ones, fill, fill!
 
 Base.copy(A::LinearOperator) = LinearOperator(domain(A), codomain(A), copy(coefficients(A)))
 
 Base.similar(A::LinearOperator) = LinearOperator(domain(A), codomain(A), similar(coefficients(A)))
 Base.similar(A::LinearOperator, ::Type{T}) where {T} = LinearOperator(domain(A), codomain(A), similar(coefficients(A), T))
+
+Base.zeros(s₁::VectorSpace, s₂::VectorSpace) = LinearOperator(s₁, s₂, zeros(dimension(s₂), dimension(s₁)))
+Base.zeros(::Type{T}, s₁::VectorSpace, s₂::VectorSpace) where {T} = LinearOperator(s₁, s₂, zeros(T, dimension(s₂), dimension(s₁)))
+
+Base.ones(s₁::VectorSpace, s₂::VectorSpace) = LinearOperator(s₁, s₂, ones(dimension(s₂), dimension(s₁)))
+Base.ones(::Type{T}, s₁::VectorSpace, s₂::VectorSpace) where {T} = LinearOperator(s₁, s₂, ones(T, dimension(s₂), dimension(s₁)))
+
+Base.fill(value, s₁::VectorSpace, s₂::VectorSpace) = LinearOperator(s₁, s₂, fill(value, dimension(s₂), dimension(s₁)))
+function Base.fill!(A::LinearOperator, value)
+    fill!(coefficients(A), value)
+    return A
+end
 
 # zero, one
 

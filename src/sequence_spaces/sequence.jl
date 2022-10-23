@@ -137,12 +137,24 @@ Base.iszero(a::Sequence) = iszero(coefficients(a))
 Base.isapprox(a::Sequence, b::Sequence; kwargs...) =
     space(a) == space(b) && isapprox(coefficients(a), coefficients(b); kwargs...)
 
-# copy, similiar
+# copy, similiar, zeros, ones, fill, fill!
 
 Base.copy(a::Sequence) = Sequence(space(a), copy(coefficients(a)))
 
 Base.similar(a::Sequence) = Sequence(space(a), similar(coefficients(a)))
 Base.similar(a::Sequence, ::Type{T}) where {T} = Sequence(space(a), similar(coefficients(a), T))
+
+Base.zeros(s::VectorSpace) = Sequence(s, zeros(dimension(s)))
+Base.zeros(::Type{T}, s::VectorSpace) where {T} = Sequence(s, zeros(T, dimension(s)))
+
+Base.ones(s::VectorSpace) = Sequence(s, ones(dimension(s)))
+Base.ones(::Type{T}, s::VectorSpace) where {T} = Sequence(s, ones(T, dimension(s)))
+
+Base.fill(value, s::VectorSpace) = Sequence(s, fill(value, dimension(s)))
+function Base.fill!(a::Sequence, value)
+    fill!(coefficients(a), value)
+    return a
+end
 
 # zero
 

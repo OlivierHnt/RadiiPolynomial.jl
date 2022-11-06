@@ -196,10 +196,9 @@ ū_interval = component(x̄_interval, 2)
 F_interval = Sequence(ParameterSpace() × Fourier(2n, Interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
 F!(F_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
 
-tail_f_interval = zero(component(F_interval, 2))
+tail_γ̄f_interval = copy(component(F_interval, 2))
 for i ∈ 1:3
-    component(tail_f_interval, i)[n+1:2n] .= component(component(F_interval, 2), i)[n+1:2n]
-    component(tail_f_interval, i)[-2n:-n-1] .= component(component(F_interval, 2), i)[-2n:-n-1]
+    component(tail_γ̄f_interval, i)[-n:n] .= 0
 end
 
 DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coefficients(x̄_interval), length(x̄_interval), length(F_interval)))
@@ -210,9 +209,9 @@ bound_tail_A = inv(Interval(n+1))
 
 # computation of the bounds
 
-Y = norm(A * F_interval, X) + bound_tail_A * γ̄_interval * norm(tail_f_interval, X_F³)
+Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_γ̄f_interval, X_F³)
 
-Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_f_interval, X_F³) +
+Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_γ̄f_interval, X_F³) / γ̄_interval +
     bound_tail_A * γ̄_interval * max(2σ_interval,
         1 + norm(component(ū_interval, 1), X_F) + norm(ρ_interval-component(ū_interval, 3), X_F),
         β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F))

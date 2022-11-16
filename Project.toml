@@ -1,7 +1,7 @@
 name = "RadiiPolynomial"
 uuid = "f2081a94-c849-46b6-8dc9-07bb90ed72a9"
 authors = ["Olivier Hénot"]
-version = "0.6.2"
+version = "0.6.3"
 
 [deps]
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"

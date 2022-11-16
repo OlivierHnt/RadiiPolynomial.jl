@@ -426,7 +426,7 @@ function _convolution!(C, A, B, α, space_c::Taylor, space_a::Taylor, space_b::T
     order_a = order(space_a)
     order_b = order(space_b)
     v = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds for j ∈ max(i-order_a, 0):min(i, order_b)
+    @inbounds @simd for j ∈ max(i-order_a, 0):min(i, order_b)
         v += A[i-j+1] * B[j+1]
     end
     @inbounds C[i+1] += v * α
@@ -452,7 +452,7 @@ function _convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b:
     order_a = order(space_a)
     order_b = order(space_b)
     v = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
+    @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
         v += A[i-j+order_a+1] * B[j+order_b+1]
     end
     @inbounds C[i+order_c+1] += v * α
@@ -478,7 +478,7 @@ function _convolution!(C, A, B, α, space_c::Chebyshev, space_a::Chebyshev, spac
     order_a = order(space_a)
     order_b = order(space_b)
     v = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
+    @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b)
         v += A[abs(i-j)+1] * B[abs(j)+1]
     end
     @inbounds C[i+1] += v * α

@@ -181,7 +181,7 @@ function _add!(C::LinearOperator, A::LinearOperator, B::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == domain_B && codomain_A == codomain_B
+    if domain_A == domain_B == domain_C && codomain_A == codomain_B == codomain_C
         coefficients(C) .= coefficients(A) .+ coefficients(B)
     elseif domain_A == domain_C && codomain_A == codomain_C
         coefficients(C) .= coefficients(A)
@@ -209,7 +209,7 @@ function _sub!(C::LinearOperator, A::LinearOperator, B::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
-    if domain_A == domain_B && codomain_A == codomain_B
+    if domain_A == domain_B == domain_C && codomain_A == codomain_B == codomain_C
         coefficients(C) .= coefficients(A) .- coefficients(B)
     elseif domain_A == domain_C && codomain_A == codomain_C
         coefficients(C) .= coefficients(A)

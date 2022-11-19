@@ -69,7 +69,7 @@ function _add!(c::Sequence, a::Sequence, b::Sequence)
     space_a = space(a)
     space_b = space(b)
     space_c = space(c)
-    if space_a == space_b
+    if space_a == space_b == space_c
         coefficients(c) .= coefficients(a) .+ coefficients(b)
     elseif space_a == space_c
         coefficients(c) .= coefficients(a)
@@ -97,7 +97,7 @@ function _sub!(c::Sequence, a::Sequence, b::Sequence)
     space_a = space(a)
     space_b = space(b)
     space_c = space(c)
-    if space_a == space_b
+    if space_a == space_b == space_c
         coefficients(c) .= coefficients(a) .- coefficients(b)
     elseif space_a == space_c
         coefficients(c) .= coefficients(a)

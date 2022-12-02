@@ -479,17 +479,17 @@ function _apply!(c::Sequence{Chebyshev}, ℰ::Evaluation, a)
     x = value(ℰ)
     ord = order(a)
     if iszero(x)
-        c[0] = a[0]
+        @inbounds c[0] = a[0]
         @inbounds for i ∈ 2:2:ord
             c[0] += ifelse(i%4 == 0, 2, -2) * a[i]
         end
     elseif isone(-x)
-        c[0] = a[0]
+        @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
             c[0] += ifelse(isodd(i), -2, 2) * a[i]
         end
     elseif isone(x)
-        c[0] = a[0]
+        @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
             c[0] += 2a[i]
         end
@@ -566,19 +566,19 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     CoefType = _coeftype(ℰ, space, T)
     ord = order(space)
     if iszero(x)
-        C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
+        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 2:2:ord
             C .+= ifelse(i%4 == 0, 2, -2) .* selectdim(A, D, i+1)
         end
         return C
     elseif isone(-x)
-        C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
+        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
             C .+= ifelse(isodd(i), -2, 2) .* selectdim(A, D, i+1)
         end
         return C
     elseif isone(x)
-        C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
+        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
             C .+= 2 .* selectdim(A, D, i+1)
         end

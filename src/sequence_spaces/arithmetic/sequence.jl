@@ -186,17 +186,17 @@ end
 
 # Sequence spaces
 
-function Base.:+(a::Sequence{<:SequenceSpace}, b::T) where {T<:Number}
-    CoefType = promote_type(eltype(a), T)
+function Base.:+(a::Sequence{<:SequenceSpace}, b::Number)
+    CoefType = promote_type(eltype(a), typeof(b))
     c = Sequence(space(a), Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
     _radd!(c, b)
     return c
 end
-Base.:+(b::T, a::Sequence{<:SequenceSpace}) where {T<:Number} = +(a, b)
-Base.:-(a::Sequence{<:SequenceSpace}, b::T) where {T<:Number} = +(a, -b)
-function Base.:-(b::T, a::Sequence{<:SequenceSpace}) where {T<:Number}
-    CoefType = promote_type(eltype(a), T)
+Base.:+(b::Number, a::Sequence{<:SequenceSpace}) = +(a, b)
+Base.:-(a::Sequence{<:SequenceSpace}, b::Number) = +(a, -b)
+function Base.:-(b::Number, a::Sequence{<:SequenceSpace})
+    CoefType = promote_type(eltype(a), typeof(b))
     c = Sequence(space(a), Vector{CoefType}(undef, length(a)))
     coefficients(c) .= (-).(coefficients(a))
     _radd!(c, b)

@@ -79,7 +79,7 @@ Base.iterate(a::Sequence) = iterate(coefficients(a))
 Base.iterate(a::Sequence, i) = iterate(coefficients(a), i)
 
 Base.eltype(a::Sequence) = eltype(coefficients(a))
-Base.eltype(::Type{Sequence{T,S}}) where {T,S} = eltype(S)
+Base.eltype(::Type{<:Sequence{<:VectorSpace,T}}) where {T<:AbstractVector} = eltype(T)
 
 # getindex, view, setindex!
 

@@ -86,7 +86,7 @@ Base.iterate(A::LinearOperator) = iterate(coefficients(A))
 Base.iterate(A::LinearOperator, i) = iterate(coefficients(A), i)
 
 Base.eltype(A::LinearOperator) = eltype(coefficients(A))
-Base.eltype(::Type{LinearOperator{T,S,R}}) where {T,S,R} = eltype(R)
+Base.eltype(::Type{<:LinearOperator{<:VectorSpace,<:VectorSpace,T}}) where {T<:AbstractMatrix} = eltype(T)
 
 # getindex, view, setindex!
 

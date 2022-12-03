@@ -117,7 +117,8 @@ Base.@propagate_inbounds function Base.setindex!(A::LinearOperator, x, α, β)
         (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
         throw(BoundsError((indices(codomain_A), indices(domain_A)), (α, β)))
         )
-    return setindex!(coefficients(A), x, _findposition(α, codomain_A), _findposition(β, domain_A))
+    setindex!(coefficients(A), x, _findposition(α, codomain_A), _findposition(β, domain_A))
+    return A
 end
 
 # ==, iszero, isapprox

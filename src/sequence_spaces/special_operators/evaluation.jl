@@ -446,9 +446,9 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     return C
 end
 
-_getindex(::Evaluation{Nothing}, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T} =
+_getindex(::Evaluation{Nothing}, ::Fourier, ::Fourier, ::Type{T}, i, j, memo) where {T} =
     ifelse(i == j, one(T), zero(T))
-function _getindex(ℰ::Evaluation, domain::Fourier, codomain::Fourier, ::Type{T}, i, j, memo) where {T}
+function _getindex(ℰ::Evaluation, domain::Fourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = value(ℰ)
         if j == 0 || iszero(x)

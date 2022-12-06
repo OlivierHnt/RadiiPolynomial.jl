@@ -168,7 +168,7 @@ function _project!(C::LinearOperator, A::LinearOperator)
             C[α,β] = A[α,β]
         end
     else
-        coefficients(C) .= zero(eltype(A))
+        coefficients(C) .= zero(eltype(C))
         @inbounds for β ∈ indices(domain_A ∩ domain_C), α ∈ indices(codomain_A ∩ codomain_C)
             C[α,β] = A[α,β]
         end

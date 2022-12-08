@@ -22,7 +22,7 @@
     @test eltype(a) == eltype(typeof(a)) == eltype(coeffs)
     @test a[1:3] == coeffs[1:3]
     @test view(a, 1:3) == view(coeffs, 1:3)
-    @test setindex!(copy(a), 0.0, 1) == setindex!(copy(coeffs), 0.0, 1)
+    @test coefficients(setindex!(copy(a), 0.0, 1)) == setindex!(copy(coeffs), 0.0, 1)
     @test a == a ≈ a
     @test !iszero(a)
     @test copy(a) == a

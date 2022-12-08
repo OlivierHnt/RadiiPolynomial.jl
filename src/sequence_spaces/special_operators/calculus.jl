@@ -527,22 +527,25 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        ω = one(eltype(a))*frequency(a)
+        ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
-            iω = im*ω
             @inbounds for j ∈ 1:order(c)
-                iωj = iω*j
-                c[j] = iωj * a[j]
-                c[-j] = -iωj * a[-j]
+                ωj = ω*j
+                aⱼ = a[j]
+                a₋ⱼ = a[-j]
+                c[j] = Complex(-ωj * imag(aⱼ), ωj * real(aⱼ))
+                c[-j] = Complex(ωj * imag(a₋ⱼ), -ωj * real(a₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿωⁿjⁿ = iⁿ*(ω*j)^n
-                    c[j] = iⁿωⁿjⁿ * a[j]
-                    c[-j] = -iⁿωⁿjⁿ * a[-j]
+                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    aⱼ = a[j]
+                    a₋ⱼ = a[-j]
+                    c[j] = Complex(-sign_iⁿ_ωⁿjⁿ * imag(aⱼ), sign_iⁿ_ωⁿjⁿ * real(aⱼ))
+                    c[-j] = Complex(sign_iⁿ_ωⁿjⁿ * imag(a₋ⱼ), -sign_iⁿ_ωⁿjⁿ * real(a₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -563,22 +566,25 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
         C .= A
     else
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
-            iω = im*ω
             @inbounds for j ∈ 1:ord
-                iωj = iω*j
-                selectdim(C, 1, ord+1+j) .= iωj .* selectdim(A, 1, ord+1+j)
-                selectdim(C, 1, ord+1-j) .= -iωj .* selectdim(A, 1, ord+1-j)
+                ωj = ω*j
+                Aⱼ = selectdim(A, 1, ord+1+j)
+                A₋ⱼ = selectdim(A, 1, ord+1-j)
+                selectdim(C, 1, ord+1+j) .= Complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
+                selectdim(C, 1, ord+1-j) .= Complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ = iⁿ*(ω*j)^n
-                    selectdim(C, 1, ord+1+j) .= iⁿωⁿjⁿ .* selectdim(A, 1, ord+1+j)
-                    selectdim(C, 1, ord+1-j) .= -iⁿωⁿjⁿ .* selectdim(A, 1, ord+1-j)
+                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    Aⱼ = selectdim(A, 1, ord+1+j)
+                    A₋ⱼ = selectdim(A, 1, ord+1-j)
+                    selectdim(C, 1, ord+1+j) .= Complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
+                    selectdim(C, 1, ord+1-j) .= Complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -601,22 +607,25 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     else
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
-        ω = one(T)*frequency(space)
+        ω = one(real(T))*frequency(space)
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
-            iω = im*ω
             @inbounds for j ∈ 1:ord
-                iωj = iω*j
-                selectdim(C, D, ord+1+j) .= iωj .* selectdim(A, D, ord+1+j)
-                selectdim(C, D, ord+1-j) .= -iωj .* selectdim(A, D, ord+1-j)
+                ωj = ω*j
+                Aⱼ = selectdim(A, D, ord+1+j)
+                A₋ⱼ = selectdim(A, D, ord+1-j)
+                selectdim(C, D, ord+1+j) .= Complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
+                selectdim(C, D, ord+1-j) .= Complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ = iⁿ*(ω*j)^n
-                    selectdim(C, D, ord+1+j) .= iⁿωⁿjⁿ .* selectdim(A, D, ord+1+j)
-                    selectdim(C, D, ord+1-j) .= -iⁿωⁿjⁿ .* selectdim(A, D, ord+1-j)
+                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    Aⱼ = selectdim(A, D, ord+1+j)
+                    A₋ⱼ = selectdim(A, D, ord+1-j)
+                    selectdim(C, D, ord+1+j) .= Complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
+                    selectdim(C, D, ord+1-j) .= Complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -652,23 +661,23 @@ function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) w
     if n == 0
         return one(T)
     else
-        ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
+        ωⁿjⁿ = (one(real(T))*frequency(domain)*j)^n
         r = n % 4
         if r == 0
-            return convert(T, ωⁿjⁿ)
+            return convert(T, Complex(ωⁿjⁿ, zero(ωⁿjⁿ)))
         elseif r == 1
-            return convert(T, im*ωⁿjⁿ)
+            return convert(T, Complex(zero(ωⁿjⁿ), ωⁿjⁿ))
         elseif r == 2
-            return convert(T, -ωⁿjⁿ)
+            return convert(T, Complex(-ωⁿjⁿ, zero(ωⁿjⁿ)))
         else
-            return convert(T, -im*ωⁿjⁿ)
+            return convert(T, Complex(zero(ωⁿjⁿ), -ωⁿjⁿ))
         end
     end
 end
 
 image(::Integral, s::Fourier) = s
 
-_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(S)*one(T)*1)*zero(S)))
+_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(real(S))*one(T)*1)*zero(S)))
 
 function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     n = order(ℐ)
@@ -676,21 +685,25 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
         coefficients(c) .= coefficients(a)
     else
         @inbounds iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
-        ω = one(eltype(a))*frequency(a)
+        ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
             @inbounds for j ∈ 1:order(c)
-                iω⁻¹j⁻¹ = im*inv(ω*j)
-                c[j] = -iω⁻¹j⁻¹ * a[j]
-                c[-j] = iω⁻¹j⁻¹ * a[-j]
+                ω⁻¹j⁻¹ = inv(ω*j)
+                aⱼ = a[j]
+                a₋ⱼ = a[-j]
+                c[j] = Complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
+                c[-j] = Complex(-ω⁻¹j⁻¹ * imag(a₋ⱼ), ω⁻¹j⁻¹ * real(a₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿω⁻ⁿj⁻ⁿ = iⁿ*inv(ω*j)^n
-                    c[j] = -iⁿω⁻ⁿj⁻ⁿ * a[j]
-                    c[-j] = iⁿω⁻ⁿj⁻ⁿ * a[-j]
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    aⱼ = a[j]
+                    a₋ⱼ = a[-j]
+                    c[j] = Complex(sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
+                    c[-j] = Complex(-sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(a₋ⱼ), sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(a₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -712,21 +725,25 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
     else
         ord = order(space)
         @inbounds iszero(selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
-                iω⁻¹j⁻¹ = im*inv(ω*j)
-                selectdim(C, 1, ord+1+j) .= -iω⁻¹j⁻¹ .* selectdim(A, 1, ord+1+j)
-                selectdim(C, 1, ord+1-j) .= iω⁻¹j⁻¹ .* selectdim(A, 1, ord+1-j)
+                ω⁻¹j⁻¹ = inv(ω*j)
+                Aⱼ = selectdim(A, 1, ord+1+j)
+                A₋ⱼ = selectdim(A, 1, ord+1-j)
+                selectdim(C, 1, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
+                selectdim(C, 1, ord+1-j) .= Complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ = iⁿ*inv(ω*j)^n
-                    selectdim(C, 1, ord+1+j) .= -iⁿω⁻ⁿj⁻ⁿ .* selectdim(A, 1, ord+1+j)
-                    selectdim(C, 1, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ .* selectdim(A, 1, ord+1-j)
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    Aⱼ = selectdim(A, 1, ord+1+j)
+                    A₋ⱼ = selectdim(A, 1, ord+1-j)
+                    selectdim(C, 1, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
+                    selectdim(C, 1, ord+1-j) .= Complex.((-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* imag.(A₋ⱼ), sign_iⁿ_ω⁻ⁿj⁻ⁿ .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -749,22 +766,26 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
     else
         ord = order(space)
         @inbounds iszero(selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
-        ω = one(T)*frequency(space)
+        ω = one(real(T))*frequency(space)
         C = Array{CoefType,N}(undef, size(A))
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
             @inbounds for j ∈ 1:ord
-                iω⁻¹j⁻¹ = im*inv(ω*j)
-                selectdim(C, D, ord+1+j) .= -iω⁻¹j⁻¹ .* selectdim(A, D, ord+1+j)
-                selectdim(C, D, ord+1-j) .= iω⁻¹j⁻¹ .* selectdim(A, D, ord+1-j)
+                ω⁻¹j⁻¹ = inv(ω*j)
+                Aⱼ = selectdim(A, D, ord+1+j)
+                A₋ⱼ = selectdim(A, D, ord+1-j)
+                selectdim(C, D, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
+                selectdim(C, D, ord+1-j) .= Complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
-                iⁿ = complex(0, ifelse(n%4 == 1, 1, -1))
+                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ = iⁿ*inv(ω*j)^n
-                    selectdim(C, D, ord+1+j) .= -iⁿω⁻ⁿj⁻ⁿ .* selectdim(A, D, ord+1+j)
-                    selectdim(C, D, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ .* selectdim(A, D, ord+1-j)
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    Aⱼ = selectdim(A, D, ord+1+j)
+                    A₋ⱼ = selectdim(A, D, ord+1-j)
+                    selectdim(C, D, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
+                    selectdim(C, D, ord+1-j) .= Complex.((-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* imag.(A₋ⱼ), sign_iⁿ_ω⁻ⁿj⁻ⁿ .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -803,16 +824,16 @@ function _nzval(ℐ::Integral, domain::Fourier, ::Fourier, ::Type{T}, i, j) wher
         if j == 0
             return zero(T)
         else
-            ω⁻ⁿj⁻ⁿ = inv(one(T)*frequency(domain)*j)^n
+            ω⁻ⁿj⁻ⁿ = inv(one(real(T))*frequency(domain)*j)^n
             r = n % 4
             if r == 0
-                return convert(T, ω⁻ⁿj⁻ⁿ)
+                return convert(T, Complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
             elseif r == 1
-                return convert(T, -im*ω⁻ⁿj⁻ⁿ)
+                return convert(T, Complex(zero(ω⁻ⁿj⁻ⁿ), -ω⁻ⁿj⁻ⁿ))
             elseif r == 2
-                return convert(T, -ω⁻ⁿj⁻ⁿ)
+                return convert(T, Complex(-ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
             else
-                return convert(T, im*ω⁻ⁿj⁻ⁿ)
+                return convert(T, Complex(zero(ω⁻ⁿj⁻ⁿ), ω⁻ⁿj⁻ⁿ))
             end
         end
     end

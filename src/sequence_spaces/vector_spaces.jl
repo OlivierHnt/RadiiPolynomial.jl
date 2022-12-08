@@ -11,6 +11,8 @@ Base.intersect(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(interse
 Base.union(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(union, (s₁, s₂)))
 
 dimension(s::VectorSpace) = length(indices(s))
+_firstindex(s::VectorSpace) = first(indices(s))
+_lastindex(s::VectorSpace) = last(indices(s))
 
 _checkbounds_indices(::Colon, ::VectorSpace) = true
 _checkbounds_indices(α, s::VectorSpace) = __checkbounds_indices(α, s)

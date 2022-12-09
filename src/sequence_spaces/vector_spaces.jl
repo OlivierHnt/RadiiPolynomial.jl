@@ -218,7 +218,7 @@ _checkbounds_indices(α::NTuple{N,Colon}, s::TensorSpace{<:NTuple{N,BaseSpace}})
     true
 _checkbounds_indices(α::Tuple{Colon}, s::TensorSpace{<:Tuple{BaseSpace}}) = true
 
-_findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(i -> 0, Val(N))
+_findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(_ -> 0, Val(N))
 
 _findposition(α::Tuple{Int}, s::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _findposition(α[1], s.spaces[1])

@@ -1073,7 +1073,7 @@ function _apply(X::Ell2{<:BesselWeight}, space::Fourier, A::AbstractVector)
     return sqrt(x)
 end
 function _apply(X::Ell2{<:BesselWeight}, space::TensorSpace{<:NTuple{N,Fourier}}, A::AbstractVector{T}) where {N,T}
-    x = zero(abs2(zero(T))*_getindex(X.weight, space, ntuple(i -> 0, Val(N))))
+    x = zero(abs2(zero(T))*_getindex(X.weight, space, ntuple(_ -> 0, Val(N))))
     @inbounds for α ∈ indices(space)
         x += abs2(A[_findposition(α, space)]) * _getindex(X.weight, space, α)
     end
@@ -1088,7 +1088,7 @@ function _apply_dual(X::Ell2{<:BesselWeight}, space::Fourier, A::AbstractVector)
     return sqrt(x)
 end
 function _apply_dual(X::Ell2{<:BesselWeight}, space::TensorSpace{<:NTuple{N,Fourier}}, A::AbstractVector{T}) where {N,T}
-    x = zero(abs2(zero(T))/_getindex(X.weight, space, ntuple(i -> 0, Val(N))))
+    x = zero(abs2(zero(T))/_getindex(X.weight, space, ntuple(_ -> 0, Val(N))))
     @inbounds for α ∈ indices(space)
         x += abs2(A[_findposition(α, space)]) / _getindex(X.weight, space, α)
     end

@@ -302,12 +302,14 @@ end
 
 function _add_mul!(c::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}, a, b, α, bound_ab, X) where {N}
     rounding_order = banach_rounding_order(bound_ab, X)
+    space_c = space(c)
     space_a = space(a)
     space_b = space(b)
     M = typemax(Int)
     _0 = zero(promote_type(eltype(a), eltype(b)))
     _0_ = ntuple(_ -> 0, Val(N))
-    @inbounds for i ∈ indices(space(c))
+    T = eltype(c)
+    @inbounds for i ∈ indices(space_c)
         if mapreduce((i′, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i′) // ord)), +, i, rounding_order) ≥ 1
             μⁱ = bound_ab / _getindex(X.weight, space_c, i)
             c[i] += _interval_box(T, sup(α * μⁱ))

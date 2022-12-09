@@ -82,4 +82,9 @@ include("rpa/interval_existence.jl")
 include("rpa/newton.jl")
     export newton, newton!
 
+#
+
+include("sequence_spaces/symmetry.jl")
+    export Symmetry, NoSymmetry, SymBaseSpace, desymmetrize, Even, Odd
+
 end

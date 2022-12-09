@@ -1313,8 +1313,10 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractAr
     return s
 end
 
-_apply(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + 4sum(abs2, view(A, 2:length(A))))
-_apply_dual(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) = @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/4)
+_apply(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
+    @inbounds sqrt(abs2(A[1]) + 4sum(abs2, view(A, 2:length(A))))
+_apply_dual(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
+    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/4)
 
 _apply(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractVector) =
     @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))

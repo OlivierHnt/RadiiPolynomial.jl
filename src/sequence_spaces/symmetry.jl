@@ -333,7 +333,17 @@ _extract_valid_index(s::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = _extract
 
 # Norm
 
+_apply(::Ell1{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
+    @inbounds abs(A[1]) + 2sum(abs, view(A, 2:length(A)))
+_apply_dual(::Ell1{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
+    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A)))/2)
+
 _apply(::Ell2{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
 _apply_dual(::Ell2{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/2)
+
+_apply(::EllInf{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
+    @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))
+_apply_dual(::EllInf{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
+    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A)))/2

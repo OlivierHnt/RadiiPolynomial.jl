@@ -263,7 +263,7 @@ function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α)
     return c
 end
 
-function _add_mul!(c::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}, a, b, α) where {N}
+function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α) where {N,T<:NTuple{N,BaseSpace}}
     space_a = space(a)
     space_b = space(b)
     _0 = zero(promote_type(eltype(a), eltype(b)))
@@ -284,11 +284,11 @@ function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α, bound_ab, X)
     space_a = space(a)
     space_b = space(b)
     _0 = zero(promote_type(eltype(a), eltype(b)))
-    T = eltype(c)
+    CoefType = eltype(c)
     @inbounds for i ∈ indices(space_c)
         if abs(i) ≥ rounding_order
             μⁱ = bound_ab / _getindex(X.weight, space_c, i)
-            c[i] += _interval_box(T, sup(α * μⁱ))
+            c[i] += _interval_box(CoefType, sup(α * μⁱ))
         else
             cᵢ = _0
             @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
@@ -300,7 +300,7 @@ function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α, bound_ab, X)
     return c
 end
 
-function _add_mul!(c::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}, a, b, α, bound_ab, X) where {N}
+function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α, bound_ab, X) where {N,T<:NTuple{N,BaseSpace}}
     rounding_order = banach_rounding_order(bound_ab, X)
     space_c = space(c)
     space_a = space(a)
@@ -308,11 +308,11 @@ function _add_mul!(c::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}, a, b, α, 
     M = typemax(Int)
     _0 = zero(promote_type(eltype(a), eltype(b)))
     _0_ = ntuple(_ -> 0, Val(N))
-    T = eltype(c)
+    CoefType = eltype(c)
     @inbounds for i ∈ indices(space_c)
         if mapreduce((i′, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i′) // ord)), +, i, rounding_order) ≥ 1
             μⁱ = bound_ab / _getindex(X.weight, space_c, i)
-            c[i] += _interval_box(T, sup(α * μⁱ))
+            c[i] += _interval_box(CoefType, sup(α * μⁱ))
         else
             cᵢ = _0
             @inbounds for j ∈ _convolution_indices(space_a, space_b, i)

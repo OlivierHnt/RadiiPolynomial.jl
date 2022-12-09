@@ -333,11 +333,11 @@ _extract_valid_index(s::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = _extract
 
 # Norm
 
-_getindex(weight::AlgebraicWeight, ::SymBaseSpace{Even,<:Fourier}, i::Int) = (one(weight.rate) + i) ^ weight.rate
-_getindex(weight::AlgebraicWeight{<:Interval}, ::SymBaseSpace{Even,<:Fourier}, i::Int) = pow(one(weight.rate) + i, weight.rate)
-
 _getindex(weight::GeometricWeight, ::SymBaseSpace{Even,<:Fourier}, i::Int) = weight.rate ^ i
 _getindex(weight::GeometricWeight{<:Interval}, ::SymBaseSpace{Even,<:Fourier}, i::Int) = pow(weight.rate, i)
+
+_getindex(weight::AlgebraicWeight, ::SymBaseSpace{Even,<:Fourier}, i::Int) = (one(weight.rate) + i) ^ weight.rate
+_getindex(weight::AlgebraicWeight{<:Interval}, ::SymBaseSpace{Even,<:Fourier}, i::Int) = pow(one(weight.rate) + i, weight.rate)
 
 
 
@@ -482,8 +482,32 @@ end
 
 _apply(::Ell2{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
+function _apply(::Ell2{IdentityWeight}, space::SymBaseSpace{Even,<:Fourier}, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(2abs2(zero(T))))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(2 .* s .+ selectdim(A, N, 1))
+    return s
+end
 _apply_dual(::Ell2{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/2)
+function _apply_dual(::Ell2{IdentityWeight}, space::SymBaseSpace{Even,<:Fourier}, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))/2))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(s ./ 2 .+ selectdim(A, N, 1))
+    return s
+end
 
 _apply(::EllInf{IdentityWeight}, ::SymBaseSpace{Even,<:Fourier}, A::AbstractVector) =
     @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))

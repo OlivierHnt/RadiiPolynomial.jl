@@ -734,6 +734,8 @@ opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)
 for T ∈ (:Ell1, :Ell2, :EllInf)
     @eval begin
         norm(a::Sequence, X::$T{<:Weight}) = _apply(X, space(a), coefficients(a))
+        norm(a::Sequence{TensorSpace{S}}, X::$T{<:Weight}) where {N,S<:NTuple{N,BaseSpace}} =
+            norm(a, $T(ntuple(_ -> X.weight, Val(N))))
         function norm(a::Sequence{TensorSpace{S}}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
             space_a = space(a)
             A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
@@ -746,6 +748,8 @@ for T ∈ (:Ell1, :Ell2, :EllInf)
 
         opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::$T{<:Weight}) =
             _apply_dual(X, domain(A), vec(coefficients(A)))
+        opnorm(A::LinearOperator{TensorSpace{S},ParameterSpace}, X::$T{<:Weight}) where {N,S<:NTuple{N,BaseSpace}} =
+            opnorm(A, $T(ntuple(_ -> X.weight, Val(N))))
         function opnorm(A::LinearOperator{TensorSpace{S},ParameterSpace}, X::$T{<:NTuple{N,Weight}}) where {N,S<:NTuple{N,BaseSpace}}
             domain_A = domain(A)
             A_ = _no_alloc_reshape(coefficients(A), dimensions(domain_A))
@@ -801,21 +805,6 @@ _apply(::EllInf{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbound
 _apply_dual(::EllInf{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
 
 # SequenceSpace
-
-_apply(::Ell1{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sum(abs, A)
-_apply(::Ell1{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sum(abs, A)
-_apply_dual(::Ell1{IdentityWeight}, space::TensorSpace, A::AbstractVector) = _apply(EllInf(IdentityWeight()), space, A)
-_apply_dual(::Ell1{IdentityWeight}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = _apply(EllInf(IdentityWeight()), space, A)
-
-_apply(::Ell2{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply(::Ell2{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply_dual(::Ell2{IdentityWeight}, ::TensorSpace, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply_dual(::Ell2{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = sqrt(sum(abs2, A))
-
-_apply(::EllInf{IdentityWeight}, ::TensorSpace, A::AbstractVector) = maximum(abs, A)
-_apply(::EllInf{IdentityWeight}, ::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = maximum(abs, A)
-_apply_dual(::EllInf{IdentityWeight}, space::TensorSpace, A::AbstractVector) = _apply(Ell1(IdentityWeight()), space, A)
-_apply_dual(::EllInf{IdentityWeight}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractVector) = _apply(Ell1(IdentityWeight()), space, A)
 
 # Taylor
 
@@ -892,7 +881,18 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Taylor, A::AbstractArray
 end
 
 _apply(::Ell2{IdentityWeight}, ::Taylor, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply_dual(::Ell2{IdentityWeight}, ::Taylor, A::AbstractVector) = sqrt(sum(abs2, A))
+function _apply(::Ell2{IdentityWeight}, ::Taylor, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))))
+    @inbounds A₁ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₁))
+    s .= abs2.(A₁)
+    for i ∈ 2:size(A, N)
+        s .+= abs2.(selectdim(A, N, i))
+    end
+    s .= sqrt.(s)
+    return s
+end
+_apply_dual(X::Ell2{IdentityWeight}, space::Taylor, A::AbstractArray) = _apply(X, space, A)
 
 _apply(::EllInf{IdentityWeight}, ::Taylor, A::AbstractVector) = maximum(abs, A)
 function _apply(::EllInf{IdentityWeight}, ::Taylor, A::AbstractArray{T,N}) where {T,N}
@@ -900,7 +900,7 @@ function _apply(::EllInf{IdentityWeight}, ::Taylor, A::AbstractArray{T,N}) where
     @inbounds A₁ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₁))
     s .= abs.(A₁)
-    for i ∈ 2:size(A, N)
+    @inbounds for i ∈ 2:size(A, N)
         s .= max.(s, abs.(selectdim(A, N, i)))
     end
     return s
@@ -1059,7 +1059,18 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Fourier, A::AbstractArra
 end
 
 _apply(::Ell2{IdentityWeight}, ::Fourier, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply_dual(::Ell2{IdentityWeight}, ::Fourier, A::AbstractVector) = sqrt(sum(abs2, A))
+function _apply(::Ell2{IdentityWeight}, ::Fourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))))
+    @inbounds A₁ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₁))
+    s .= abs2.(A₁)
+    for i ∈ 2:size(A, N)
+        s .+= abs2.(selectdim(A, N, i))
+    end
+    s .= sqrt.(s)
+    return s
+end
+_apply_dual(X::Ell2{IdentityWeight}, space::Fourier, A::AbstractArray) = _apply(X, space, A)
 
 function _apply(X::Ell2{<:BesselWeight}, space::Fourier, A::AbstractVector)
     ord = order(space)
@@ -1069,10 +1080,11 @@ function _apply(X::Ell2{<:BesselWeight}, space::Fourier, A::AbstractVector)
     end
     return sqrt(x)
 end
-function _apply(X::Ell2{<:BesselWeight}, space::TensorSpace{<:NTuple{N,Fourier}}, A::AbstractVector{T}) where {N,T}
-    x = zero(abs2(zero(T))*_getindex(X.weight, space, ntuple(_ -> 0, Val(N))))
-    @inbounds for α ∈ indices(space)
-        x += abs2(A[_findposition(α, space)]) * _getindex(X.weight, space, α)
+function norm(a::Sequence{TensorSpace{T}}, X::Ell2{<:BesselWeight}) where {N,T<:NTuple{N,Fourier}}
+    space_a = space(a)
+    x = zero(abs2(zero(eltype(a)))*_getindex(X.weight, space_a, ntuple(_ -> 0, Val(N))))
+    @inbounds for α ∈ indices(space_a)
+        x += abs2(a[α]) * _getindex(X.weight, space_a, α)
     end
     return sqrt(x)
 end
@@ -1084,10 +1096,11 @@ function _apply_dual(X::Ell2{<:BesselWeight}, space::Fourier, A::AbstractVector)
     end
     return sqrt(x)
 end
-function _apply_dual(X::Ell2{<:BesselWeight}, space::TensorSpace{<:NTuple{N,Fourier}}, A::AbstractVector{T}) where {N,T}
-    x = zero(abs2(zero(T))/_getindex(X.weight, space, ntuple(_ -> 0, Val(N))))
-    @inbounds for α ∈ indices(space)
-        x += abs2(A[_findposition(α, space)]) / _getindex(X.weight, space, α)
+function opnorm(A::LinearOperator{TensorSpace{T},ParameterSpace}, X::Ell2{<:BesselWeight}) where {N,T<:NTuple{N,Fourier}}
+    domain_A = domain(A)
+    x = zero(abs2(zero(eltype(A)))/_getindex(X.weight, domain_A, ntuple(_ -> 0, Val(N))))
+    @inbounds for α ∈ indices(domain_A)
+        x += abs2(A[1,α]) / _getindex(X.weight, domain_A, α)
     end
     return sqrt(x)
 end
@@ -1098,7 +1111,7 @@ function _apply(::EllInf{IdentityWeight}, ::Fourier, A::AbstractArray{T,N}) wher
     @inbounds A₁ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₁))
     s .= abs.(A₁)
-    for i ∈ 2:size(A, N)
+    @inbounds for i ∈ 2:size(A, N)
         s .= max.(s, abs.(selectdim(A, N, i)))
     end
     return s
@@ -1315,8 +1328,32 @@ end
 
 _apply(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + 4sum(abs2, view(A, 2:length(A))))
+function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(4abs2(zero(T))))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(4 .* s .+ selectdim(A, N, 1))
+    return s
+end
 _apply_dual(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
     @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/4)
+function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))/4))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(s ./ 4 .+ selectdim(A, N, 1))
+    return s
+end
 
 _apply(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractVector) =
     @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))

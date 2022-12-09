@@ -192,7 +192,7 @@ function _nzind_domain(::Derivative, domain::SymBaseSpace{Even,<:Fourier}, codom
     ω₂ = frequency(codomain)
     ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
-    return 1:ord
+    return 0:ord
 end
 
 function _nzind_codomain(::Derivative, domain::SymBaseSpace{Even,<:Fourier}, codomain::SymBaseSpace{Even,<:Fourier})
@@ -200,7 +200,7 @@ function _nzind_codomain(::Derivative, domain::SymBaseSpace{Even,<:Fourier}, cod
     ω₂ = frequency(codomain)
     ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
-    return 1:ord
+    return 0:ord
 end
 
 function _nzval(𝒟::Derivative, domain::SymBaseSpace{Even,<:Fourier}, ::SymBaseSpace{Even,<:Fourier}, ::Type{T}, i, j) where {T}

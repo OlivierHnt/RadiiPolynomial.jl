@@ -760,7 +760,7 @@ end
 
 #
 
-function opnorm(A::LinearOperator, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight})
+function opnorm(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight})
     r = z = abs(zero(eltype(A)))
     A_ = coefficients(A)
     for j ∈ axes(A_, 2)
@@ -773,13 +773,10 @@ function opnorm(A::LinearOperator, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight
     return r
 end
 
-function opnorm(A::LinearOperator, ::Ell2{IdentityWeight}, ::Ell2{IdentityWeight})
-    X_1 = Ell1(IdentityWeight())
-    X_Inf = EllInf(IdentityWeight())
-    return sqrt(opnorm(A, X_1, X_1) * opnorm(A, X_Inf, X_Inf))
-end
+opnorm(A::LinearOperator, ::Ell2{IdentityWeight}, ::Ell2{IdentityWeight}) =
+    sqrt(opnorm(A, Ell1(IdentityWeight())) * opnorm(A, EllInf(IdentityWeight())))
 
-function opnorm(A::LinearOperator, ::EllInf{IdentityWeight}, ::EllInf{IdentityWeight})
+function opnorm(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ::EllInf{IdentityWeight}, ::EllInf{IdentityWeight})
     r = z = abs(zero(eltype(A)))
     A_ = coefficients(A)
     for i ∈ axes(A_, 1)

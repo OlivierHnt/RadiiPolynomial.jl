@@ -102,7 +102,7 @@ _findindex_constant(s::SymBaseSpace{Even,<:Fourier}) = 0
 _findposition(i::Int, ::SymBaseSpace{Even,<:Fourier}) = i + 1
 _findposition(u::AbstractRange{Int}, ::SymBaseSpace{Even,<:Fourier}) = u .+ 1
 
-#
+
 
 struct Odd <: Symmetry end
 
@@ -119,19 +119,62 @@ image(::typeof(*), ::Even, ::Even) = Even()
 image(::typeof(add_bar), ::Even, ::Even) = Even()
 image(::typeof(mul_bar), ::Even, ::Even) = Even()
 
+
+
 image(::typeof(+), ::Odd, ::Odd) = Odd()
 image(::typeof(*), ::Odd, ::Odd) = Even()
 image(::typeof(add_bar), ::Odd, ::Odd) = Odd()
 image(::typeof(mul_bar), ::Odd, ::Odd) = Even()
 
+
+
+image(::typeof(+), ::Even, ::Odd) = NoSymmetry()
+image(::typeof(+), ::Odd, ::Even) = NoSymmetry()
+image(::typeof(*), ::Even, ::Odd) = Odd()
+image(::typeof(*), ::Odd, ::Even) = Odd()
+image(::typeof(add_bar), ::Even, ::Odd) = NoSymmetry()
+image(::typeof(add_bar), ::Odd, ::Even) = NoSymmetry()
+image(::typeof(mul_bar), ::Even, ::Odd) = Odd()
+image(::typeof(mul_bar), ::Odd, ::Even) = Odd()
+
 # Convolution
 
-_convolution_indices(s₁::SymBaseSpace{Even,<:Fourier}, s₂::SymBaseSpace{Even,<:Fourier}, i) =
-    _convolution_indices(Chebyshev(order(s₁)), Chebyshev(order(s₂)), i)
+_convolution_indices(s₁::SymBaseSpace{Even,<:Fourier}, s₂::SymBaseSpace{Even,<:Fourier}, i::Int) =
+    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+
+_convolution_getindex(a::Sequence{<:SymBaseSpace{Even,<:Fourier}}, i::Int, j::Int) = @inbounds a[abs(i-j)]
+_convolution_getindex(a::Sequence{<:SymBaseSpace{Even,<:Fourier}}, i::Int) = @inbounds a[abs(i)]
+
+_symmetry_action(::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = 1
+_symmetry_action(::SymBaseSpace{Even,<:Fourier}, i::Int) = 1
+
+_extract_valid_index(::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = abs(i-j)
+_extract_valid_index(::SymBaseSpace{Even,<:Fourier}, i::Int) = abs(i)
+
+
+
+_convolution_indices(s₁::SymBaseSpace{Odd,<:Fourier}, s₂::SymBaseSpace{Odd,<:Fourier}, i::Int) =
+    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+
+function _convolution_getindex(a::Sequence{<:SymBaseSpace{Odd,<:Fourier}}, i::Int, j::Int)
+    x = i-j
+    x == 0 && return zero(eltype(a))
+    return @inbounds flipsign(a[abs(i-j)], x)
+end
+function _convolution_getindex(a::Sequence{<:SymBaseSpace{Odd,<:Fourier}}, i::Int)
+    i == 0 && return zero(eltype(a))
+    return @inbounds flipsign(a[abs(i)], i)
+end
+
+_symmetry_action(::SymBaseSpace{Odd,<:Fourier}, i::Int, j::Int) = (x = i-j; ifelse(x == 0, 0, flipsign(1, x)))
+_symmetry_action(::SymBaseSpace{Odd,<:Fourier}, i::Int) = ifelse(i == 0, 0, flipsign(1, i))
+
+_extract_valid_index(::SymBaseSpace{Odd,<:Fourier}, i::Int, j::Int) = abs(i-j)
+_extract_valid_index(::SymBaseSpace{Odd,<:Fourier}, i::Int) = abs(i)
 
 # Derivative
 
-image(𝒟::Derivative, s::SymBaseSpace{Even,<:Fourier}) = iseven(order(𝒟)) ? s : throw(DomainError) # SymBaseSpace(Odd(), desymmetrize(s))
+image(𝒟::Derivative, s::SymBaseSpace{Even,<:Fourier}) = iseven(order(𝒟)) ? s : SymBaseSpace(Odd(), desymmetrize(s))
 
 _coeftype(::Derivative, ::SymBaseSpace{Even,Fourier{T}}, ::Type{S}) where {T,S} = typeof(zero(T)*0*zero(S))
 
@@ -329,7 +372,6 @@ end
 
 _mult_domain_indices(s::SymBaseSpace{Even,<:Fourier}) = _mult_domain_indices(Chebyshev(order(s)))
 _isvalid(s::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = _isvalid(Chebyshev(order(s)), i, j)
-_extract_valid_index(s::SymBaseSpace{Even,<:Fourier}, i::Int, j::Int) = _extract_valid_index(Chebyshev(order(s)), i, j)
 
 # Norm
 

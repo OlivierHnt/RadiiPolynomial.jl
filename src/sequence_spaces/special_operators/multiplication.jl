@@ -108,7 +108,7 @@ function _project!(C::LinearOperator{<:TensorSpace,<:TensorSpace}, ℳ::Multipli
     space_ℳ = space(sequence(ℳ))
     @inbounds for β ∈ _mult_domain_indices(domain(C)), α ∈ indices(codomain(C))
         if _isvalid(space_ℳ, α, β)
-            C[α,_extract_valid_index(space_ℳ, β, zero.(α))] += sequence(ℳ)[_extract_valid_index(space_ℳ, α, β)]
+            C[α,_extract_valid_index(space_ℳ, β)] += sequence(ℳ)[_extract_valid_index(space_ℳ, α, β)]
         end
     end
     return C
@@ -120,11 +120,6 @@ _isvalid(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,
     @inbounds _isvalid(s[1], α[1], β[1]) & _isvalid(Base.tail(s), Base.tail(α), Base.tail(β))
 _isvalid(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
     @inbounds _isvalid(s[1], α[1], β[1])
-
-_extract_valid_index(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
-    @inbounds (_extract_valid_index(s[1], α[1], β[1]), _extract_valid_index(Base.tail(s), Base.tail(α), Base.tail(β))...)
-_extract_valid_index(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
-    @inbounds (_extract_valid_index(s[1], α[1], β[1]),)
 
 # Taylor
 
@@ -139,7 +134,6 @@ end
 
 _mult_domain_indices(s::Taylor) = indices(s)
 _isvalid(s::Taylor, i::Int, j::Int) = 0 ≤ i-j ≤ order(s)
-_extract_valid_index(::Taylor, i::Int, j::Int) = i-j
 
 # Fourier
 
@@ -154,7 +148,6 @@ end
 
 _mult_domain_indices(s::Fourier) = indices(s)
 _isvalid(s::Fourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
-_extract_valid_index(::Fourier, i::Int, j::Int) = i-j
 
 # Chebyshev
 
@@ -178,4 +171,3 @@ end
 
 _mult_domain_indices(s::Chebyshev) = -order(s):order(s)
 _isvalid(s::Chebyshev, i::Int, j::Int) = abs(i-j) ≤ order(s)
-_extract_valid_index(::Chebyshev, i::Int, j::Int) = abs(i-j)

@@ -255,8 +255,8 @@ function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α)
     _0 = zero(promote_type(eltype(a), eltype(b)))
     @inbounds for i ∈ indices(space(c))
         cᵢ = _0
-        @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-            cᵢ += a[_extract_valid_index(space_a, i, j)] * b[_extract_valid_index(space_b, j, 0)]
+        @simd for j ∈ _convolution_indices(space_a, space_b, i)
+            cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
         end
         c[i] += cᵢ * α
     end
@@ -267,11 +267,10 @@ function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α) where {N,T<:NTuple{N,B
     space_a = space(a)
     space_b = space(b)
     _0 = zero(promote_type(eltype(a), eltype(b)))
-    _0_ = ntuple(_ -> 0, Val(N))
     @inbounds for i ∈ indices(space(c))
         cᵢ = _0
-        @inbounds for j ∈ _convolution_indices(space_a, space_b, i)
-            cᵢ += a[_extract_valid_index(space_a, i, j)] * b[_extract_valid_index(space_b, j, _0_)]
+        for j ∈ _convolution_indices(space_a, space_b, i)
+            cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
         end
         c[i] += cᵢ * α
     end
@@ -291,8 +290,8 @@ function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α, bound_ab, X)
             c[i] += _interval_box(CoefType, sup(α * μⁱ))
         else
             cᵢ = _0
-            @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-                cᵢ += a[_extract_valid_index(space_a, i, j)] * b[_extract_valid_index(space_b, j, 0)]
+            @simd for j ∈ _convolution_indices(space_a, space_b, i)
+                cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
             end
             c[i] += cᵢ * α
         end
@@ -307,7 +306,6 @@ function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α, bound_ab, X) where {N,
     space_b = space(b)
     M = typemax(Int)
     _0 = zero(promote_type(eltype(a), eltype(b)))
-    _0_ = ntuple(_ -> 0, Val(N))
     CoefType = eltype(c)
     @inbounds for i ∈ indices(space_c)
         if mapreduce((i′, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i′) // ord)), +, i, rounding_order) ≥ 1
@@ -315,8 +313,8 @@ function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α, bound_ab, X) where {N,
             c[i] += _interval_box(CoefType, sup(α * μⁱ))
         else
             cᵢ = _0
-            @inbounds for j ∈ _convolution_indices(space_a, space_b, i)
-                cᵢ += a[_extract_valid_index(space_a, i, j)] * b[_extract_valid_index(space_b, j, _0_)]
+            for j ∈ _convolution_indices(space_a, space_b, i)
+                cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
             end
             c[i] += cᵢ * α
         end
@@ -324,14 +322,77 @@ function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α, bound_ab, X) where {N,
     return c
 end
 
-_convolution_indices(s₁::TensorSpace, s₂::TensorSpace, i) =
-    TensorIndices(map(_convolution_indices, spaces(s₁), spaces(s₂), i))
+_convolution_indices(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    TensorIndices(map(_convolution_indices, spaces(s₁), spaces(s₂), α))
 
-_convolution_indices(s₁::Taylor, s₂::Taylor, i) = max(i-order(s₁), 0):min(i, order(s₂))
+function _convolution_getindex(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
+    space_a = space(a)
+    x = _symmetry_action(space_a, α, β)
+    x == 0 && return x * zero(eltype(a))
+    return @inbounds x * a[_extract_valid_index(space_a, α, β)]
+end
+function _convolution_getindex(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
+    space_a = space(a)
+    x = _symmetry_action(space_a, α)
+    x == 0 && return x * zero(eltype(a))
+    return @inbounds x * a[_extract_valid_index(space_a, α)]
+end
 
-_convolution_indices(s₁::Fourier, s₂::Fourier, i) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+_symmetry_action(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
+    @inbounds _symmetry_action(s[1], α[1], β[1]) * _symmetry_action(Base.tail(s), Base.tail(α), Base.tail(β))
+_symmetry_action(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
+    @inbounds _symmetry_action(s[1], α[1], β[1])
+_symmetry_action(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _symmetry_action(s[1], α[1]) * _symmetry_action(Base.tail(s), Base.tail(α))
+_symmetry_action(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) = @inbounds _symmetry_action(s[1], α[1])
 
-_convolution_indices(s₁::Chebyshev, s₂::Chebyshev, i) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+_extract_valid_index(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
+    @inbounds (_extract_valid_index(s[1], α[1], β[1]), _extract_valid_index(Base.tail(s), Base.tail(α), Base.tail(β))...)
+_extract_valid_index(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
+    @inbounds (_extract_valid_index(s[1], α[1], β[1]),)
+_extract_valid_index(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds (_extract_valid_index(s[1], α[1]), _extract_valid_index(Base.tail(s), Base.tail(α))...)
+_extract_valid_index(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds (_extract_valid_index(s[1], α[1]),)
+
+# Taylor
+
+_convolution_indices(s₁::Taylor, s₂::Taylor, i::Int) = max(i-order(s₁), 0):min(i, order(s₂))
+
+_convolution_getindex(a::Sequence{Taylor}, i::Int, j::Int) = @inbounds a[i-j]
+_convolution_getindex(a::Sequence{Taylor}, i::Int) = @inbounds a[i]
+
+_symmetry_action(::Taylor, i::Int, j::Int) = 1
+_symmetry_action(::Taylor, i::Int) = 1
+
+_extract_valid_index(::Taylor, i::Int, j::Int) = i-j
+_extract_valid_index(::Taylor, i::Int) = i
+
+# Fourier
+
+_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+
+_convolution_getindex(a::Sequence{<:Fourier}, i::Int, j::Int) = @inbounds a[i-j]
+_convolution_getindex(a::Sequence{<:Fourier}, i::Int) = @inbounds a[i]
+
+_symmetry_action(::Fourier, i::Int, j::Int) = 1
+_symmetry_action(::Fourier, i::Int) = 1
+
+_extract_valid_index(::Fourier, i::Int, j::Int) = i-j
+_extract_valid_index(::Fourier, i::Int) = i
+
+# Chebyshev
+
+_convolution_indices(s₁::Chebyshev, s₂::Chebyshev, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+
+_convolution_getindex(a::Sequence{Chebyshev}, i::Int, j::Int) = @inbounds a[abs(i-j)]
+_convolution_getindex(a::Sequence{Chebyshev}, i::Int) = @inbounds a[abs(i)]
+
+_symmetry_action(::Chebyshev, i::Int, j::Int) = 1
+_symmetry_action(::Chebyshev, i::Int) = 1
+
+_extract_valid_index(::Chebyshev, i::Int, j::Int) = abs(i-j)
+_extract_valid_index(::Chebyshev, i::Int) = abs(i)
 
 #
 

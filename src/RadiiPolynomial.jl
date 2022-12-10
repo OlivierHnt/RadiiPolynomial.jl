@@ -85,6 +85,6 @@ include("rpa/newton.jl")
 #
 
 include("sequence_spaces/symmetry.jl")
-    export Symmetry, NoSymmetry, SymBaseSpace, desymmetrize, Even, Odd
+    export desymmetrize, CosFourier, SinFourier
 
 end

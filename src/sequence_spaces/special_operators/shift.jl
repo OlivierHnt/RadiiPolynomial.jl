@@ -99,14 +99,13 @@ function shift!(c::Sequence, a::Sequence, τ)
 end
 
 """
-    project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(value(𝒮))))
+    project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64))
 
 Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 
 See also: [`project!(::LinearOperator, ::Shift)`](@ref) and [`Shift`](@ref).
 """
-function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, typeof(value(𝒮)))) where {T}
-    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64)) where {T}
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
     C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))

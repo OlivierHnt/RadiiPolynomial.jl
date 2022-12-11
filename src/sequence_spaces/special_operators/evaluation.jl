@@ -112,7 +112,8 @@ Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 See also: [`project!(::LinearOperator, ::Evaluation)`](@ref) and [`Evaluation`](@ref).
 """
 function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, Float64)) where {T}
-    _iscompatible(ℰ, domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    image_domain = image(ℰ, domain)
+    _iscompatible(ℰ, image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℰ is $image_domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℰ, _memo(domain, T))
     return C
@@ -129,8 +130,9 @@ See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
 """
 function project!(C::LinearOperator, ℰ::Evaluation)
     domain_C = domain(C)
+    image_domain = image(ℰ, domain_C)
     codomain_C = codomain(C)
-    _iscompatible(ℰ, domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    _iscompatible(ℰ, image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℰ is $image_domain, C has codomain $codomain_C"))
     CoefType = eltype(C)
     coefficients(C) .= zero(CoefType)
     _project!(C, ℰ, _memo(domain_C, CoefType))
@@ -159,9 +161,9 @@ _memo(s::TensorSpace, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(
 image(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), value(ℰ), spaces(s)))
 
-_coeftype(ℰ::Evaluation, s::TensorSpace, ::Type{T}) where {T} =
+_coeftype(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
     @inbounds promote_type(_coeftype(Evaluation(value(ℰ)[1]), s[1], T), _coeftype(Evaluation(Base.tail(value(ℰ))), Base.tail(s), T))
-_coeftype(ℰ::Evaluation, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
+_coeftype(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
     @inbounds _coeftype(Evaluation(value(ℰ)[1]), s[1], T)
 
 function _apply!(c::Sequence{<:TensorSpace}, ℰ::Evaluation, a)

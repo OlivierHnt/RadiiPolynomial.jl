@@ -151,7 +151,8 @@ Represent `𝒟` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 See also: [`project!(::LinearOperator, ::Derivative)`](@ref) and [`Derivative`](@ref).
 """
 function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒟, domain, Float64)) where {T}
-    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    image_domain = image(𝒟, domain)
+    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $𝒟 is $image_domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒟, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒟, domain, codomain)
     C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
@@ -169,9 +170,9 @@ See also: [`project(::Derivative, ::VectorSpace, ::VectorSpace)`](@ref) and
 [`Derivative`](@ref).
 """
 function project!(C::LinearOperator, 𝒟::Derivative)
-    domain_C = domain(C)
+    image_domain = image(𝒟, domain(C))
     codomain_C = codomain(C)
-    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒟 is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, 𝒟)
     return C
@@ -240,7 +241,8 @@ Represent `ℐ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 See also: [`project!(::LinearOperator, ::Integral)`](@ref) and [`Integral`](@ref).
 """
 function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℐ, domain, Float64)) where {T}
-    _iscompatible(domain, codomain) || return throw(ArgumentError("spaces must be compatible: domain is $domain, codomain is $codomain"))
+    image_domain = image(ℐ, domain)
+    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℐ is $image_domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(ℐ, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(ℐ, domain, codomain)
     C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
@@ -258,9 +260,9 @@ See also: [`project(::Integral, ::VectorSpace, ::VectorSpace)`](@ref) and
 [`Integral`](@ref)
 """
 function project!(C::LinearOperator, ℐ::Integral)
-    domain_C = domain(C)
+    image_domain = image(ℐ, domain(C))
     codomain_C = codomain(C)
-    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℐ is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, ℐ)
     return C
@@ -290,9 +292,9 @@ for F ∈ (:Derivative, :Integral)
         image(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
             TensorSpace(map((αᵢ, sᵢ) -> image($F(αᵢ), sᵢ), order(ℱ), spaces(s)))
 
-        _coeftype(ℱ::$F, s::TensorSpace, ::Type{T}) where {T} =
+        _coeftype(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
             @inbounds promote_type(_coeftype($F(order(ℱ)[1]), s[1], T), _coeftype($F(Base.tail(order(ℱ))), Base.tail(s), T))
-        _coeftype(ℱ::$F, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
+        _coeftype(ℱ::$F{Tuple{Int}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
             @inbounds _coeftype($F(order(ℱ)[1]), s[1], T)
 
         function _apply!(c::Sequence{<:TensorSpace}, ℱ::$F, a)

@@ -79,7 +79,8 @@ See also: [`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multip
 and [`Multiplication`](@ref).
 """
 function project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(sequence(ℳ))) where {T}
-    _iscompatible(domain, codomain) & _iscompatible(space(sequence(ℳ)), domain) || return throw(ArgumentError("spaces must be compatible"))
+    image_domain = image(ℳ, domain)
+    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℳ is $image_domain, codomain is $codomain"))
     C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
     _project!(C, ℳ)
     return C
@@ -95,8 +96,9 @@ See also: [`project(::Multiplication, ::SequenceSpace, ::SequenceSpace)`](@ref)
 and [`Multiplication`](@ref).
 """
 function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
-    domain_C = domain(C)
-    _iscompatible(domain_C, codomain(C)) & _iscompatible(space(sequence(ℳ)), domain_C) || return throw(ArgumentError("spaces must be compatible"))
+    image_domain = image(ℳ, domain(C))
+    codomain_C = codomain(C)
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℳ is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, ℳ)
     return C

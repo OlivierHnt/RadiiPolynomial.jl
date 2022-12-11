@@ -106,6 +106,8 @@ Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
 See also: [`project!(::LinearOperator, ::Scale)`](@ref) and [`Scale`](@ref)
 """
 function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64)) where {T}
+    image_domain = image(𝒮, domain)
+    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $𝒮 is $image_domain, codomain is $codomain"))
     ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
     ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
     C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
@@ -123,9 +125,9 @@ See also: [`project(::Scale, ::VectorSpace, ::VectorSpace)`](@ref) and
 [`Scale`](@ref)
 """
 function project!(C::LinearOperator, 𝒮::Scale)
-    domain_C = domain(C)
+    image_domain = image(𝒮, domain(C))
     codomain_C = codomain(C)
-    _iscompatible(domain_C, codomain_C) || return throw(ArgumentError("spaces must be compatible: C has domain $domain_C, C has codomain $codomain_C"))
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒮 is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, 𝒮)
     return C
@@ -142,9 +144,9 @@ _findposition_nzind_codomain(𝒮::Scale, domain, codomain) =
 image(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((γᵢ, sᵢ) -> image(Scale(γᵢ), sᵢ), value(𝒮), spaces(s)))
 
-_coeftype(𝒮::Scale, s::TensorSpace, ::Type{T}) where {T} =
+_coeftype(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
     @inbounds promote_type(_coeftype(Scale(value(𝒮)[1]), s[1], T), _coeftype(Scale(Base.tail(value(𝒮))), Base.tail(s), T))
-_coeftype(𝒮::Scale, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
+_coeftype(𝒮::Scale{<:Tuple{Number}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
     @inbounds _coeftype(Scale(value(𝒮)[1]), s[1], T)
 
 function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Scale, a)

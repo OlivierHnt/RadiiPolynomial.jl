@@ -115,11 +115,35 @@ image(::typeof(mul_bar), s₁::SinFourier, s₂::CosFourier) = SinFourier(image(
 
 # Convolution
 
+function __convolution!(C, A, B, α, ::CosFourier, space_a::CosFourier, space_b::CosFourier, i)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+            Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
+        end
+        @inbounds C[i+1] += Cᵢ * α
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, ::CosFourier, current_space_a::CosFourier, current_space_b::CosFourier, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
+    if !iszero(α)
+        order_a = order(current_space_a)
+        order_b = order(current_space_b)
+        @inbounds Cᵢ = selectdim(C, N, i+1)
+        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, abs(i-j)+1),
+                selectdim(B, N, abs(j)+1),
+                α, remaining_space_c, remaining_space_a, remaining_space_b)
+        end
+    end
+    return C
+end
+
 _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
-
-_convolution_getindex(a::Sequence{<:CosFourier}, i::Int, j::Int) = @inbounds a[abs(i-j)]
-_convolution_getindex(a::Sequence{<:CosFourier}, i::Int) = @inbounds a[abs(i)]
 
 _symmetry_action(::CosFourier, i::Int, j::Int) = 1
 _symmetry_action(::CosFourier, i::Int) = 1
@@ -131,16 +155,6 @@ _extract_valid_index(::CosFourier, i::Int) = abs(i)
 
 _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
-
-function _convolution_getindex(a::Sequence{<:SinFourier}, i::Int, j::Int)
-    x = i-j
-    x == 0 && return zero(eltype(a))
-    return @inbounds flipsign(a[abs(i-j)], x)
-end
-function _convolution_getindex(a::Sequence{<:SinFourier}, i::Int)
-    i == 0 && return zero(eltype(a))
-    return @inbounds flipsign(a[abs(i)], i)
-end
 
 _symmetry_action(::SinFourier, i::Int, j::Int) = (x = i-j; ifelse(x == 0, 0, flipsign(1, x)))
 _symmetry_action(::SinFourier, i::Int) = ifelse(i == 0, 0, flipsign(1, i))

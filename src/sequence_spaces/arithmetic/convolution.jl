@@ -45,7 +45,7 @@ _interval_box(::Type{<:Complex{<:Interval}}, x) = (y = Interval(-x, x); Complex(
 
 #
 
-banach_rounding!(a, bound, X) = banach_rounding!(a, bound, banach_rounding_order(bound, X))
+banach_rounding!(a, bound, X) = banach_rounding!(a, bound, X, banach_rounding_order(bound, X))
 
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound::Real, X::Ell1, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S<:Union{Interval,Complex{<:Interval}}}
     bound ≥ 0 || return throw(ArgumentError("the bound must be positive"))
@@ -250,93 +250,188 @@ function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:Sequen
 end
 
 function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α)
-    space_a = space(a)
-    space_b = space(b)
-    _0 = zero(promote_type(eltype(a), eltype(b)))
-    @inbounds for i ∈ indices(space(c))
-        cᵢ = _0
-        @simd for j ∈ _convolution_indices(space_a, space_b, i)
-            cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
-        end
-        c[i] += cᵢ * α
-    end
+    _add_mul!(coefficients(c), coefficients(a), coefficients(b), α, space(c), space(a), space(b))
     return c
 end
-
-function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α) where {N,T<:NTuple{N,BaseSpace}}
+function _add_mul!(c::Sequence{<:TensorSpace}, a, b, α)
+    space_c = space(c)
     space_a = space(a)
     space_b = space(b)
-    _0 = zero(promote_type(eltype(a), eltype(b)))
-    @inbounds for i ∈ indices(space(c))
-        cᵢ = _0
-        for j ∈ _convolution_indices(space_a, space_b, i)
-            cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
-        end
-        c[i] += cᵢ * α
-    end
+    C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
+    A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
+    B = _no_alloc_reshape(coefficients(b), dimensions(space_b))
+    _add_mul!(C, A, B, α, space_c, space_a, space_b)
     return c
 end
-
+# for Banach rounding
 function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α, bound_ab, X)
     rounding_order = banach_rounding_order(bound_ab, X)
     space_c = space(c)
-    space_a = space(a)
-    space_b = space(b)
-    _0 = zero(promote_type(eltype(a), eltype(b)))
-    CoefType = eltype(c)
-    @inbounds for i ∈ indices(space_c)
-        if abs(i) ≥ rounding_order
-            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
-            c[i] += _interval_box(CoefType, sup(α * μⁱ))
-        else
-            cᵢ = _0
-            @simd for j ∈ _convolution_indices(space_a, space_b, i)
-                cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
-            end
-            c[i] += cᵢ * α
-        end
-    end
+    _add_mul!(coefficients(c), coefficients(a), coefficients(b), α, space_c, space(a), space(b), bound_ab, X, rounding_order)
     return c
 end
-
-function _add_mul!(c::Sequence{TensorSpace{T}}, a, b, α, bound_ab, X) where {N,T<:NTuple{N,BaseSpace}}
+function _add_mul!(c::Sequence{<:TensorSpace}, a, b, α, bound_ab, X)
     rounding_order = banach_rounding_order(bound_ab, X)
     space_c = space(c)
     space_a = space(a)
     space_b = space(b)
-    M = typemax(Int)
-    _0 = zero(promote_type(eltype(a), eltype(b)))
-    CoefType = eltype(c)
-    @inbounds for i ∈ indices(space_c)
-        if mapreduce((i′, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i′) // ord)), +, i, rounding_order) ≥ 1
-            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
-            c[i] += _interval_box(CoefType, sup(α * μⁱ))
-        else
-            cᵢ = _0
-            for j ∈ _convolution_indices(space_a, space_b, i)
-                cᵢ += _convolution_getindex(a, i, j) * _convolution_getindex(b, j)
-            end
-            c[i] += cᵢ * α
-        end
-    end
+    C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
+    A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
+    B = _no_alloc_reshape(coefficients(b), dimensions(space_b))
+    _add_mul!(C, A, B, α, space_c, space_a, space_b, (), 0, space_c, bound_ab, X, rounding_order)
     return c
 end
+#
+
+function _add_mul!(C, A, B, α, space_c::BaseSpace, space_a::BaseSpace, space_b::BaseSpace)
+    if !iszero(α)
+        for i ∈ indices(space_c)
+            __convolution!(C, A, B, α, space_c, space_a, space_b, i)
+        end
+    end
+    return C
+end
+function _add_mul!(C, A, B, α, space_c::TensorSpace{<:NTuple{N,BaseSpace}}, space_a::TensorSpace{<:NTuple{N,BaseSpace}}, space_b::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    if !iszero(α)
+        remaining_space_c = Base.front(space_c)
+        remaining_space_a = Base.front(space_a)
+        remaining_space_b = Base.front(space_b)
+        @inbounds current_space_c = space_c[N]
+        @inbounds current_space_a = space_a[N]
+        @inbounds current_space_b = space_b[N]
+        for i ∈ indices(current_space_c)
+            _convolution!(C, A, B, α, current_space_c, current_space_a, current_space_b, remaining_space_c, remaining_space_a, remaining_space_b, i)
+        end
+    end
+    return C
+end
+_add_mul!(C, A, B, α, space_c::TensorSpace{<:Tuple{BaseSpace}}, space_a::TensorSpace{<:Tuple{BaseSpace}}, space_b::TensorSpace{<:Tuple{BaseSpace}}) =
+    @inbounds _add_mul!(C, A, B, α, space_c[1], space_a[1], space_b[1])
+# for Banach rounding
+function _add_mul!(C, A, B, α, space_c::BaseSpace, space_a::BaseSpace, space_b::BaseSpace, bound_ab, X, rounding_order)
+    if !iszero(α)
+        for i ∈ indices(space_c)
+            __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+function _add_mul!(C, A, B, α, space_c::TensorSpace{<:NTuple{N,BaseSpace}}, space_a::TensorSpace{<:NTuple{N,BaseSpace}}, space_b::TensorSpace{<:NTuple{N,BaseSpace}}, t, sum_t, full_space_c, bound_ab, X, rounding_order) where {N}
+    if !iszero(α)
+        remaining_space_c = Base.front(space_c)
+        remaining_space_a = Base.front(space_a)
+        remaining_space_b = Base.front(space_b)
+        @inbounds current_space_c = space_c[N]
+        @inbounds current_space_a = space_a[N]
+        @inbounds current_space_b = space_b[N]
+        for i ∈ indices(current_space_c)
+            _convolution!(C, A, B, α, current_space_c, current_space_a, current_space_b, remaining_space_c, remaining_space_a, remaining_space_b, i,
+                t, sum_t, full_space_c, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+function _add_mul!(C, A, B, α, space_c::TensorSpace{<:Tuple{BaseSpace}}, space_a::TensorSpace{<:Tuple{BaseSpace}}, space_b::TensorSpace{<:Tuple{BaseSpace}}, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+    if !iszero(α)
+        @inbounds current_space_c = space_c[1]
+        @inbounds current_space_a = space_a[1]
+        @inbounds current_space_b = space_b[1]
+        for i ∈ indices(current_space_c)
+            __convolution!(C, A, B, α, current_space_c, current_space_a, current_space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+#
+
+function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current_space_a, current_space_b, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
+    @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
+    @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
+        x = _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
+        if !iszero(x)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
+                selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
+                x * α, remaining_space_c, remaining_space_a, remaining_space_b)
+        end
+    end
+    return C
+end
+# for Banach rounding
+function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current_space_a, current_space_b, remaining_space_c, remaining_space_a, remaining_space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order) where {T,N}
+    if !iszero(α)
+        t_ = (i, t...)
+        sum_t += abs(i)
+        @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
+        @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
+            x = _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
+            if !iszero(x)
+                _add_mul!(Cᵢ,
+                    selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
+                    selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
+                    x * α, remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
+            end
+        end
+    end
+    return C
+end
+#
+
+function __convolution!(C, A, B, α, space_c, space_a, space_b, i)
+    Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+    @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
+        x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+        if !iszero(x)
+            Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
+        end
+    end
+    @inbounds C[_findposition(i, space_c)] += Cᵢ * α
+    return C
+end
+# for Banach rounding
+function __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, rounding_order)
+    if !iszero(α)
+        CoefType = eltype(C)
+        if rounding_order ≤ abs(i)
+            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+            C[_findposition(i, space_c)] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
+                x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+                if !iszero(x)
+                    Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
+                end
+            end
+            @inbounds C[_findposition(i, space_c)] += Cᵢ * α
+        end
+    end
+    return C
+end
+function __convolution!(C, A, B, α, space_c, space_a, space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+    if !iszero(α)
+        CoefType = eltype(C)
+        sum_t += abs(i)
+        if any(≤(sum_t), rounding_order)
+            μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+            C[_findposition(i, space_c)] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
+                x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+                if !iszero(x)
+                    Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
+                end
+            end
+            @inbounds C[_findposition(i, space_c)] += Cᵢ * α
+        end
+    end
+    return C
+end
+#
 
 _convolution_indices(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
     TensorIndices(map(_convolution_indices, spaces(s₁), spaces(s₂), α))
-
-function _convolution_getindex(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
-    space_a = space(a)
-    x = _symmetry_action(space_a, α, β)
-    x == 0 && return x * zero(eltype(a))
-    return @inbounds x * a[_extract_valid_index(space_a, α, β)]
-end
-function _convolution_getindex(a::Sequence{TensorSpace{T}}, α::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
-    space_a = space(a)
-    x = _symmetry_action(space_a, α)
-    x == 0 && return x * zero(eltype(a))
-    return @inbounds x * a[_extract_valid_index(space_a, α)]
-end
 
 _symmetry_action(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
     @inbounds _symmetry_action(s[1], α[1], β[1]) * _symmetry_action(Base.tail(s), Base.tail(α), Base.tail(β))
@@ -357,10 +452,79 @@ _extract_valid_index(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
 
 # Taylor
 
-_convolution_indices(s₁::Taylor, s₂::Taylor, i::Int) = max(i-order(s₁), 0):min(i, order(s₂))
+function __convolution!(C, A, B, α, ::Taylor, space_a::Taylor, space_b::Taylor, i)
+    if !iszero(α)
+        Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+        @inbounds @simd for j ∈ max(i-order(space_a), 0):min(i, order(space_b)) # _convolution_indices(space_a, space_b, i)
+            Cᵢ += A[i-j+1] * B[j+1]
+        end
+        @inbounds C[i+1] += Cᵢ * α
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, ::Taylor, current_space_a::Taylor, current_space_b::Taylor, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
+    if !iszero(α)
+        @inbounds Cᵢ = selectdim(C, N, i+1)
+        @inbounds for j ∈ max(i-order(current_space_a), 0):min(i, order(current_space_b)) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, i-j+1),
+                selectdim(B, N, j+1),
+                α, remaining_space_c, remaining_space_a, remaining_space_b)
+        end
+    end
+    return C
+end
+# for Banach rounding
+function __convolution!(C, A, B, α, space_c::Taylor, space_a::Taylor, space_b::Taylor, i, bound_ab, X, rounding_order)
+    if !iszero(α)
+        CoefType = eltype(C)
+        if rounding_order ≤ i
+            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+            C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order(space_a), 0):min(i, order(space_b)) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[i-j+1] * B[j+1]
+            end
+            @inbounds C[i+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function __convolution!(C, A, B, α, ::Taylor, space_a::Taylor, space_b::Taylor, i, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+    if !iszero(α)
+        CoefType = eltype(C)
+        sum_t += i
+        if any(≤(sum_t), rounding_order)
+            μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+            C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order(space_a), 0):min(i, order(space_b)) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[i-j+1] * B[j+1]
+            end
+            @inbounds C[i+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, ::Taylor, current_space_a::Taylor, current_space_b::Taylor, remaining_space_c, remaining_space_a, remaining_space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order) where {T,N}
+    if !iszero(α)
+        t_ = (i, t...)
+        sum_t += i
+        @inbounds Cᵢ = selectdim(C, N, i+1)
+        @inbounds for j ∈ max(i-order(current_space_a), 0):min(i, order(current_space_b)) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, i-j+1),
+                selectdim(B, N, j+1),
+                α, remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+#
 
-_convolution_getindex(a::Sequence{Taylor}, i::Int, j::Int) = @inbounds a[i-j]
-_convolution_getindex(a::Sequence{Taylor}, i::Int) = @inbounds a[i]
+_convolution_indices(s₁::Taylor, s₂::Taylor, i::Int) = max(i-order(s₁), 0):min(i, order(s₂))
 
 _symmetry_action(::Taylor, i::Int, j::Int) = 1
 _symmetry_action(::Taylor, i::Int) = 1
@@ -370,10 +534,99 @@ _extract_valid_index(::Taylor, i::Int) = i
 
 # Fourier
 
-_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b::Fourier, i)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        ord_a = order_a + 1
+        ord_b = order_b + 1
+        Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+            Cᵢ += A[i-j+ord_a] * B[j+ord_b]
+        end
+        @inbounds C[i+order(space_c)+1] += Cᵢ * α
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c::Fourier, current_space_a::Fourier, current_space_b::Fourier, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
+    if !iszero(α)
+        order_a = order(current_space_a)
+        order_b = order(current_space_b)
+        ord_a = order_a + 1
+        ord_b = order_b + 1
+        @inbounds Cᵢ = selectdim(C, N, i+order(current_space_c)+1)
+        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, i-j+ord_a),
+                selectdim(B, N, j+ord_b),
+                α, remaining_space_c, remaining_space_a, remaining_space_b)
+        end
+    end
+    return C
+end
+# for Banach rounding
+function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b::Fourier, i, bound_ab, X, rounding_order)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        ord_a = order_a + 1
+        ord_b = order_b + 1
+        CoefType = eltype(C)
+        if rounding_order ≤ abs(i)
+            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+            C[i+order(space_c)+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[i-j+ord_a] * B[j+ord_b]
+            end
+            @inbounds C[i+order(space_c)+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b::Fourier, i, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        ord_a = order_a + 1
+        ord_b = order_b + 1
+        CoefType = eltype(C)
+        sum_t += abs(i)
+        if any(≤(sum_t), rounding_order)
+            μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+            C[i+order(space_c)+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[i-j+ord_a] * B[j+ord_b]
+            end
+            @inbounds C[i+order(space_c)+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c::Fourier, current_space_a::Fourier, current_space_b::Fourier, remaining_space_c, remaining_space_a, remaining_space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order) where {T,N}
+    if !iszero(α)
+        order_a = order(current_space_a)
+        order_b = order(current_space_b)
+        ord_a = order_a + 1
+        ord_b = order_b + 1
+        t_ = (i, t...)
+        sum_t += abs(i)
+        @inbounds Cᵢ = selectdim(C, N, i+order(current_space_c)+1)
+        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, i-j+ord_a),
+                selectdim(B, N, j+ord_b),
+                α, remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+#
 
-_convolution_getindex(a::Sequence{<:Fourier}, i::Int, j::Int) = @inbounds a[i-j]
-_convolution_getindex(a::Sequence{<:Fourier}, i::Int) = @inbounds a[i]
+_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
 _symmetry_action(::Fourier, i::Int, j::Int) = 1
 _symmetry_action(::Fourier, i::Int) = 1
@@ -383,10 +636,89 @@ _extract_valid_index(::Fourier, i::Int) = i
 
 # Chebyshev
 
-_convolution_indices(s₁::Chebyshev, s₂::Chebyshev, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+function __convolution!(C, A, B, α, ::Chebyshev, space_a::Chebyshev, space_b::Chebyshev, i)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+            Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
+        end
+        @inbounds C[i+1] += Cᵢ * α
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, ::Chebyshev, current_space_a::Chebyshev, current_space_b::Chebyshev, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
+    if !iszero(α)
+        order_a = order(current_space_a)
+        order_b = order(current_space_b)
+        @inbounds Cᵢ = selectdim(C, N, i+1)
+        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, abs(i-j)+1),
+                selectdim(B, N, abs(j)+1),
+                α, remaining_space_c, remaining_space_a, remaining_space_b)
+        end
+    end
+    return C
+end
+# for Banach rounding
+function __convolution!(C, A, B, α, space_c::Chebyshev, space_a::Chebyshev, space_b::Chebyshev, i, bound_ab, X, rounding_order)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        CoefType = eltype(C)
+        if rounding_order ≤ i
+            μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+            C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
+            end
+            @inbounds C[i+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function __convolution!(C, A, B, α, ::Chebyshev, space_a::Chebyshev, space_b::Chebyshev, i, t, sum_t, full_space_c, bound_ab, X, rounding_order)
+    if !iszero(α)
+        order_a = order(space_a)
+        order_b = order(space_b)
+        CoefType = eltype(C)
+        sum_t += i
+        if any(≤(sum_t), rounding_order)
+            μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+            C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
+        else
+            Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+            @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+                Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
+            end
+            @inbounds C[i+1] += Cᵢ * α
+        end
+    end
+    return C
+end
+function _convolution!(C::AbstractArray{T,N}, A, B, α, ::Chebyshev, current_space_a::Chebyshev, current_space_b::Chebyshev, remaining_space_c, remaining_space_a, remaining_space_b, i, t, sum_t, full_space_c, bound_ab, X, rounding_order) where {T,N}
+    if !iszero(α)
+        order_a = order(current_space_a)
+        order_b = order(current_space_b)
+        t_ = (i, t...)
+        sum_t += i
+        @inbounds Cᵢ = selectdim(C, N, i+1)
+        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+            _add_mul!(Cᵢ,
+                selectdim(A, N, abs(i-j)+1),
+                selectdim(B, N, abs(j)+1),
+                α, remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
+        end
+    end
+    return C
+end
+#
 
-_convolution_getindex(a::Sequence{Chebyshev}, i::Int, j::Int) = @inbounds a[abs(i-j)]
-_convolution_getindex(a::Sequence{Chebyshev}, i::Int) = @inbounds a[abs(i)]
+_convolution_indices(s₁::Chebyshev, s₂::Chebyshev, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
 _symmetry_action(::Chebyshev, i::Int, j::Int) = 1
 _symmetry_action(::Chebyshev, i::Int) = 1

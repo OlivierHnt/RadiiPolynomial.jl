@@ -530,7 +530,7 @@ function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(2 .* s .+ selectdim(A, N, 1))
+    @inbounds s .= sqrt.(2 .* s .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 _apply_dual(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
@@ -544,7 +544,7 @@ function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(s ./ 2 .+ selectdim(A, N, 1))
+    @inbounds s .= sqrt.(s ./ 2 .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 

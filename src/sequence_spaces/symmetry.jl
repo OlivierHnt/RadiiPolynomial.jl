@@ -3,6 +3,9 @@ abstract type SymBaseSpace <: BaseSpace end
 desymmetrize(s::SymBaseSpace) = s.space
 desymmetrize(s::TensorSpace) = TensorSpace(map(desymmetrize, spaces(s)))
 desymmetrize(s::BaseSpace) = s
+desymmetrize(s::ParameterSpace) = s
+desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces(s))
+desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 order(s::SymBaseSpace) = order(desymmetrize(s))
 frequency(s::SymBaseSpace) = frequency(desymmetrize(s))
@@ -116,28 +119,24 @@ image(::typeof(mul_bar), s₁::SinFourier, s₂::CosFourier) = SinFourier(image(
 # Convolution
 
 function __convolution!(C, A, B, α, ::CosFourier, space_a::CosFourier, space_b::CosFourier, i)
-    if !iszero(α)
-        order_a = order(space_a)
-        order_b = order(space_b)
-        Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
-            Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
-        end
-        @inbounds C[i+1] += Cᵢ * α
+    order_a = order(space_a)
+    order_b = order(space_b)
+    Cᵢ = zero(promote_type(eltype(A), eltype(B)))
+    @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+        Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
     end
+    @inbounds C[i+1] += Cᵢ * α
     return C
 end
 function _convolution!(C::AbstractArray{T,N}, A, B, α, ::CosFourier, current_space_a::CosFourier, current_space_b::CosFourier, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
-    if !iszero(α)
-        order_a = order(current_space_a)
-        order_b = order(current_space_b)
-        @inbounds Cᵢ = selectdim(C, N, i+1)
-        @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
-            _add_mul!(Cᵢ,
-                selectdim(A, N, abs(i-j)+1),
-                selectdim(B, N, abs(j)+1),
-                α, remaining_space_c, remaining_space_a, remaining_space_b)
-        end
+    order_a = order(current_space_a)
+    order_b = order(current_space_b)
+    @inbounds Cᵢ = selectdim(C, N, i+1)
+    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+        _add_mul!(Cᵢ,
+            selectdim(A, N, abs(i-j)+1),
+            selectdim(B, N, abs(j)+1),
+            α, remaining_space_c, remaining_space_a, remaining_space_b)
     end
     return C
 end
@@ -249,12 +248,7 @@ function _nzval(𝒟::Derivative, domain::CosFourier, ::CosFourier, ::Type{T}, i
         return one(T)
     else
         ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
-        r = n % 4
-        if r == 0
-            return convert(T, ωⁿjⁿ)
-        else
-            return convert(T, -ωⁿjⁿ)
-        end
+        return convert(T, ifelse(n % 4 == 0, ωⁿjⁿ, -ωⁿjⁿ))
     end
 end
 
@@ -263,7 +257,7 @@ end
 _memo(::CosFourier, ::Type{T}) where {T} = Dict{Int,T}()
 
 image(::Evaluation{Nothing}, s::CosFourier) = s
-image(::Evaluation, s::CosFourier) = SymBaseSpace(symmetry(s), Fourier(0, frequency(s)))
+image(::Evaluation, s::CosFourier) = CosFourier(0, frequency(s))
 
 _coeftype(::Evaluation{Nothing}, ::CosFourier, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, s::CosFourier, ::Type{S}) where {T,S} =

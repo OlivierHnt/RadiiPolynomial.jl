@@ -144,8 +144,8 @@ end
 _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
-_symmetry_action(::CosFourier, i::Int, j::Int) = 1
-_symmetry_action(::CosFourier, i::Int) = 1
+_symmetry_action(::CosFourier, ::Int, ::Int) = 1
+_symmetry_action(::CosFourier, ::Int) = 1
 
 _extract_valid_index(::CosFourier, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::CosFourier, i::Int) = abs(i)
@@ -155,7 +155,10 @@ _extract_valid_index(::CosFourier, i::Int) = abs(i)
 _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
-_symmetry_action(::SinFourier, i::Int, j::Int) = (x = i-j; ifelse(x == 0, 0, flipsign(1, x)))
+function _symmetry_action(::SinFourier, i::Int, j::Int)
+    x = i-j
+    return ifelse(x == 0, 0, flipsign(1, x))
+end
 _symmetry_action(::SinFourier, i::Int) = ifelse(i == 0, 0, flipsign(1, i))
 
 _extract_valid_index(::SinFourier, i::Int, j::Int) = abs(i-j)

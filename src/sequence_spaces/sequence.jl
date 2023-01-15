@@ -222,6 +222,6 @@ Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
 # show
 
 function Base.show(io::IO, ::MIME"text/plain", a::Sequence)
-    println(io, "Sequence in ", string_space(space(a)), " with coefficients ", typeof(coefficients(a)), ":")
+    println(io, "Sequence in ", _prettystring(space(a)), " with coefficients ", typeof(coefficients(a)), ":")
     Base.print_array(io, coefficients(a))
 end

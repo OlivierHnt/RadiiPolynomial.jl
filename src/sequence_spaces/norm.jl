@@ -386,6 +386,15 @@ _getindex(weight::BesselWeight{<:Interval}, ::TensorSpace{<:NTuple{N,Fourier}}, 
 _getindex(weight::BesselWeight, ::Fourier, i::Int) = (one(weight.rate) + i*i) ^ weight.rate
 _getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = pow(one(weight.rate) + i*i, weight.rate)
 
+# show
+
+Base.show(io::IO, ::MIME"text/plain", weight::Weight) = print(io, _prettystring(weight))
+
+_prettystring(weight::Weight) = string(weight)
+_prettystring(weight::GeometricWeight) = "GeometricWeight(" * string(weight.rate) * ")"
+_prettystring(weight::AlgebraicWeight) = "AlgebraicWeight(" * string(weight.rate) * ")"
+_prettystring(weight::BesselWeight) = "BesselWeight(" * string(weight.rate) * ")"
+
 #
 
 """
@@ -613,6 +622,25 @@ struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:
     inner :: T
     outer :: S
 end
+
+# show
+
+Base.show(io::IO, ::MIME"text/plain", X::BanachSpace) = print(io, _prettystring(X))
+
+_prettystring(X::BanachSpace) = string(X)
+
+_prettystring(::Ell1{IdentityWeight}) = "ℓ¹()"
+_prettystring(::Ell2{IdentityWeight}) = "ℓ²()"
+_prettystring(::EllInf{IdentityWeight}) = "ℓ∞()"
+_prettystring(X::Ell1) = "ℓ¹(" * _prettystring(X.weight) * ")"
+_prettystring(X::Ell2) = "ℓ²(" * _prettystring(X.weight) * ")"
+_prettystring(X::EllInf) = "ℓ∞(" * _prettystring(X.weight) * ")"
+
+_prettystring(X::NormedCartesianSpace{<:BanachSpace}) =
+    "NormedCartesianSpace(" * _prettystring(X.inner) * ", " *  _prettystring(X.outer) * ")"
+
+_prettystring(X::NormedCartesianSpace{<:Tuple{Vararg{BanachSpace}}}) =
+    "NormedCartesianSpace((" * mapreduce(_prettystring, (x, y) -> x * ", " * y, X.inner) * "), " *  _prettystring(X.outer) * ")"
 
 #
 

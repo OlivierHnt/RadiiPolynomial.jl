@@ -786,30 +786,30 @@ _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
 
 # show
 
-Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, string_space(s))
+Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))
 
-string_space(s::VectorSpace) = string(s)
+_prettystring(s::VectorSpace) = string(s)
 
-string_space(::ParameterSpace) = "𝕂"
+_prettystring(::ParameterSpace) = "𝕂"
 
-string_space(s::TensorSpace) = string_space(s[1]) * " ⊗ " * string_space(Base.tail(s))
-string_space(s::TensorSpace{<:NTuple{2,BaseSpace}}) = string_space(s[1]) * " ⊗ " * string_space(s[2])
-string_space(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * string_space(s[1]) * ")"
+_prettystring(s::TensorSpace) = _prettystring(s[1]) * " ⊗ " * _prettystring(Base.tail(s))
+_prettystring(s::TensorSpace{<:NTuple{2,BaseSpace}}) = _prettystring(s[1]) * " ⊗ " * _prettystring(s[2])
+_prettystring(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * _prettystring(s[1]) * ")"
 
-string_space(s::Taylor) = "Taylor(" * string(order(s)) * ")"
-string_space(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
-string_space(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
+_prettystring(s::Taylor) = "Taylor(" * string(order(s)) * ")"
+_prettystring(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+_prettystring(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
 
-string_space(s::CartesianPower) = string_space(space(s)) * _supscript(nspaces(s))
-string_space(s::CartesianPower{<:TensorSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nspaces(s))
-string_space(s::CartesianPower{<:CartesianSpace}) = "(" * string_space(space(s)) * ")" * _supscript(nspaces(s))
+_prettystring(s::CartesianPower) = _prettystring(space(s)) * _supscript(nspaces(s))
+_prettystring(s::CartesianPower{<:TensorSpace}) = "(" * _prettystring(space(s)) * ")" * _supscript(nspaces(s))
+_prettystring(s::CartesianPower{<:CartesianSpace}) = "(" * _prettystring(space(s)) * ")" * _supscript(nspaces(s))
 
-string_space(s::CartesianProduct) = cartesian_string_space(s[1]) * " × " * string_space(Base.tail(s))
-string_space(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = cartesian_string_space(s[1]) * " × " * cartesian_string_space(s[2])
-string_space(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * string_space(s[1]) * ")"
-cartesian_string_space(s::VectorSpace) = string_space(s)
-cartesian_string_space(s::TensorSpace) = "(" * string_space(s) * ")"
-cartesian_string_space(s::CartesianProduct) = "(" * string_space(s) * ")"
+_prettystring(s::CartesianProduct) = _prettystring_cartesian(s[1]) * " × " * _prettystring(Base.tail(s))
+_prettystring(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = _prettystring_cartesian(s[1]) * " × " * _prettystring_cartesian(s[2])
+_prettystring(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * _prettystring(s[1]) * ")"
+_prettystring_cartesian(s::VectorSpace) = _prettystring(s)
+_prettystring_cartesian(s::TensorSpace) = "(" * _prettystring(s) * ")"
+_prettystring_cartesian(s::CartesianProduct) = "(" * _prettystring(s) * ")"
 
 function _supscript_digit(i::Int)
     if i == 0

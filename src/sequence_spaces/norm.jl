@@ -43,7 +43,7 @@ See also: [`geometricweight`](@ref), [`IdentityWeight`](@ref),
 # Examples
 ```jldoctest
 julia> w = GeometricWeight(1.0)
-GeometricWeight{Float64}(1.0)
+GeometricWeight(1.0)
 
 julia> rate(w)
 1.0
@@ -201,7 +201,7 @@ See also: [`algebraicweight`](@ref), [`IdentityWeight`](@ref),
 # Examples
 ```jldoctest
 julia> w = AlgebraicWeight(1.0)
-AlgebraicWeight{Float64}(1.0)
+AlgebraicWeight(1.0)
 
 julia> rate(w)
 1.0
@@ -360,7 +360,7 @@ See also: [`IdentityWeight`](@ref), [`GeometricWeight`](@ref), [`geometricweight
 # Examples
 ```jldoctest
 julia> w = BesselWeight(1.0)
-BesselWeight{Float64}(1.0)
+BesselWeight(1.0)
 
 julia> rate(w)
 1.0
@@ -426,13 +426,13 @@ See also: [`Ell2`](@ref) and [`EllInf`](@ref).
 # Examples
 ```jldoctest
 julia> Ell1()
-Ell1{IdentityWeight}(IdentityWeight())
+ℓ¹()
 
 julia> Ell1(GeometricWeight(1.0))
-Ell1{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+ℓ¹(GeometricWeight(1.0))
 
 julia> Ell1(GeometricWeight(1.0), AlgebraicWeight(2.0))
-Ell1{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
 ```
 """
 struct Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
@@ -457,13 +457,13 @@ Unicode alias of [`Ell1`](@ref) representing the weighted ``\\ell^1`` space.
 # Examples
 ```jldoctest
 julia> ℓ¹()
-Ell1{IdentityWeight}(IdentityWeight())
+ℓ¹()
 
 julia> ℓ¹(GeometricWeight(1.0))
-Ell1{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+ℓ¹(GeometricWeight(1.0))
 
 julia> ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
-Ell1{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
 ```
 """
 const ℓ¹ = Ell1
@@ -490,13 +490,13 @@ See also: [`Ell1`](@ref) and [`EllInf`](@ref).
 # Examples
 ```jldoctest
 julia> Ell2()
-Ell2{IdentityWeight}(IdentityWeight())
+ℓ²()
 
 julia> Ell2(BesselWeight(1.0))
-Ell2{BesselWeight{Float64}}(BesselWeight{Float64}(1.0))
+ℓ²(BesselWeight(1.0))
 
 julia> Ell2(BesselWeight(1.0), GeometricWeight(2.0))
-Ell2{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float64}(1.0), GeometricWeight{Float64}(2.0)))
+ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
 ```
 """
 struct Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
@@ -521,13 +521,13 @@ Unicode alias of [`Ell2`](@ref) representing the weighted ``\\ell^2`` space.
 # Examples
 ```jldoctest
 julia> ℓ²()
-Ell2{IdentityWeight}(IdentityWeight())
+ℓ²()
 
 julia> ℓ²(BesselWeight(1.0))
-Ell2{BesselWeight{Float64}}(BesselWeight{Float64}(1.0))
+ℓ²(BesselWeight(1.0))
 
 julia> ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
-Ell2{Tuple{BesselWeight{Float64}, GeometricWeight{Float64}}}((BesselWeight{Float64}(1.0), GeometricWeight{Float64}(2.0)))
+ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
 ```
 """
 const ℓ² = Ell2
@@ -554,13 +554,13 @@ See also: [`Ell1`](@ref) and [`Ell2`](@ref).
 # Examples
 ```jldoctest
 julia> EllInf()
-EllInf{IdentityWeight}(IdentityWeight())
+ℓ∞()
 
 julia> EllInf(GeometricWeight(1.0))
-EllInf{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+ℓ∞(GeometricWeight(1.0))
 
 julia> EllInf(GeometricWeight(1.0), AlgebraicWeight(2.0))
-EllInf{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
 ```
 """
 struct EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
@@ -585,13 +585,13 @@ Unicode alias of [`EllInf`](@ref) representing the weighted ``\\ell^\\infty`` sp
 # Examples
 ```jldoctest
 julia> ℓ∞()
-EllInf{IdentityWeight}(IdentityWeight())
+ℓ∞()
 
 julia> ℓ∞(GeometricWeight(1.0))
-EllInf{GeometricWeight{Float64}}(GeometricWeight{Float64}(1.0))
+ℓ∞(GeometricWeight(1.0))
 
 julia> ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
-EllInf{Tuple{GeometricWeight{Float64}, AlgebraicWeight{Float64}}}((GeometricWeight{Float64}(1.0), AlgebraicWeight{Float64}(2.0)))
+ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
 ```
 """
 const ℓ∞ = EllInf
@@ -612,10 +612,10 @@ See also: [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
 # Examples
 ```jldoctest
 julia> NormedCartesianSpace(Ell1(), EllInf())
-NormedCartesianSpace{Ell1{IdentityWeight}, EllInf{IdentityWeight}}(Ell1{IdentityWeight}(IdentityWeight()), EllInf{IdentityWeight}(IdentityWeight()))
+NormedCartesianSpace(ℓ¹(), ℓ∞())
 
 julia> NormedCartesianSpace((Ell1(), Ell2()), EllInf())
-NormedCartesianSpace{Tuple{Ell1{IdentityWeight}, Ell2{IdentityWeight}}, EllInf{IdentityWeight}}((Ell1{IdentityWeight}(IdentityWeight()), Ell2{IdentityWeight}(IdentityWeight())), EllInf{IdentityWeight}(IdentityWeight()))
+NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞())
 ```
 """
 struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
@@ -630,11 +630,16 @@ Base.show(io::IO, ::MIME"text/plain", X::BanachSpace) = print(io, _prettystring(
 _prettystring(X::BanachSpace) = string(X)
 
 _prettystring(::Ell1{IdentityWeight}) = "ℓ¹()"
+_prettystring(X::Ell1{<:Weight}) = "ℓ¹(" * _prettystring(X.weight) * ")"
+_prettystring(X::Ell1{<:Tuple{Vararg{Weight}}}) = "ℓ¹(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, X.weight) * ")"
+
 _prettystring(::Ell2{IdentityWeight}) = "ℓ²()"
+_prettystring(X::Ell2{<:Weight}) = "ℓ²(" * _prettystring(X.weight) * ")"
+_prettystring(X::Ell2{<:Tuple{Vararg{Weight}}}) = "ℓ²(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, X.weight) * ")"
+
 _prettystring(::EllInf{IdentityWeight}) = "ℓ∞()"
-_prettystring(X::Ell1) = "ℓ¹(" * _prettystring(X.weight) * ")"
-_prettystring(X::Ell2) = "ℓ²(" * _prettystring(X.weight) * ")"
-_prettystring(X::EllInf) = "ℓ∞(" * _prettystring(X.weight) * ")"
+_prettystring(X::EllInf{<:Weight}) = "ℓ∞(" * _prettystring(X.weight) * ")"
+_prettystring(X::EllInf{<:Tuple{Vararg{Weight}}}) = "ℓ∞(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, X.weight) * ")"
 
 _prettystring(X::NormedCartesianSpace{<:BanachSpace}) =
     "NormedCartesianSpace(" * _prettystring(X.inner) * ", " *  _prettystring(X.outer) * ")"

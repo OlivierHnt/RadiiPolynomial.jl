@@ -44,6 +44,4 @@ end # hide
     <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a>, <a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
   </div>
 </div>
-
-
-You may refer to [10.5281/zenodo.5705258](https://doi.org/10.5281/zenodo.5705258) for more information.
+```

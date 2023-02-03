@@ -803,6 +803,22 @@ _prettystring_cartesian(s::VectorSpace) = _prettystring(s)
 _prettystring_cartesian(s::TensorSpace) = "(" * _prettystring(s) * ")"
 _prettystring_cartesian(s::CartesianProduct) = "(" * _prettystring(s) * ")"
 
+function _supscript(n::Int)
+    if 0 ≤ n ≤ 9
+        return _supscript_digit(n)
+    else
+        len = ndigits(n)
+        x = Vector{String}(undef, len)
+        i = 0
+        while n > 0
+            n, d = divrem(n, 10)
+            x[len-i] = _supscript_digit(d)
+            i += 1
+        end
+        return join(x)
+    end
+end
+
 function _supscript_digit(i::Int)
     if i == 0
         return "⁰"
@@ -824,17 +840,5 @@ function _supscript_digit(i::Int)
         return "⁸"
     else
         return "⁹"
-    end
-end
-function _supscript(n::Int)
-    if 0 ≤ n ≤ 9
-        return _supscript_digit(n)
-    else
-        x = ""
-        while n > 0
-            n, d = divrem(n, 10)
-            x = string(_supscript_digit(d), x)
-        end
-        return x
     end
 end

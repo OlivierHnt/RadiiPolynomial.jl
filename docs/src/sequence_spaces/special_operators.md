@@ -32,7 +32,7 @@ project(A, space(a))
 Let ``V`` be a [`SequenceSpace`](@ref) with discrete convolution ``*`` and ``a \in V``. The multiplication operator [`Multiplication`](@ref) represents the mapping ``\mathcal{M}_a : V \to V`` defined by
 
 ```math
-\mathcal{M}_a (b) := a * b, \qquad \text{for all } b \in V.
+\mathcal{M}_a (b) \bydef a * b, \qquad \text{for all } b \in V.
 ```
 
 The action of [`Multiplication`](@ref) is performed by the right product `*` of a [`Multiplication`](@ref) with a `Sequence{<:SequenceSpace}`; alternatively, [`Multiplication`](@ref) defines a method on a `Sequence{<:SequenceSpace}` representing `*`.

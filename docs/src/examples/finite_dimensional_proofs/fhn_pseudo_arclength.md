@@ -4,7 +4,7 @@ In this example, we will prove the existence of a branch of equilibria of the Fi
 
 ```math
 \begin{cases}
-\displaystyle \frac{d}{dt} u(t) = f(\gamma, u(t)) := \begin{pmatrix} u_1(t)(u_1(t) - a)(1 - u_1(t)) - u_2(t) \\ \varepsilon(u_1(t) - \gamma u_2(t)) \end{pmatrix},\\
+\displaystyle \frac{d}{dt} u(t) = f(\gamma, u(t)) \bydef \begin{pmatrix} u_1(t)(u_1(t) - a)(1 - u_1(t)) - u_2(t) \\ \varepsilon(u_1(t) - \gamma u_2(t)) \end{pmatrix},\\
 u(0) = u_0 \in \mathbb{R}^2,
 \end{cases}
 ```
@@ -30,10 +30,10 @@ nothing # hide
 
 To this end, we use the [pseudo-arclength continuation](https://en.wikipedia.org/wiki/Numerical_continuation#Pseudo-arclength_continuation) and prove, at each step, that there exists a box, surrounding the linear numerical approximation, which contains the desired curve.
 
-In a nutshell, the pseudo-arclength continuation consists in computing a sequence of numerical zeros of ``f``. Starting with an initial approximate zero ``x_\text{init} \in \mathbb{R}^3``, we retrieve an approximate tangent vector ``v`` to the curve at ``x_\text{init}`` by looking at ``\ker Df(x_\text{init})``. Then, our predictor for the next zero is set to ``w := x_\text{init} + \delta v`` where ``\delta > 0`` represents the step size. The Newton's method is applied on the mapping ``F_\text{Newton} : \mathbb{R}^3 \to \mathbb{R}^3`` given by
+In a nutshell, the pseudo-arclength continuation consists in computing a sequence of numerical zeros of ``f``. Starting with an initial approximate zero ``x_\text{init} \in \mathbb{R}^3``, we retrieve an approximate tangent vector ``v`` to the curve at ``x_\text{init}`` by looking at ``\ker Df(x_\text{init})``. Then, our predictor for the next zero is set to ``w \bydef x_\text{init} + \delta v`` where ``\delta > 0`` represents the step size. The Newton's method is applied on the mapping ``F_\text{Newton} : \mathbb{R}^3 \to \mathbb{R}^3`` given by
 
 ```math
-F_\text{Newton}(x) :=
+F_\text{Newton}(x) \bydef
 \begin{pmatrix}
 (x - w) \cdot v\\
 f(x)
@@ -72,13 +72,13 @@ nothing # hide
 Once the Newton's method converged to some ``x_\text{final} \in \mathbb{R}^3``, we make a linear approximation of the curve of zeros
 
 ```math
-x_0(s) := x_\text{init} + s (x_\text{final} - x_\text{init}), \qquad \text{for all } s \in [0,1].
+x_0(s) \bydef x_\text{init} + s (x_\text{final} - x_\text{init}), \qquad \text{for all } s \in [0,1].
 ```
 
 Define the mapping ``F : \mathbb{R}^3 \times [0,1] \to \mathbb{R}^3`` by
 
 ```math
-F(x, s) :=
+F(x, s) \bydef
 \begin{pmatrix}
 (x - x_0(s)) \cdot v\\
 f(x)
@@ -88,12 +88,12 @@ f(x)
 and the fixed-point operator ``T : \mathbb{R}^3 \times [0,1] \to \mathbb{R}^3`` by
 
 ```math
-T(x, s) := x - A F(x, s),
+T(x, s) \bydef x - A F(x, s),
 ```
 
 where ``A : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``D_x F(x_0(s), s)^{-1}`` for all ``s \in [0, 1]``.
 
-Let ``R > 0``. We use a uniform version of the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty``, ``|D_x T(x_0(s), s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x^2 T(x, s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
+Let ``R > 0``. We use a uniform version of the second-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)) such that we need to estimate ``|T(x_0(s), s) - x_0(s)|_\infty``, ``|D_x T(x_0(s), s)|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0(s)) )} |D_x^2 T(x, s)|_\infty`` for all ``s \in [0,1]``. In particular, we have
 
 ```math
 |T(x_0(s), s) - x_0(s)|_\infty = \left|A \begin{pmatrix} 0 \\ f(x_0(s)) \end{pmatrix} \right|_\infty, \qquad \text{for all } s \in [0,1].

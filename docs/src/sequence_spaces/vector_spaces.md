@@ -58,7 +58,7 @@ BaseSpace
 
 #### Taylor
 
-For a given order ``n``, a [`Taylor`](@ref) sequence space is the span of ``\{\phi_0, \dots, \phi_n\}`` where ``\phi_k(t) := t^k`` for ``k = 0, \dots, n`` and ``t \in [-\nu, \nu]`` for some appropriate ``\nu > 0``.
+For a given order ``n``, a [`Taylor`](@ref) sequence space is the span of ``\{\phi_0, \dots, \phi_n\}`` where ``\phi_k(t) \bydef t^k`` for ``k = 0, \dots, n`` and ``t \in [-\nu, \nu]`` for some appropriate ``\nu > 0``.
 
 ```@repl vector_spaces
 𝒯 = Taylor(1)
@@ -69,7 +69,7 @@ indices(𝒯)
 
 #### Fourier
 
-For a given order ``n`` and frequency ``\omega``, a [`Fourier`](@ref) sequence space is the span of ``\{\phi_{-n}, \dots, \phi_n\}`` where ``\phi_k(t) := e^{i \omega k t}`` for ``k = -n, \dots, n`` and ``t \in \mathbb{R}/2\pi\omega^{-1}\mathbb{Z}``.
+For a given order ``n`` and frequency ``\omega``, a [`Fourier`](@ref) sequence space is the span of ``\{\phi_{-n}, \dots, \phi_n\}`` where ``\phi_k(t) \bydef e^{i \omega k t}`` for ``k = -n, \dots, n`` and ``t \in \mathbb{R}/2\pi\omega^{-1}\mathbb{Z}``.
 
 ```@repl vector_spaces
 ℱ = Fourier(1, 1.0)
@@ -81,7 +81,7 @@ indices(ℱ)
 
 #### Chebyshev
 
-For a given order ``n``, a [`Chebyshev`](@ref) sequence space is the span of ``\{\phi_0, \phi_1, \dots, \phi_n\}`` where ``\phi_0(t) := 1``, ``\phi_1(t) := t`` and ``\phi_k(t) := 2 t \phi_{k-1}(t) - \phi_{k-2}(t)`` for ``k = 2, \dots, n`` and ``t \in [-1, 1]``.
+For a given order ``n``, a [`Chebyshev`](@ref) sequence space is the span of ``\{\phi_0, \phi_1, \dots, \phi_n\}`` where ``\phi_0(t) \bydef 1``, ``\phi_1(t) \bydef t`` and ``\phi_k(t) \bydef 2 t \phi_{k-1}(t) - \phi_{k-2}(t)`` for ``k = 2, \dots, n`` and ``t \in [-1, 1]``.
 
 It is important to note that the coefficients ``\{a_0, a_1, \dots, a_n\}`` associated with a [`Chebyshev`](@ref) space are normalized such that ``\{a_0, 2a_1, \dots, 2a_n\}`` are the actual Chebyshev coefficients.
 

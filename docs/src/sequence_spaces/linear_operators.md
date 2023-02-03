@@ -18,6 +18,16 @@ codomain(A)
 coefficients(A)
 ```
 
+For convenience, the methods `zeros`, `ones`, `fill` and `fill!` are available:
+
+```@repl linear_operators
+dom, codom = Taylor(1), Taylor(2)
+zeros(dom, codom)
+ones(dom, codom)
+fill(2, dom, codom)
+fill!(zeros(dom, codom), 2)
+```
+
 The coefficients of a [`LinearOperator`](@ref) are indexed according to the indices of the domain and codomain (as given by `indices`).
 
 ```@repl linear_operators

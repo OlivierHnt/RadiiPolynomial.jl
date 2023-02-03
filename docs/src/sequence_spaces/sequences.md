@@ -17,6 +17,16 @@ space(a)
 coefficients(a)
 ```
 
+For convenience, the methods `zeros`, `ones`, `fill` and `fill!` are available:
+
+```@repl sequences
+s = Taylor(1)
+zeros(s)
+ones(s)
+fill(2, s)
+fill!(zeros(s), 2)
+```
+
 The coefficients of a [`Sequence`](@ref) are indexed according to the indices of the space (as given by `indices`).
 
 ```@repl sequences

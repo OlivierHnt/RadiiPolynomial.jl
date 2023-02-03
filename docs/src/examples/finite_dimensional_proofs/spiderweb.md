@@ -16,7 +16,7 @@ m_i \frac{d^2}{dt^2} \mathbf{r}_i
 -\frac{\partial}{\partial \mathbf{r}_i} U (\mathbf{r}),
 \qquad
 U (\mathbf{r})
-:=
+\bydef
 -\sum_{i<j} \frac{G m_i m_j}{|\mathbf{r}_i - \mathbf{r}_j|},
 ```
 
@@ -24,7 +24,7 @@ for ``i = 1,\dots,N``, with ``\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N
 
 In the following, we fix the centre of mass at the origin and scale ``G = 1``. Moreover, due to the symmetries of a spiderweb central configuration, it is sufficient to consider the accelerations of the ``n`` bodies on the positive horizontal axis, and the numbers ``r_1, \dots, r_n`` also denote the positions of the masses on this semi-axis.
 
-The configuration of ``N`` bodies is *central* at some time ``t^*`` if ``\frac{d^2}{dt^2}\mathbf{r}(t^*) = \lambda \mathbf{r}(t^*)`` for some common ``\lambda``. It is easy to see that ``\lambda`` is a strictly negative value given by ``\lambda = U(\mathbf{r})/I(\mathbf{r}) < 0`` where ``I := \sum_{i = 1}^N m_i |\mathbf{r}_i(\mathbf{r})|^2`` is the moment of inertia. Essentially, the value of ``\lambda`` scales the system and can be chosen arbitrarily.
+The configuration of ``N`` bodies is *central* at some time ``t^*`` if ``\frac{d^2}{dt^2}\mathbf{r}(t^*) = \lambda \mathbf{r}(t^*)`` for some common ``\lambda``. It is easy to see that ``\lambda`` is a strictly negative value given by ``\lambda = U(\mathbf{r})/I(\mathbf{r}) < 0`` where ``I \bydef \sum_{i = 1}^N m_i |\mathbf{r}_i(\mathbf{r})|^2`` is the moment of inertia. Essentially, the value of ``\lambda`` scales the system and can be chosen arbitrarily.
 
 Then, the original system of ODEs reduces to the following system of equations in ``\mathbb{R}^n``:
 
@@ -34,16 +34,16 @@ Then, the original system of ODEs reduces to the following system of equations i
 -\sum_{k=1}^{\ell-1} \frac{m_i}{2^{3/2}r_i^2(1 - \cos(\theta_k))^{1/2}} -\frac{m_0}{r_i^2} - \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^n \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}},
 ```
 
-for ``i = 1, \dots, n``, with ``\theta_k := \frac{2\pi k}{\ell}`` and ``r = (r_1,\dots,r_n) \in \mathbb{R}^n``.
+for ``i = 1, \dots, n``, with ``\theta_k \bydef \frac{2\pi k}{\ell}`` and ``r = (r_1,\dots,r_n) \in \mathbb{R}^n``.
 
-Thus, a spiderweb central configuration is a zero of the mapping ``F := (F_1, \dots, F_n) : \mathbb{R}^n \to \mathbb{R}^n`` given by
+Thus, a spiderweb central configuration is a zero of the mapping ``F \bydef (F_1, \dots, F_n) : \mathbb{R}^n \to \mathbb{R}^n`` given by
 
 ```math
-F_i(r) :=
+F_i(r) \bydef
 \lambda r_i + \frac{m_0}{r_i^2} + \frac{m_i}{2^{3/2}r_i^2}\zeta_{\ell} + \sum_{\begin{smallmatrix}j = 1 \\ j \neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}} , \qquad i = 1,\, \dots,\, n,
 ```
 
-where ``\zeta_{\ell} := \sum_{k=1}^{\ell-1} (1 - \cos(\theta_k))^{-1/2}``.
+where ``\zeta_{\ell} \bydef \sum_{k=1}^{\ell-1} (1 - \cos(\theta_k))^{-1/2}``.
 
 The Jacobian matrix is given by
 
@@ -112,7 +112,7 @@ nothing # hide
 Consider the fixed-point operator ``T : \mathbb{R}^n \to \mathbb{R}^n`` defined by
 
 ```math
-T(x) := x - A F(x),
+T(x) \bydef x - A F(x),
 ```
 
 where ``A : \mathbb{R}^n \to \mathbb{R}^n`` is the injective operator corresponding to a numerical approximation of ``DF(x_0)^{-1}`` for some numerical zero ``x_0 \in \mathbb{R}^n`` of ``F``.
@@ -135,7 +135,7 @@ x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀)
 nothing # hide
 ```
 
-Let ``R > 0``. According to the [first-order Radii Polynomial Theorem](@ref first_order_RPT), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_\infty`` which can be readily computed with interval arithmetic.
+Let ``R > 0``. According to the first-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_\infty`` which can be readily computed with interval arithmetic.
 
 The computer-assisted proof may be implemented as follows:
 

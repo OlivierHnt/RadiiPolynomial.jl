@@ -7,12 +7,18 @@ makedocs(;
     authors = "Olivier Hénot",
     sitename = "RadiiPolynomial.jl",
     format = Documenter.HTML(;
+        assets = ["assets/radiipolynomial.css"],
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://OlivierHnt.github.io/RadiiPolynomial.jl"
+        canonical = "https://OlivierHnt.github.io/RadiiPolynomial.jl",
+        mathengine = KaTeX(Dict(
+            :macros => Dict(
+                "\\bydef" => "\\stackrel{\\tiny\\text{def}}{=}"
+            )
+        ))
     ),
     pages = [
         "Home" => "index.md",
-        "Radii polynomial approach" => "radii_polynomial_approach.md",
+        "State of the art" => "radii_polynomial_approach.md",
         "Sequence spaces" => [
             "sequence_spaces/vector_spaces.md",
             "sequence_spaces/sequences.md",

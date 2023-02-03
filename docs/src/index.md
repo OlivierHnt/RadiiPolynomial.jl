@@ -1,32 +1,37 @@
-## Presentation
+```@raw html
+<!--
+Julia colors:
+#1f83ff (blue)
+#CA3C32 (red)
+#399746 (green)
+#9259A3 (purple)
+-->
 
-The solution of many problems in dynamical systems can be seen as the fixed-point of an operator. In computer-assisted proofs, the Radii Polynomial Theorem gives us closed ball(s), centred at a numerical approximation of the fixed-point, within which the operator satisfies the [Banach Fixed-Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem).[^1]
+<h1 style="text-align: center; font-size: 2.5em; color: #1f83ff">RadiiPolynomial.jl</h1>
 
-[^1]: For Newton-like operators, the Radii Polynomial Theorem is an instance of the [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).
-
-Hence, the desired solution is the unique fixed-point within the ball(s) whose radius yields an a posteriori error bound on the numerical approximation.
-
-[RadiiPolynomial.jl](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a Julia package to conduct the computational steps of the Radii Polynomial Theorem. For the entailed rigorous floating-point computations, the RadiiPolynomial library relies on [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl)[^2].
-
-[^2]: L. Benet and D. P. Sanders, [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl).
-
-When the solution lies in a Banach space involving function spaces, the standard approach is to interpret the function spaces as sequence spaces. Thus, RadiiPolynomial is concerned with the latter (cf. [ApproxFun.jl](https://github.com/JuliaApproximation/ApproxFun.jl) for a Julia package to approximate functions).
-
-## Installing
-
-The RadiiPolynomial.jl package requires to [install Julia](https://julialang.org/downloads/) (v1.6 or above).
-
-Then, start Julia and execute the following command in the REPL:
-
-```julia
-using Pkg; Pkg.add("RadiiPolynomial")
+<div class="row">
+  <div class="column">
+    <h3 style="text-align: center; color: #CA3C32;">Installation</h3>
 ```
-
-## Citing
-
-If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the following BibTeX template (cf. [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib)):
-
-```bibtex
+```@repl
+using Pkg # Julia v1.6 or above
+redirect_stderr(devnull) do # hide
+Pkg.add("RadiiPolynomial")
+end # hide
+```
+```@raw html
+  </div>
+  <div class="column">
+    <h3 style="text-align: center; color: #399746;">Open source</h3>
+    <p>The RadiiPolynomial library is an open source software under the <a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/LICENSE.md" rel="nofollow noopener noreferrer" target="_blank">MIT license</a>.</p>
+    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl" rel="nofollow noopener noreferrer" target="_blank">github.com/OlivierHnt/RadiiPolynomial.jl</a></p>
+  </div>
+</div>
+<div class="row">
+  <div class="single">
+    <h3 style="text-align: center; color: #9259A3;">Citation</h3>
+```
+```
 @software{RadiiPolynomial.jl,
   author = {Olivier Hénot},
   title  = {RadiiPolynomial.jl},
@@ -35,5 +40,10 @@ If you use the RadiiPolynomial library in your publication, research, teaching, 
   doi    = {10.5281/zenodo.5705258}
 }
 ```
+```@raw html
+    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a>, <a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
+  </div>
+</div>
+
 
 You may refer to [10.5281/zenodo.5705258](https://doi.org/10.5281/zenodo.5705258) for more information.

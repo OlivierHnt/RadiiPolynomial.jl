@@ -1,0 +1,147 @@
+/* KaTeX */
+
+.katex {
+  font-size: 1em !important; }
+
+.katex-display .katex {
+  /* allow display equations to wrap on small screens */
+  white-space: normal; }
+
+/* Code */
+
+.content pre {
+  border: 1px solid whitesmoke;
+  border-radius: 15px; }
+
+html.theme--documenter-dark .content pre {
+  border: 1px solid #282f2f;
+  border-radius: 15px; }
+
+pre .copy-button {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 0em;
+  top: 0em;
+  padding: 0.5em;
+  width: 2.5em;
+  height: 2.5em;
+  background: transparent;
+  border: none;
+  font-family: "Font Awesome 5 Free";
+  color: #d5c4a1;
+  cursor: pointer;
+  text-align: center; }
+
+pre .copy-button:focus, pre .copy-button:hover {
+  opacity: 1;
+  background: transparent;
+  color: #d5c4a1; }
+
+pre .copy-button.success {
+  color: #259a12;
+  opacity: 1; }
+
+pre .copy-button.error {
+  color: #cb3c33;
+  opacity: 1; }
+
+pre:hover .copy-button {
+  opacity: 1; }
+
+html.theme--documenter-dark pre .copy-button {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  right: 0em;
+  top: 0em;
+  padding: 0.5em;
+  width: 2.5em;
+  height: 2.5em;
+  background: transparent;
+  border: none;
+  font-family: "Font Awesome 5 Free";
+  color: #d5c4a1;
+  cursor: pointer;
+  text-align: center; }
+
+html.theme--documenter-dark pre .copy-button:focus, html.theme--documenter-dark pre .copy-button:hover {
+  opacity: 1;
+  background: transparent;
+  color: #d5c4a1; }
+
+html.theme--documenter-dark pre .copy-button.success {
+  color: #259a12;
+  opacity: 1; }
+
+html.theme--documenter-dark pre .copy-button.error {
+  color: #cb3c33;
+  opacity: 1; }
+
+html.theme--documenter-dark pre:hover .copy-button {
+  opacity: 1; }
+
+/* Start page layout */
+
+.single {
+  margin-left: 135px;
+  margin-right: 135px; }
+
+.column {
+  float: left;
+  width: 50%; }
+
+.row:after {
+  content: "";
+  display: table;
+  clear: both; }
+
+/* Start page boxes */
+
+.boxintro-container {
+  display: grid;
+  grid-gap: 1em;
+  justify-content: space-between;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.boxintro {
+  position: relative;
+  background: transparent;
+  padding: 1em;
+  border-radius: 0.5em;
+  text-align: center;
+  box-shadow: 0px 2px 4px 1px rgba(0, 0, 0, 0.11);
+  font-size: 14px;
+  transition: scale 0.2s ease-in-out; }
+
+.boxintro:hover {
+  scale: 1.03; }
+
+.boxintro img {
+  margin-top: 1em;
+  border-radius: 0.3em; }
+
+a.boxintrolink {
+  text-decoration: none;
+  color: black;
+  display: block; }
+
+a.boxintrolink:visited {
+  color: black; }
+
+a.boxintrolink:hover {
+  text-decoration: none; }
+
+/* Theorem */
+
+.theorem {
+  display: block;
+  font-style: italic; }
+
+.theorem:before {
+  content: "Theorem. ";
+  font-weight: bold;
+  font-style: normal; }
+
+.theorem[text]:before {
+  content: "Theorem (" attr(text) ") "; }

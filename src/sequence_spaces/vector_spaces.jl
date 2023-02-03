@@ -259,11 +259,9 @@ frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
 
 # promotion
 
-Base.convert(::Type{T}, s::T) where {T<:TensorSpace} = s
 Base.convert(::Type{TensorSpace{T}}, s::TensorSpace) where {T} =
     TensorSpace{T}(convert(T, s.spaces))
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:TensorSpace} = T
 Base.promote_rule(::Type{TensorSpace{T}}, ::Type{TensorSpace{S}}) where {T,S} =
     TensorSpace{promote_type(T, S)}
 
@@ -392,11 +390,9 @@ _findposition(c::Colon, ::Fourier) = c
 
 # promotion
 
-Base.convert(::Type{T}, s::T) where {T<:Fourier} = s
 Base.convert(::Type{Fourier{T}}, s::Fourier) where {T<:Real} =
     Fourier{T}(s.order, convert(T, s.frequency))
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:Fourier} = T
 Base.promote_rule(::Type{Fourier{T}}, ::Type{Fourier{S}}) where {T<:Real,S<:Real} =
     Fourier{promote_type(T, S)}
 
@@ -606,11 +602,9 @@ end
 
 # promotion
 
-Base.convert(::Type{T}, s::T) where {T<:CartesianPower} = s
 Base.convert(::Type{CartesianPower{T}}, s::CartesianPower) where {T} =
     CartesianPower{T}(convert(T, s.space), s.n)
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:CartesianPower} = T
 Base.promote_rule(::Type{CartesianPower{T}}, ::Type{CartesianPower{S}}) where {T,S} =
     CartesianPower{promote_type(T, S)}
 
@@ -748,11 +742,9 @@ end
 
 # promotion
 
-Base.convert(::Type{T}, s::T) where {T<:CartesianProduct} = s
 Base.convert(::Type{CartesianProduct{T}}, s::CartesianProduct) where {T} =
     CartesianProduct{T}(convert(T, s.spaces))
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:CartesianProduct} = T
 Base.promote_rule(::Type{CartesianProduct{T}}, ::Type{CartesianProduct{S}}) where {T,S} =
     CartesianProduct{promote_type(T, S)}
 

@@ -175,11 +175,9 @@ end
 
 # promotion
 
-Base.convert(::Type{T}, a::T) where {T<:Sequence} = a
 Base.convert(::Type{Sequence{T₁,S₁}}, a::Sequence{T₂,S₂}) where {T₁,S₁,T₂,S₂} =
     Sequence{T₁,S₁}(convert(T₁, space(a)), convert(S₁, coefficients(a)))
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:Sequence} = T
 Base.promote_rule(::Type{Sequence{T₁,S₁}}, ::Type{Sequence{T₂,S₂}}) where {T₁,S₁,T₂,S₂} =
     Sequence{promote_type(T₁, T₂), promote_type(S₁, S₂)}
 

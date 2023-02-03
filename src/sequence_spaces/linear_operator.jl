@@ -178,11 +178,9 @@ end
 
 # promotion
 
-Base.convert(::Type{T}, A::T) where {T<:LinearOperator} = A
 Base.convert(::Type{LinearOperator{T₁,S₁,R₁}}, A::LinearOperator{T₂,S₂,R₂}) where {T₁,S₁,R₁,T₂,S₂,R₂} =
     LinearOperator{T₁,S₁,R₁}(convert(T₁, domain(A)), convert(S₁, codomain(A)), convert(R₁, coefficients(A)))
 
-Base.promote_rule(::Type{T}, ::Type{T}) where {T<:LinearOperator} = T
 Base.promote_rule(::Type{LinearOperator{T₁,S₁,R₁}}, ::Type{LinearOperator{T₂,S₂,R₂}}) where {T₁,S₁,R₁,T₂,S₂,R₂} =
     LinearOperator{promote_type(T₁, T₂), promote_type(S₁, S₂), promote_type(R₁, R₂)}
 

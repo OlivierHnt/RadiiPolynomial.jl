@@ -780,7 +780,20 @@ _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
 
 Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))
 
-_prettystring(s::VectorSpace) = string(s)
+function Base.show(io::IO, s::VectorSpace)
+    get(io, :compact, false) && return print(io, _prettystring(s))
+    return print(io, _regularstring(s))
+end
+
+_regularstring(s::VectorSpace) = _prettystring(s)
+_regularstring(::ParameterSpace) = "ParameterSpace()"
+_regularstring(s::CartesianPower) = _regularstring(space(s)) * " ^ " * string(nspaces(s))
+_regularstring(s::CartesianProduct) = _regularstring(s[1]) * " × " * _regularstring(Base.tail(s))
+_regularstring(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(s[2])
+_regularstring(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * _regularstring(s[1]) * ")"
+_regularstring_cartesian(s::VectorSpace) = _regularstring(s)
+_regularstring_cartesian(s::TensorSpace) = "(" * _regularstring(s) * ")"
+_regularstring_cartesian(s::CartesianProduct) = "(" * _regularstring(s) * ")"
 
 _prettystring(::ParameterSpace) = "𝕂"
 
@@ -789,7 +802,7 @@ _prettystring(s::TensorSpace{<:NTuple{2,BaseSpace}}) = _prettystring(s[1]) * " �
 _prettystring(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * _prettystring(s[1]) * ")"
 
 _prettystring(s::Taylor) = "Taylor(" * string(order(s)) * ")"
-_prettystring(s::Fourier) = string(typeof(s)) * "(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+_prettystring(s::Fourier) = "Fourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
 _prettystring(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
 
 _prettystring(s::CartesianPower) = _prettystring(space(s)) * _supscript(nspaces(s))

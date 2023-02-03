@@ -221,5 +221,10 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", A::LinearOperator)
     println(io, "LinearOperator : ", _prettystring(domain(A)), " → ", _prettystring(codomain(A)), " with coefficients ", typeof(coefficients(A)), ":")
-    Base.print_array(io, coefficients(A))
+    return Base.print_array(io, coefficients(A))
+end
+
+function Base.show(io::IO, A::LinearOperator)
+    get(io, :compact, false) && return show(io, coefficients(A))
+    return print(io, "LinearOperator(", domain(A), ", ", codomain(A), ", ", coefficients(A), ")")
 end

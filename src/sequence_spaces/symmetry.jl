@@ -58,6 +58,8 @@ Base.promote_rule(::Type{CosFourier{T}}, ::Type{CosFourier{S}}) where {T<:Real,S
 
 _iscompatible(s₁::CosFourier, s₂::CosFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
 
+_prettystring(s::CosFourier) = "CosFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+
 
 
 struct SinFourier{T<:Real} <: SymBaseSpace
@@ -91,7 +93,17 @@ Base.promote_rule(::Type{SinFourier{T}}, ::Type{SinFourier{S}}) where {T<:Real,S
 
 _iscompatible(s₁::SinFourier, s₂::SinFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
 
+_prettystring(s::SinFourier) = "SinFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+
+
+
+
+
 #
+
+
+
+
 
 image(::typeof(+), s₁::CosFourier, s₂::CosFourier) = CosFourier(image(+, desymmetrize(s₁), desymmetrize(s₂)))
 image(::typeof(*), s₁::CosFourier, s₂::CosFourier) = CosFourier(image(*, desymmetrize(s₁), desymmetrize(s₂)))

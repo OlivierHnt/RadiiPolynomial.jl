@@ -1,8 +1,7 @@
 """
-Flexible library for computer-assisted proofs in dynamical systems.
+    RadiiPolynomial
 
-`RadiiPolynomial` relies on [`IntervalArithmetic.jl`](https://github.com/JuliaIntervals/IntervalArithmetic.jl)
-for rigorous computations.
+Flexible library for computer-assisted proofs in dynamical systems.
 
 Learn more: https://olivierhnt.github.io/RadiiPolynomial.jl
 """

@@ -57,7 +57,10 @@ $(document).ready(function() {
       "right": "\\]",
       "display": true
     }
-  ]
+  ],
+  "macros": {
+    "\\bydef": "\\stackrel{\\tiny\\text{def}}{=}"
+  }
 }
 
   );

@@ -20,7 +20,7 @@ Sequence in Taylor(2) with coefficients Vector{Int64}:
  1
 
 julia> Sequence(Taylor(1) ⊗ Fourier(1, 1.0), [0.5, 0.5, 0.0, 0.0, 0.5, 0.5]) # (1 + x) cos(y)
-Sequence in Taylor(1) ⊗ Fourier{Float64}(1, 1.0) with coefficients Vector{Float64}:
+Sequence in Taylor(1) ⊗ Fourier(1, 1.0) with coefficients Vector{Float64}:
  0.5
  0.5
  0.0

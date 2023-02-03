@@ -99,10 +99,10 @@ See also: [`⊗`](@ref).
 # Examples
 ```jldoctest
 julia> s = TensorSpace(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
-Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
 
 julia> spaces(s)
-(Taylor(1), Fourier{Float64}(2, 1.0), Chebyshev(3))
+(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
 ```
 """
 struct TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
@@ -131,16 +131,16 @@ See also: [`TensorSpace`](@ref).
 # Examples
 ```jldoctest
 julia> Taylor(1) ⊗ Fourier(2, 1.0)
-Taylor(1) ⊗ Fourier{Float64}(2, 1.0)
+Taylor(1) ⊗ Fourier(2, 1.0)
 
 julia> Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
-Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
 
 julia> Taylor(1) ⊗ (Fourier(2, 1.0) ⊗ Chebyshev(3))
-Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
 
 julia> (Taylor(1) ⊗ Fourier(2, 1.0)) ⊗ Chebyshev(3)
-Taylor(1) ⊗ Fourier{Float64}(2, 1.0) ⊗ Chebyshev(3)
+Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
 ```
 """
 ⊗(s₁::BaseSpace, s₂::BaseSpace) = TensorSpace((s₁, s₂))
@@ -337,7 +337,7 @@ See also: [`Taylor`](@ref) and [`Chebyshev`](@ref).
 # Examples
 ```jldoctest
 julia> s = Fourier(2, 1.0)
-Fourier{Float64}(2, 1.0)
+Fourier(2, 1.0)
 
 julia> order(s)
 2
@@ -629,10 +629,10 @@ See also: [`×`](@ref), [`CartesianPower`](@ref), [`^(::VectorSpace, ::Int)`](@r
 # Examples
 ```jldoctest
 julia> s = CartesianProduct(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
-Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 
 julia> spaces(s)
-(Taylor(1), Fourier{Float64}(2, 1.0), Chebyshev(3))
+(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
 
 julia> nspaces(s)
 3
@@ -664,19 +664,19 @@ See also: [`CartesianProduct`](@ref), [`CartesianPower`](@ref) and [`^(::VectorS
 # Examples
 ```jldoctest
 julia> Taylor(1) × Fourier(2, 1.0)
-Taylor(1) × Fourier{Float64}(2, 1.0)
+Taylor(1) × Fourier(2, 1.0)
 
 julia> Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
-Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 
 julia> (Taylor(1) × Fourier(2, 1.0)) × Chebyshev(3)
-Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 
 julia> Taylor(1) × (Fourier(2, 1.0) × Chebyshev(3))
-Taylor(1) × Fourier{Float64}(2, 1.0) × Chebyshev(3)
+Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 
 julia> ParameterSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
-𝕂² × ((Taylor(1) ⊗ Fourier{Float64}(2, 1.0)) × Chebyshev(3))³
+𝕂² × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))³
 ```
 """
 ×(s₁::VectorSpace, s₂::VectorSpace) = CartesianProduct((s₁, s₂))

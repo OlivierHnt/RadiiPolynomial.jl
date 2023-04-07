@@ -157,6 +157,7 @@ _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
 
 _symmetry_action(::CosFourier, ::Int, ::Int) = 1
 _symmetry_action(::CosFourier, ::Int) = 1
+_inverse_symmetry_action(::CosFourier, ::Int) = 1
 
 _extract_valid_index(::CosFourier, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::CosFourier, i::Int) = abs(i)
@@ -167,10 +168,15 @@ _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
 function _symmetry_action(::SinFourier, i::Int, j::Int)
-    x = i-j
-    return ifelse(x == 0, 0, flipsign(1, x))
+    x = j-i
+    y = ifelse(x == 0, 0, flipsign(1, x))
+    return Complex(0, y)
 end
-_symmetry_action(::SinFourier, i::Int) = ifelse(i == 0, 0, flipsign(1, i))
+function _symmetry_action(::SinFourier, i::Int)
+    y = ifelse(i == 0, 0, flipsign(1, -i))
+    return Complex(0, y)
+end
+_inverse_symmetry_action(::SinFourier, ::Int) = Complex(0, -1)
 
 _extract_valid_index(::SinFourier, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::SinFourier, i::Int) = abs(i)
@@ -500,6 +506,11 @@ end
 
 _mult_domain_indices(s::CosFourier) = _mult_domain_indices(Chebyshev(order(s)))
 _isvalid(s::CosFourier, i::Int, j::Int) = _isvalid(Chebyshev(order(s)), i, j)
+
+
+
+_mult_domain_indices(s::SinFourier) = -order(s):order(s)
+_isvalid(s::SinFourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
 
 # Norm
 

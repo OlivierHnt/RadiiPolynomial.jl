@@ -106,11 +106,14 @@ end
 
 #
 
-function _project!(C::LinearOperator{<:TensorSpace,<:TensorSpace}, ℳ::Multiplication)
+function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
+    dom = domain(C)
+    codom = codomain(C)
     space_ℳ = space(sequence(ℳ))
-    @inbounds for β ∈ _mult_domain_indices(domain(C)), α ∈ indices(codomain(C))
+    @inbounds for β ∈ _mult_domain_indices(dom), α ∈ indices(codom)
         if _isvalid(space_ℳ, α, β)
-            C[α,_extract_valid_index(space_ℳ, β)] += sequence(ℳ)[_extract_valid_index(space_ℳ, α, β)]
+            x = _inverse_symmetry_action(codom, α) * _symmetry_action(space_ℳ, α, β) * _symmetry_action(dom, β)
+            C[α,_extract_valid_index(space_ℳ, β)] += x * sequence(ℳ)[_extract_valid_index(space_ℳ, α, β)]
         end
     end
     return C

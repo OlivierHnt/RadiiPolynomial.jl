@@ -337,7 +337,7 @@ end
 function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current_space_a, current_space_b, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
     @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
     @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
-        x = _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
+        x = _inverse_symmetry_action(current_space_c, i) * _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
         if !iszero(x)
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
@@ -353,7 +353,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
     sum_t += abs(i)
     @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
     @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
-        x = _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
+        x = _inverse_symmetry_action(current_space_c, i) * _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
         if !iszero(x)
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
@@ -368,7 +368,7 @@ end
 function __convolution!(C, A, B, α, space_c, space_a, space_b, i)
     Cᵢ = zero(promote_type(eltype(A), eltype(B)))
     @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-        x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+        x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
         if !iszero(x)
             Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
         end
@@ -385,7 +385,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, 
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-            x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+            x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
             if !iszero(x)
                 Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
             end
@@ -403,7 +403,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, t, sum_t, ful
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-            x = _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
+            x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
             if !iszero(x)
                 Cᵢ += x * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
             end
@@ -424,6 +424,9 @@ _symmetry_action(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{I
 _symmetry_action(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
     @inbounds _symmetry_action(s[1], α[1]) * _symmetry_action(Base.tail(s), Base.tail(α))
 _symmetry_action(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) = @inbounds _symmetry_action(s[1], α[1])
+_inverse_symmetry_action(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _inverse_symmetry_action(s[1], α[1]) * _inverse_symmetry_action(Base.tail(s), Base.tail(α))
+_inverse_symmetry_action(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) = @inbounds _inverse_symmetry_action(s[1], α[1])
 
 _extract_valid_index(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
     @inbounds (_extract_valid_index(s[1], α[1], β[1]), _extract_valid_index(Base.tail(s), Base.tail(α), Base.tail(β))...)
@@ -502,6 +505,7 @@ _convolution_indices(s₁::Taylor, s₂::Taylor, i::Int) = max(i-order(s₁), 0)
 
 _symmetry_action(::Taylor, ::Int, ::Int) = 1
 _symmetry_action(::Taylor, ::Int) = 1
+_inverse_symmetry_action(::Taylor, ::Int) = 1
 
 _extract_valid_index(::Taylor, i::Int, j::Int) = i-j
 _extract_valid_index(::Taylor, i::Int) = i
@@ -594,6 +598,7 @@ _convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), 
 
 _symmetry_action(::Fourier, ::Int, ::Int) = 1
 _symmetry_action(::Fourier, ::Int) = 1
+_inverse_symmetry_action(::Fourier, ::Int) = 1
 
 _extract_valid_index(::Fourier, i::Int, j::Int) = i-j
 _extract_valid_index(::Fourier, i::Int) = i
@@ -676,6 +681,7 @@ _convolution_indices(s₁::Chebyshev, s₂::Chebyshev, i::Int) = max(i-order(s�
 
 _symmetry_action(::Chebyshev, ::Int, ::Int) = 1
 _symmetry_action(::Chebyshev, ::Int) = 1
+_inverse_symmetry_action(::Chebyshev, ::Int) = 1
 
 _extract_valid_index(::Chebyshev, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::Chebyshev, i::Int) = abs(i)

@@ -195,7 +195,7 @@ function _apply!(c::Sequence{<:CosFourier}, 𝒟::Derivative, a)
     else
         ω = one(eltype(a))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
-        iⁿ_real = ifelse(n%4 == 0, 1, -1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:order(c)
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
             c[j] = iⁿωⁿjⁿ_real * a[j]
@@ -212,7 +212,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
         ord = order(space)
         ω = one(eltype(A))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
-        iⁿ_real = ifelse(n%4 == 0, 1, -1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
@@ -231,7 +231,7 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
         ord = order(space)
         ω = one(T)*frequency(space)
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
-        iⁿ_real = ifelse(n%4 == 0, 1, -1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
@@ -247,6 +247,13 @@ function _nzind_domain(::Derivative, domain::CosFourier, codomain::CosFourier)
     ord = min(order(domain), order(codomain))
     return 0:ord
 end
+function _nzind_domain(::Derivative, domain::CosFourier, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
 
 function _nzind_codomain(::Derivative, domain::CosFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
@@ -255,14 +262,102 @@ function _nzind_codomain(::Derivative, domain::CosFourier, codomain::CosFourier)
     ord = min(order(domain), order(codomain))
     return 0:ord
 end
+function _nzind_codomain(::Derivative, domain::SinFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
 
-function _nzval(𝒟::Derivative, domain::CosFourier, ::CosFourier, ::Type{T}, i, j) where {T}
+function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::CosFourier, ::Type{T}, i, j) where {T}
     n = order(𝒟)
     if n == 0
         return one(T)
     else
         ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
-        return convert(T, ifelse(n % 4 == 0, ωⁿjⁿ, -ωⁿjⁿ))
+        return convert(T, ifelse(n%4 < 2, ωⁿjⁿ, -ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
+    end
+end
+
+
+
+image(𝒟::Derivative, s::SinFourier) = iseven(order(𝒟)) ? s : CosFourier(desymmetrize(s))
+
+_coeftype(::Derivative, ::SinFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*0*zero(S))
+
+function _apply!(c::Sequence{<:SinFourier}, 𝒟::Derivative, a)
+    n = order(𝒟)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    else
+        ω = one(eltype(a))*frequency(a)
+        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:order(c)
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            c[j] = iⁿωⁿjⁿ_real * a[j]
+        end
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) where {T}
+    n = order(𝒟)
+    if n == 0
+        C .= A
+    else
+        ord = order(space)
+        ω = one(eltype(A))*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+        end
+    end
+    return C
+end
+
+function _apply(𝒟::Derivative, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(𝒟)
+    CoefType = _coeftype(𝒟, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    else
+        C = Array{CoefType,N}(undef, size(A))
+        ord = order(space)
+        ω = one(T)*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
+        end
+        return C
+    end
+end
+
+function _nzind_domain(::Derivative, domain::SinFourier, codomain::Union{CosFourier,SinFourier})
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzind_codomain(::Derivative, domain::Union{CosFourier,SinFourier}, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFourier, ::Type{T}, i, j) where {T}
+    n = order(𝒟)
+    if n == 0
+        return one(T)
+    else
+        ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
+        return convert(T, ifelse(n%4 < 2, -ωⁿjⁿ, ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
     end
 end
 

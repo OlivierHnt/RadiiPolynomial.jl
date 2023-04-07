@@ -363,7 +363,7 @@ end
 
 # Evaluation
 
-_memo(::CosFourier, ::Type{T}) where {T} = Dict{Int,T}()
+_memo(::CosFourier, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::CosFourier) = s
 image(::Evaluation, s::CosFourier) = CosFourier(0, frequency(s))
@@ -445,6 +445,8 @@ function _apply(ℰ::Evaluation, space::CosFourier, ::Val{D}, A::AbstractArray{T
     return C
 end
 
+_getindex(::Evaluation{Nothing}, ::CosFourier, ::CosFourier, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = value(ℰ)
@@ -459,6 +461,32 @@ function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T},
         return zero(T)
     end
 end
+
+
+
+_memo(::SinFourier, ::Type) = nothing
+
+image(::Evaluation{Nothing}, s::SinFourier) = s
+# image(::Evaluation, s::SinFourier) = Fourier(0, frequency(s))
+
+_coeftype(::Evaluation{Nothing}, ::SinFourier, ::Type{T}) where {T} = T
+# _coeftype(::Evaluation{T}, s::SinFourier, ::Type{S}) where {T,S} =
+#     promote_type(typeof(sin(frequency(s)*zero(T))), S)
+
+function _apply!(c::Sequence{<:SinFourier}, ::Evaluation{Nothing}, a)
+    coefficients(c) .= coefficients(a)
+    return c
+end
+
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
+    C .= A
+    return C
+end
+
+_apply(::Evaluation{Nothing}, ::SinFourier, ::Val, A::AbstractArray) = A
+
+_getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
 
 # Multiplication
 

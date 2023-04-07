@@ -77,7 +77,6 @@ Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s
 
 indices(s::SinFourier) = 1:order(s)
 
-_findindex_constant(s::SinFourier) = 1
 _findposition(i::Int, ::SinFourier) = i
 _findposition(u::AbstractRange{Int}, ::SinFourier) = u
 _findposition(u::AbstractVector{Int}, s::SinFourier) = map(i -> _findposition(i, s), u)

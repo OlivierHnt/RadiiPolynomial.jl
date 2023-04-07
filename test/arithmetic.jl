@@ -89,5 +89,20 @@
         @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
         @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
         @test add_bar(3a * b, 4b) == mul!(2b, a, b, 3, 2)
+
+        # symmetry
+
+        a = ones(SinFourier(5, 1))
+        fa = zeros(ComplexF64, Fourier(5, 1))
+        fa[0] = 0
+        fa[1:5] = -im*a[1:5]
+        fa[-1:-1:-5] = im*a[1:5]
+
+        b = ones(CosFourier(5, 1))
+        fb = ones(Fourier(5, 1))
+
+        @test (a^2)[0:10] == (a*a)[0:10] == (fa*fa)[0:10]
+        @test (b^2)[0:10] == (b*b)[0:10] == (fb*fb)[0:10]
+        @test (a*b)[1:10] == (b*a)[1:10] == -im*(fa*fb)[1:10]
     end
 end

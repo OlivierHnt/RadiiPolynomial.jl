@@ -1,11 +1,3 @@
-if isdefined(LinearAlgebra, :PivotingStrategy)
-    _qr_nopivot!(A) = LinearAlgebra.qr!(A, LinearAlgebra.NoPivot())
-else # Julia v1.6
-    _qr_nopivot!(A) = LinearAlgebra.qr!(A, Val(false))
-end
-
-#
-
 _linear_regression_log_abs(x) = log(abs(x))
 _linear_regression_log_abs(x::Interval) = log(mag(x))
 _linear_regression_log_abs(x::Complex{<:Interval}) = log(mag(x))
@@ -102,7 +94,7 @@ function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
             n += 1
         end
     end
-    r = ldiv!(_qr_nopivot!(x), A_)
+    r = LinearAlgebra.svd!(x) \ A_
     return ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
         v = ifelse(isfinite(rᵢ₊₁), rᵢ₊₁, zero(rᵢ₊₁))
@@ -260,7 +252,7 @@ function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
             n += 1
         end
     end
-    r = ldiv!(_qr_nopivot!(x), A_)
+    r = LinearAlgebra.svd!(x) \ A_
     return ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
         return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), -rᵢ₊₁, zero(rᵢ₊₁))

@@ -1,8 +1,8 @@
 # State of the art
 
-The study of complex [dynamical system](https://en.wikipedia.org/wiki/Dynamical_system) requires numerical computations to access the dynamics. While numerical methods provide accurate approximations, they often come at the cost of rounding, discretization errors and the surrender of an a posteriori error bound between the approximation and the exact solution of the original problem.
+The study of complex [dynamical systems](https://en.wikipedia.org/wiki/Dynamical_system) requires numerical computations to access the dynamics. While numerical methods provide accurate approximations, they often come at the cost of rounding, discretization errors and the surrender of an a posteriori error bound between the approximation and the exact solution of the original problem.
 
-Computer-assisted proofs aim to **validate the numerical observations** and **derive mathematical theorems**, thereby binding computational results with topological, geometric and qualitative methods of nonlinear theory.
+Computer-assisted proofs aim to **validate numerical simulations** and **derive mathematical theorems**, thereby binding computational results with topological, geometric and qualitative methods of nonlinear theory.
 
 [RadiiPolynomial.jl](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a Julia package to conduct the computational steps of a type of computer-assisted proofs referred to as the *radii polynomial approach* (see the next section below).
 

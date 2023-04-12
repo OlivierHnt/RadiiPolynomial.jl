@@ -135,13 +135,8 @@ a.boxintrolink:hover {
 /* Theorem */
 
 .theorem {
-  display: block;
-  font-style: italic; }
-
-.theorem:before {
-  content: "Theorem. ";
-  font-weight: bold;
-  font-style: normal; }
+  display: block; }
 
 .theorem[text]:before {
-  content: "Theorem (" attr(text) ") "; }
+  content: "Theorem (" attr(text) ") ";
+  font-weight: bold; }

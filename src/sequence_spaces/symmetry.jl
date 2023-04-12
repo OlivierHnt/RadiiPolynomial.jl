@@ -246,12 +246,12 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
     end
 end
 
-function _nzind_domain(::Derivative, domain::CosFourier, codomain::CosFourier)
+function _nzind_domain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
     ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
-    return 0:ord
+    return (order(𝒟) > 0):ord
 end
 function _nzind_domain(::Derivative, domain::CosFourier, codomain::SinFourier)
     ω₁ = frequency(domain)
@@ -261,12 +261,12 @@ function _nzind_domain(::Derivative, domain::CosFourier, codomain::SinFourier)
     return 1:ord
 end
 
-function _nzind_codomain(::Derivative, domain::CosFourier, codomain::CosFourier)
+function _nzind_codomain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
     ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
-    return 0:ord
+    return (order(𝒟) > 0):ord
 end
 function _nzind_codomain(::Derivative, domain::SinFourier, codomain::CosFourier)
     ω₁ = frequency(domain)

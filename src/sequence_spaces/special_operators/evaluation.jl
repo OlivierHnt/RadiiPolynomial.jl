@@ -166,7 +166,7 @@ _coeftype(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:N
 _coeftype(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
     @inbounds _coeftype(Evaluation(value(ℰ)[1]), s[1], T)
 
-function _apply!(c::Sequence{<:TensorSpace}, ℰ::Evaluation, a)
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:TensorSpace})
     space_a = space(a)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
     C = _no_alloc_reshape(coefficients(c), _effective_dimensions(ℰ, space(c)))
@@ -241,11 +241,11 @@ image(::Evaluation, ::Taylor) = Taylor(0)
 _coeftype(::Evaluation{Nothing}, ::Taylor, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
-function _apply!(c::Sequence{Taylor}, ::Evaluation{Nothing}, a)
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{Taylor})
     coefficients(c) .= coefficients(a)
     return c
 end
-function _apply!(c::Sequence{Taylor}, ℰ::Evaluation, a)
+function _apply!(c, ℰ::Evaluation, a::Sequence{Taylor})
     x = value(ℰ)
     if iszero(x)
         @inbounds c[0] = a[0]
@@ -323,12 +323,12 @@ _coeftype(::Evaluation{Nothing}, ::Fourier, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, s::Fourier, ::Type{S}) where {T,S} =
     promote_type(typeof(cis(frequency(s)*zero(T))), S)
 
-function _apply!(c::Sequence{<:Fourier}, ::Evaluation{Nothing}, a)
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:Fourier})
     coefficients(c) .= coefficients(a)
     return c
 end
-_apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a) = __apply!(c, ℰ, a)
-function __apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
+_apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier}) = __apply!(c, ℰ, a)
+function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
     x = value(ℰ)
     ord = order(a)
     if iszero(x)
@@ -351,7 +351,7 @@ function __apply!(c::Sequence{<:Fourier}, ℰ::Evaluation, a)
     end
     return c
 end
-function __apply!(c::Sequence{<:Fourier,<:AbstractVector{<:Union{Interval,Complex{<:Interval}}}}, ℰ::Evaluation, a)
+function __apply!(c::Sequence{<:Fourier,<:AbstractVector{<:Union{Interval,Complex{<:Interval}}}}, ℰ::Evaluation, a::Sequence{<:Fourier})
     x = value(ℰ)
     ord = order(a)
     @inbounds c[0] = a[0]
@@ -473,11 +473,11 @@ image(::Evaluation, ::Chebyshev) = Chebyshev(0)
 _coeftype(::Evaluation{Nothing}, ::Chebyshev, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
-function _apply!(c::Sequence{Chebyshev}, ::Evaluation{Nothing}, a)
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{Chebyshev})
     coefficients(c) .= coefficients(a)
     return c
 end
-function _apply!(c::Sequence{Chebyshev}, ℰ::Evaluation, a)
+function _apply!(c, ℰ::Evaluation, a::Sequence{Chebyshev})
     x = value(ℰ)
     ord = order(a)
     if iszero(x)
@@ -668,18 +668,18 @@ _coeftype(ℰ::Evaluation, s::CartesianProduct, ::Type{T}) where {T} =
 _coeftype(ℰ::Evaluation, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
     @inbounds _coeftype(ℰ, s[1], T)
 
-function _apply!(c::Sequence{<:CartesianPower}, ℰ::Evaluation, a)
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:CartesianPower})
     @inbounds for i ∈ 1:nspaces(space(c))
         _apply!(component(c, i), ℰ, component(a, i))
     end
     return c
 end
-function _apply!(c::Sequence{CartesianProduct{T}}, ℰ::Evaluation, a) where {N,T<:NTuple{N,VectorSpace}}
+function _apply!(c, ℰ::Evaluation, a::Sequence{CartesianProduct{T}}) where {N,T<:NTuple{N,VectorSpace}}
     @inbounds _apply!(component(c, 1), ℰ, component(a, 1))
     @inbounds _apply!(component(c, 2:N), ℰ, component(a, 2:N))
     return c
 end
-function _apply!(c::Sequence{CartesianProduct{T}}, ℰ::Evaluation, a) where {T<:Tuple{VectorSpace}}
+function _apply!(c, ℰ::Evaluation, a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}}
     @inbounds _apply!(component(c, 1), ℰ, component(a, 1))
     return c
 end

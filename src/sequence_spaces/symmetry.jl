@@ -378,11 +378,11 @@ _coeftype(::Evaluation{Nothing}, ::CosFourier, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, s::CosFourier, ::Type{S}) where {T,S} =
     promote_type(typeof(cos(frequency(s)*zero(T))), S)
 
-function _apply!(c::Sequence{<:CosFourier}, ::Evaluation{Nothing}, a)
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:CosFourier})
     coefficients(c) .= coefficients(a)
     return c
 end
-function _apply!(c::Sequence{<:CosFourier}, ℰ::Evaluation, a)
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:CosFourier})
     x = value(ℰ)
     ord = order(a)
     @inbounds c[0] = a[ord]
@@ -473,14 +473,29 @@ end
 _memo(::SinFourier, ::Type) = nothing
 
 image(::Evaluation{Nothing}, s::SinFourier) = s
-# image(::Evaluation, s::SinFourier) = Fourier(0, frequency(s))
+image(::Evaluation, s::SinFourier) = Fourier(0, frequency(s))
 
 _coeftype(::Evaluation{Nothing}, ::SinFourier, ::Type{T}) where {T} = T
-# _coeftype(::Evaluation{T}, s::SinFourier, ::Type{S}) where {T,S} =
-#     promote_type(typeof(sin(frequency(s)*zero(T))), S)
+_coeftype(::Evaluation{T}, s::SinFourier, ::Type{S}) where {T,S} =
+    promote_type(typeof(sin(frequency(s)*zero(T))), S)
 
-function _apply!(c::Sequence{<:SinFourier}, ::Evaluation{Nothing}, a)
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:SinFourier})
     coefficients(c) .= coefficients(a)
+    return c
+end
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
+    x = value(ℰ)
+    if iszero(x)
+        @inbounds c[0] = zero(eltype(c))
+    else
+        ord = order(a)
+        ωx = frequency(a)*x
+        @inbounds c[0] = a[ord] * sin(ωx*ord)
+        @inbounds for j ∈ ord-1:-1:1
+            c[0] += a[j] * sin(ωx*j)
+        end
+        @inbounds c[0] *= 2
+    end
     return c
 end
 
@@ -488,11 +503,51 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
     C .= A
     return C
 end
+function _apply!(C::AbstractArray, ℰ::Evaluation, space::SinFourier, A)
+    x = value(ℰ)
+    if iszero(x)
+        C .= zero(eltype(C))
+    else
+        ord = order(space)
+        ωx = frequency(space)*x
+        @inbounds C .= selectdim(A, 1, ord) .* sin(ωx*ord)
+        @inbounds for j ∈ ord-1:-1:1
+            C .+= selectdim(A, 1, j) .* sin(ωx*j)
+        end
+        C .*= 2
+    end
+    return C
+end
 
 _apply(::Evaluation{Nothing}, ::SinFourier, ::Val, A::AbstractArray) = A
+function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    x = value(ℰ)
+    CoefType = _coeftype(ℰ, space, T)
+    @inbounds Aᵢ = selectdim(A, D, ord)
+    C = Array{CoefType,N-1}(undef, size(Aᵢ))
+    if iszero(x)
+        C .= zero(CoefType)
+    else
+        ωx = frequency(space)*x
+        @inbounds C .= Aᵢ .* sin(ωx*ord)
+        @inbounds for j ∈ ord-1:-1:1
+            C .+= selectdim(A, D, j) .* sin(ωx*j)
+        end
+        C .*= 2
+    end
+    return C
+end
 
 _getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, memo) where {T} =
     ifelse(i == j, one(T), zero(T))
+function _getindex(ℰ::Evaluation, domain::SinFourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
+    if i == 0 && !iszero(x)
+        x = value(ℰ)
+        return convert(T, 2sin(frequency(domain)*j*x))
+    else
+        return zero(T)
+    end
+end
 
 # Multiplication
 

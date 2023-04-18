@@ -1352,9 +1352,9 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractAr
 end
 
 _apply(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + 4sum(abs2, view(A, 2:length(A))))
+    @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
 function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(sqrt(4abs2(zero(T))))
+    CoefType = typeof(sqrt(2abs2(zero(T))))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -1362,13 +1362,13 @@ function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N})
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(4 .* s .+ selectdim(A, N, 1))
+    @inbounds s .= sqrt.(2 .* s .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 _apply_dual(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/4)
+    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/2)
 function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(sqrt(abs2(zero(T))/4))
+    CoefType = typeof(sqrt(abs2(zero(T))/2))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -1376,7 +1376,7 @@ function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(s ./ 4 .+ selectdim(A, N, 1))
+    @inbounds s .= sqrt.(s ./ 2 .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 

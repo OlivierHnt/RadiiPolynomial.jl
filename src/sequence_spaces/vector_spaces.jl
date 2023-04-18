@@ -795,6 +795,13 @@ _regularstring_cartesian(s::VectorSpace) = _regularstring(s)
 _regularstring_cartesian(s::TensorSpace) = "(" * _regularstring(s) * ")"
 _regularstring_cartesian(s::CartesianProduct) = "(" * _regularstring(s) * ")"
 
+function _prettystring(s::VectorSpace)
+    T = typeof(s)
+    a, b... = fieldnames(T)
+    str = mapreduce(f -> string(getproperty(s, f)), (x, y) -> x * ", " * y, b; init = string(getproperty(s, a)))
+    return string(T) * "(" * str * ")"
+end
+
 _prettystring(::ParameterSpace) = "𝕂"
 
 _prettystring(s::TensorSpace) = _prettystring(s[1]) * " ⊗ " * _prettystring(Base.tail(s))

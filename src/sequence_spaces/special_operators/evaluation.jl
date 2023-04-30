@@ -341,7 +341,7 @@ function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
         if ord > 0
             @inbounds s₋ = convert(eltype(c), a[-ord])
             eiωx = cis(frequency(a)*x)
-            eiωx_conj = conj(eiωx)
+            eiωx_conj = inv(eiωx)
             @inbounds for j ∈ ord-1:-1:1
                 c[0] = c[0] * eiωx + a[j]
                 s₋ = s₋ * eiωx_conj + a[-j]
@@ -363,7 +363,7 @@ function __apply!(c::Sequence{<:Fourier,<:AbstractVector{<:Union{Interval,Comple
         ωx = frequency(a)*x
         @inbounds for j ∈ 1:ord
             eiωxj = cis(ωx*j)
-            c[0] += a[j] * eiωxj + a[-j] * conj(eiωxj)
+            c[0] += a[j] * eiωxj + a[-j] / eiωxj
         end
     end
     return c
@@ -387,7 +387,7 @@ function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
         eiωxj = one(eiωx)
         @inbounds for j ∈ 1:ord
             eiωxj *= eiωx
-            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) .* conj(eiωxj)
+            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) ./ eiωxj
         end
     end
     return C
@@ -404,7 +404,7 @@ function __apply!(C::AbstractArray{<:Union{Interval,Complex{<:Interval}}}, ℰ::
         ωx = frequency(space)*x
         @inbounds for j ∈ 1:ord
             eiωxj = cis(ωx*j)
-            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) .* conj(eiωxj)
+            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) ./ eiωxj
         end
     end
     return C
@@ -425,7 +425,7 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
         eiωxj = one(eiωx)
         @inbounds for j ∈ 1:ord
             eiωxj *= eiωx
-            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) .* conj(eiωxj)
+            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) ./ eiωxj
         end
     end
     return C
@@ -442,7 +442,7 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
         ωx = frequency(space)*x
         @inbounds for j ∈ 1:ord
             eiωxj = cis(ωx*j)
-            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) .* conj(eiωxj)
+            C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) ./ eiωxj
         end
     end
     return C

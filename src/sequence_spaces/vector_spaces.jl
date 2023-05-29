@@ -787,8 +787,8 @@ end
 
 _regularstring(s::VectorSpace) = _prettystring(s)
 _regularstring(::ParameterSpace) = "ParameterSpace()"
-_regularstring(s::CartesianPower) = _regularstring(space(s)) * " ^ " * string(nspaces(s))
-_regularstring(s::CartesianProduct) = _regularstring(s[1]) * " × " * _regularstring(Base.tail(s))
+_regularstring(s::CartesianPower) = _regularstring_cartesian(space(s)) * " ^ " * string(nspaces(s))
+_regularstring(s::CartesianProduct) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(Base.tail(s))
 _regularstring(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(s[2])
 _regularstring(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * _regularstring(s[1]) * ")"
 _regularstring_cartesian(s::VectorSpace) = _regularstring(s)

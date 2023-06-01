@@ -911,7 +911,7 @@ function _apply(::Ell2{IdentityWeight}, ::Taylor, A::AbstractArray{T,N}) where {
     @inbounds A₁ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₁))
     s .= abs2.(A₁)
-    for i ∈ 2:size(A, N)
+    @inbounds for i ∈ 2:size(A, N)
         s .+= abs2.(selectdim(A, N, i))
     end
     s .= sqrt.(s)
@@ -1089,7 +1089,7 @@ function _apply(::Ell2{IdentityWeight}, ::Fourier, A::AbstractArray{T,N}) where 
     @inbounds A₁ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₁))
     s .= abs2.(A₁)
-    for i ∈ 2:size(A, N)
+    @inbounds for i ∈ 2:size(A, N)
         s .+= abs2.(selectdim(A, N, i))
     end
     s .= sqrt.(s)
@@ -1359,7 +1359,7 @@ function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N})
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs2.(Aᵢ)
-    for i ∈ ord-1:-1:1
+    @inbounds for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
     @inbounds s .= sqrt.(2 .* s .+ abs2.(selectdim(A, N, 1)))
@@ -1373,7 +1373,7 @@ function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
     s .= abs2.(Aᵢ)
-    for i ∈ ord-1:-1:1
+    @inbounds for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
     @inbounds s .= sqrt.(s ./ 2 .+ abs2.(selectdim(A, N, 1)))

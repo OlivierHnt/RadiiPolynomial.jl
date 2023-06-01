@@ -472,7 +472,7 @@ _component_findposition(u::AbstractRange{Int}, s::CartesianSpace) =
     mapreduce(i -> _component_findposition(i, s), union, u)
 _component_findposition(u::AbstractVector{Int}, s::CartesianSpace) =
     mapreduce(i -> _component_findposition(i, s), union, u)
-_component_findposition(c::Colon, s::CartesianSpace) = c
+_component_findposition(c::Colon, ::CartesianSpace) = c
 
 """
     CartesianPower{T<:VectorSpace} <: CartesianSpace

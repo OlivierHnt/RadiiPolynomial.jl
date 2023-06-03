@@ -44,7 +44,9 @@ function fft(a::Sequence{<:BaseSpace}, n::Int)
     _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
     CoefType = complex(eltype(a))
     C = zeros(CoefType, n)
-    _preprocess!(C, space_a, coefficients(a))
+    A = coefficients(a)
+    @inbounds view(C, eachindex(A)) .= A
+    _preprocess!(C, space_a)
     return _fft_pow2!(C)
 end
 
@@ -54,7 +56,9 @@ function fft!(C::AbstractVector, a::Sequence{<:BaseSpace})
     space_a = space(a)
     _is_fft_size_compatible(l, space_a) || return throw(DimensionMismatch)
     C .= zero(eltype(C))
-    _preprocess!(C, space_a, coefficients(a))
+    A = coefficients(a)
+    @inbounds view(C, eachindex(A)) .= A
+    _preprocess!(C, space_a)
     return _fft_pow2!(C)
 end
 
@@ -64,7 +68,8 @@ function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NTuple{N
     CoefType = complex(eltype(a))
     C = zeros(CoefType, n)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
-    _apply_preprocess!(C, space_a, A)
+    @inbounds view(C, axes(A)...) .= A
+    _apply_preprocess!(C, space_a)
     return _fft_pow2!(C)
 end
 
@@ -75,7 +80,8 @@ function fft!(C::AbstractArray{T,N}, a::Sequence{TensorSpace{S}}) where {T,N,S<:
     _is_fft_size_compatible(sz, space_a) || return throw(DimensionMismatch)
     C .= zero(T)
     A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
-    _apply_preprocess!(C, space_a, A)
+    @inbounds view(C, axes(A)...) .= A
+    _apply_preprocess!(C, space_a)
     return _fft_pow2!(C)
 end
 
@@ -83,93 +89,44 @@ _is_fft_size_compatible(n, s) = ispow2(n) & (_dfs_dimension(s) ≤ n)
 _is_fft_size_compatible(n::Tuple, s) = @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
 _is_fft_size_compatible(n::Tuple{Int}, s) = @inbounds _is_fft_size_compatible(n[1], s[1])
 
-_apply_preprocess!(C, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _preprocess!(_apply_preprocess!(C, Base.tail(space), A), space[1], Val(N₂-N₁+1))
+_apply_preprocess!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
+    @inbounds _preprocess!(_apply_preprocess!(C, Base.tail(space)), space[1], Val(N₁-N₂+1))
 
-_apply_preprocess!(C, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray) =
-    @inbounds _preprocess!(C, space[1], A)
+_apply_preprocess!(C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}) where {T,N} =
+    @inbounds _preprocess!(C, space[1], Val(N))
 
 # Taylor
 
-function _preprocess!(C::AbstractVector, ::Taylor, A)
-    view(C, eachindex(A)) .= A
-    return C
-end
-
-function _preprocess!(C::AbstractArray, ::Taylor, A)
-    @inbounds view(C, axes(A)...) .= A
-    return C
-end
+_preprocess!(C::AbstractVector, ::Taylor) = C
 
 _preprocess!(C::AbstractArray, ::Taylor, ::Val) = C
 
 # Fourier
 
-function _preprocess!(C::AbstractVector, space::Fourier, A)
-    len = length(C)
-    ord = order(space)
-    C[1] = A[1+ord]
-    for i ∈ 1:ord
-        C[1+i] = A[1+ord+i]
-        C[len+1-i] = A[1+ord-i]
-    end
-    return C
-end
-
-function _preprocess!(C::AbstractArray{T,N}, space::Fourier, A) where {T,N}
-    len = size(C, N)
-    ord = order(space)
-    x = selectdim(A, N, 1+ord)
-    axs = axes(x)
-    view(selectdim(C, N, 1), axs...) .= x
-    for i ∈ 1:ord
-        view(selectdim(C, N, 1+i), axs...) .= selectdim(A, N, 1+ord+i)
-        view(selectdim(C, N, len+1-i), axs...) .= selectdim(A, N, 1+ord-i)
-    end
+function _preprocess!(C::AbstractVector, space::Fourier)
+    circshift!(C, copy(C), -order(space))
     return C
 end
 
 function _preprocess!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
-    len = size(C, D)
     ord = order(space)
-    for i ∈ 1:ord
-        selectdim(C, D, len+1-i) .= selectdim(C, D, 1+ord-i)
-        selectdim(C, D, 1+ord-i) .= selectdim(C, D, 2ord+1-i)
-        selectdim(C, D, 2ord+1-i) .= zero(T)
-    end
-    selectdim(C, D, ord+1) .= selectdim(C, D, 2ord+1)
-    selectdim(C, D, 2ord+1) .= zero(T)
+    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -ord, 0), Val(N)))
     return C
 end
 
 # Chebyshev
 
-function _preprocess!(C::AbstractVector, ::Chebyshev, A)
+function _preprocess!(C::AbstractVector, ::Chebyshev)
     len = length(C)
-    C[1] = A[1]
-    for i ∈ 2:length(A)
-        C[i] = A[i]
-        C[len+2-i] = A[i]
-    end
-    return C
-end
-
-function _preprocess!(C::AbstractArray{T,N}, ::Chebyshev, A) where {T,N}
-    len = size(C, N)
-    x = selectdim(A, N, 1)
-    axs = axes(x)
-    view(selectdim(C, N, 1), axs...) .= x
-    for i ∈ 2:size(A, N)
-        x = selectdim(A, N, i)
-        view(selectdim(C, N, i), axs...) .= x
-        view(selectdim(C, N, len+2-i), axs...) .= x
+    @inbounds for i ∈ 2:length(C)
+        C[len+2-i] = C[i]
     end
     return C
 end
 
 function _preprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
-    for i ∈ 2:size(A, D)
+    @inbounds for i ∈ 2:size(C, D)
         selectdim(C, D, len+2-i) .= selectdim(C, D, i)
     end
     return C
@@ -184,7 +141,7 @@ function ifft!(A::AbstractVector{T}, space::BaseSpace) where {T}
     _ifft_pow2!(A)
     _postprocess!(A, space)
     C = Vector{complex(T)}(undef, dimension(space))
-    C .= view(A, eachindex(C))
+    @inbounds C .= view(A, eachindex(C))
     return Sequence(space, C)
 end
 
@@ -195,7 +152,7 @@ function rifft!(A::AbstractVector{T}, space::BaseSpace) where {T}
     _ifft_pow2!(A)
     _postprocess!(A, space)
     C = Vector{real(T)}(undef, dimension(space))
-    C .= view(A, eachindex(C))
+    @inbounds C .= view(A, eachindex(C))
     return Sequence(space, C)
 end
 
@@ -207,7 +164,7 @@ function ifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     _ifft_pow2!(A)
     _postprocess!(A, space_c)
     C = coefficients(c)
-    C .= view(A, eachindex(C))
+    @inbounds C .= view(A, eachindex(C))
     return c
 end
 
@@ -219,7 +176,7 @@ function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     _ifft_pow2!(A)
     _postprocess!(A, space_c)
     C = coefficients(c)
-    C .= real.(view(A, eachindex(C)))
+    @inbounds C .= real.(view(A, eachindex(C)))
     return c
 end
 
@@ -231,7 +188,7 @@ function ifft!(A::AbstractArray{T,N}, space::TensorSpace{<:NTuple{N,BaseSpace}})
     _apply_postprocess!(A, space)
     c = Sequence(space, Vector{complex(T)}(undef, dimension(space)))
     C = _no_alloc_reshape(coefficients(c), dimensions(space))
-    C .= view(A, axes(C)...)
+    @inbounds C .= view(A, axes(C)...)
     return c
 end
 
@@ -243,7 +200,7 @@ function rifft!(A::AbstractArray{T,N}, space::TensorSpace{<:NTuple{N,BaseSpace}}
     _apply_postprocess!(A, space)
     c = Sequence(space, Vector{real(T)}(undef, dimension(space)))
     C = _no_alloc_reshape(coefficients(c), dimensions(space))
-    C .= real.(view(A, axes(C)...))
+    @inbounds C .= real.(view(A, axes(C)...))
     return c
 end
 
@@ -255,7 +212,7 @@ function ifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:N
     _ifft_pow2!(A)
     _apply_postprocess!(A, space_c)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
-    C .= view(A, axes(C)...)
+    @inbounds C .= view(A, axes(C)...)
     return c
 end
 
@@ -267,7 +224,7 @@ function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:
     _ifft_pow2!(A)
     _apply_postprocess!(A, space_c)
     C = _no_alloc_reshape(coefficients(c), dimensions(space_c))
-    C .= real.(view(A, axes(C)...))
+    @inbounds C .= real.(view(A, axes(C)...))
     return c
 end
 
@@ -290,25 +247,13 @@ _postprocess!(C, ::Taylor, ::Val) = C
 # Fourier
 
 function _postprocess!(C::AbstractVector, space::Fourier)
-    len = length(C)
-    ord = order(space)
-    C[1+ord] = C[1]
-    for i ∈ 1:ord
-        C[1+ord+i] = C[1+i]
-        C[1+ord-i] = C[len+1-i]
-    end
+    circshift!(C, copy(C), order(space))
     return C
 end
 
 function _postprocess!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
-    len = size(C, D)
     ord = order(space)
-    for i ∈ 0:ord
-        selectdim(C, D, 2ord+1-i) .= selectdim(C, D, 1+ord-i)
-        if i != 0
-            selectdim(C, D, 1+ord-i) .= selectdim(C, D, len+1-i)
-        end
-    end
+    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, ord, 0), Val(N)))
     return C
 end
 

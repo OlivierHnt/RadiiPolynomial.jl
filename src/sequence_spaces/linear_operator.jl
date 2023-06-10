@@ -49,6 +49,8 @@ LinearOperator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<
 LinearOperator(coefficients::AbstractMatrix) =
     LinearOperator(ParameterSpace()^size(coefficients, 2), ParameterSpace()^size(coefficients, 1), coefficients)
 
+Sequence(A::LinearOperator) = Sequence(codomain(A), vec(coefficients(A)))
+
 domain(A::LinearOperator) = A.domain
 
 codomain(A::LinearOperator) = A.codomain

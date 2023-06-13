@@ -176,7 +176,7 @@ function _symmetry_action(::SinFourier, i::Int)
     y = ifelse(i == 0, 0, flipsign(1, -i))
     return Complex(0, y)
 end
-_inverse_symmetry_action(::SinFourier, ::Int) = Complex(0, -1)
+_inverse_symmetry_action(::SinFourier, ::Int) = Complex(0, 1)
 
 _extract_valid_index(::SinFourier, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::SinFourier, i::Int) = abs(i)
@@ -187,6 +187,58 @@ _convolution_indices(s₁::CosFourier, s₂::SinFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 _convolution_indices(s₁::SinFourier, s₂::CosFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+
+# FFT
+
+_dfs_dimension(s::CosFourier) = 2order(s)+1
+function _preprocess!(C::AbstractVector, space::CosFourier)
+    len = length(C)
+    @inbounds for i ∈ 2:order(space)+1
+        C[len+2-i] = C[i]
+    end
+    return C
+end
+function _preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D}
+    len = size(C, D)
+    @inbounds for i ∈ 2:order(space)+1
+        selectdim(C, D, len+2-i) .= selectdim(C, D, i)
+    end
+    return C
+end
+_postprocess!(C, ::CosFourier) = C
+_postprocess!(C, ::CosFourier, ::Val) = C
+
+_dfs_dimension(s::SinFourier) = 2order(s)+1
+function _preprocess!(C::AbstractVector, space::SinFourier)
+    len = length(C)
+    @inbounds for i ∈ order(space)+1:-1:2
+        C[i] = -im * C[i-1]
+        C[len+2-i] = -C[i]
+    end
+    @inbounds C[1] = zero(eltype(C))
+    return C
+end
+function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
+    len = size(C, D)
+    @inbounds for i ∈ order(space)+1:-1:2
+        selectdim(C, D, i) .= .- im .* selectdim(C, D, i-1)
+        selectdim(C, D, len+2-i) .= .- selectdim(C, D, i)
+    end
+    @inbounds selectdim(C, D, 1) .= zero(eltype(C))
+    return C
+end
+function _postprocess!(C, space::SinFourier)
+    @inbounds for i ∈ 1:order(space)
+        C[i] = im * C[i+1]
+    end
+    return C
+end
+function _postprocess!(C, space::SinFourier, ::Val{D}) where {D}
+    @inbounds for i ∈ 1:order(space)
+        selectdim(C, D, i) .= im .* selectdim(C, D, i+1)
+    end
+    return C
+end
 
 # Derivative
 
@@ -551,18 +603,8 @@ end
 
 # Multiplication
 
-function _project!(C::LinearOperator{<:CosFourier,<:CosFourier}, ℳ::Multiplication)
-    C_ = LinearOperator(Chebyshev(order(domain(C))), Chebyshev(order(codomain(C))), coefficients(C))
-    a = sequence(ℳ)
-    ℳ_ = Multiplication(Sequence(Chebyshev(order(space(a))), coefficients(a)))
-    _project!(C_, ℳ_)
-    return C
-end
-
 _mult_domain_indices(s::CosFourier) = _mult_domain_indices(Chebyshev(order(s)))
 _isvalid(s::CosFourier, i::Int, j::Int) = _isvalid(Chebyshev(order(s)), i, j)
-
-
 
 _mult_domain_indices(s::SinFourier) = -order(s):order(s)
 _isvalid(s::SinFourier, i::Int, j::Int) = abs(i-j) ≤ order(s)

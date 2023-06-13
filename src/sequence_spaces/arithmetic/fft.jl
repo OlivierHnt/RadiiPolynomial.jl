@@ -116,17 +116,17 @@ end
 
 # Chebyshev
 
-function _preprocess!(C::AbstractVector, ::Chebyshev)
+function _preprocess!(C::AbstractVector, space::Chebyshev)
     len = length(C)
-    @inbounds for i ∈ 2:length(C)
+    @inbounds for i ∈ 2:order(space)+1
         C[len+2-i] = C[i]
     end
     return C
 end
 
-function _preprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
+function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
-    @inbounds for i ∈ 2:size(C, D)
+    @inbounds for i ∈ 2:order(space)+1
         selectdim(C, D, len+2-i) .= selectdim(C, D, i)
     end
     return C
@@ -152,7 +152,7 @@ function rifft!(A::AbstractVector{T}, space::BaseSpace) where {T}
     _ifft_pow2!(A)
     _postprocess!(A, space)
     C = Vector{real(T)}(undef, dimension(space))
-    @inbounds C .= view(A, eachindex(C))
+    @inbounds C .= real.(view(A, eachindex(C)))
     return Sequence(space, C)
 end
 

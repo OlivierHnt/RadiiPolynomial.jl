@@ -266,7 +266,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
     n = order(𝒟)
     if n == 0
         C .= A
-    else
+    elseif iseven(n)
         ord = order(space)
         ω = one(eltype(A))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
@@ -274,6 +274,14 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+        end
+    else
+        ord = order(space)
+        ω = one(eltype(A))*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
         end
     end
     return C
@@ -284,7 +292,7 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
     CoefType = _coeftype(𝒟, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
-    else
+    elseif iseven(n)
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
         ω = one(T)*frequency(space)
@@ -295,6 +303,14 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
         end
         return C
+    else
+        ord = order(space)
+        ω = one(eltype(A))*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+        end
     end
 end
 
@@ -363,13 +379,22 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) wh
     n = order(𝒟)
     if n == 0
         C .= A
-    else
+    elseif iseven(n)
         ord = order(space)
         ω = one(eltype(A))*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
-            selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
+        end
+    else
+        ord = order(space)
+        ω = one(eltype(A))*frequency(space)
+        @inbounds selectdim(C, 1, 1) .= zero(T)
+        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
         end
     end
     return C
@@ -380,14 +405,25 @@ function _apply(𝒟::Derivative, space::SinFourier, ::Val{D}, A::AbstractArray{
     CoefType = _coeftype(𝒟, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
-    else
+    elseif iseven(n)
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
         ω = one(T)*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
-            selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
+            selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
+        end
+        return C
+    else
+        C = Array{CoefType,N}(undef, size(A))
+        ord = order(space)
+        ω = one(T)*frequency(space)
+        @inbounds selectdim(C, D, 1) .= zero(CoefType)
+        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
         end
         return C
     end

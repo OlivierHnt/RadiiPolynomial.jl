@@ -369,9 +369,9 @@ function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
             end
         else
             space_a = space(a)
-            CoefType_a = eltype(a)
+            CoefType = eltype(c)
             @inbounds for i ∈ n:order_a
-                c[i-n] = _nzval(𝒟, space_a, space_a, CoefType_a, i-n, i) * a[i]
+                c[i-n] = _nzval(𝒟, space_a, space_a, CoefType, i-n, i) * a[i]
             end
         end
     end
@@ -391,9 +391,8 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where 
                 selectdim(C, 1, i) .= i .* selectdim(A, 1, i+1)
             end
         else
-            CoefType_A = eltype(A)
             @inbounds for i ∈ n:ord
-                selectdim(C, 1, i-n+1) .= _nzval(𝒟, space, space, CoefType_A, i-n, i) .* selectdim(A, 1, i+1)
+                selectdim(C, 1, i-n+1) .= _nzval(𝒟, space, space, T, i-n, i) .* selectdim(A, 1, i+1)
             end
         end
     end
@@ -418,7 +417,7 @@ function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}
         else
             C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord-n+1, size(A, i)), Val(N)))
             @inbounds for i ∈ n:ord
-                selectdim(C, D, i-n+1) .= _nzval(𝒟, space, space, T, i-n, i) .* selectdim(A, D, i+1)
+                selectdim(C, D, i-n+1) .= _nzval(𝒟, space, space, CoefType, i-n, i) .* selectdim(A, D, i+1)
             end
             return C
         end
@@ -455,10 +454,10 @@ function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
         end
     else
         space_a = space(a)
-        CoefType_a = eltype(a)
+        CoefType = eltype(c)
         @inbounds view(c, 0:n-1) .= zero(eltype(c))
         @inbounds for i ∈ 0:order(a)
-            c[i+n] = _nzval(ℐ, space_a, space_a, CoefType_a, i+n, i) * a[i]
+            c[i+n] = _nzval(ℐ, space_a, space_a, CoefType, i+n, i) * a[i]
         end
     end
     return c
@@ -475,11 +474,10 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
             selectdim(C, 1, i+2) .= selectdim(A, 1, i+1) ./ (i+1)
         end
     else
-        CoefType_A = eltype(A)
         ord = order(space)
         @inbounds selectdim(C, 1, 1:n) .= zero(T)
         @inbounds for i ∈ 0:ord
-            selectdim(C, 1, i+n+1) .= _nzval(ℐ, space, space, CoefType_A, i+n, i) .* selectdim(A, 1, i+1)
+            selectdim(C, 1, i+n+1) .= _nzval(ℐ, space, space, T, i+n, i) .* selectdim(A, 1, i+1)
         end
     end
     return C
@@ -503,7 +501,7 @@ function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) w
         C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord+n+1, size(A, i)), Val(N)))
         @inbounds selectdim(C, D, 1:n) .= zero(CoefType)
         @inbounds for i ∈ 0:ord
-            selectdim(C, D, i+n+1) .= _nzval(ℐ, space, space, T, i+n, i) .* selectdim(A, D, i+1)
+            selectdim(C, D, i+n+1) .= _nzval(ℐ, space, space, CoefType, i+n, i) .* selectdim(A, D, i+1)
         end
         return C
     end

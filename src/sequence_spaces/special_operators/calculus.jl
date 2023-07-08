@@ -1087,14 +1087,25 @@ function _nzind_domain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
     if order(ℐ) == 0
         return collect(0:min(order(domain), order(codomain)))
     elseif order(ℐ) == 1
-        v = mapreduce(vcat, 0:order(domain)) do j
+        len = 0
+        for j ∈ 0:order(domain)
             if j < 2
-                j+1 ≤ order(codomain) && return [j, j]
-                return [j]
+                len += 1 + (j+1 ≤ order(codomain))
             else
-                j+1 ≤ order(codomain) && return [j, j, j]
-                j-1 ≤ order(codomain) && return [j, j]
-                return [j]
+                len += (1 + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+            end
+        end
+        v = Vector{Int}(undef, len)
+        idx = 1
+        for j ∈ 0:order(domain)
+            if j < 2
+                idx2 = idx + (j+1 ≤ order(codomain))
+                view(v, idx:idx2) .= j
+                idx = idx2 + 1
+            else
+                idx2 = (idx + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+                view(v, idx:idx2) .= j
+                idx = idx2 + 1
             end
         end
         return v
@@ -1107,14 +1118,40 @@ function _nzind_codomain(ℐ::Integral, domain::Chebyshev, codomain::Chebyshev)
     if order(ℐ) == 0
         return collect(0:min(order(domain), order(codomain)))
     elseif order(ℐ) == 1
-        v = mapreduce(vcat, 0:order(domain)) do j
+        len = 0
+        for j ∈ 0:order(domain)
             if j < 2
-                j+1 ≤ order(codomain) && return [0, j+1]
-                return [0]
+                len += 1 + (j+1 ≤ order(codomain))
             else
-                j+1 ≤ order(codomain) && return [0, j-1, j+1]
-                j-1 ≤ order(codomain) && return [0, j-1]
-                return [0]
+                len += (1 + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+            end
+        end
+        v = Vector{Int}(undef, len)
+        idx = 1
+        for j ∈ 0:order(domain)
+            if j < 2
+                if j+1 ≤ order(codomain)
+                    v[idx] = 0
+                    v[idx+1] = j+1
+                    idx += 2
+                else
+                    v[idx] = 0
+                    idx += 1
+                end
+            else
+                if j+1 ≤ order(codomain)
+                    v[idx] = 0
+                    v[idx+1] = j-1
+                    v[idx+2] = j+1
+                    idx += 3
+                elseif j-1 ≤ order(codomain)
+                    v[idx] = 0
+                    v[idx+1] = j-1
+                    idx += 2
+                else
+                    v[idx] = 0
+                    idx += 1
+                end
             end
         end
         return v

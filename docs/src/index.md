@@ -30,18 +30,9 @@ end # hide
 <div class="row">
   <div class="single">
     <h3 style="text-align: center; color: #9259A3;">Citation</h3>
-```
-```
-@software{RadiiPolynomial.jl,
-  author = {Olivier Hénot},
-  title  = {RadiiPolynomial.jl},
-  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl},
-  year   = {2021},
-  doi    = {10.5281/zenodo.5705258}
-}
-```
-```@raw html
-    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a>, <a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
+    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a></p>
+  </div>
+</div>
   </div>
 </div>
 ```

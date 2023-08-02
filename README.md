@@ -1,7 +1,10 @@
 # RadiiPolynomial.jl
 
+[![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions/workflows/ci.yml)
+
+[![DOI](https://zenodo.org/badge/426607582.svg)](https://zenodo.org/badge/latestdoi/426607582)
+
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5705258.svg)](https://doi.org/10.5281/zenodo.5705258)
 
 RadiiPolynomial.jl is a Julia package for computer-assisted proofs in dynamical systems.
 
@@ -21,16 +24,4 @@ using Pkg; Pkg.add("RadiiPolynomial")
 
 ## Citation
 
-If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the following BibTeX template:
-
-```
-@software{RadiiPolynomial.jl,
-  author = {Olivier Hénot},
-  title  = {RadiiPolynomial.jl},
-  url    = {https://github.com/OlivierHnt/RadiiPolynomial.jl},
-  year   = {2021},
-  doi    = {10.5281/zenodo.5705258}
-}
-```
-
-See also [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib) and [10.5281/zenodo.5705258](https://doi.org/10.5281/zenodo.5705258).
+If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib).

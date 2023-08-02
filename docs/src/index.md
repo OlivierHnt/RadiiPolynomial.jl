@@ -30,7 +30,7 @@ end # hide
 <div class="row">
   <div class="single">
     <h3 style="text-align: center; color: #9259A3;">Citation</h3>
-    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a></p>
+    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a>, <a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
   </div>
 </div>
   </div>

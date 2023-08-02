@@ -24,4 +24,4 @@ using Pkg; Pkg.add("RadiiPolynomial")
 
 ## Citation
 
-If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib).
+If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib) ([more information](https://doi.org/10.5281/zenodo.5705258)).

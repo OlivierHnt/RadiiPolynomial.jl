@@ -23,16 +23,15 @@ end # hide
   </div>
   <div class="column">
     <h3 style="text-align: center; color: #399746;">Open source</h3>
-    <p>The RadiiPolynomial library is an open source software under the <a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/LICENSE.md" rel="nofollow noopener noreferrer" target="_blank">MIT license</a>.</p>
+    <p>The RadiiPolynomial library is an open source software under the <a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/LICENSE.md" rel="nofollow noopener noreferrer" target="_blank">MIT license</a></p>
     <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl" rel="nofollow noopener noreferrer" target="_blank">github.com/OlivierHnt/RadiiPolynomial.jl</a></p>
   </div>
 </div>
 <div class="row">
   <div class="single">
     <h3 style="text-align: center; color: #9259A3;">Citation</h3>
-    <p style="text-align: center;"><a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a>, <a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
-  </div>
-</div>
+    <p>If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template <a href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib" rel="nofollow noopener noreferrer" target="_blank">CITATION.bib</a></p>
+    <p style="text-align: center;"><a href="https://doi.org/10.5281/zenodo.5705258" rel="nofollow noopener noreferrer" target="_blank">10.5281/zenodo.5705258</a></p>
   </div>
 </div>
 ```

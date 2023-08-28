@@ -279,13 +279,13 @@ end
 # Parameter space
 
 Base.:+(A::LinearOperator{ParameterSpace,ParameterSpace}, J::UniformScaling) =
-    @inbounds LinearOperator(domain(A), codomain(A), [A[1,1] + J.λ])
+    @inbounds LinearOperator(domain(A), codomain(A), [A[1,1] + J.λ;;])
 Base.:+(J::UniformScaling, A::LinearOperator{ParameterSpace,ParameterSpace}) =
-    @inbounds LinearOperator(domain(A), codomain(A), [J.λ + A[1,1]])
+    @inbounds LinearOperator(domain(A), codomain(A), [J.λ + A[1,1];;])
 Base.:-(A::LinearOperator{ParameterSpace,ParameterSpace}, J::UniformScaling) =
-    @inbounds LinearOperator(domain(A), codomain(A), [A[1,1] - J.λ])
+    @inbounds LinearOperator(domain(A), codomain(A), [A[1,1] - J.λ;;])
 Base.:-(J::UniformScaling, A::LinearOperator{ParameterSpace,ParameterSpace}) =
-    @inbounds LinearOperator(domain(A), codomain(A), [J.λ - A[1,1]])
+    @inbounds LinearOperator(domain(A), codomain(A), [J.λ - A[1,1];;])
 
 radd!(A::LinearOperator{ParameterSpace,ParameterSpace}, J::UniformScaling) = _radd!(A, J)
 ladd!(J::UniformScaling, A::LinearOperator{ParameterSpace,ParameterSpace}) = _radd!(A, J)

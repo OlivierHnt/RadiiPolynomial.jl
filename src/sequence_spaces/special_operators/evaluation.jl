@@ -84,8 +84,12 @@ function evaluate(a::Sequence, x)
     CoefType = _coeftype(ℰ, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, ℰ, a)
-    return c
+    return _return_evaluate(c, x)
 end
+
+_return_evaluate(a::Sequence, ::Any) = a
+_return_evaluate(a::Sequence{<:BaseSpace}, ::Number) = coefficients(a)[1]
+_return_evaluate(a::Sequence{TensorSpace{T}}, ::NTuple{N,Number}) where {N,T<:NTuple{N,BaseSpace}} = coefficients(a)[1]
 
 """
     evaluate!(c::Sequence, a::Sequence, x)

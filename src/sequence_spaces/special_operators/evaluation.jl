@@ -90,6 +90,10 @@ end
 _return_evaluate(a::Sequence, ::Any) = a
 _return_evaluate(a::Sequence{<:BaseSpace}, ::Number) = coefficients(a)[1]
 _return_evaluate(a::Sequence{TensorSpace{T}}, ::NTuple{N,Number}) where {N,T<:NTuple{N,BaseSpace}} = coefficients(a)[1]
+_return_evaluate(a::Sequence{CartesianPower{T}}, ::Number) where {T<:BaseSpace} = coefficients(a)
+_return_evaluate(a::Sequence{CartesianPower{TensorSpace{T}}}, ::NTuple{N,Number}) where {N,T<:NTuple{N,BaseSpace}} = coefficients(a)
+_return_evaluate(a::Sequence{CartesianProduct{T}}, ::Number) where {T<:Tuple{Vararg{BaseSpace}}} = coefficients(a)
+_return_evaluate(a::Sequence{CartesianProduct{T}}, ::NTuple{N,Number}) where {N,T<:Tuple{Vararg{TensorSpace{<:NTuple{N,BaseSpace}}}}} = coefficients(a)
 
 """
     evaluate!(c::Sequence, a::Sequence, x)

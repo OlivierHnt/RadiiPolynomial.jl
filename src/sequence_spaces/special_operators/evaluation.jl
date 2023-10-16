@@ -88,15 +88,11 @@ function evaluate(a::Sequence, x)
 end
 
 _return_evaluate(a::Sequence, ::Any) = a
-_return_evaluate(a::Sequence{<:BaseSpace}, ::Number) = coefficients(a)[1]
-_return_evaluate(a::Sequence{TensorSpace{T}}, ::NTuple{N,Number}) where {N,T<:NTuple{N,BaseSpace}} = coefficients(a)[1]
-_return_evaluate(a::Sequence{CartesianPower{T}}, ::Number) where {T<:BaseSpace} = coefficients(a)
-_return_evaluate(a::Sequence{CartesianPower{TensorSpace{T}}}, ::NTuple{N,Number}) where {N,T<:NTuple{N,BaseSpace}} = coefficients(a)
-_return_evaluate(a::Sequence{CartesianProduct{T}}, ::Number) where {T<:Tuple{Vararg{BaseSpace}}} = coefficients(a)
-_return_evaluate(a::Sequence{CartesianProduct{T}}, ::NTuple{N,Number}) where {N,T<:Tuple{Vararg{TensorSpace{<:NTuple{N,BaseSpace}}}}} = coefficients(a)
+_return_evaluate(a::Sequence{<:SequenceSpace}, ::Union{Number,Tuple{Vararg{Number}}}) = coefficients(a)[1]
+_return_evaluate(a::Sequence{<:CartesianSpace}, ::Union{Number,Tuple{Vararg{Number}}}) = coefficients(a)
 
 """
-    evaluate!(c::Sequence, a::Sequence, x)
+    evaluate!(c::Union{AbstractVector,Sequence}, a::Sequence, x)
 
 Evaluate `a` at `x`. The result is stored in `c` by overwriting it.
 
@@ -109,6 +105,10 @@ function evaluate!(c::Sequence, a::Sequence, x)
     new_space = image(ℰ, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℰ(a) has space $new_space"))
     _apply!(c, ℰ, a)
+    return c
+end
+function evaluate!(c::AbstractVector, a::Sequence, x)
+    evaluate!(Sequence(image(Evaluation(x), space(a)), c), a, x)
     return c
 end
 

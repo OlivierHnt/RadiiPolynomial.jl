@@ -15,7 +15,7 @@ end
 
 _find_space(bc::Base.Broadcast.Broadcasted) = _find_space(bc.args)
 _find_space(args::Tuple) = _find_space(_find_space(args[1]), _find_space(Base.tail(args)))
-_find_space(a::Sequence) = a.space
+_find_space(a::Sequence) = space(a)
 _find_space(::Tuple{}) = nothing
 _find_space(::Any) = nothing
 _find_space(space::VectorSpace, ::Nothing) = space
@@ -30,16 +30,16 @@ function Base.copyto!(dest::Sequence, bc::Base.Broadcast.Broadcasted)
     axes(dest) == axes(bc) || return throw(DimensionMismatch)
     bc′ = Base.Broadcast.preprocess(dest, bc)
     @inbounds @simd for i ∈ eachindex(bc′)
-        dest.coefficients[i] = bc′[i]
+        coefficients(dest)[i] = bc′[i]
     end
     return dest
 end
 
 Base.@propagate_inbounds Base.Broadcast._broadcast_getindex(a::Sequence, i::Int) =
-    Base.Broadcast._broadcast_getindex(a.coefficients, i)
+    Base.Broadcast._broadcast_getindex(coefficients(a), i)
 
 Base.@propagate_inbounds Base.Broadcast._broadcast_getindex(a::Sequence, I::CartesianIndex) =
-    Base.Broadcast._broadcast_getindex(a.coefficients, I)
+    Base.Broadcast._broadcast_getindex(coefficients(a), I)
 
 # to allow a[...] .= f.(...)
 Base.@propagate_inbounds Base.Broadcast.dotview(a::Sequence, α) = view(a, α)

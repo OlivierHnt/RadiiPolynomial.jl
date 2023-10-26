@@ -7,7 +7,7 @@ function interval_of_existence(Y_::Real, Z₁_::Real, R_::Real)
     Y, Z₁, R = _supremum(Y_), _supremum(Z₁_), _supremum(R_)
     NewType = float(promote_type(typeof(Y), typeof(Z₁), typeof(R)))
     if !(Y ≥ 0 && isfinite(Y) && Z₁ ≥ 0 && isfinite(Z₁) && R ≥ 0)
-        return throw(DomainError((Y, Z₁, R), "Y and Z₁ must be positive and finite, R must be positive"))
+        return emptyinterval(NewType) # throw(DomainError((Y, Z₁, R), "Y and Z₁ must be positive and finite, R must be positive"))
     elseif Z₁ ≥ 1
         return emptyinterval(NewType)
     else
@@ -32,7 +32,7 @@ function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real)
     if Z₂ == 0
         return interval_of_existence(Y, Z₁, R)
     elseif !(Y ≥ 0 && isfinite(Y) && Z₁ ≥ 0 && isfinite(Z₁) && Z₂ ≥ 0 && isfinite(Z₂) && R ≥ 0)
-        return throw(DomainError((Y, Z₁, Z₂, R), "Y, Z₁ and Z₂ must be positive and finite, R must be positive"))
+        return emptyinterval(NewType) # throw(DomainError((Y, Z₁, Z₂, R), "Y, Z₁ and Z₂ must be positive and finite, R must be positive"))
     else
         b = Z₁ - one(Interval{NewType})
         Δ = b*b - 2*(Interval(Z₂)*Y)

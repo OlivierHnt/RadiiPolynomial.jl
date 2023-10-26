@@ -40,12 +40,12 @@ function ValidatedSequence{T,S,R,U}(sequence::Sequence{T,S}, truncation_error::R
         sequence_norm = emptyinterval(truncation_error)
         return _unsafe_validated_sequence(seq, sequence_norm, truncation_error, _to_interval(banachspace))
     elseif (truncation_error ≥ 0) & isfinite(truncation_error)
-        return throw(ArgumentError("truncation error must be positive and finite"))
-    else
         seq = _to_interval(sequence)
         X = _to_interval(banachspace)
         sequence_norm = norm(seq, X)
         return _unsafe_validated_sequence(seq, sequence_norm, truncation_error, X)
+    else
+        return throw(ArgumentError("truncation error must be positive and finite"))
     end
 end
 

@@ -94,4 +94,9 @@ include("rpa/newton.jl")
 include("sequence_spaces/symmetry.jl")
     export desymmetrize, CosFourier, SinFourier
 
+#
+
+include("sequence_spaces/validated_sequence.jl")
+    export ValidatedSequence
+
 end

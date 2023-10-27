@@ -143,9 +143,9 @@ function Base.:*(a::ValidatedSequence, b::ValidatedSequence)
         X)
 end
 Base.:*(a::ValidatedSequence, b::Number) =
-    ValidatedSequence(sequence(a) * b, truncation_error(a), banachspace(a))
+    ValidatedSequence(sequence(a) * b, truncation_error(a) * b, banachspace(a))
 Base.:*(a::Number, b::ValidatedSequence) =
-    ValidatedSequence(a * sequence(b), truncation_error(b), banachspace(b))
+    ValidatedSequence(a * sequence(b), a * truncation_error(b), banachspace(b))
 
 function Base.:^(a::ValidatedSequence, n::Int)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
@@ -210,7 +210,7 @@ function Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:S
     isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
     return ValidatedSequence(sequence(_c_) .± inf(r), Interval(inf(r)), X)
 end
-Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::Number) = ValidatedSequence(sequence(a) / b, truncation_error(a), banachspace(a))
+Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::Number) = ValidatedSequence(sequence(a) / b, truncation_error(a) / b, banachspace(a))
 Base.:/(a::Number, b::ValidatedSequence{<:SequenceSpace}) = a * inv(b)
 
 Base.:\(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:SequenceSpace}) = b / a

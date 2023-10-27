@@ -55,7 +55,6 @@ ValidatedSequence(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) 
 ValidatedSequence(sequence::Sequence, banachspace::BanachSpace) =
     ValidatedSequence(sequence, zero(eltype(sequence)), banachspace)
 
-
 ValidatedSequence(space::VectorSpace, coefficients::AbstractVector, X::BanachSpace) =
     ValidatedSequence(Sequence(space, coefficients), X)
 
@@ -108,26 +107,26 @@ end
 
 # Arithmetic
 
-promote_banachspace(X₁::Ell1, X₂::Ell1) = Ell1(promote_weight(X₁.weight, X₂.weight))
-promote_banachspace(X₁::Ell2, X₂::Ell2) = Ell2(promote_weight(X₁.weight, X₂.weight))
-promote_banachspace(X₁::EllInf, X₂::EllInf) = EllInf(promote_weight(X₁.weight, X₂.weight))
+_banachspace_intersect(X₁::Ell1, X₂::Ell1) = Ell1(_weight_min(X₁.weight, X₂.weight))
+_banachspace_intersect(X₁::Ell2, X₂::Ell2) = Ell2(_weight_min(X₁.weight, X₂.weight))
+_banachspace_intersect(X₁::EllInf, X₂::EllInf) = EllInf(_weight_min(X₁.weight, X₂.weight))
 
-promote_weight(::IdentityWeight, ::IdentityWeight) = IdentityWeight()
-promote_weight(::IdentityWeight, ::Weight) = IdentityWeight()
-promote_weight(::Weight, ::IdentityWeight) = IdentityWeight()
-promote_weight(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(w₁.rate, w₂.rate))
-promote_weight(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(w₁.rate, w₂.rate))
-promote_weight(w₁::BesselWeight, w₂::BesselWeight) = BesselWeight(min(w₁.rate, w₂.rate))
+_weight_min(::IdentityWeight, ::IdentityWeight) = IdentityWeight()
+_weight_min(::IdentityWeight, ::Weight) = IdentityWeight()
+_weight_min(::Weight, ::IdentityWeight) = IdentityWeight()
+_weight_min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(w₁.rate, w₂.rate))
+_weight_min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(w₁.rate, w₂.rate))
+_weight_min(w₁::BesselWeight, w₂::BesselWeight) = BesselWeight(min(w₁.rate, w₂.rate))
 
 Base.:+(a::ValidatedSequence, b::ValidatedSequence) =
-    ValidatedSequence(sequence(a) + sequence(b), truncation_error(a) + truncation_error(b), promote_banachspace(banachspace(a), banachspace(b)))
+    ValidatedSequence(sequence(a) + sequence(b), truncation_error(a) + truncation_error(b), _banachspace_intersect(banachspace(a), banachspace(b)))
 Base.:+(a::ValidatedSequence, b::Number) =
     ValidatedSequence(sequence(a) + b, truncation_error(a), banachspace(a))
 Base.:+(a::Number, b::ValidatedSequence) =
     ValidatedSequence(a + sequence(b), truncation_error(b), banachspace(b))
 
 Base.:-(a::ValidatedSequence, b::ValidatedSequence) =
-    ValidatedSequence(sequence(a) - sequence(b), truncation_error(a) + truncation_error(b), promote_banachspace(banachspace(a), banachspace(b)))
+    ValidatedSequence(sequence(a) - sequence(b), truncation_error(a) + truncation_error(b), _banachspace_intersect(banachspace(a), banachspace(b)))
 Base.:-(a::ValidatedSequence, b::Number) =
     ValidatedSequence(sequence(a) - b, truncation_error(a), banachspace(a))
 Base.:-(a::Number, b::ValidatedSequence) =
@@ -135,7 +134,7 @@ Base.:-(a::Number, b::ValidatedSequence) =
 
 function Base.:*(a::ValidatedSequence, b::ValidatedSequence)
     c = sequence(a) * sequence(b)
-    X = promote_banachspace(banachspace(a), banachspace(b))
+    X = _banachspace_intersect(banachspace(a), banachspace(b))
     return ValidatedSequence(c,
             sequence_norm(a) * truncation_error(b) +
             sequence_norm(b) * truncation_error(a) +
@@ -199,7 +198,7 @@ function Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:S
     c = _call_ifft!(C, space_c, promote_type(eltype(a), eltype(b)))
     B⁻¹ = inv.(B)
     approx_b⁻¹ = _call_ifft!(B⁻¹, space(b), eltype(b))
-    X = promote_banachspace(banachspace(a), banachspace(b))
+    X = _banachspace_intersect(banachspace(a), banachspace(b))
     _c_ = ValidatedSequence(c, X)
     _approx_b⁻¹_ = ValidatedSequence(approx_b⁻¹, X)
 
@@ -250,6 +249,15 @@ function Base.sqrt(a::ValidatedSequence{<:SequenceSpace})
 
     isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
     return ValidatedSequence(sequence(_c_) .± inf(r), Interval(inf(r)), X)
+end
+
+# projection
+
+function project(a::ValidatedSequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T}
+    c = project(sequence(a), space_dest)
+    X = banachspace(a)
+    banach_rounding!(c, norm(a), X, order(a))
+    return ValidatedSequence(c, truncation_error(a), X)
 end
 
 # norm

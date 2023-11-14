@@ -39,29 +39,29 @@ value(𝒮::Shift) = 𝒮.value
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(value(𝒮₁) + value(𝒮₂))
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Shift{<:Number}, n::Int) = Shift(value(𝒮) * n)
-Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Int) = Shift(map(τᵢ -> *(τᵢ, n), value(𝒮)))
-Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Shift(map(*, value(𝒮), n))
+Base.:^(𝒮::Shift{<:Number}, n::Integer) = Shift(value(𝒮) * n)
+Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Integer) = Shift(map(τᵢ -> *(τᵢ, n), value(𝒮)))
+Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Shift(map(*, value(𝒮), n))
 
 """
-    *(𝒮::Shift, a::Sequence)
+    *(𝒮::Shift, a::AbstractSequence)
 
 Shift `a` by `value(𝒮)`; equivalent to `shift(a, value(𝒮))`.
 
-See also: [`(::Shift)(::Sequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
+See also: [`(::Shift)(::AbstractSequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
 [`shift!`](@ref).
 """
-Base.:*(𝒮::Shift, a::Sequence) = shift(a, value(𝒮))
+Base.:*(𝒮::Shift, a::AbstractSequence) = shift(a, value(𝒮))
 
 """
-    (𝒮::Shift)(a::Sequence)
+    (𝒮::Shift)(a::AbstractSequence)
 
 Shift `a` by `value(𝒮)`; equivalent to `shift(a, value(𝒮))`.
 
-See also: [`*(::Shift, ::Sequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
+See also: [`*(::Shift, ::AbstractSequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
 [`shift!`](@ref).
 """
-(𝒮::Shift)(a::Sequence) = *(𝒮, a)
+(𝒮::Shift)(a::AbstractSequence) = *(𝒮, a)
 
 """
     shift(a::Sequence, τ)

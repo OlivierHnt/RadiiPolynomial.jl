@@ -50,7 +50,7 @@ and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
 
 Base.:+(ℳ::Multiplication) = Multiplication(+(sequence(ℳ)))
 Base.:-(ℳ::Multiplication) = Multiplication(-(sequence(ℳ)))
-Base.:^(ℳ::Multiplication, n::Int) = Multiplication(sequence(ℳ) ^ n)
+Base.:^(ℳ::Multiplication, n::Integer) = Multiplication(sequence(ℳ) ^ n)
 
 for f ∈ (:+, :-, :*)
     @eval begin

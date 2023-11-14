@@ -89,24 +89,24 @@ Integral(order::Int...) = Integral(order)
 order(ℐ::Integral) = ℐ.order
 
 """
-    *(𝒟::Derivative, a::Sequence)
+    *(𝒟::Derivative, a::AbstractSequence)
 
 Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
 
-See also: [`(::Derivative)(::Sequence)`](@ref), [`Derivative`](@ref),
+See also: [`(::Derivative)(::AbstractSequence)`](@ref), [`Derivative`](@ref),
 [`differentiate`](@ref) and [`differentiate!`](@ref).
 """
-Base.:*(𝒟::Derivative, a::Sequence) = differentiate(a, order(𝒟))
+Base.:*(𝒟::Derivative, a::AbstractSequence) = differentiate(a, order(𝒟))
 
 """
-    (𝒟::Derivative)(a::Sequence)
+    (𝒟::Derivative)(a::AbstractSequence)
 
 Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
 
-See also: [`*(::Derivative, ::Sequence)`](@ref), [`Derivative`](@ref),
+See also: [`*(::Derivative, ::AbstractSequence)`](@ref), [`Derivative`](@ref),
 [`differentiate`](@ref) and [`differentiate!`](@ref).
 """
-(𝒟::Derivative)(a::Sequence) = *(𝒟, a)
+(𝒟::Derivative)(a::AbstractSequence) = *(𝒟, a)
 
 """
     differentiate(a::Sequence, α=1)
@@ -179,24 +179,24 @@ function project!(C::LinearOperator, 𝒟::Derivative)
 end
 
 """
-    *(ℐ::Integral, a::Sequence)
+    *(ℐ::Integral, a::AbstractSequence)
 
 Compute the `order(ℐ)`-th integral of `a`; equivalent to `integrate(a, order(ℐ))`.
 
-See also: [`(::Integral)(::Sequence)`](@ref), [`Integral`](@ref),
+See also: [`(::Integral)(::AbstractSequence)`](@ref), [`Integral`](@ref),
 [`integrate`](@ref) and [`integrate!`](@ref).
 """
-Base.:*(ℐ::Integral, a::Sequence) = integrate(a, order(ℐ))
+Base.:*(ℐ::Integral, a::AbstractSequence) = integrate(a, order(ℐ))
 
 """
-    (ℐ::Integral)(a::Sequence)
+    (ℐ::Integral)(a::AbstractSequence)
 
 Compute the `order(ℐ)`-th integral of `a`; equivalent to `integrate(a, order(ℐ))`.
 
-See also: [`*(::Integral, ::Sequence)`](@ref), [`Integral`](@ref),
+See also: [`*(::Integral, ::AbstractSequence)`](@ref), [`Integral`](@ref),
 [`integrate`](@ref) and [`integrate!`](@ref).
 """
-(ℐ::Integral)(a::Sequence) = *(ℐ, a)
+(ℐ::Integral)(a::AbstractSequence) = *(ℐ, a)
 
 """
     integrate(a::Sequence, α=1)
@@ -273,9 +273,9 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
         Base.:*(ℱ₁::$F{Int}, ℱ₂::$F{Int}) = $F(order(ℱ₁) + order(ℱ₂))
         Base.:*(ℱ₁::$F{NTuple{N,Int}}, ℱ₂::$F{NTuple{N,Int}}) where {N} = $F(map(+, order(ℱ₁), order(ℱ₂)))
 
-        Base.:^(ℱ::$F{Int}, n::Int) = $F(order(ℱ) * n)
-        Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Int) = $F(map(αᵢ -> *(αᵢ, n), order(ℱ)))
-        Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Int}) where {N} = $F(map(*, order(ℱ), n))
+        Base.:^(ℱ::$F{Int}, n::Integer) = $F(order(ℱ) * n)
+        Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Integer) = $F(map(αᵢ -> *(αᵢ, n), order(ℱ)))
+        Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Integer}) where {N} = $F(map(*, order(ℱ), n))
 
         _findposition_nzind_domain(ℱ::$F, domain, codomain) =
             _findposition(_nzind_domain(ℱ, domain, codomain), domain)

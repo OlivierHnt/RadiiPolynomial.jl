@@ -1,8 +1,8 @@
 # fallback methods
 
-(A::LinearOperator)(b::Sequence) = *(A, b)
+(A::LinearOperator)(b::AbstractSequence) = *(A, b)
 
-function Base.:*(A::LinearOperator, b::Sequence)
+function Base.:*(A::LinearOperator, b::AbstractSequence)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     _iscompatible(domain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, b has space $space_b"))
@@ -12,13 +12,13 @@ function Base.:*(A::LinearOperator, b::Sequence)
     return c
 end
 
-function mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
+function mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number)
     _iscompatible(space(c), codomain(A)) & _iscompatible(domain(A), space(b)) || return throw(ArgumentError("spaces must be compatible"))
     _mul!(c, A, b, α, β)
     return c
 end
 
-function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
+function _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)
     space_b = space(b)
     space_c = space(c)
@@ -51,7 +51,7 @@ function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Numb
     return c
 end
 
-function Base.:\(A::LinearOperator, b::Sequence)
+function Base.:\(A::LinearOperator, b::AbstractSequence)
     codomain_A = codomain(A)
     space_b = space(b)
     _iscompatible(codomain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has codomain $codomain_A, b has space $space_b"))

@@ -80,7 +80,7 @@ function lmul!(A::LinearOperator, B::LinearOperator)
     return LinearOperator(domain(B), codomain(A), lmul!(coefficients(A), coefficients(B)))
 end
 
-function Base.:^(A::LinearOperator, n::Int)
+function Base.:^(A::LinearOperator, n::Integer)
     if n < 0
         return ^(inv(A), -n)
     elseif n == 0

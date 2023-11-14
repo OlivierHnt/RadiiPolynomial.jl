@@ -10,9 +10,9 @@ fft_size(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,
 fft_size(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, s₃::TensorSpace{<:NTuple{N,BaseSpace}}...) where {N} =
     ntuple(i -> nextpow(2, _dfs_dimension(s₁, i) + _dfs_dimension(s₂, i) + mapreduce(s₃_ -> _dfs_dimension(s₃_, i), +, s₃)), Val(N))
 
-fft_size(s::BaseSpace, n::Int) = (_fft_length(s, n),)
+fft_size(s::BaseSpace, n::Integer) = (_fft_length(s, n),)
 
-fft_size(s::TensorSpace, n::Int) = map(sᵢ -> _fft_length(sᵢ, n), spaces(s))
+fft_size(s::TensorSpace, n::Integer) = map(sᵢ -> _fft_length(sᵢ, n), spaces(s))
 
 _fft_length(s₁::BaseSpace, s₂::BaseSpace) =
     nextpow(2, _dfs_dimension(s₁) + _dfs_dimension(s₂))
@@ -20,13 +20,13 @@ _fft_length(s₁::BaseSpace, s₂::BaseSpace) =
 _fft_length(s₁::BaseSpace, s₂::BaseSpace, s₃::BaseSpace...) =
     nextpow(2, _dfs_dimension(s₁) + _dfs_dimension(s₂) + mapreduce(_dfs_dimension, +, s₃))
 
-_fft_length(s::BaseSpace, n::Int) = nextpow(2, n * _dfs_dimension(s))
+_fft_length(s::BaseSpace, n::Integer) = nextpow(2, n * _dfs_dimension(s))
 
 #
 
 _dfs_dimensions(s::TensorSpace) = map(_dfs_dimension, spaces(s))
 
-_dfs_dimension(s::TensorSpace, i::Int) = _dfs_dimension(s[i])
+_dfs_dimension(s::TensorSpace, i::Integer) = _dfs_dimension(s[i])
 
 # Taylor
 _dfs_dimension(s::Taylor) = dimension(s)
@@ -37,9 +37,9 @@ _dfs_dimension(s::Chebyshev) = 2order(s)+1
 
 # sequence to discrete Fourier series
 
-fft(a::Sequence{<:BaseSpace}, n::Tuple{Int}) = @inbounds fft(a, n[1])
+fft(a::Sequence{<:BaseSpace}, n::Tuple{Integer}) = @inbounds fft(a, n[1])
 
-function fft(a::Sequence{<:BaseSpace}, n::Int)
+function fft(a::Sequence{<:BaseSpace}, n::Integer)
     space_a = space(a)
     _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
     CoefType = complex(eltype(a))
@@ -62,7 +62,7 @@ function fft!(C::AbstractVector, a::Sequence{<:BaseSpace})
     return _fft_pow2!(C)
 end
 
-function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace}}
+function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}) where {N,T<:NTuple{N,BaseSpace}}
     space_a = space(a)
     _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
     CoefType = complex(eltype(a))

@@ -38,36 +38,36 @@ Evaluation(value::Union{Number,Nothing}...) = Evaluation(value)
 value(ℰ::Evaluation) = ℰ.value
 
 """
-    *(ℰ::Evaluation, a::Sequence)
+    *(ℰ::Evaluation, a::AbstractSequence)
 
 Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
 
-See also: [`(::Evaluation)(::Sequence)`](@ref), [`Evaluation`](@ref),
-[`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+See also: [`(::Evaluation)(::AbstractSequence)`](@ref), [`Evaluation`](@ref),
+[`(::AbstractSequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
 """
-Base.:*(ℰ::Evaluation, a::Sequence) = evaluate(a, value(ℰ))
+Base.:*(ℰ::Evaluation, a::AbstractSequence) = evaluate(a, value(ℰ))
 
 """
-    (ℰ::Evaluation)(a::Sequence)
+    (ℰ::Evaluation)(a::AbstractSequence)
 
 Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
 
-See also: [`*(::Evaluation, ::Sequence)`](@ref), [`Evaluation`](@ref),
-[`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+See also: [`*(::Evaluation, ::AbstractSequence)`](@ref), [`Evaluation`](@ref),
+[`(::AbstractSequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
 """
-(ℰ::Evaluation)(a::Sequence) = *(ℰ, a)
+(ℰ::Evaluation)(a::AbstractSequence) = *(ℰ, a)
 
 """
-    (a::Sequence)(x, y...)
+    (a::AbstractSequence)(x, y...)
 
 Evaluate `a` at `(x, y...)`; equivalent to `evaluate(a, (x, y...))` or
 `evaluate(a, x)` if `y` is not provided.
 
 See also: [`evaluate`](@ref), [`evaluate!`](@ref), [`Evaluation`](@ref),
-[`*(::Evaluation, ::Sequence)`](@ref) and [`(::Evaluation)(::Sequence)`](@ref).
+[`*(::Evaluation, ::AbstractSequence)`](@ref) and [`(::Evaluation)(::AbstractSequence)`](@ref).
 """
-(a::Sequence)(x, y...) = evaluate(a, (x, y...))
-(a::Sequence)(x) = evaluate(a, x)
+(a::AbstractSequence)(x, y...) = evaluate(a, (x, y...))
+(a::AbstractSequence)(x) = evaluate(a, x)
 
 """
     evaluate(a::Sequence, x)

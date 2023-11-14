@@ -277,7 +277,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Fourier, A) where {T
         C .= A
     else
         ord = order(space)
-        @inbounds selectdim(C, N, 1) .= selectdim(A, N, 1)
+        @inbounds selectdim(C, N, ord+1) .= selectdim(A, N, ord+1)
         eiωτ = cis(frequency(space)*τ)
         eiωτj = one(eiωτ)
         @inbounds for j ∈ 1:ord

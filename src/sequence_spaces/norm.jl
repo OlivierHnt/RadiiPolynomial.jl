@@ -376,7 +376,7 @@ function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
         return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), -rᵢ₊₁, zero(rᵢ₊₁))
     end
     err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
-    return @show rate, err
+    return rate, err
 end
 
 # Taylor

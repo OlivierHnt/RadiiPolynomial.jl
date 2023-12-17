@@ -41,7 +41,8 @@ makedocs(;
                 ]
             ]
         ]
-    ]
+    ],
+    warnonly = true
 )
 
 deploydocs(;

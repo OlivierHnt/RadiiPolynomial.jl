@@ -42,7 +42,7 @@ import LinearAlgebra: norm, opnorm
 include("sequence_spaces/norm.jl")
     export Weight, IdentityWeight, GeometricWeight, geometricweight,
         AlgebraicWeight, algebraicweight, BesselWeight, rate,
-        BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace
+        BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace, weight
 
     export norm, opnorm
 

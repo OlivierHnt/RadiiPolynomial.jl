@@ -534,8 +534,8 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
                 ωj = ω*j
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
-                c[j] = Complex(-ωj * imag(aⱼ), ωj * real(aⱼ))
-                c[-j] = Complex(ωj * imag(a₋ⱼ), -ωj * real(a₋ⱼ))
+                c[j] = complex(-ωj * imag(aⱼ), ωj * real(aⱼ))
+                c[-j] = complex(ωj * imag(a₋ⱼ), -ωj * real(a₋ⱼ))
             end
         else
             if isodd(n)
@@ -544,8 +544,8 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
                     sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
-                    c[j] = Complex(-sign_iⁿ_ωⁿjⁿ * imag(aⱼ), sign_iⁿ_ωⁿjⁿ * real(aⱼ))
-                    c[-j] = Complex(sign_iⁿ_ωⁿjⁿ * imag(a₋ⱼ), -sign_iⁿ_ωⁿjⁿ * real(a₋ⱼ))
+                    c[j] = complex(-sign_iⁿ_ωⁿjⁿ * imag(aⱼ), sign_iⁿ_ωⁿjⁿ * real(aⱼ))
+                    c[-j] = complex(sign_iⁿ_ωⁿjⁿ * imag(a₋ⱼ), -sign_iⁿ_ωⁿjⁿ * real(a₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -664,13 +664,13 @@ function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) w
         ωⁿjⁿ = (one(real(T))*frequency(domain)*j)^n
         r = n % 4
         if r == 0
-            return convert(T, Complex(ωⁿjⁿ, zero(ωⁿjⁿ)))
+            return convert(T, complex(ωⁿjⁿ, zero(ωⁿjⁿ)))
         elseif r == 1
-            return convert(T, Complex(zero(ωⁿjⁿ), ωⁿjⁿ))
+            return convert(T, complex(zero(ωⁿjⁿ), ωⁿjⁿ))
         elseif r == 2
-            return convert(T, Complex(-ωⁿjⁿ, zero(ωⁿjⁿ)))
+            return convert(T, complex(-ωⁿjⁿ, zero(ωⁿjⁿ)))
         else
-            return convert(T, Complex(zero(ωⁿjⁿ), -ωⁿjⁿ))
+            return convert(T, complex(zero(ωⁿjⁿ), -ωⁿjⁿ))
         end
     end
 end
@@ -692,8 +692,8 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
                 ω⁻¹j⁻¹ = inv(ω*j)
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
-                c[j] = Complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
-                c[-j] = Complex(-ω⁻¹j⁻¹ * imag(a₋ⱼ), ω⁻¹j⁻¹ * real(a₋ⱼ))
+                c[j] = complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
+                c[-j] = complex(-ω⁻¹j⁻¹ * imag(a₋ⱼ), ω⁻¹j⁻¹ * real(a₋ⱼ))
             end
         else
             if isodd(n)
@@ -702,8 +702,8 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
                     sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
-                    c[j] = Complex(sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
-                    c[-j] = Complex(-sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(a₋ⱼ), sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(a₋ⱼ))
+                    c[j] = complex(sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
+                    c[-j] = complex(-sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(a₋ⱼ), sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(a₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
@@ -827,13 +827,13 @@ function _nzval(ℐ::Integral, domain::Fourier, ::Fourier, ::Type{T}, i, j) wher
             ω⁻ⁿj⁻ⁿ = inv(one(real(T))*frequency(domain)*j)^n
             r = n % 4
             if r == 0
-                return convert(T, Complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
+                return convert(T, complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
             elseif r == 1
-                return convert(T, Complex(zero(ω⁻ⁿj⁻ⁿ), -ω⁻ⁿj⁻ⁿ))
+                return convert(T, complex(zero(ω⁻ⁿj⁻ⁿ), -ω⁻ⁿj⁻ⁿ))
             elseif r == 2
-                return convert(T, Complex(-ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
+                return convert(T, complex(-ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
             else
-                return convert(T, Complex(zero(ω⁻ⁿj⁻ⁿ), ω⁻ⁿj⁻ⁿ))
+                return convert(T, complex(zero(ω⁻ⁿj⁻ⁿ), ω⁻ⁿj⁻ⁿ))
             end
         end
     end

@@ -104,8 +104,8 @@ The computer-assisted proof may be implemented as follows:
 ```@example fhn_pseudo_arclength
 R = 1e-1
 
-x₀_interval = Interval.(x_init) .+ Interval(0.0, 1.0) .* (Interval.(x_final) .- Interval.(x_init))
-x₀R_interval = Interval.(inf.(x₀_interval .- R), sup.(x₀_interval .+ R))
+x₀_interval = interval.(x_init) .+ interval(0.0, 1.0) .* (interval.(x_final) .- interval.(x_init))
+x₀R_interval = interval.(x₀_interval, R; format = :midpoint)
 
 F_interval = F(x₀_interval, v, x₀_interval)
 F_interval[1] = 0 # the first component is trivial by definition
@@ -118,9 +118,11 @@ Y = norm(Sequence(A * F_interval), Inf)
 Z₁ = opnorm(LinearOperator(A * DF_interval - I), Inf)
 
 a, ϵ = 5, 1
-Z₂ = opnorm(LinearOperator(Interval.(A)), Inf) * max(2abs(a) + 2 + 6(abs(x₀_interval[2]) + R), 2abs(ϵ))
+Z₂ = opnorm(LinearOperator(interval.(A)), Inf) * max(2abs(a) + 2 + 6(abs(x₀_interval[2]) + R), 2abs(ϵ))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R))
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, Z₂, R)
 ```
 
 Whenever the proof is successful, we proceed to the next iteration of the pseudo-arclength continuation and repeat the above strategy.

@@ -18,30 +18,14 @@ end
 for T ∈ (:GeometricWeight, :AlgebraicWeight)
     @eval begin
         function banach_rounding_order(bound::Real, X::Ell1{<:$T})
-            bound_, rate_ = promote(float(bound), float(rate(X.weight)))
+            bound_, rate_ = promote(float(sup(bound)), float(sup(rate(X.weight))))
             return banach_rounding_order(bound_, Ell1($T(rate_)))
         end
-
-        banach_rounding_order(bound::Interval, X::Ell1{<:$T{<:Interval}}) =
-            banach_rounding_order(sup(bound), Ell1($T(sup(rate(X.weight)))))
-
-        banach_rounding_order(bound::Real, X::Ell1{<:$T{<:Interval}}) =
-            banach_rounding_order(bound, Ell1($T(sup(rate(X.weight)))))
-
-        banach_rounding_order(bound::Interval, X::Ell1{<:$T}) =
-            banach_rounding_order(sup(bound), Ell1($T(rate(X.weight))))
     end
 end
 
 banach_rounding_order(bound::Real, X::Ell1{<:Tuple}) =
-    map(wᵢ -> banach_rounding_order(bound, Ell1(wᵢ)), X.weight)
-
-banach_rounding_order(bound::Interval, X::Ell1{<:Tuple}) = banach_rounding_order(sup(bound), X)
-
-#
-
-_interval_box(::Type{<:Interval}, x) = Interval(-x, x)
-_interval_box(::Type{<:Complex{<:Interval}}, x) = (y = Interval(-x, x); Complex(y, y))
+    map(wᵢ -> banach_rounding_order(sup(bound), Ell1(wᵢ)), X.weight)
 
 #
 
@@ -54,7 +38,7 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound
     @inbounds for α ∈ indices(space_a)
         if mapreduce((i, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i) // ord)), +, α, rounding_order) ≥ 1
             μᵅ = bound / _getindex(X.weight, space_a, α)
-            a[α] = _interval_box(S, sup(μᵅ))
+            a[α] = interval(zero(S), sup(μᵅ); format = :midpoint)
         end
     end
     return a
@@ -68,7 +52,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, 
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
-            a[i] = _interval_box(T, sup(μⁱ))
+            a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
             μⁱ *= ν⁻¹
         end
     end
@@ -80,7 +64,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, 
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(X.weight, space_a, i)
-        a[i] = _interval_box(T, sup(μⁱ))
+        a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
     end
     return a
 end
@@ -93,7 +77,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Rea
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
-            x = _interval_box(T, sup(μⁱ))
+            x = interval(zero(T), sup(μⁱ); format = :midpoint)
             a[i] = x
             a[-i] = x
             μⁱ *= ν⁻¹
@@ -107,7 +91,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Rea
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(X.weight, space_a, i)
-        x = _interval_box(T, sup(μⁱ))
+        x = interval(zero(T), sup(μⁱ); format = :midpoint)
         a[i] = x
         a[-i] = x
     end
@@ -122,7 +106,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Rea
         ν⁻¹ = inv(rate(X.weight))
         μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
-            a[i] = _interval_box(T, sup(μⁱ))
+            a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
             μⁱ *= ν⁻¹
         end
     end
@@ -134,7 +118,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Rea
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(X.weight, space_a, i)
-        a[i] = _interval_box(T, sup(μⁱ))
+        a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
     end
     return a
 end

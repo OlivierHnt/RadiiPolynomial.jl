@@ -112,23 +112,23 @@ In particular, from the latter estimate, we may freely choose ``R = \infty``.
 The computer-assisted proof may be implemented as follows:
 
 ```@example logistic_ivp
-ν = Interval(2.0)
+ν = interval(2.0)
 X = ℓ¹(GeometricWeight(ν))
 R = Inf
 
-x̄_interval = Interval.(x̄)
+x̄_interval = interval.(x̄)
 
 F_interval = Sequence(Taylor(2n+1), similar(coefficients(x̄_interval), 2n+2))
 F!(F_interval, x̄_interval)
 
 tail_F_interval = copy(F_interval)
-tail_F_interval[0:n] .= Interval(0.0)
+tail_F_interval[0:n] .= interval(0.0)
 
 DF_interval = LinearOperator(Taylor(n), Taylor(n), similar(coefficients(x̄_interval), n+1, n+1))
 DF!(DF_interval, x̄_interval)
 
 A = inv(mid.(DF_interval))
-bound_tail_A = inv(Interval(n+1))
+bound_tail_A = inv(interval(n+1))
 
 # computation of the bounds
 
@@ -136,9 +136,11 @@ Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_F_interval, X)
 
 Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * ν * norm(2x̄_interval - 1, X)
 
-Z₂ = 2ν * (opnorm(Interval.(A), X) + bound_tail_A)
+Z₂ = 2ν * (opnorm(interval.(A), X) + bound_tail_A)
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R))
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, Z₂, R)
 ```
 
 The following figure[^2] shows the numerical approximation of the proven solution in the interval ``[-2, 2]`` along with the theoretical solution ``t \mapsto (1 + e^{-t})^{-1}``.

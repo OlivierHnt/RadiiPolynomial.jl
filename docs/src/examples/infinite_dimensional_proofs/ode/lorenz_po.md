@@ -181,19 +181,19 @@ Thus, denoting ``\bar{u} = (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 The computer-assisted proof may be implemented as follows:
 
 ```@example lorenz_po
-ν = Interval(1.01)
+ν = interval(1.01)
 X_F = ℓ¹(GeometricWeight(ν))
 X_F³ = NormedCartesianSpace(X_F, ℓ∞())
 X = NormedCartesianSpace((ℓ∞(), X_F³), ℓ∞())
 R = 1e-8
 
-σ_interval, ρ_interval, β_interval = Interval(10.0), Interval(28.0), 8.0/Interval(3.0)
+σ_interval, ρ_interval, β_interval = interval(10.0), interval(28.0), 8.0/interval(3.0)
 
-x̄_interval = Sequence(ParameterSpace() × Fourier(n, Interval(1.0))^3, Interval.(coefficients(x̄)))
+x̄_interval = Sequence(ParameterSpace() × Fourier(n, interval(1.0))^3, interval.(coefficients(x̄)))
 γ̄_interval = real(x̄_interval[1])
 ū_interval = component(x̄_interval, 2)
 
-F_interval = Sequence(ParameterSpace() × Fourier(2n, Interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
+F_interval = Sequence(ParameterSpace() × Fourier(2n, interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
 F!(F_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
 
 tail_γ̄f_interval = copy(component(F_interval, 2))
@@ -205,7 +205,7 @@ DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coe
 DF!(DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
 
 A = inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval))))
-bound_tail_A = inv(Interval(n+1))
+bound_tail_A = inv(interval(n+1))
 
 # computation of the bounds
 
@@ -216,12 +216,14 @@ Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_γ̄f_interval,
         1 + norm(component(ū_interval, 1), X_F) + norm(ρ_interval-component(ū_interval, 3), X_F),
         β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F))
 
-Z₂ = (opnorm(Interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
+Z₂ = (opnorm(interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
     max(2σ_interval,
         1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
         β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
 
-showfull(interval_of_existence(Y, Z₁, Z₂, R))
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, Z₂, R)
 ```
 
 The following animation[^2] shows the numerical approximation of the proven periodic orbit (blue line) and the equilibria (red markers).

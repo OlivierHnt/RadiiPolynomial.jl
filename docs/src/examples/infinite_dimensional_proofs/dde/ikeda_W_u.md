@@ -38,14 +38,16 @@ using RadiiPolynomial
 
 R = 1e-14
 
-τ = Interval(1.59)
+τ = interval(1.59)
 
-Y = abs(Ψ(Interval(λ̄₀), 0.0, τ))
-Z₁ = abs(1 - DΨ(λ̄₀, 0.0, mid(τ)) \ DΨ(λ̄₀ ± R, 0.0, τ))
+Y = abs(Ψ(interval(λ̄₀), 0.0, τ))
+Z₁ = abs(1 - DΨ(λ̄₀, 0.0, mid(τ)) \ DΨ(interval(λ̄₀, R; format = :midpoint), 0.0, τ))
 ϵ₀ = inf(interval_of_existence(Y, Z₁, R))
-λ₀ = λ̄₀ ± ϵ₀
+λ₀ = interval(λ̄₀, ϵ₀; format = :midpoint)
 
-showfull(λ₀)
+setdisplay(:full)
+
+λ₀
 ```
 
 Similarly, for the equilibria ``c = 1`` and ``c = -1``, we may use the same strategy to compute one of the two complex conjugate unstable eigenvalues:
@@ -53,12 +55,14 @@ Similarly, for the equilibria ``c = 1`` and ``c = -1``, we may use the same stra
 ```@example ikeda_W_u
 λ̄₁, success = newton(λ -> (Ψ(λ, 1.0, 1.59), DΨ(λ, 1.0, 1.59)), 0.3+1.0im)
 
-Y = abs(Ψ(Interval(λ̄₁), 1.0, τ))
-Z₁ = abs(1 - DΨ(λ̄₁, 1.0, mid(τ)) \ DΨ(complex(real(λ̄₁) ± R, imag(λ̄₁) ± R), 1.0, τ))
+Y = abs(Ψ(interval(λ̄₁), 1.0, τ))
+Z₁ = abs(1 - DΨ(λ̄₁, 1.0, mid(τ)) \ DΨ(interval(λ̄₁, R; format = :midpoint), 1.0, τ))
 ϵ₁ = inf(interval_of_existence(Y, Z₁, R))
-λ₁ = complex(real(λ̄₁) ± ϵ₁, imag(λ̄₁) ± ϵ₁)
+λ₁ = interval(λ̄₁, ϵ₁; format = :midpoint)
 
-showfull(real(λ₁)); print(" + "); showfull(imag(λ₁)); println("im")
+setdisplay(:full)
+
+λ₁
 ```
 
 Let ``\lambda_1, \dots, \lambda_d`` be the unstable eigenvalues and ``\xi_1, \dots, \xi_d`` the respective eigenvectors. Denote by ``\Lambda : \mathbb{C}^d \to \mathbb{C}^d`` the diagonal matrix such that ``\Lambda_{i,i} := \lambda_i``; also, denote by ``\Xi : \mathbb{C}^d \to C([-\tau, 0], \mathbb{C})`` the matrix whose ``i``-th column is the eigenvector ``\xi_i``.
@@ -183,7 +187,10 @@ Y = C₀ \ norm(tail_ỹ₀³, X)
 Z₁ = C₀ \ (3(norm(ỹ₀, X) + R)^2)
 
 # error bound for the Taylor coefficients of order α > 85 of the parameterization on the domain [-1, 1]
-showfull(interval_of_existence(Y, Z₁, R))
+
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, R)
 ```
 
 Similarly, the computer-assisted proof for the ``2``-dimensional unstable manifold of ``c = 1`` may be implemented as follows:
@@ -200,7 +207,10 @@ Y = C₁ \ norm(tail_ỹ₁³, X)
 Z₁ = C₁ \ (3(norm(ỹ₁, X) + R)^2)
 
 # error bound for the Taylor coefficients of order α₁ + α₂ > 25 of the parameterization on the domain 𝔻²
-showfull(interval_of_existence(Y, Z₁, R))
+
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, R)
 ```
 
 The following animation[^2] shows:

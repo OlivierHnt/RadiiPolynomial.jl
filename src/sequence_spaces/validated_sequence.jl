@@ -207,7 +207,7 @@ function Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:S
     r = interval_of_existence(Y, Z₁, Inf)
 
     isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
-    return ValidatedSequence(sequence(_c_) .± inf(r), Interval(inf(r)), X)
+    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), Interval(inf(r)), X)
 end
 Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::Number) = ValidatedSequence(sequence(a) / b, truncation_error(a) / b, banachspace(a))
 Base.:/(a::Number, b::ValidatedSequence{<:SequenceSpace}) = a * inv(b)
@@ -229,7 +229,7 @@ function Base.inv(a::ValidatedSequence{<:SequenceSpace})
     r = interval_of_existence(Y, Z₁, Inf)
 
     isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
-    return ValidatedSequence(sequence(_c_) .± inf(r), Interval(inf(r)), X)
+    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
 
 function Base.sqrt(a::ValidatedSequence{<:SequenceSpace})
@@ -248,7 +248,7 @@ function Base.sqrt(a::ValidatedSequence{<:SequenceSpace})
     r = interval_of_existence(Y, Z₁, Z₂, Inf)
 
     isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
-    return ValidatedSequence(sequence(_c_) .± inf(r), Interval(inf(r)), X)
+    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
 
 # projection

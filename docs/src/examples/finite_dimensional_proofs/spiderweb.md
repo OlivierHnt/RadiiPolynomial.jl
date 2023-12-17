@@ -142,12 +142,12 @@ The computer-assisted proof may be implemented as follows:
 ```@example spiderweb
 R = 1e-12
 
-m₀_interval = Interval(0.0)
-m_interval = fill(inv(Interval(l)), n)
-λ_interval = Interval(-1.0)
+m₀_interval = interval(0.0)
+m_interval = fill(inv(interval(l)), n)
+λ_interval = interval(-1.0)
 
-x₀_interval = Interval.(x₀)
-x₀R_interval = Interval.(inf.(x₀_interval .- R), sup.(x₀_interval .+ R))
+x₀_interval = interval.(x₀)
+x₀R_interval = interval.(x₀_interval, R; format = :midpoint)
 
 F_interval = F(x₀_interval, m₀_interval, m_interval, λ_interval, l)
 DF_interval = DF(x₀R_interval, m₀_interval, m_interval, λ_interval, l)
@@ -158,7 +158,9 @@ Y = norm(Sequence(A * F_interval), Inf)
 
 Z₁ = opnorm(LinearOperator(A * DF_interval - I), Inf)
 
-showfull(interval_of_existence(Y, Z₁, R))
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, R)
 ```
 
 The following animation[^2] shows the numerical approximation of the proven spiderweb central configuration for some given initial velocity.

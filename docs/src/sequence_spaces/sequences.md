@@ -71,7 +71,7 @@ pow_bar(c, 3) # project(c ^ 3, Taylor(1))
 To improve performance, the FFT algorithm may be used to compute discrete convolutions via the [Convolution Theorem](https://en.wikipedia.org/wiki/Convolution_theorem). However, the performance gain is tempered with the loss of accuracy which may stop the decay of the coefficients.
 
 ```@repl sequences
-x = Sequence(Taylor(3), Interval.([inv(10_000.0 ^ i) for i ∈ 0:3]))
+x = Sequence(Taylor(3), interval.([inv(10_000.0 ^ i) for i ∈ 0:3]))
 x³ = x ^ 3
 x³_fft = rifft!(similar(x³), fft(x, fft_size(space(x), 3)) .^ 3)
 ```
@@ -83,7 +83,7 @@ To circumvent machine precision limitations, the `banach_rounding!` method enclo
 The rounding strategy for [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref), [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref), `mul_bar` and `pow_bar` is integrated in the functions [`banach_rounding_mul`](@ref), [`banach_rounding_mul!`](@ref), [`banach_rounding_pow`](@ref), `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
 
 ```@repl sequences
-X = ℓ¹(GeometricWeight(Interval(10_000.0)))
+X = ℓ¹(GeometricWeight(interval(10_000.0)))
 banach_rounding!(x³_fft, norm(x, X) ^ 3, X, 5)
 ```
 

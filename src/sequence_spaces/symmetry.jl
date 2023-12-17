@@ -170,13 +170,13 @@ _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
 function _symmetry_action(::SinFourier, i::Int, j::Int)
     x = j-i
     y = ifelse(x == 0, 0, flipsign(1, x))
-    return Complex(0, y)
+    return complex(0, y)
 end
 function _symmetry_action(::SinFourier, i::Int)
     y = ifelse(i == 0, 0, flipsign(1, -i))
-    return Complex(0, y)
+    return complex(0, y)
 end
-_inverse_symmetry_action(::SinFourier, ::Int) = Complex(0, 1)
+_inverse_symmetry_action(::SinFourier, ::Int) = complex(0, 1)
 
 _extract_valid_index(::SinFourier, i::Int, j::Int) = abs(i-j)
 _extract_valid_index(::SinFourier, i::Int) = abs(i)

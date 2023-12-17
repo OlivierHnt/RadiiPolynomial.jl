@@ -3,8 +3,8 @@
 
 Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` and ``Z_1 < 1`` for all ``r \\in I``.
 """
-function interval_of_existence(Y_::Real, Z₁_::Real, R_::Real)
-    Y, Z₁, R = _supremum(Y_), _supremum(Z₁_), _supremum(R_)
+function interval_of_existence(Y_::Real, Z₁_::Real, R::Real)
+    Y, Z₁ = sup(Y_), sup(Z₁_)
     NewType = float(promote_type(typeof(Y), typeof(Z₁), typeof(R)))
     if !(Y ≥ 0 && isfinite(Y) && Z₁ ≥ 0 && isfinite(Z₁) && R ≥ 0)
         return emptyinterval(NewType) # throw(DomainError((Y, Z₁, R), "Y and Z₁ must be positive and finite, R must be positive"))
@@ -21,13 +21,15 @@ function interval_of_existence(Y_::Real, Z₁_::Real, R_::Real)
     end
 end
 
+interval_of_existence(Y::Real, Z₁::Real, R::Interval) = interval_of_existence(Y, Z₁, sup(R))
+
 """
     interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real)
 
 Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
-function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real)
-    Y, Z₁, Z₂, R = _supremum(Y_), _supremum(Z₁_), _supremum(Z₂_), _supremum(R_)
+function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R::Real)
+    Y, Z₁, Z₂ = sup(Y_), sup(Z₁_), sup(Z₂_)
     NewType = float(promote_type(typeof(Y), typeof(Z₁), typeof(Z₂), typeof(R)))
     if Z₂ == 0
         return interval_of_existence(Y, Z₁, R)
@@ -65,3 +67,5 @@ function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R_::Real)
         end
     end
 end
+
+interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Interval) = interval_of_existence(Y, Z₁, Z₂, sup(R))

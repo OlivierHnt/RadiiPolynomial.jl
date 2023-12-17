@@ -690,11 +690,11 @@ _isvalid(s::SinFourier, i::Int, j::Int) = (0 < abs(j)) & (0 < abs(i-j) ≤ order
 
 # Norm
 
-_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = weight.rate ^ i
-_getindex(weight::GeometricWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = pow(weight.rate, i)
+_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ i
+_getindex(weight::GeometricWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ interval(i)
 
-_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = (one(weight.rate) + i) ^ weight.rate
-_getindex(weight::AlgebraicWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = pow(one(weight.rate) + i, weight.rate)
+_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = (one(rate(weight)) + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = (one(rate(weight)) + interval(i)) ^ rate(weight)
 
 
 

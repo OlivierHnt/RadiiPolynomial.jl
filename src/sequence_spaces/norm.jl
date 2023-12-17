@@ -54,14 +54,14 @@ GeometricWeight(rate::T) where {T<:Real} = GeometricWeight{T}(rate)
 
 rate(weight::GeometricWeight) = weight.rate
 
-_getindex(weight::GeometricWeight, ::Taylor, i::Int) = weight.rate ^ i
-_getindex(weight::GeometricWeight{<:Interval}, ::Taylor, i::Int) = pow(weight.rate, i)
+_getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ i
+_getindex(weight::GeometricWeight{<:Interval}, ::Taylor, i::Int) = rate(weight) ^ interval(i)
 
-_getindex(weight::GeometricWeight, ::Fourier, i::Int) = weight.rate ^ abs(i)
-_getindex(weight::GeometricWeight{<:Interval}, ::Fourier, i::Int) = pow(weight.rate, abs(i))
+_getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ abs(i)
+_getindex(weight::GeometricWeight{<:Interval}, ::Fourier, i::Int) = rate(weight) ^ interval(abs(i))
 
-_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = weight.rate ^ i
-_getindex(weight::GeometricWeight{<:Interval}, ::Chebyshev, i::Int) = pow(weight.rate, i)
+_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = rate(weight) ^ i
+_getindex(weight::GeometricWeight{<:Interval}, ::Chebyshev, i::Int) = rate(weight) ^ interval(i)
 
 """
     geometricweight(a::Sequence{<:SequenceSpace})
@@ -312,14 +312,14 @@ AlgebraicWeight(rate::T) where {T<:Real} = AlgebraicWeight{T}(rate)
 
 rate(weight::AlgebraicWeight) = weight.rate
 
-_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = (one(weight.rate) + i) ^ weight.rate
-_getindex(weight::AlgebraicWeight{<:Interval}, ::Taylor, i::Int) = pow(one(weight.rate) + i, weight.rate)
+_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = (one(rate(weight)) + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight{<:Interval}, ::Taylor, i::Int) = (one(rate(weight)) + interval(i)) ^ rate(weight)
 
-_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = (one(weight.rate) + abs(i)) ^ weight.rate
-_getindex(weight::AlgebraicWeight{<:Interval}, ::Fourier, i::Int) = pow(one(weight.rate) + abs(i), weight.rate)
+_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = (one(rate(weight)) + abs(i)) ^ rate(weight)
+_getindex(weight::AlgebraicWeight{<:Interval}, ::Fourier, i::Int) = (one(rate(weight)) + interval(abs(i))) ^ rate(weight)
 
-_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = (one(weight.rate) + i) ^ weight.rate
-_getindex(weight::AlgebraicWeight{<:Interval}, ::Chebyshev, i::Int) = pow(one(weight.rate) + i, weight.rate)
+_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = (one(rate(weight)) + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight{<:Interval}, ::Chebyshev, i::Int) = (one(rate(weight)) + interval(i)) ^ rate(weight)
 
 """
     algebraicweight(a::Sequence{<:SequenceSpace})
@@ -595,21 +595,21 @@ BesselWeight(rate::T) where {T<:Real} = BesselWeight{T}(rate)
 rate(weight::BesselWeight) = weight.rate
 
 _getindex(weight::BesselWeight, ::TensorSpace{<:NTuple{N,Fourier}}, α::NTuple{N,Int}) where {N} =
-    (one(weight.rate) + mapreduce(abs2, +, α)) ^ weight.rate
+    (one(rate(weight)) + mapreduce(abs2, +, α)) ^ rate(weight)
 _getindex(weight::BesselWeight{<:Interval}, ::TensorSpace{<:NTuple{N,Fourier}}, α::NTuple{N,Int}) where {N} =
-    pow(one(weight.rate) + mapreduce(abs2, +, α), weight.rate)
+    (one(rate(weight)) + interval(mapreduce(abs2, +, α))) ^ rate(weight)
 
-_getindex(weight::BesselWeight, ::Fourier, i::Int) = (one(weight.rate) + i*i) ^ weight.rate
-_getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = pow(one(weight.rate) + i*i, weight.rate)
+_getindex(weight::BesselWeight, ::Fourier, i::Int) = (one(rate(weight)) + i*i) ^ rate(weight)
+_getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = (one(rate(weight)) + interval(i*i)) ^ rate(weight)
 
 # show
 
 Base.show(io::IO, ::MIME"text/plain", weight::Weight) = print(io, _prettystring(weight))
 
 _prettystring(weight::Weight) = string(weight)
-_prettystring(weight::GeometricWeight) = "GeometricWeight(" * string(weight.rate) * ")"
-_prettystring(weight::AlgebraicWeight) = "AlgebraicWeight(" * string(weight.rate) * ")"
-_prettystring(weight::BesselWeight) = "BesselWeight(" * string(weight.rate) * ")"
+_prettystring(weight::GeometricWeight) = "GeometricWeight(" * string(rate(weight)) * ")"
+_prettystring(weight::AlgebraicWeight) = "AlgebraicWeight(" * string(rate(weight)) * ")"
+_prettystring(weight::BesselWeight) = "BesselWeight(" * string(rate(weight)) * ")"
 
 #
 

@@ -67,6 +67,14 @@ coefficients(a::Sequence) = a.coefficients
 
 # utilities
 
+Base.:(==)(a::Sequence, b::Sequence) =
+    space(a) == space(b) && coefficients(a) == coefficients(b)
+
+Base.iszero(a::Sequence) = iszero(coefficients(a))
+
+Base.isapprox(a::Sequence, b::Sequence; kwargs...) =
+    space(a) == space(b) && isapprox(coefficients(a), coefficients(b); kwargs...)
+
 Base.zeros(s::VectorSpace) = Sequence(s, zeros(dimension(s)))
 Base.zeros(::Type{T}, s::VectorSpace) where {T} = Sequence(s, zeros(T, dimension(s)))
 
@@ -74,6 +82,11 @@ Base.ones(s::VectorSpace) = Sequence(s, ones(dimension(s)))
 Base.ones(::Type{T}, s::VectorSpace) where {T} = Sequence(s, ones(T, dimension(s)))
 
 Base.fill(value, s::VectorSpace) = Sequence(s, fill(value, dimension(s)))
+
+function Base.fill!(a::Sequence, value)
+    fill!(coefficients(a), value)
+    return a
+end
 
 Base.copy(a::Sequence) = Sequence(space(a), copy(coefficients(a)))
 
@@ -94,11 +107,14 @@ for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f(coefficients(a)))
 end
 
-Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{Int}) =
+Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{<:Integer}) =
     Sequence(space(a)[σ], vec(permutedims(_no_alloc_reshape(coefficients(a), dimensions(space(a))), σ)))
 
 Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
     Sequence(space(a)[i], view(coefficients(a), _component_findposition(i, space(a))))
+
+eachcomponent(a::Sequence{<:CartesianSpace}) =
+    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
 
 # promotion
 
@@ -197,23 +213,6 @@ Base.@propagate_inbounds function Base.setindex!(a::AbstractSequence{TensorSpace
     return a
 end
 
-# ==, iszero, isapprox
-
-Base.:(==)(a::AbstractSequence, b::AbstractSequence) =
-    space(a) == space(b) && coefficients(a) == coefficients(b)
-
-Base.iszero(a::AbstractSequence) = iszero(coefficients(a))
-
-Base.isapprox(a::AbstractSequence, b::AbstractSequence; kwargs...) =
-    space(a) == space(b) && isapprox(coefficients(a), coefficients(b); kwargs...)
-
-# fill!
-
-function Base.fill!(a::AbstractSequence, value)
-    fill!(coefficients(a), value)
-    return a
-end
-
 # one
 
 function Base.one(a::AbstractSequence{<:SequenceSpace})
@@ -228,8 +227,3 @@ Base.@propagate_inbounds function Base.selectdim(a::AbstractSequence{<:TensorSpa
     A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
     return selectdim(A, dim, _findposition(i, spaces(space(a))[dim]))
 end
-
-# Cartesian spaces
-
-eachcomponent(a::AbstractSequence{<:CartesianSpace}) =
-    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))

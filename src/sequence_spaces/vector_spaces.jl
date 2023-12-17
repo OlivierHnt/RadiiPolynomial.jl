@@ -36,6 +36,7 @@ __checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
 Parameter space corresponding to a commutative field.
 
 # Example
+
 ```jldoctest
 julia> ParameterSpace()
 𝕂
@@ -786,6 +787,26 @@ _iscompatible(s₁::CartesianPower, s₂::CartesianProduct) =
 _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
     (nspaces(s₁) == nspaces(s₂)) & all(s₁ᵢ -> _iscompatible(s₁ᵢ, space(s₂)), spaces(s₁))
 
+#
+
+for f ∈ (:(==), :issubset, :intersect, :union)
+    @eval begin
+        function Base.$f(s₁::CartesianPower, s₂::CartesianProduct)
+            n = nspaces(s₁)
+            m = nspaces(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+            return CartesianProduct(map(s₂ᵢ -> $f(s₁.space, s₂ᵢ), s₂.spaces))
+        end
+
+        function Base.$f(s₁::CartesianProduct, s₂::CartesianPower)
+            n = nspaces(s₁)
+            m = nspaces(s₂)
+            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+            return CartesianProduct(map(s₁ᵢ -> $f(s₁ᵢ, s₂.space), s₁.spaces))
+        end
+    end
+end
+
 # show
 
 Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))
@@ -833,12 +854,12 @@ _prettystring_cartesian(s::VectorSpace) = _prettystring(s)
 _prettystring_cartesian(s::TensorSpace) = "(" * _prettystring(s) * ")"
 _prettystring_cartesian(s::CartesianProduct) = "(" * _prettystring(s) * ")"
 
-function _supscript(n::Int)
+function _supscript(n::Integer)
     if 0 ≤ n ≤ 9
         return _supscript_digit(n)
     else
         len = ndigits(n)
-        x = Vector{String}(undef, len)
+        x = Vector{Char}(undef, len)
         i = 0
         while n > 0
             n, d = divrem(n, 10)
@@ -849,26 +870,15 @@ function _supscript(n::Int)
     end
 end
 
-function _supscript_digit(i::Int)
-    if i == 0
-        return "⁰"
-    elseif i == 1
-        return "¹"
-    elseif i == 2
-        return "²"
-    elseif i == 3
-        return "³"
-    elseif i == 4
-        return "⁴"
-    elseif i == 5
-        return "⁵"
-    elseif i == 6
-        return "⁶"
-    elseif i == 7
-        return "⁷"
-    elseif i == 8
-        return "⁸"
-    else
-        return "⁹"
-    end
+function _supscript_digit(i::Integer)
+    i == 0 && return '⁰'
+    i == 1 && return '¹'
+    i == 2 && return '²'
+    i == 3 && return '³'
+    i == 4 && return '⁴'
+    i == 5 && return '⁵'
+    i == 6 && return '⁶'
+    i == 7 && return '⁷'
+    i == 8 && return '⁸'
+    return '⁹'
 end

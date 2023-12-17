@@ -171,9 +171,6 @@ end
 
 # Elementary operations
 
-_call_ifft!(C, s, ::Type{<:Real}) = rifft!(C, s)
-_call_ifft!(C, s, ::Type) = ifft!(C, s)
-
 function Base.:/(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     space_c = space(a) ∪ space(b)
     A = fft(a, fft_size(space_c, 1))

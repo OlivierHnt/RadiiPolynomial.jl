@@ -40,29 +40,29 @@ value(𝒮::Scale) = 𝒮.value
 Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
 Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Scale{<:Number}, n::Int) = Scale(value(𝒮) ^ n)
-Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Int) = Scale(map(γᵢ -> ^(γᵢ, n), value(𝒮)))
-Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Int}) where {N} = Scale(map(^, value(𝒮), n))
+Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(value(𝒮) ^ n)
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> ^(γᵢ, n), value(𝒮)))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map(^, value(𝒮), n))
 
 """
-    *(𝒮::Scale, a::Sequence)
+    *(𝒮::Scale, a::AbstractSequence)
 
 Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
 
-See also: [`(::Scale)(::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
+See also: [`(::Scale)(::AbstractSequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
 [`scale!`](@ref).
 """
-Base.:*(𝒮::Scale, a::Sequence) = scale(a, value(𝒮))
+Base.:*(𝒮::Scale, a::AbstractSequence) = scale(a, value(𝒮))
 
 """
-    (𝒮::Scale)(a::Sequence)
+    (𝒮::Scale)(a::AbstractSequence)
 
 Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
 
-See also: [`*(::Scale, ::Sequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
+See also: [`*(::Scale, ::AbstractSequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
 [`scale!`](@ref).
 """
-(𝒮::Scale)(a::Sequence) = *(𝒮, a)
+(𝒮::Scale)(a::AbstractSequence) = *(𝒮, a)
 
 """
     scale(a::Sequence, γ)

@@ -51,16 +51,15 @@
 
     @testset "Convolution" begin
         function conv(a, b)
-            n = fft_size(space(a), space(b))
             space_c = image(*, space(a), space(b))
             c = Sequence(space_c, Vector{Float64}(undef, dimension(space_c)))
+            n = fft_size(space_c)
             rifft!(c, fft(a, n) .* fft(b, n))
             return c
         end
 
         a = Sequence(Taylor(1), [1.0, 2.0])
         b = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-        @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
         @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
         @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
@@ -68,7 +67,6 @@
 
         a = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0])
         b = Sequence(Fourier(2, 1.0), [1.0, 2.0, 3.0, 4.0, 5.0])
-        @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
         @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
         @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
@@ -76,7 +74,6 @@
 
         a = Sequence(Chebyshev(1), [1.0, 2.0])
         b = Sequence(Chebyshev(2), [1.0, 2.0, 3.0])
-        @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
         @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
         @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
@@ -84,7 +81,6 @@
 
         a = Sequence(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), collect(1.0:12.0))
         b = Sequence(Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1), collect(1.0:6.0))
-        @test fft_size(space(a), space(a)) == fft_size(space(a), 2)
         @test conv(a, a) ≈ a * a == a ^ 2
         @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
         @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)

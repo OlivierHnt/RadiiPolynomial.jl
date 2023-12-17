@@ -761,27 +761,25 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector{T}) where {T}
-    ν = rate(weight(X))
-    ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ½ = one(ν⁻¹)/2
-    @inbounds s = abs(A[1]) * one(ν⁻ⁱ½)
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν)/2
+    @inbounds s = abs(A[1]) * one(νⁱ½)
     @inbounds for i ∈ 1:order(space)
-        ν⁻ⁱ½ *= ν⁻¹
-        s = max(s, abs(A[i+1]) * ν⁻ⁱ½)
+        νⁱ½ *= ν
+        s = max(s, abs(A[i+1]) * νⁱ½)
     end
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(weight(X))
-    ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ½ = one(ν⁻¹)/2
-    CoefType = typeof(ν⁻ⁱ½)
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν)/2
+    CoefType = typeof(abs(zero(T))*νⁱ½)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
     s .= abs.(A₀)
     @inbounds for i ∈ 1:order(space)
-        ν⁻ⁱ½ *= ν⁻¹
-        s .= max.(s, abs.(selectdim(A, N, i+1)) .* ν⁻ⁱ½)
+        νⁱ½ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i+1)) .* νⁱ½)
     end
     return s
 end
@@ -923,7 +921,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArra
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
-    ν = rate(weight(X))
+    ν = inv(rate(weight(X)))
     ord = order(space)
     @inbounds s = (abs(A[ord+1]) * one(ν)) / 1
     if ord > 0
@@ -935,7 +933,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::Abstrac
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(weight(X))
+    ν = inv(rate(weight(X)))
     CoefType = typeof((abs(zero(T))*ν)/2)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)

@@ -1104,8 +1104,29 @@ function _apply(X::Ell1{<:GeometricWeight}, space::Taylor, A::AbstractArray{T,N}
     end
     return s
 end
-_apply_dual(X::Ell1{<:GeometricWeight}, space::Taylor, A::AbstractArray{T}) where {T} =
-    _apply(EllInf(GeometricWeight(abs(one(T))/rate(weight(X)))), space, A)
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::Taylor, A::AbstractVector)
+    ν = inv(rate(weight(X)))
+    νⁱ = one(ν)
+    @inbounds s = abs(A[1]) * νⁱ
+    @inbounds for i ∈ 1:order(space)
+        νⁱ *= ν
+        s = max(s, abs(A[i+1]) * νⁱ)
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::Taylor, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    νⁱ = one(ν)
+    CoefType = typeof(abs(zero(T))*νⁱ)
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
+    @inbounds for i ∈ 1:order(space)
+        νⁱ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i+1)) .* νⁱ)
+    end
+    return s
+end
 
 function _apply(X::Ell1{<:AlgebraicWeight}, space::Taylor, A::AbstractVector)
     @inbounds s = abs(A[1]) * _getindex(weight(X), space, 0)
@@ -1192,8 +1213,27 @@ function _apply(X::EllInf{<:GeometricWeight}, space::Taylor, A::AbstractArray{T,
     end
     return s
 end
-_apply_dual(X::EllInf{<:GeometricWeight}, space::Taylor, A::AbstractArray{T}) where {T} =
-    _apply(Ell1(GeometricWeight(abs(one(T))/rate(weight(X)))), space, A)
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::Taylor, A::AbstractVector)
+    ν = inv(rate(weight(X)))
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * one(ν)
+    @inbounds for i ∈ ord-1:-1:0
+        s = s * ν + abs(A[i+1])
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::Taylor, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds A₀ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
+    @inbounds for i ∈ ord-1:-1:0
+        s .= s .* ν .+ abs.(selectdim(A, N, i+1))
+    end
+    return s
+end
 
 function _apply(X::EllInf{<:AlgebraicWeight}, space::Taylor, A::AbstractVector)
     @inbounds s = abs(A[1]) * _getindex(weight(X), space, 0)
@@ -1276,8 +1316,31 @@ function _apply(X::Ell1{<:GeometricWeight}, space::Fourier, A::AbstractArray{T,N
     end
     return s
 end
-_apply_dual(X::Ell1{<:GeometricWeight}, space::Fourier, A::AbstractArray{T}) where {T} =
-    _apply(EllInf(GeometricWeight(abs(one(T))/rate(weight(X)))), space, A)
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::Fourier, A::AbstractVector)
+    ν = inv(rate(weight(X)))
+    νⁱ = one(ν)
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * νⁱ
+    @inbounds for i ∈ 1:ord
+        νⁱ *= ν
+        s = max(s, abs(A[ord+1+i]) * νⁱ, abs(A[ord+1-i]) * νⁱ)
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::Fourier, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    νⁱ = one(ν)
+    CoefType = typeof(abs(zero(T))*νⁱ)
+    ord = order(space)
+    @inbounds A₀ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
+    @inbounds for i ∈ 1:ord
+        νⁱ *= ν
+        s .= max.(s, abs.(selectdim(A, N, ord+1-i)) .* νⁱ, abs.(selectdim(A, N, ord+1+i)) .* νⁱ)
+    end
+    return s
+end
 
 function _apply(X::Ell1{<:AlgebraicWeight}, space::Fourier, A::AbstractVector)
     ord = order(space)
@@ -1405,8 +1468,37 @@ function _apply(X::EllInf{<:GeometricWeight}, space::Fourier, A::AbstractArray{T
     end
     return s
 end
-_apply_dual(X::EllInf{<:GeometricWeight}, space::Fourier, A::AbstractArray{T}) where {T} =
-    _apply(Ell1(GeometricWeight(abs(one(T))/rate(weight(X)))), space, A)
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::Fourier, A::AbstractVector)
+    ν = inv(rate(weight(X)))
+    ord = order(space)
+    if ord == 0
+        @inbounds s = abs(A[1]) * one(ν)
+    else
+        @inbounds s = (abs(A[1]) + abs(A[2ord+1])) * one(ν)
+        @inbounds for i ∈ ord-1:-1:1
+            s = s * ν + abs(A[ord+1-i]) + abs(A[ord+1+i])
+        end
+        @inbounds s = s * ν + abs(A[ord+1])
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::Fourier, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds A₋ₙ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₋ₙ))
+    if ord == 0
+        s .= abs.(A₋ₙ)
+    else
+        @inbounds s .= abs.(selectdim(A, N, 2ord+1)) .+ abs.(A₋ₙ)
+        @inbounds for i ∈ ord-1:-1:1
+            s .= s .* ν .+ abs.(selectdim(A, N, ord+1-i)) .+ abs.(selectdim(A, N, ord+1+i))
+        end
+        @inbounds s .= s .* ν .+ abs.(selectdim(A, N, ord+1))
+    end
+    return s
+end
 
 function _apply(X::EllInf{<:AlgebraicWeight}, space::Fourier, A::AbstractVector)
     ord = order(space)
@@ -1512,27 +1604,25 @@ function _apply(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractVector{T}) where {T}
-    ν = rate(weight(X))
-    ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ½ = one(ν⁻¹)/2
-    @inbounds s = abs(A[1]) * one(ν⁻ⁱ½)
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν)/2
+    @inbounds s = abs(A[1]) * one(νⁱ½)
     @inbounds for i ∈ 1:order(space)
-        ν⁻ⁱ½ *= ν⁻¹
-        s = max(s, abs(A[i+1]) * ν⁻ⁱ½)
+        νⁱ½ *= ν
+        s = max(s, abs(A[i+1]) * νⁱ½)
     end
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(weight(X))
-    ν⁻¹ = abs(one(T))/ν
-    ν⁻ⁱ½ = one(ν⁻¹)/2
-    CoefType = typeof(ν⁻ⁱ½)
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν)/2
+    CoefType = typeof(abs(zero(T))*νⁱ½)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
     s .= abs.(A₀)
     @inbounds for i ∈ 1:order(space)
-        ν⁻ⁱ½ *= ν⁻¹
-        s .= max.(s, abs.(selectdim(A, N, i+1)) .* ν⁻ⁱ½)
+        νⁱ½ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i+1)) .* νⁱ½)
     end
     return s
 end
@@ -1674,7 +1764,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractArray
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractVector)
-    ν = rate(weight(X))
+    ν = inv(rate(weight(X)))
     ord = order(space)
     @inbounds s = (abs(A[ord+1]) * one(ν)) / 1
     if ord > 0
@@ -1686,7 +1776,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::Abstract
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(weight(X))
+    ν = inv(rate(weight(X)))
     CoefType = typeof((abs(zero(T))*ν)/2)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)

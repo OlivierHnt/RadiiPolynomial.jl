@@ -9,7 +9,7 @@ makedocs(;
     format = Documenter.HTML(;
         assets = ["assets/radiipolynomial.css"],
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://OlivierHnt.github.io/RadiiPolynomial.jl",
+        canonical = "https://olivierhnt.github.io/RadiiPolynomial.jl",
         mathengine = KaTeX(Dict(
             :macros => Dict(
                 "\\bydef" => "\\stackrel{\\tiny\\text{def}}{=}"

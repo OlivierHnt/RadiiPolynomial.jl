@@ -14,7 +14,7 @@ _to_interval(a::Real) = Interval(a)
 _to_interval(X::NormedCartesianSpace) = NormedCartesianSpace(map(_to_interval, X.inner), _to_interval(X.outer))
 _to_interval(X::Ell1{IdentityWeight}) = X
 _to_interval(X::Ell1{<:GeometricWeight{<:Interval}}) = X
-_to_interval(X::Ell1{<:GeometricWeight}) = Ell1(GeometricWeight(Interval(X.weight.rate)))
+_to_interval(X::Ell1{<:GeometricWeight}) = Ell1(GeometricWeight(Interval(rate(weight(X)))))
 
 struct ValidatedSequence{T<:VectorSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} <: AbstractSequence{T,S}
     sequence :: Sequence{T,S}
@@ -107,9 +107,9 @@ end
 
 # Arithmetic
 
-_banachspace_intersect(X₁::Ell1, X₂::Ell1) = Ell1(_weight_min(X₁.weight, X₂.weight))
-_banachspace_intersect(X₁::Ell2, X₂::Ell2) = Ell2(_weight_min(X₁.weight, X₂.weight))
-_banachspace_intersect(X₁::EllInf, X₂::EllInf) = EllInf(_weight_min(X₁.weight, X₂.weight))
+_banachspace_intersect(X₁::Ell1, X₂::Ell1) = Ell1(_weight_min(weight(X₁), weight(X₂)))
+_banachspace_intersect(X₁::Ell2, X₂::Ell2) = Ell2(_weight_min(weight(X₁), weight(X₂)))
+_banachspace_intersect(X₁::EllInf, X₂::EllInf) = EllInf(_weight_min(weight(X₁), weight(X₂)))
 
 _weight_min(::IdentityWeight, ::IdentityWeight) = IdentityWeight()
 _weight_min(::IdentityWeight, ::Weight) = IdentityWeight()

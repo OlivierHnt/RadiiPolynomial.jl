@@ -1,16 +1,16 @@
 function banach_rounding_order(bound::T, X::Ell1{GeometricWeight{T}}) where {T<:AbstractFloat}
-    (rate(X.weight) ≤ 1) | isinf(bound) && return typemax(Int)
+    (rate(weight(X)) ≤ 1) | isinf(bound) && return typemax(Int)
     ϵ = eps(T)
     bound ≤ ϵ && return 0
-    order = log(bound/ϵ)/log(rate(X.weight))
+    order = log(bound/ϵ)/log(rate(weight(X)))
     isinf(order) && return typemax(Int)
     return ceil(Int, order)
 end
 function banach_rounding_order(bound::T,  X::Ell1{AlgebraicWeight{T}}) where {T<:AbstractFloat}
-    iszero(rate(X.weight)) | isinf(bound) && return typemax(Int)
+    iszero(rate(weight(X))) | isinf(bound) && return typemax(Int)
     ϵ = eps(T)
     bound ≤ ϵ && return 0
-    order = exp(log(bound/ϵ)/rate(X.weight))-1
+    order = exp(log(bound/ϵ)/rate(weight(X)))-1
     isinf(order) && return typemax(Int)
     return ceil(Int, order)
 end
@@ -18,14 +18,14 @@ end
 for T ∈ (:GeometricWeight, :AlgebraicWeight)
     @eval begin
         function banach_rounding_order(bound::Real, X::Ell1{<:$T})
-            bound_, rate_ = promote(float(sup(bound)), float(sup(rate(X.weight))))
+            bound_, rate_ = promote(float(sup(bound)), float(sup(rate(weight(X)))))
             return banach_rounding_order(bound_, Ell1($T(rate_)))
         end
     end
 end
 
 banach_rounding_order(bound::Real, X::Ell1{<:Tuple}) =
-    map(wᵢ -> banach_rounding_order(sup(bound), Ell1(wᵢ)), X.weight)
+    map(wᵢ -> banach_rounding_order(sup(bound), Ell1(wᵢ)), weight(X))
 
 #
 
@@ -37,7 +37,7 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound
     M = typemax(Int)
     @inbounds for α ∈ indices(space_a)
         if mapreduce((i, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i) // ord)), +, α, rounding_order) ≥ 1
-            μᵅ = bound / _getindex(X.weight, space_a, α)
+            μᵅ = bound / _getindex(weight(X), space_a, α)
             a[α] = interval(zero(S), sup(μᵅ); format = :midpoint)
         end
     end
@@ -49,8 +49,8 @@ end
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T<:Union{Interval,Complex{<:Interval}}}
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(X.weight))
-        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
             μⁱ *= ν⁻¹
@@ -63,7 +63,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, 
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        μⁱ = bound / _getindex(X.weight, space_a, i)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
         a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
     end
     return a
@@ -74,8 +74,8 @@ end
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T<:Union{Interval,Complex{<:Interval}}}
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(X.weight))
-        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             x = interval(zero(T), sup(μⁱ); format = :midpoint)
             a[i] = x
@@ -90,7 +90,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Rea
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        μⁱ = bound / _getindex(X.weight, space_a, i)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
         x = interval(zero(T), sup(μⁱ); format = :midpoint)
         a[i] = x
         a[-i] = x
@@ -103,8 +103,8 @@ end
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T<:Union{Interval,Complex{<:Interval}}}
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(X.weight))
-        μⁱ = bound / _getindex(X.weight, space(a), rounding_order)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
         @inbounds for i ∈ rounding_order:order(a)
             a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
             μⁱ *= ν⁻¹
@@ -117,7 +117,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Rea
     (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
-        μⁱ = bound / _getindex(X.weight, space_a, i)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
         a[i] = interval(zero(T), sup(μⁱ); format = :midpoint)
     end
     return a
@@ -364,7 +364,7 @@ end
 function __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, rounding_order)
     CoefType = eltype(C)
     if rounding_order ≤ abs(i)
-        μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+        μⁱ = bound_ab / _getindex(weight(X), space_c, i)
         @inbounds C[_findposition(i, space_c)] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -382,7 +382,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, t, sum_t, ful
     CoefType = eltype(C)
     sum_t += abs(i)
     if any(≤(sum_t), rounding_order)
-        μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+        μⁱ = bound_ab / _getindex(weight(X), full_space_c, (i, t...))
         @inbounds C[_findposition(i, space_c)] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -445,7 +445,7 @@ end
 function __convolution!(C, A, B, α, space_c::Taylor, space_a::Taylor, space_b::Taylor, i, bound_ab, X, rounding_order)
     CoefType = eltype(C)
     if rounding_order ≤ i
-        μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+        μⁱ = bound_ab / _getindex(weight(X), space_c, i)
         @inbounds C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -460,7 +460,7 @@ function __convolution!(C, A, B, α, ::Taylor, space_a::Taylor, space_b::Taylor,
     CoefType = eltype(C)
     sum_t += i
     if any(≤(sum_t), rounding_order)
-        μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+        μⁱ = bound_ab / _getindex(weight(X), full_space_c, (i, t...))
         @inbounds C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -530,7 +530,7 @@ function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b
     ord_b = order_b + 1
     CoefType = eltype(C)
     if rounding_order ≤ abs(i)
-        μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+        μⁱ = bound_ab / _getindex(weight(X), space_c, i)
         @inbounds C[i+order(space_c)+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -549,7 +549,7 @@ function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b
     CoefType = eltype(C)
     sum_t += abs(i)
     if any(≤(sum_t), rounding_order)
-        μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+        μⁱ = bound_ab / _getindex(weight(X), full_space_c, (i, t...))
         @inbounds C[i+order(space_c)+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -617,7 +617,7 @@ function __convolution!(C, A, B, α, space_c::Chebyshev, space_a::Chebyshev, spa
     order_b = order(space_b)
     CoefType = eltype(C)
     if rounding_order ≤ i
-        μⁱ = bound_ab / _getindex(X.weight, space_c, i)
+        μⁱ = bound_ab / _getindex(weight(X), space_c, i)
         @inbounds C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
@@ -634,7 +634,7 @@ function __convolution!(C, A, B, α, ::Chebyshev, space_a::Chebyshev, space_b::C
     CoefType = eltype(C)
     sum_t += i
     if any(≤(sum_t), rounding_order)
-        μⁱ = bound_ab / _getindex(X.weight, full_space_c, (i, t...))
+        μⁱ = bound_ab / _getindex(weight(X), full_space_c, (i, t...))
         @inbounds C[i+1] += _interval_box(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))

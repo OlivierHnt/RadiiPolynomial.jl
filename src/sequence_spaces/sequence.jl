@@ -19,6 +19,7 @@ Constructors:
 - `Sequence(coefficients::AbstractVector)`: equivalent to `Sequence(ParameterSpace()^length(coefficients), coefficients)`
 
 # Examples
+
 ```jldoctest
 julia> Sequence(Taylor(2), [1, 2, 1]) # 1 + 2x + x^2
 Sequence in Taylor(2) with coefficients Vector{Int64}:

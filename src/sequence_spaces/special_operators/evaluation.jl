@@ -17,6 +17,7 @@ See also: [`evaluate`](@ref), [`evaluate!`](@ref),
 [`project!(::LinearOperator, ::Evaluation)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Evaluation(1.0)
 Evaluation{Float64}(1.0)

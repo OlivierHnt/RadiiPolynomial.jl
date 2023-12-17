@@ -16,6 +16,7 @@ See also: [`scale`](@ref), [`scale!`](@ref),
 [`project!(::LinearOperator, ::Scale)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Scale(1.0)
 Scale{Float64}(1.0)

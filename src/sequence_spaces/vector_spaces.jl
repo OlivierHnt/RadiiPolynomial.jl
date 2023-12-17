@@ -97,6 +97,7 @@ Constructors:
 See also: [`⊗`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = TensorSpace(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
 Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
@@ -129,6 +130,7 @@ Create a [`TensorSpace`](@ref) from the tensor product of some [`SequenceSpace`]
 See also: [`TensorSpace`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Taylor(1) ⊗ Fourier(2, 1.0)
 Taylor(1) ⊗ Fourier(2, 1.0)
@@ -187,6 +189,7 @@ _lastindex(s::TensorSpace) = map(_lastindex, s.spaces)
 Multidimentional rectangular range of indices for some [`TensorSpace`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> TensorIndices((0:2, -1:1))
 TensorIndices{Tuple{UnitRange{Int64}, UnitRange{Int64}}}((0:2, -1:1))
@@ -281,6 +284,7 @@ Constructor:
 See also: [`Fourier`](@ref) and [`Chebyshev`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = Taylor(2)
 Taylor(2)
@@ -335,6 +339,7 @@ Constructor:
 See also: [`Taylor`](@ref) and [`Chebyshev`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = Fourier(2, 1.0)
 Fourier(2, 1.0)
@@ -412,6 +417,7 @@ Constructor:
 See also: [`Taylor`](@ref) and [`Fourier`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = Chebyshev(2)
 Chebyshev(2)
@@ -490,6 +496,7 @@ Constructors:
 See also: [`^(::VectorSpace, ::Int)`](@ref), [`CartesianProduct`](@ref) and [`×`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = CartesianPower(Taylor(1), 3)
 Taylor(1)³
@@ -527,6 +534,7 @@ Create a [`CartesianPower`](@ref) from `n` cartesian product(s) of `s`.
 See also: [`CartesianPower`](@ref), [`CartesianProduct`](@ref), [`×`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Taylor(1)^3
 Taylor(1)³
@@ -627,6 +635,7 @@ Constructors:
 See also: [`×`](@ref), [`CartesianPower`](@ref), [`^(::VectorSpace, ::Int)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> s = CartesianProduct(Taylor(1), Fourier(2, 1.0), Chebyshev(3))
 Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
@@ -662,6 +671,7 @@ Create a [`CartesianProduct`](@ref) from the cartesian product of some [`VectorS
 See also: [`CartesianProduct`](@ref), [`CartesianPower`](@ref) and [`^(::VectorSpace, ::Int)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Taylor(1) × Fourier(2, 1.0)
 Taylor(1) × Fourier(2, 1.0)

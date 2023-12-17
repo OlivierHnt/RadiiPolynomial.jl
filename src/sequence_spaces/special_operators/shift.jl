@@ -16,6 +16,7 @@ See also: [`shift`](@ref), [`shift!`](@ref),
 [`project!(::LinearOperator, ::Shift)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Shift(1.0)
 Shift{Float64}(1.0)

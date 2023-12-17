@@ -13,6 +13,7 @@ Constructors:
 - `LinearOperator(coefficients::AbstractMatrix)`: equivalent to `LinearOperator(ParameterSpace()^size(coefficients, 2), ParameterSpace()^size(coefficients, 1), coefficients)`
 
 # Examples
+
 ```jldoctest
 julia> LinearOperator(Taylor(1), Taylor(1), [1 2 ; 3 4])
 LinearOperator : Taylor(1) → Taylor(1) with coefficients Matrix{Int64}:

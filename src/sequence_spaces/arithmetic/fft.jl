@@ -1,43 +1,19 @@
+_call_ifft!(C, s, ::Type{<:Real}) = rifft!(C, s)
+_call_ifft!(C, s, ::Type) = ifft!(C, s)
+
 # dimension of discrete Fourier series
 
-fft_size(s₁::BaseSpace, s₂::BaseSpace) = (_fft_length(s₁, s₂),)
+fft_size(s::TensorSpace) = map(sᵢ -> fft_size(sᵢ), spaces(s))
 
-fft_size(s₁::BaseSpace, s₂::BaseSpace, s₃::BaseSpace...) = (_fft_length(s₁, s₂, s₃...),)
+fft_size(s::BaseSpace) = nextpow(2, _dfs_dimension(s))
 
-fft_size(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    map(_fft_length, spaces(s₁), spaces(s₂))
-
-fft_size(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, s₃::TensorSpace{<:NTuple{N,BaseSpace}}...) where {N} =
-    ntuple(i -> nextpow(2, _dfs_dimension(s₁, i) + _dfs_dimension(s₂, i) + mapreduce(s₃_ -> _dfs_dimension(s₃_, i), +, s₃)), Val(N))
-
-fft_size(s::BaseSpace, n::Integer) = (_fft_length(s, n),)
-
-fft_size(s::TensorSpace, n::Integer) = map(sᵢ -> _fft_length(sᵢ, n), spaces(s))
-
-_fft_length(s₁::BaseSpace, s₂::BaseSpace) =
-    nextpow(2, _dfs_dimension(s₁) + _dfs_dimension(s₂))
-
-_fft_length(s₁::BaseSpace, s₂::BaseSpace, s₃::BaseSpace...) =
-    nextpow(2, _dfs_dimension(s₁) + _dfs_dimension(s₂) + mapreduce(_dfs_dimension, +, s₃))
-
-_fft_length(s::BaseSpace, n::Integer) = nextpow(2, n * _dfs_dimension(s))
-
-#
-
-_dfs_dimensions(s::TensorSpace) = map(_dfs_dimension, spaces(s))
-
-_dfs_dimension(s::TensorSpace, i::Integer) = _dfs_dimension(s[i])
-
-# Taylor
 _dfs_dimension(s::Taylor) = dimension(s)
-# Fourier
+
 _dfs_dimension(s::Fourier) = dimension(s)
-# Chebyshev
+
 _dfs_dimension(s::Chebyshev) = 2order(s)+1
 
 # sequence to discrete Fourier series
-
-fft(a::Sequence{<:BaseSpace}, n::Tuple{Integer}) = @inbounds fft(a, n[1])
 
 function fft(a::Sequence{<:BaseSpace}, n::Integer)
     space_a = space(a)
@@ -87,7 +63,7 @@ end
 
 _is_fft_size_compatible(n, s) = ispow2(n) & (_dfs_dimension(s) ≤ n)
 _is_fft_size_compatible(n::Tuple, s) = @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
-_is_fft_size_compatible(n::Tuple{Int}, s) = @inbounds _is_fft_size_compatible(n[1], s[1])
+_is_fft_size_compatible(n::Tuple{Integer}, s) = @inbounds _is_fft_size_compatible(n[1], s[1])
 
 _apply_preprocess!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
     @inbounds _preprocess!(_apply_preprocess!(C, Base.tail(space)), space[1], Val(N₁-N₂+1))

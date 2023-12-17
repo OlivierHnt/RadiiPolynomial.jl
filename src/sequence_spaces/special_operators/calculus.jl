@@ -16,6 +16,7 @@ See also: [`differentiate`](@ref), [`differentiate!`](@ref),
 and [`project!(::LinearOperator, ::Derivative)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Derivative(1)
 Derivative{Int64}(1)
@@ -61,6 +62,7 @@ See also: [`integrate`](@ref), [`integrate!`](@ref),
 and [`project!(::LinearOperator, ::Integral)`](@ref).
 
 # Examples
+
 ```jldoctest
 julia> Integral(1)
 Integral{Int64}(1)

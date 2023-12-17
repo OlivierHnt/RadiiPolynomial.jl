@@ -691,7 +691,7 @@ function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray
 end
 
 function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     ord = order(space)
     @inbounds s = 1abs(A[ord+1]) * one(ν)
     if ord > 0
@@ -703,7 +703,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector
     return s
 end
 function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     CoefType = typeof(2abs(zero(T))*ν)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
@@ -718,7 +718,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector{T}) where {T}
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     ν⁻¹ = abs(one(T))/ν
     ν⁻ⁱ½ = one(ν⁻¹)/2
     @inbounds s = abs(A[1]) * one(ν⁻ⁱ½)
@@ -729,7 +729,7 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractV
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     ν⁻¹ = abs(one(T))/ν
     ν⁻ⁱ½ = one(ν⁻¹)/2
     CoefType = typeof(ν⁻ⁱ½)
@@ -745,24 +745,24 @@ end
 
 function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = 1abs(A[ord+1]) * _getindex(X.weight, space, ord)
+    @inbounds s = 1abs(A[ord+1]) * _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s += abs(A[i+1]) * _getindex(X.weight, space, i)
+            s += abs(A[i+1]) * _getindex(weight(X), space, i)
         end
         @inbounds s = 2s + abs(A[1])
     end
     return s
 end
 function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T))*_getindex(X.weight, space, 0))
+    CoefType = typeof(2abs(zero(T))*_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ) .* _getindex(X.weight, space, ord)
+    s .= abs.(Aᵢ) .* _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s .+= abs.(selectdim(A, N, i+1)) .* _getindex(X.weight, space, i)
+            s .+= abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i)
         end
         @inbounds s .= 2 .* s .+ abs.(selectdim(A, N, 1))
     end
@@ -770,24 +770,24 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{
 end
 function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = (abs(A[ord+1]) / _getindex(X.weight, space, ord)) / 1
+    @inbounds s = (abs(A[ord+1]) / _getindex(weight(X), space, ord)) / 1
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s = max(s, abs(A[i+1]) / _getindex(X.weight, space, i))
+            s = max(s, abs(A[i+1]) / _getindex(weight(X), space, i))
         end
         @inbounds s = max(s/2, abs(A[1]))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof((abs(zero(T))/_getindex(X.weight, space, 0))/2)
+    CoefType = typeof((abs(zero(T))/_getindex(weight(X), space, 0))/2)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ) ./ _getindex(X.weight, space, ord)
+    s .= abs.(Aᵢ) ./ _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(X.weight, space, i))
+            s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i))
         end
         @inbounds s .= max.(s ./ 2, abs.(selectdim(A, N, 1)))
     end
@@ -857,7 +857,7 @@ function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArr
 end
 
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     νⁱ2 = 2one(ν)
     @inbounds s = abs(A[1]) * one(νⁱ)
     @inbounds for i ∈ 1:order(space)
@@ -867,7 +867,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVect
     return s
 end
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     νⁱ2 = 2one(ν)
     CoefType = typeof(abs(zero(T))*νⁱ2)
     @inbounds A₀ = selectdim(A, N, 1)
@@ -880,7 +880,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArra
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     ord = order(space)
     @inbounds s = (abs(A[ord+1]) * one(ν)) / 1
     if ord > 0
@@ -892,7 +892,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::Abstrac
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    ν = rate(X.weight)
+    ν = rate(weight(X))
     CoefType = typeof((abs(zero(T))*ν)/2)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
@@ -909,24 +909,24 @@ end
 
 function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = 1abs(A[ord+1]) * _getindex(X.weight, space, ord)
+    @inbounds s = 1abs(A[ord+1]) * _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s = max(s, abs(A[i+1]) * _getindex(X.weight, space, i))
+            s = max(s, abs(A[i+1]) * _getindex(weight(X), space, i))
         end
         @inbounds s = max(2s, abs(A[1]))
     end
     return s
 end
 function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T))*_getindex(X.weight, space, 0))
+    CoefType = typeof(2abs(zero(T))*_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ) .* _getindex(X.weight, space, ord)
+    s .= abs.(Aᵢ) .* _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(X.weight, space, i))
+            s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i))
         end
         @inbounds s .= max.(2 .* s, abs.(selectdim(A, N, 1)))
     end
@@ -934,24 +934,24 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArra
 end
 function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = (abs(A[ord+1]) / _getindex(X.weight, space, ord)) / 1
+    @inbounds s = (abs(A[ord+1]) / _getindex(weight(X), space, ord)) / 1
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s += abs(A[i+1]) / _getindex(X.weight, space, i)
+            s += abs(A[i+1]) / _getindex(weight(X), space, i)
         end
         @inbounds s = s/2 + abs(A[1])
     end
     return s
 end
 function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof((abs(zero(T))/_getindex(X.weight, space, 0))/2)
+    CoefType = typeof((abs(zero(T))/_getindex(weight(X), space, 0))/2)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
-    s .= abs.(Aᵢ) ./ _getindex(X.weight, space, ord)
+    s .= abs.(Aᵢ) ./ _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
-            s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(X.weight, space, i)
+            s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i)
         end
         @inbounds s .= s ./ 2 .+ abs.(selectdim(A, N, 1))
     end

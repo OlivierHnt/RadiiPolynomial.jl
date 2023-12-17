@@ -1,3 +1,46 @@
+conjugacy_symmetry!(a::Sequence{<:VectorSpace,<:AbstractVector{<:Real}}) = a
+
+conjugacy_symmetry!(a::Sequence) = _conjugacy_symmetry!(a)
+
+_conjugacy_symmetry!(::Sequence) = throw(DomainError) # TODO: lift restriction
+
+function _conjugacy_symmetry!(a::Sequence{ParameterSpace})
+    @inbounds a[1] = real(a[1])
+    return a
+end
+
+function _conjugacy_symmetry!(a::Sequence{<:Fourier})
+    ord = order(a)
+    @inbounds a[0] = real(a[0])
+    @inbounds view(a, -ord:-1) .= conj.(view(a, ord:-1:1))
+    return a
+end
+
+function _conjugacy_symmetry!(a::Sequence{<:CartesianSpace})
+    for aᵢ ∈ eachcomponent(a)
+        _conjugacy_symmetry!(aᵢ)
+    end
+    return a
+end
+
+function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {N,T<:NTuple{N,VectorSpace}}
+    @inbounds _conjugacy_symmetry!(component(a, 1))
+    @inbounds _conjugacy_symmetry!(component(a, 2:N))
+    return a
+end
+_conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}} =
+    @inbounds _conjugacy_symmetry!(component(a, 1))
+
+
+
+
+
+#
+
+
+
+
+
 abstract type SymBaseSpace <: BaseSpace end
 
 desymmetrize(s::SymBaseSpace) = s.space

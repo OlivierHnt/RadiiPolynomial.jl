@@ -29,50 +29,22 @@ for f ∈ (:+, :add_bar, :*, :mul_bar)
         TensorSpace(map((s₁ᵢ, s₂ᵢ) -> image($f, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
 end
 
-function image(::typeof(^), s::SequenceSpace, n::Int)
+function image(::typeof(^), s::SequenceSpace, n::Integer)
     n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
     n == 0 && return s
     n == 1 && return s
-    n == 2 && return image(*, s, s)
-    # power by squaring
-    t = trailing_zeros(n) + 1
-    n >>= t
-    while (t -= 1) > 0
-        s = image(*, s, s)
-    end
-    new_s = s
-    while n > 0
-        t = trailing_zeros(n) + 1
-        n >>= t
-        while (t -= 1) ≥ 0
-            s = image(*, s, s)
-        end
-        new_s = image(*, new_s, s)
-    end
-    return new_s
+    s2 = image(*, s, s)
+    n == 2 && return s2
+    return image(*, s2, image(^, s, n-2))
 end
 
-function image(::typeof(pow_bar), s::SequenceSpace, n::Int)
+function image(::typeof(pow_bar), s::SequenceSpace, n::Integer)
     n < 0 && return throw(DomainError(n, "pow_bar is only defined for positive integers"))
     n == 0 && return s
     n == 1 && return s
-    n == 2 && return image(mul_bar, s, s)
-    # power by squaring
-    t = trailing_zeros(n) + 1
-    n >>= t
-    while (t -= 1) > 0
-        s = image(mul_bar, s, s)
-    end
-    new_s = s
-    while n > 0
-        t = trailing_zeros(n) + 1
-        n >>= t
-        while (t -= 1) ≥ 0
-            s = image(mul_bar, s, s)
-        end
-        new_s = image(mul_bar, new_s, s)
-    end
-    return new_s
+    s2 = image(mul_bar, s, s)
+    n == 2 && return s2
+    return image(mul_bar, s2, image(pow_bar, s, n-2))
 end
 
 # Taylor

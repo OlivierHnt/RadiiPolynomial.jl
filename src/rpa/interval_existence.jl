@@ -14,7 +14,7 @@ function interval_of_existence(Y_::Real, Z₁_::Real, R::Real)
         r = Y/(one(Interval{NewType}) - Z₁)
         r_sup = NewType(sup(r), RoundUp)
         if 0 ≤ r_sup ≤ R
-            return Interval(r_sup, R)
+            return interval(NewType, r_sup, R)
         else
             return emptyinterval(NewType)
         end
@@ -37,28 +37,28 @@ function interval_of_existence(Y_::Real, Z₁_::Real, Z₂_::Real, R::Real)
         return emptyinterval(NewType) # throw(DomainError((Y, Z₁, Z₂, R), "Y, Z₁ and Z₂ must be positive and finite, R must be positive"))
     else
         b = Z₁ - one(Interval{NewType})
-        Δ = b*b - 2*(Interval(Z₂)*Y)
+        Δ = b*b - 2*interval(Z₂)*Y
         if inf(Δ) < 0 # complex roots
             return emptyinterval(NewType)
         else # real roots
             sqrtΔ = sqrt(Δ)
             r₁ = -(sqrtΔ + b)/Z₂
             r₁_sup = NewType(sup(r₁), RoundUp)
-            if 0 ≤ r₁_sup ≤ R && sup(Z₁ + Interval(Z₂) * r₁_sup) < 1
+            if 0 ≤ r₁_sup ≤ R && sup(Z₁ + interval(Z₂) * r₁_sup) < 1
                 r₂ = (sqrtΔ - b)/Z₂
                 r₂_inf = NewType(inf(r₂), RoundDown)
                 if r₁_sup > r₂_inf
                     return emptyinterval(NewType)
-                elseif 0 ≤ r₂_inf ≤ R && sup(Z₁ + Interval(Z₂) * r₂_inf) < 1
-                    return Interval(r₁_sup, r₂_inf)
-                elseif sup(Z₁ + Interval(Z₂) * R) < 1
-                    return Interval(r₁_sup, R)
+                elseif 0 ≤ r₂_inf ≤ R && sup(Z₁ + interval(Z₂) * r₂_inf) < 1
+                    return interval(NewType, r₁_sup, r₂_inf)
+                elseif sup(Z₁ + interval(Z₂) * R) < 1
+                    return interval(NewType, r₁_sup, R)
                 else
                     x = NewType(prevfloat(inf(-b/Z₂)), RoundDown)
                     if r₁_sup ≤ x ≤ r₂_inf && x ≤ R
-                        return Interval(r₁_sup, x)
+                        return interval(NewType, r₁_sup, x)
                     else
-                        return Interval(r₁_sup)
+                        return interval(NewType, r₁_sup)
                     end
                 end
             else

@@ -355,7 +355,7 @@ end
 
 image(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
 
-_coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = typeof(zero(T)*0)
+_coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = T
 
 function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
     n = order(𝒟)
@@ -367,7 +367,7 @@ function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
             @inbounds c[0] = zero(eltype(c))
         elseif n == 1
             @inbounds for i ∈ 1:order_a
-                c[i-1] = i * a[i]
+                c[i-1] = _safe_mul(i, a[i])
             end
         else
             space_a = space(a)
@@ -390,7 +390,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where 
             C .= zero(T)
         elseif n == 1
             @inbounds for i ∈ 1:ord
-                selectdim(C, 1, i) .= i .* selectdim(A, 1, i+1)
+                selectdim(C, 1, i) .= _safe_mul.(i, selectdim(A, 1, i+1))
             end
         else
             @inbounds for i ∈ n:ord
@@ -413,7 +413,7 @@ function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}
         elseif n == 1
             C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord, size(A, i)), Val(N)))
             @inbounds for i ∈ 1:ord
-                selectdim(C, D, i) .= i .* selectdim(A, D, i+1)
+                selectdim(C, D, i) .= _safe_mul.(i, selectdim(A, D, i+1))
             end
             return C
         else
@@ -434,16 +434,16 @@ _nzind_codomain(𝒟::Derivative, domain::Taylor, codomain::Taylor) =
 
 function _nzval(𝒟::Derivative, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     n = order(𝒟)
-    p = one(T)*1
+    p = one(real(T))
     for k ∈ 1:n
-        p *= i+k
+        p = _safe_mul(i+k, p)
     end
     return convert(T, p)
 end
 
 image(ℐ::Integral, s::Taylor) = Taylor(order(s)+order(ℐ))
 
-_coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = typeof(inv(one(T)*1)*zero(T))
+_coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = typeof(inv(one(T))*zero(T))
 
 function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
     n = order(ℐ)
@@ -452,12 +452,12 @@ function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
     elseif n == 1
         @inbounds c[0] = zero(eltype(c))
         @inbounds for i ∈ 0:order(a)
-            c[i+1] = a[i] / (i+1)
+            c[i+1] = _safe_div(a[i], i+1)
         end
     else
         space_a = space(a)
         CoefType = eltype(c)
-        @inbounds view(c, 0:n-1) .= zero(eltype(c))
+        @inbounds view(c, 0:n-1) .= zero(CoefType)
         @inbounds for i ∈ 0:order(a)
             c[i+n] = _nzval(ℐ, space_a, space_a, CoefType, i+n, i) * a[i]
         end
@@ -473,7 +473,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
         ord = order(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
         @inbounds for i ∈ 0:ord
-            selectdim(C, 1, i+2) .= selectdim(A, 1, i+1) ./ (i+1)
+            selectdim(C, 1, i+2) .= _safe_div.(selectdim(A, 1, i+1), i+1)
         end
     else
         ord = order(space)
@@ -495,7 +495,7 @@ function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) w
         C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord+2, size(A, i)), Val(N)))
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
         @inbounds for i ∈ 0:ord
-            selectdim(C, D, i+2) .= selectdim(A, D, i+1) ./ (i+1)
+            selectdim(C, D, i+2) .= _safe_div.(selectdim(A, D, i+1), i+1)
         end
         return C
     else
@@ -516,13 +516,13 @@ _nzind_codomain(ℐ::Integral, domain::Taylor, codomain::Taylor) =
     order(ℐ):min(order(domain)+order(ℐ), order(codomain))
 
 _nzval(ℐ::Integral, s₁::Taylor, s₂::Taylor, ::Type{T}, i, j) where {T} =
-    convert(T, inv(_nzval(Derivative(order(ℐ)), s₁, s₂, T, j, i)))
+    convert(T, inv(real(_nzval(Derivative(order(ℐ)), s₁, s₂, T, j, i))))
 
 # Fourier
 
 image(::Derivative, s::Fourier) = s
 
-_coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(zero(T)*0*zero(S)))
+_coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(zero(T)*zero(S)))
 
 function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
     n = order(𝒟)
@@ -533,7 +533,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
             @inbounds for j ∈ 1:order(c)
-                ωj = ω*j
+                ωj = _safe_mul(ω, j)
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
                 c[j] = complex(-ωj * imag(aⱼ), ωj * real(aⱼ))
@@ -543,7 +543,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
                     c[j] = complex(-sign_iⁿ_ωⁿjⁿ * imag(aⱼ), sign_iⁿ_ωⁿjⁿ * real(aⱼ))
@@ -552,7 +552,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
                     c[j] = iⁿωⁿjⁿ_real * a[j]
                     c[-j] = iⁿωⁿjⁿ_real * a[-j]
                 end
@@ -572,26 +572,26 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ωj = ω*j
+                ωj = _safe_mul(ω, j)
                 Aⱼ = selectdim(A, 1, ord+1+j)
                 A₋ⱼ = selectdim(A, 1, ord+1-j)
-                selectdim(C, 1, ord+1+j) .= Complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
-                selectdim(C, 1, ord+1-j) .= Complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
+                selectdim(C, 1, ord+1+j) .= complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
+                selectdim(C, 1, ord+1-j) .= complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
                     Aⱼ = selectdim(A, 1, ord+1+j)
                     A₋ⱼ = selectdim(A, 1, ord+1-j)
-                    selectdim(C, 1, ord+1+j) .= Complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
-                    selectdim(C, 1, ord+1-j) .= Complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
+                    selectdim(C, 1, ord+1+j) .= complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
+                    selectdim(C, 1, ord+1-j) .= complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
                     selectdim(C, 1, ord+1+j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1+j)
                     selectdim(C, 1, ord+1-j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1-j)
                 end
@@ -613,26 +613,26 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ωj = ω*j
+                ωj = _safe_mul(ω, j)
                 Aⱼ = selectdim(A, D, ord+1+j)
                 A₋ⱼ = selectdim(A, D, ord+1-j)
-                selectdim(C, D, ord+1+j) .= Complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
-                selectdim(C, D, ord+1-j) .= Complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
+                selectdim(C, D, ord+1+j) .= complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
+                selectdim(C, D, ord+1-j) .= complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
             end
         else
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ωⁿjⁿ = sign_iⁿ*(ω*j)^n
+                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
                     Aⱼ = selectdim(A, D, ord+1+j)
                     A₋ⱼ = selectdim(A, D, ord+1-j)
-                    selectdim(C, D, ord+1+j) .= Complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
-                    selectdim(C, D, ord+1-j) .= Complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
+                    selectdim(C, D, ord+1+j) .= complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
+                    selectdim(C, D, ord+1-j) .= complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
                 end
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
                     selectdim(C, D, ord+1+j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, ord+1+j)
                     selectdim(C, D, ord+1-j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, ord+1-j)
                 end
@@ -645,7 +645,7 @@ end
 function _nzind_domain(::Derivative, domain::Fourier, codomain::Fourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end
@@ -653,7 +653,7 @@ end
 function _nzind_codomain(::Derivative, domain::Fourier, codomain::Fourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return -ord:ord
 end
@@ -663,7 +663,7 @@ function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) w
     if n == 0
         return one(T)
     else
-        ωⁿjⁿ = (one(real(T))*frequency(domain)*j)^n
+        ωⁿjⁿ = _safe_pow(_safe_mul(one(real(T))*frequency(domain), j), n)
         r = n % 4
         if r == 0
             return convert(T, complex(ωⁿjⁿ, zero(ωⁿjⁿ)))
@@ -679,19 +679,19 @@ end
 
 image(::Integral, s::Fourier) = s
 
-_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(real(S))*one(T)*1)*zero(S)))
+_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(real(S))*one(T))*zero(S)))
 
 function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     n = order(ℐ)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        @inbounds iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
+        @inbounds _safe_iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
         ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
             @inbounds for j ∈ 1:order(c)
-                ω⁻¹j⁻¹ = inv(ω*j)
+                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
                 c[j] = complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
@@ -701,7 +701,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
                     c[j] = complex(sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
@@ -710,7 +710,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿω⁻ⁿj⁻ⁿ_real = iⁿ_real*inv(ω*j)^n
+                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
                     c[j] = iⁿω⁻ⁿj⁻ⁿ_real * a[j]
                     c[-j] = iⁿω⁻ⁿj⁻ⁿ_real * a[-j]
                 end
@@ -726,12 +726,12 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
         C .= A
     else
         ord = order(space)
-        @inbounds iszero(selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
+        @inbounds all(_safe_iszero, selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
         ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ω⁻¹j⁻¹ = inv(ω*j)
+                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
                 Aⱼ = selectdim(A, 1, ord+1+j)
                 A₋ⱼ = selectdim(A, 1, ord+1-j)
                 selectdim(C, 1, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
@@ -741,7 +741,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
                     Aⱼ = selectdim(A, 1, ord+1+j)
                     A₋ⱼ = selectdim(A, 1, ord+1-j)
                     selectdim(C, 1, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
@@ -750,7 +750,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ_real = iⁿ_real*inv(ω*j)^n
+                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
                     selectdim(C, 1, ord+1+j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1+j)
                     selectdim(C, 1, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1-j)
                 end
@@ -767,13 +767,13 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
         return convert(Array{CoefType,N}, A)
     else
         ord = order(space)
-        @inbounds iszero(selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
+        @inbounds all(_safe_iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
         ω = one(real(T))*frequency(space)
         C = Array{CoefType,N}(undef, size(A))
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ω⁻¹j⁻¹ = inv(ω*j)
+                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
                 Aⱼ = selectdim(A, D, ord+1+j)
                 A₋ⱼ = selectdim(A, D, ord+1-j)
                 selectdim(C, D, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
@@ -783,7 +783,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = sign_iⁿ*inv(ω*j)^n
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
                     Aⱼ = selectdim(A, D, ord+1+j)
                     A₋ⱼ = selectdim(A, D, ord+1-j)
                     selectdim(C, D, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
@@ -792,7 +792,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ_real = iⁿ_real*inv(ω*j)^n
+                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
                     selectdim(C, D, ord+1+j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1+j)
                     selectdim(C, D, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1-j)
                 end
@@ -826,7 +826,7 @@ function _nzval(ℐ::Integral, domain::Fourier, ::Fourier, ::Type{T}, i, j) wher
         if j == 0
             return zero(T)
         else
-            ω⁻ⁿj⁻ⁿ = inv(one(real(T))*frequency(domain)*j)^n
+            ω⁻ⁿj⁻ⁿ = _safe_pow(inv(_safe_mul(one(real(T))*frequency(domain), j)), n)
             r = n % 4
             if r == 0
                 return convert(T, complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
@@ -845,7 +845,7 @@ end
 
 image(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
 
-_coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = typeof(zero(T)*0)
+_coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = T
 
 function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
     n = order(𝒟)
@@ -860,9 +860,9 @@ function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
             @inbounds for i ∈ 0:order_a-1
                 c[i] = zero(CoefType)
                 @inbounds for j ∈ i+1:2:order_a
-                    c[i] += j * a[j]
+                    c[i] += _safe_mul(j, a[j])
                 end
-                c[i] *= 2
+                c[i] = _safe_mul(2, c[i])
             end
         end
     else # TODO: lift restriction
@@ -884,7 +884,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) whe
                 Cᵢ = selectdim(C, 1, i+1)
                 Cᵢ .= zero(T)
                 @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= (2j) .* selectdim(A, 1, j+1)
+                    Cᵢ .+= _safe_mul.(2j, selectdim(A, 1, j+1))
                 end
             end
         end
@@ -908,7 +908,7 @@ function _apply(𝒟::Derivative, space::Chebyshev, ::Val{D}, A::AbstractArray{T
             @inbounds for i ∈ 0:ord-1
                 Cᵢ = selectdim(C, D, i+1)
                 @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= (2j) .* selectdim(A, D, j+1)
+                    Cᵢ .+= _safe_mul.(2j, selectdim(A, D, j+1))
                 end
             end
             return C
@@ -960,7 +960,7 @@ function _nzval(𝒟::Derivative, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) whe
     if n == 0
         return one(T)
     elseif n == 1
-        return convert(T, 2j)
+        return _safe_convert(T, 2j)
     else # TODO: lift restriction
         return throw(DomainError)
     end
@@ -968,7 +968,7 @@ end
 
 image(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
 
-_coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = typeof(zero(T)/1)
+_coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = T
 
 function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
     n = order(ℐ)
@@ -978,26 +978,26 @@ function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
         order_a = order(a)
         if order_a == 0
             @inbounds c[0] = a[0]
-            @inbounds c[1] = a[0] / 2
+            @inbounds c[1] = _safe_div(a[0], 2)
         elseif order_a == 1
-            @inbounds c[0] = a[0] - a[1] / 2
-            @inbounds c[1] = a[0] / 2
-            @inbounds c[2] = a[1] / 4
+            @inbounds c[0] = a[0] - _safe_div(a[1], 2)
+            @inbounds c[1] = _safe_div(a[0], 2)
+            @inbounds c[2] = _safe_div(a[1], 4)
         else
             @inbounds c[0] = zero(eltype(c))
             @inbounds for i ∈ 2:2:order_a-1
-                c[0] += a[i+1] / ((i+1)^2-1) - a[i] / (i^2-1)
+                c[0] += _safe_div(a[i+1], (i+1)^2-1) - _safe_div(a[i], i^2-1)
             end
             if iseven(order_a)
-                @inbounds c[0] -= a[order_a] / (order_a^2-1)
+                @inbounds c[0] -= _safe_div(a[order_a], order_a^2-1)
             end
-            @inbounds c[0] = 2 * c[0] + a[0] - a[1] / 2
-            @inbounds c[1] = (a[0] - a[2]) / 2
+            @inbounds c[0] = _safe_mul(2, c[0]) + a[0] - _safe_div(a[1], 2)
+            @inbounds c[1] = _safe_div(a[0] - a[2], 2)
             @inbounds for i ∈ 2:order_a-1
-                c[i] = (a[i-1] - a[i+1]) / (2i)
+                c[i] = _safe_div(a[i-1] - a[i+1], 2i)
             end
-            @inbounds c[order_a] = a[order_a-1] / (2order_a)
-            @inbounds c[order_a+1] = a[order_a] / (2(order_a+1))
+            @inbounds c[order_a] = _safe_div(a[order_a-1], 2order_a)
+            @inbounds c[order_a+1] = _safe_div(a[order_a], 2(order_a+1))
         end
     else # TODO: lift restriction
         return throw(DomainError)
@@ -1016,27 +1016,27 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where 
         @inbounds A₀ = selectdim(A, 1, 1)
         if ord == 0
             C₀ .= A₀
-            C₁ .= A₀ ./ 2
+            C₁ .= _safe_div.(A₀, 2)
         elseif ord == 1
             @inbounds A₁ = selectdim(A, 1, 2)
-            C₀ .= A₀ .- A₁ ./ 2
-            C₁ .= A₀ ./ 2
-            @inbounds selectdim(C, 1, 3) .= A₁ ./ 4
+            C₀ .= A₀ .- _safe_div.(A₁, 2)
+            C₁ .= _safe_div.(A₀, 2)
+            @inbounds selectdim(C, 1, 3) .= _safe_div.(A₁, 4)
         else
             C₀ .= zero(T)
             @inbounds for i ∈ 2:2:ord-1
-                C₀ .+= selectdim(A, 1, i+2) ./ ((i+1)^2-1) .- selectdim(A, 1, i+1) ./ (i^2-1)
+                C₀ .+= _safe_div.(selectdim(A, 1, i+2), (i+1)^2-1) .- _safe_div.(selectdim(A, 1, i+1), i^2-1)
             end
             if iseven(ord)
-                @inbounds C₀ .-= selectdim(A, 1, ord+1) ./ (ord^2-1)
+                @inbounds C₀ .-= _safe_div.(selectdim(A, 1, ord+1), ord^2-1)
             end
-            @inbounds C₀ .= 2 .* C₀ .+ A₀ .- selectdim(A, 1, 2) ./ 2
-            @inbounds C₁ .= (A₀ .- selectdim(A, 1, 3)) ./ 2
+            @inbounds C₀ .= _safe_mul.(2, C₀) .+ A₀ .- _safe_div.(selectdim(A, 1, 2), 2)
+            @inbounds C₁ .= _safe_div.(A₀ .- selectdim(A, 1, 3), 2)
             @inbounds for i ∈ 2:ord-1
-                selectdim(C, 1, i+1) .= (selectdim(A, 1, i) .- selectdim(A, 1, i+2)) ./ (2i)
+                selectdim(C, 1, i+1) .= _safe_div.(selectdim(A, 1, i) .- selectdim(A, 1, i+2), 2i)
             end
-            @inbounds selectdim(C, 1, ord+1) .= selectdim(A, 1, ord) ./ (2ord)
-            @inbounds selectdim(C, 1, ord+2) .= selectdim(A, 1, ord+1) ./ (2(ord+1))
+            @inbounds selectdim(C, 1, ord+1) .= _safe_div.(selectdim(A, 1, ord), 2ord)
+            @inbounds selectdim(C, 1, ord+2) .= _safe_div.(selectdim(A, 1, ord+1), 2(ord+1))
         end
     else # TODO: lift restriction
         return throw(DomainError)
@@ -1057,27 +1057,27 @@ function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}
         @inbounds A₀ = selectdim(A, D, 1)
         if ord == 0
             C₀ .= A₀
-            C₁ .= A₀ ./ 2
+            C₁ .= _safe_div.(A₀, 2)
         elseif ord == 1
             @inbounds A₁ = selectdim(A, D, 2)
-            C₀ .= A₀ .- A₁ ./ 2
-            C₁ .= A₀ ./ 2
-            @inbounds selectdim(C, D, 3) .= A₁ ./ 4
+            C₀ .= A₀ .- _safe_div.(A₁, 2)
+            C₁ .= _safe_div.(A₀, 2)
+            @inbounds selectdim(C, D, 3) .= _safe_div.(A₁, 4)
         else
             C₀ .= zero(CoefType)
             @inbounds for i ∈ 2:2:ord-1
-                C₀ .+= selectdim(A, D, i+2) ./ ((i+1)^2-1) .- selectdim(A, D, i+1) ./ (i^2-1)
+                C₀ .+= _safe_div.(selectdim(A, D, i+2), (i+1)^2-1) .- _safe_div.(selectdim(A, D, i+1), i^2-1)
             end
             if iseven(ord)
-                @inbounds C₀ .-= selectdim(A, D, ord+1) ./ (ord^2-1)
+                @inbounds C₀ .-= _safe_div.(selectdim(A, D, ord+1), ord^2-1)
             end
-            @inbounds C₀ .= 2 .* C₀ .+ A₀ .- selectdim(A, D, 2) ./ 2
-            @inbounds C₁ .= (A₀ .- selectdim(A, D, 3)) ./ 2
+            @inbounds C₀ .= _safe_mul.(2, C₀) .+ A₀ .- _safe_div.(selectdim(A, D, 2), 2)
+            @inbounds C₁ .= _safe_div.(A₀ .- selectdim(A, D, 3), 2)
             @inbounds for i ∈ 2:ord-1
-                selectdim(C, D, i+1) .= (selectdim(A, D, i) .- selectdim(A, D, i+2)) ./ (2i)
+                selectdim(C, D, i+1) .= _safe_div.(selectdim(A, D, i) .- selectdim(A, D, i+2), 2i)
             end
-            @inbounds selectdim(C, D, ord+1) .= selectdim(A, D, ord) ./ (2ord)
-            @inbounds selectdim(C, D, ord+2) .= selectdim(A, D, ord+1) ./ (2(ord+1))
+            @inbounds selectdim(C, D, ord+1) .= _safe_div.(selectdim(A, D, ord), 2ord)
+            @inbounds selectdim(C, D, ord+2) .= _safe_div.(selectdim(A, D, ord+1), 2(ord+1))
         end
         return C
     else # TODO: lift restriction
@@ -1171,21 +1171,21 @@ function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where 
             if j == 0
                 return one(T)
             elseif j == 1
-                return convert(T, -one(T)/2)
+                return convert(T, -_safe_div(one(T), 2))
             elseif iseven(j)
-                return convert(T, 2one(T)/(1-j^2))
+                return convert(T, _safe_mul(2, _safe_div(one(T), 1-j^2)))
             else
-                return convert(T, 2one(T)/(j^2-1))
+                return convert(T, _safe_mul(2, _safe_div(one(T), j^2-1)))
             end
         elseif i == 1 && j == 0
-            return convert(T, one(T)/2)
+            return convert(T, _safe_div(one(T), 2))
         elseif i == 2 && j == 1
-            return convert(T, one(T)/4)
+            return convert(T, _safe_div(one(T), 4))
         else
             if i+1 == j
-                return convert(T, -one(T)/(2i))
+                return convert(T, -_safe_div(one(T), 2i))
             else # i == j+1
-                return convert(T, one(T)/(2i))
+                return convert(T, _safe_div(one(T), 2i))
             end
         end
     else # TODO: lift restriction

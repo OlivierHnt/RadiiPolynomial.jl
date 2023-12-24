@@ -367,15 +367,15 @@ order(s::Fourier) = s.order
 
 frequency(s::Fourier) = s.frequency
 
-Base.:(==)(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order == s₂.order)
-Base.issubset(s₁::Fourier, s₂::Fourier) = (s₁.frequency == s₂.frequency) & (s₁.order ≤ s₂.order)
+Base.:(==)(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order == s₂.order)
+Base.issubset(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order ≤ s₂.order)
 function Base.intersect(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
-    s₁.frequency == s₂.frequency || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
+    _safe_isequal(s₁.frequency, s₂.frequency) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
     return Fourier(min(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
-    s₁.frequency == s₂.frequency || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
+    _safe_isequal(s₁.frequency, s₂.frequency) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
     return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
 end

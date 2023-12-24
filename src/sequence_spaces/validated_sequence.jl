@@ -1,65 +1,57 @@
-_to_interval(a::Sequence{<:VectorSpace,<:AbstractVector{<:Interval}}) = a
-_to_interval(a::Sequence{<:VectorSpace,<:AbstractVector{<:Complex{<:Interval}}}) = a
-_to_interval(a::Sequence) = Sequence(_to_interval(space(a)), Interval.(coefficients(a)))
+_check_interval_space(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    _check_interval_space(s₁[1], s₂[1]) & _check_interval_space(Base.tail(s₁), Base.tail(s₂))
+_check_interval_space(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
+    _check_interval_space(s₁[1], s₂[1])
+_check_interval_space(::Taylor) = true
+_check_interval_space(::Fourier{<:Interval}) = true
+_check_interval_space(::Chebyshev) = true
+_check_interval_space(::CosFourier{<:Interval}) = true
+_check_interval_space(::SinFourier{<:Interval}) = true
+_check_interval_space(::Fourier) = throw(ArgumentError("the frequency of the Fourier space must be an interval"))
+_check_interval_space(::CosFourier) = throw(ArgumentError("the frequency of the CosFourier space must be an interval"))
+_check_interval_space(::SinFourier) = throw(ArgumentError("the frequency of the SinFourier space must be an interval"))
 
-_to_interval(s::VectorSpace) = s
-_to_interval(s::TensorSpace) = TensorSpace(map(_to_interval, spaces(s)))
-_to_interval(s::CartesianPower) = CartesianPower(_to_interval(space(s)), nspaces(s))
-_to_interval(s::CartesianProduct) = CartesianProduct(map(_to_interval, spaces(s)))
-_to_interval(s::Fourier) = Fourier(order(s), _to_interval(frequency(s)))
+_check_interval_banachspace(X::Union{Ell1,Ell2,EllInf}) = _check_interval_weight(weight(X))
+_check_interval_weight(::IdentityWeight) = true
+_check_interval_weight(::GeometricWeight{<:Interval}) = true
+_check_interval_weight(::AlgebraicWeight{<:Interval}) = true
+_check_interval_weight(::BesselWeight{<:Interval}) = true
+_check_interval_weight(::GeometricWeight) = throw(ArgumentError("the geometric weight of the Banach space must be an interval"))
+_check_interval_weight(::AlgebraicWeight) = throw(ArgumentError("the algebraic weight of the Banach space must be an interval"))
+_check_interval_weight(::BesselWeight) = throw(ArgumentError("the Bessel weight of the Banach space must be an interval"))
 
-_to_interval(a::Interval) = a
-_to_interval(a::Real) = Interval(a)
-
-_to_interval(X::NormedCartesianSpace) = NormedCartesianSpace(map(_to_interval, X.inner), _to_interval(X.outer))
-_to_interval(X::Ell1{IdentityWeight}) = X
-_to_interval(X::Ell1{<:GeometricWeight{<:Interval}}) = X
-_to_interval(X::Ell1{<:GeometricWeight}) = Ell1(GeometricWeight(Interval(rate(weight(X)))))
-
-struct ValidatedSequence{T<:VectorSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} <: AbstractSequence{T,S}
+struct ValidatedSequence{T<:SequenceSpace,S<:AbstractVector{<:Union{Interval,Complex{<:Interval}}},R<:Interval,U<:BanachSpace} <: AbstractSequence{T,S}
     sequence :: Sequence{T,S}
     sequence_norm :: R
     truncation_error :: R
     banachspace :: U
-    global _unsafe_validated_sequence(sequence::Sequence{T,S}, sequence_norm::R, truncation_error::R, banachspace::U) where {T<:VectorSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} =
+    global _unsafe_validated_sequence(sequence::Sequence{T,S}, sequence_norm::R, truncation_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector{<:Union{Interval,Complex{<:Interval}}},R<:Interval,U<:BanachSpace} =
         new{T,S,R,U}(sequence, sequence_norm, truncation_error, banachspace)
 end
 
-function ValidatedSequence{T,S,R,U}(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) where {T<:VectorSpace,S<:AbstractVector,R<:Real,U<:BanachSpace}
-    ((truncation_error ≥ 0) & isfinite(truncation_error)) || return throw(ArgumentError("truncation error must be positive and finite"))
-    seq = _to_interval(sequence)
-    trunc = _to_interval(truncation_error)
-    X = _to_interval(banachspace)
-    sequence_norm = norm(seq, X)
-    return _unsafe_validated_sequence(seq, sequence_norm, trunc, X)
-end
-
-function ValidatedSequence{T,S,R,U}(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) where {T<:VectorSpace,S<:AbstractVector,R<:Interval,U<:BanachSpace}
-    if isempty(truncation_error)
+function ValidatedSequence{T,S,R,U}(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector{<:Union{Interval,Complex{<:Interval}}},R<:Interval,U<:BanachSpace}
+    _check_interval_space(space(sequence))
+    _check_interval_banachspace(banachspace)
+    if isempty_interval(truncation_error)
         seq = fill(emptyinterval(truncation_error), space(sequence))
         sequence_norm = emptyinterval(truncation_error)
-        return _unsafe_validated_sequence(seq, sequence_norm, truncation_error, _to_interval(banachspace))
+        return _unsafe_validated_sequence(seq, sequence_norm, truncation_error, banachspace)
     elseif (truncation_error ≥ 0) & isfinite(truncation_error)
-        seq = _to_interval(sequence)
-        X = _to_interval(banachspace)
-        sequence_norm = norm(seq, X)
-        return _unsafe_validated_sequence(seq, sequence_norm, truncation_error, X)
+        sequence_norm = norm(sequence, banachspace)
+        return _unsafe_validated_sequence(sequence, sequence_norm, truncation_error, banachspace)
     else
         return throw(ArgumentError("truncation error must be positive and finite"))
     end
 end
 
-ValidatedSequence(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) where {T<:VectorSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} =
+ValidatedSequence(sequence::Sequence{T,S}, truncation_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector,R<:Interval,U<:BanachSpace} =
     ValidatedSequence{T,S,R,U}(sequence, truncation_error, banachspace)
 
 ValidatedSequence(sequence::Sequence, banachspace::BanachSpace) =
-    ValidatedSequence(sequence, zero(eltype(sequence)), banachspace)
+    ValidatedSequence(sequence, abs(zero(eltype(sequence))), banachspace)
 
-ValidatedSequence(space::VectorSpace, coefficients::AbstractVector, X::BanachSpace) =
-    ValidatedSequence(Sequence(space, coefficients), X)
-
-ValidatedSequence(coefficients::AbstractVector, X::BanachSpace) =
-    ValidatedSequence(Sequence(coefficients), X)
+ValidatedSequence(space::SequenceSpace, coefficients::AbstractVector, banachspace::BanachSpace) =
+    ValidatedSequence(Sequence(space, coefficients), banachspace)
 
 sequence(a::ValidatedSequence) = a.sequence
 sequence_norm(a::ValidatedSequence) = a.sequence_norm
@@ -77,18 +69,15 @@ coefficients(a::ValidatedSequence) = coefficients(sequence(a))
 Base.copy(a::ValidatedSequence) =
     _unsafe_validated_sequence(copy(sequence(a)), sequence_norm(a), truncation_error(a), banachspace(a))
 
-Base.one(a::ValidatedSequence{ParameterSpace}) =
-    _unsafe_validated_sequence(one(sequence(a)), one(eltype(a)), zero(eltype(a)), banachspace(a))
+Base.zero(a::ValidatedSequence) = ValidatedSequence(zero(sequence(a)), banachspace(a))
+Base.one(a::ValidatedSequence) = ValidatedSequence(one(sequence(a)), banachspace(a))
 
 for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::ValidatedSequence) = ValidatedSequence($f(sequence(a)), truncation_error(a), banachspace(a))
 end
 
-Base.permutedims(a::ValidatedSequence{<:TensorSpace}, σ::AbstractVector{Int}) =
+Base.permutedims(a::ValidatedSequence{<:TensorSpace}, σ::AbstractVector{<:Integer}) =
     _unsafe_validated_sequence(permutedims(sequence(a), σ), sequence_norm(a), truncation_error(a), banachspace(a))
-
-Base.@propagate_inbounds component(a::ValidatedSequence{<:CartesianSpace}, i) =
-    ValidatedSequence(component(sequence(a), i), truncation_error(a), banachspace(a))
 
 # show
 
@@ -105,19 +94,24 @@ function Base.show(io::IO, a::ValidatedSequence)
     return print(io, "ValidatedSequence(", space(a), ", ", coefficients(a), ", ", sequence_norm(a), ", ", truncation_error(a), ", ", banachspace(a), ")")
 end
 
-# Arithmetic
+#
+
+_banachspace_identity(::Ell1) = Ell1()
+_banachspace_identity(::Ell2) = Ell2()
 
 _banachspace_intersect(X₁::Ell1, X₂::Ell1) = Ell1(_weight_min(weight(X₁), weight(X₂)))
 _banachspace_intersect(X₁::Ell2, X₂::Ell2) = Ell2(_weight_min(weight(X₁), weight(X₂)))
-_banachspace_intersect(X₁::EllInf, X₂::EllInf) = EllInf(_weight_min(weight(X₁), weight(X₂)))
 
 _weight_min(::IdentityWeight, ::IdentityWeight) = IdentityWeight()
 _weight_min(::IdentityWeight, ::Weight) = IdentityWeight()
 _weight_min(::Weight, ::IdentityWeight) = IdentityWeight()
-_weight_min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(w₁.rate, w₂.rate))
-_weight_min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(w₁.rate, w₂.rate))
-_weight_min(w₁::BesselWeight, w₂::BesselWeight) = BesselWeight(min(w₁.rate, w₂.rate))
+_weight_min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(rate(w₁), rate(w₂)))
+_weight_min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(rate(w₁), rate(w₂)))
+_weight_min(w₁::BesselWeight, w₂::BesselWeight) = BesselWeight(min(rate(w₁), rate(w₂)))
 
+# arithmetic
+
+Base.:+(a::ValidatedSequence) = ValidatedSequence(+(sequence(a)), truncation_error(a), banachspace(a))
 Base.:+(a::ValidatedSequence, b::ValidatedSequence) =
     ValidatedSequence(sequence(a) + sequence(b), truncation_error(a) + truncation_error(b), _banachspace_intersect(banachspace(a), banachspace(b)))
 Base.:+(a::ValidatedSequence, b::Number) =
@@ -125,6 +119,7 @@ Base.:+(a::ValidatedSequence, b::Number) =
 Base.:+(a::Number, b::ValidatedSequence) =
     ValidatedSequence(a + sequence(b), truncation_error(b), banachspace(b))
 
+Base.:-(a::ValidatedSequence) = ValidatedSequence(-(sequence(a)), truncation_error(a), banachspace(a))
 Base.:-(a::ValidatedSequence, b::ValidatedSequence) =
     ValidatedSequence(sequence(a) - sequence(b), truncation_error(a) + truncation_error(b), _banachspace_intersect(banachspace(a), banachspace(b)))
 Base.:-(a::ValidatedSequence, b::Number) =
@@ -133,8 +128,8 @@ Base.:-(a::Number, b::ValidatedSequence) =
     ValidatedSequence(a - sequence(b), truncation_error(b), banachspace(b))
 
 function Base.:*(a::ValidatedSequence, b::ValidatedSequence)
-    c = sequence(a) * sequence(b)
     X = _banachspace_intersect(banachspace(a), banachspace(b))
+    c = banach_rounding_mul(sequence(a), sequence(b), X)
     return ValidatedSequence(c,
             sequence_norm(a) * truncation_error(b) +
             sequence_norm(b) * truncation_error(a) +
@@ -142,12 +137,12 @@ function Base.:*(a::ValidatedSequence, b::ValidatedSequence)
         X)
 end
 Base.:*(a::ValidatedSequence, b::Number) =
-    ValidatedSequence(sequence(a) * b, truncation_error(a) * b, banachspace(a))
+    ValidatedSequence(sequence(a) * b, abs(truncation_error(a) * b), banachspace(a))
 Base.:*(a::Number, b::ValidatedSequence) =
-    ValidatedSequence(a * sequence(b), a * truncation_error(b), banachspace(b))
+    ValidatedSequence(a * sequence(b), abs(a * truncation_error(b)), banachspace(b))
 
-function Base.:^(a::ValidatedSequence, n::Int)
-    n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
+function Base.:^(a::ValidatedSequence, n::Integer)
+    n < 0 && return inv(a^(-n))
     n == 0 && return one(a)
     n == 1 && return copy(a)
     n == 2 && return a*a
@@ -169,92 +164,105 @@ function Base.:^(a::ValidatedSequence, n::Int)
     return c
 end
 
-# Elementary operations
+function Base.inv(a::ValidatedSequence)
+    space_c = _image_trunc(inv, space(a))
+    A = fft(mid.(sequence(a)), fft_size(space_c))
+    C = inv.(A)
+    c = _call_ifft!(C, space_c, eltype(a))
+    X_ = banachspace(a)
+    X = _banachspace_intersect(X_, _banachspace_identity(X_))
+    _c_ = ValidatedSequence(interval.(eltype(c), c), X)
 
-function Base.:/(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space_c = space(a) ∪ space(b)
-    A = fft(a, fft_size(space_c, 1))
-    B = fft(b, fft_size(space_c, 1))
-    C = A ./ B
-    return _call_ifft!(C, space_c, promote_type(eltype(a), eltype(b)))
+    val = _c_ * a - interval(eltype(c), 1)
+    Y = norm(_c_ * val)
+    Z₁ = norm(val)
+    r = interval_of_existence(Y, Z₁, Inf)
+
+    isempty_interval(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
+    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
 
-for f ∈ (:inv, :sqrt)
-    @eval function Base.$f(a::Sequence{<:SequenceSpace})
-        A = fft(a, fft_size(space(a), 1))
-        C = $f.(A)
-        return _call_ifft!(C, space(a), eltype(a))
-    end
-end
-
-function Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:SequenceSpace})
-    space_c = space(a) ∪ space(b)
-    A = fft(mid.(sequence(a)), fft_size(space_c, 1))
-    B = fft(mid.(sequence(b)), fft_size(space_c, 1))
+function Base.:/(a::ValidatedSequence, b::ValidatedSequence)
+    space_c = _image_trunc(/, space(a), space(b))
+    A = fft(mid.(sequence(a)), fft_size(space_c))
+    B = fft(mid.(sequence(b)), fft_size(space_c))
     C = A ./ B
     c = _call_ifft!(C, space_c, promote_type(eltype(a), eltype(b)))
     B⁻¹ = inv.(B)
     approx_b⁻¹ = _call_ifft!(B⁻¹, space(b), eltype(b))
     X = _banachspace_intersect(banachspace(a), banachspace(b))
-    _c_ = ValidatedSequence(c, X)
-    _approx_b⁻¹_ = ValidatedSequence(approx_b⁻¹, X)
+    _c_ = ValidatedSequence(interval.(eltype(c), c), X)
+    _approx_b⁻¹_ = ValidatedSequence(interval.(eltype(c), approx_b⁻¹), X)
 
     Y = norm(_approx_b⁻¹_ * (_c_ * b - a))
-    Z₁ = norm(_approx_b⁻¹_ * b - 1)
+    Z₁ = norm(_approx_b⁻¹_ * b - interval(eltype(c), 1))
     r = interval_of_existence(Y, Z₁, Inf)
 
-    isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
-    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), Interval(inf(r)), X)
+    isempty_interval(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
+    return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
-Base.:/(a::ValidatedSequence{<:SequenceSpace}, b::Number) = ValidatedSequence(sequence(a) / b, truncation_error(a) / b, banachspace(a))
-Base.:/(a::Number, b::ValidatedSequence{<:SequenceSpace}) = a * inv(b)
+Base.:/(a::ValidatedSequence, b::Number) = ValidatedSequence(sequence(a) / b, abs(truncation_error(a) / b), banachspace(a))
+function Base.:/(a::Number, b::ValidatedSequence)
+    space_c = _image_trunc(inv, space(b))
+    B = fft(mid.(sequence(b)), fft_size(space_c))
+    C = mid(a) ./ B
+    c = _call_ifft!(C, space_c, promote_type(typeof(a), eltype(b)))
+    B⁻¹ = inv.(B)
+    approx_b⁻¹ = _call_ifft!(B⁻¹, space_c, eltype(b))
+    X = banachspace(b)
+    _c_ = ValidatedSequence(interval.(eltype(c), c), X)
+    _approx_b⁻¹_ = ValidatedSequence(interval.(eltype(c), approx_b⁻¹), X)
 
-Base.:\(a::ValidatedSequence{<:SequenceSpace}, b::ValidatedSequence{<:SequenceSpace}) = b / a
-Base.:\(a::ValidatedSequence{<:SequenceSpace}, b::Number) = b / a
-Base.:\(a::Number, b::ValidatedSequence{<:SequenceSpace}) = b / a
-
-function Base.inv(a::ValidatedSequence{<:SequenceSpace})
-    A = fft(mid.(sequence(a)), fft_size(space(a), 1))
-    C = inv.(A)
-    c = _call_ifft!(C, space(a), eltype(a))
-    X = banachspace(a)
-    _c_ = ValidatedSequence(c, X)
-
-    val = _c_ * a - 1
-    Y = norm(_c_ * val)
-    Z₁ = norm(val)
+    Y = norm(_approx_b⁻¹_ * (_c_ * b - a))
+    Z₁ = norm(_approx_b⁻¹_ * b - interval(eltype(c), 1))
     r = interval_of_existence(Y, Z₁, Inf)
 
-    isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
+    isempty_interval(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
     return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
 
-function Base.sqrt(a::ValidatedSequence{<:SequenceSpace})
-    A = fft(mid.(sequence(a)), fft_size(space(a), 1))
+Base.:\(a::ValidatedSequence, b::ValidatedSequence) = b / a
+Base.:\(a::ValidatedSequence, b::Number) = b / a
+Base.:\(a::Number, b::ValidatedSequence) = b / a
+
+function Base.sqrt(a::ValidatedSequence)
+    space_c = _image_trunc(sqrt, space(a))
+    A = fft(mid.(sequence(a)), fft_size(space_c))
     C = sqrt.(A)
     C⁻¹ = inv.(C)
-    c = _call_ifft!(C, space(a), eltype(a))
-    approx_c⁻¹ = _call_ifft!(C⁻¹, space(a), eltype(a))
+    c = _call_ifft!(C, space_c, eltype(a))
+    approx_c⁻¹ = _call_ifft!(C⁻¹, space_c, eltype(a))
     X = banachspace(a)
-    _c_ = ValidatedSequence(c, X)
-    _approx_c⁻¹_ = ValidatedSequence(approx_c⁻¹, X)
+    _c_ = ValidatedSequence(interval.(eltype(c), c), X)
+    _approx_c⁻¹_ = ValidatedSequence(interval.(eltype(c), approx_c⁻¹), X)
 
-    Y = norm(_approx_c⁻¹_ * (_c_^2 - a))/2
-    Z₁ = norm(_approx_c⁻¹_ * _c_ - 1)
+    Y = norm(_approx_c⁻¹_ * (_c_ ^ interval(eltype(c), 2) - a))/interval(eltype(c), 2)
+    Z₁ = norm(_approx_c⁻¹_ * _c_ - interval(eltype(c), 1))
     Z₂ = norm(_approx_c⁻¹_)
     r = interval_of_existence(Y, Z₁, Z₂, Inf)
 
-    isempty(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
+    isempty_interval(r) && return ValidatedSequence(emptyinterval.(sequence(_c_)), r, X)
     return ValidatedSequence(interval.(sequence(_c_), inf(r); format = :midpoint), interval(inf(r)), X)
 end
 
-# projection
+Base.abs(a::ValidatedSequence) = sqrt(a^2)
+Base.abs2(a::ValidatedSequence) = a^2
 
-function project(a::ValidatedSequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T}
-    c = project(sequence(a), space_dest)
-    X = banachspace(a)
-    banach_rounding!(c, norm(a), X, order(a))
-    return ValidatedSequence(c, truncation_error(a), X)
+# special operators
+
+# TODO: projection, integration, etc.
+
+function differentiate(a::ValidatedSequence, α=1)
+    truncation_error(a) == 0 || return throw(DomainError) # TODO: lift restriction
+    c = differentiate(sequence(a), α)
+    return ValidatedSequence(c, banachspace(a))
+end
+
+evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
+_return_evaluate(c, a::ValidatedSequence) = interval(c, truncation_error(a); format = :midpoint)
+function _return_evaluate(c::Sequence, a::ValidatedSequence)
+    c .= interval.(c, truncation_error(a); format = :midpoint)
+    return ValidatedSequence(c, truncation_error(a), banachspace(a))
 end
 
 # norm

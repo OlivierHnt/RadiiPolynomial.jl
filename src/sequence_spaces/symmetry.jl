@@ -28,8 +28,10 @@ function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {N,T<:NTup
     @inbounds _conjugacy_symmetry!(component(a, 2:N))
     return a
 end
-_conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}} =
+function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}}
     @inbounds _conjugacy_symmetry!(component(a, 1))
+    return a
+end
 
 
 
@@ -84,7 +86,7 @@ Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s
 
 indices(s::CosFourier) = 0:order(s)
 
-_findindex_constant(s::CosFourier) = 0
+_findindex_constant(::CosFourier) = 0
 
 _findposition(i::Int, ::CosFourier) = i + 1
 _findposition(u::AbstractRange{Int}, ::CosFourier) = u .+ 1
@@ -142,10 +144,6 @@ _prettystring(s::SinFourier) = "SinFourier(" * string(order(s)) * ", " * string(
 
 
 #
-
-
-
-
 
 image(::typeof(+), s₁::CosFourier, s₂::CosFourier) = CosFourier(image(+, desymmetrize(s₁), desymmetrize(s₂)))
 image(::typeof(*), s₁::CosFourier, s₂::CosFourier) = CosFourier(image(*, desymmetrize(s₁), desymmetrize(s₂)))
@@ -253,32 +251,36 @@ _postprocess!(C, ::CosFourier, ::Val) = C
 
 _dfs_dimension(s::SinFourier) = 2order(s)+1
 function _preprocess!(C::AbstractVector, space::SinFourier)
+    CoefType = eltype(C)
     len = length(C)
     @inbounds for i ∈ order(space)+1:-1:2
-        C[i] = -im * C[i-1]
+        C[i] = complex(zero(CoefType), -C[i-1])
         C[len+2-i] = -C[i]
     end
-    @inbounds C[1] = zero(eltype(C))
+    @inbounds C[1] = zero(CoefType)
     return C
 end
 function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
+    CoefType = eltype(C)
     len = size(C, D)
     @inbounds for i ∈ order(space)+1:-1:2
-        selectdim(C, D, i) .= .- im .* selectdim(C, D, i-1)
+        selectdim(C, D, i) .= complex.(zero(CoefType), .- selectdim(C, D, i-1))
         selectdim(C, D, len+2-i) .= .- selectdim(C, D, i)
     end
-    @inbounds selectdim(C, D, 1) .= zero(eltype(C))
+    @inbounds selectdim(C, D, 1) .= zero(CoefType)
     return C
 end
 function _postprocess!(C, space::SinFourier)
+    CoefType = eltype(C)
     @inbounds for i ∈ 1:order(space)
-        C[i] = im * C[i+1]
+        C[i] = complex(zero(CoefType), C[i+1])
     end
     return C
 end
 function _postprocess!(C, space::SinFourier, ::Val{D}) where {D}
+    CoefType = eltype(C)
     @inbounds for i ∈ 1:order(space)
-        selectdim(C, D, i) .= im .* selectdim(C, D, i+1)
+        selectdim(C, D, i) .= complex.(zero(CoefType), selectdim(C, D, i+1))
     end
     return C
 end
@@ -287,18 +289,18 @@ end
 
 image(𝒟::Derivative, s::CosFourier) = iseven(order(𝒟)) ? s : SinFourier(desymmetrize(s))
 
-_coeftype(::Derivative, ::CosFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*0*zero(S))
+_coeftype(::Derivative, ::CosFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*zero(S))
 
 function _apply!(c::Sequence{<:CosFourier}, 𝒟::Derivative, a)
     n = order(𝒟)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        ω = one(eltype(a))*frequency(a)
+        ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:order(c)
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             c[j] = iⁿωⁿjⁿ_real * a[j]
         end
     end
@@ -311,19 +313,19 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
         C .= A
     elseif iseven(n)
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
         iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
         end
     else
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
         end
     end
@@ -338,20 +340,20 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
     elseif iseven(n)
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
-        ω = one(T)*frequency(space)
+        ω = one(real(T))*frequency(space)
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
         iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
         end
         return C
     else
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(T))*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
         end
     end
@@ -360,14 +362,14 @@ end
 function _nzind_domain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return (order(𝒟) > 0):ord
 end
 function _nzind_domain(::Derivative, domain::CosFourier, codomain::SinFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return 1:ord
 end
@@ -375,14 +377,14 @@ end
 function _nzind_codomain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return (order(𝒟) > 0):ord
 end
 function _nzind_codomain(::Derivative, domain::SinFourier, codomain::CosFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return 1:ord
 end
@@ -392,7 +394,7 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::CosFou
     if n == 0
         return one(T)
     else
-        ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
+        ωⁿjⁿ = _safe_pow(_safe_mul(one(real(T))*frequency(domain), j), n)
         return convert(T, ifelse(n%4 < 2, ωⁿjⁿ, -ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
     end
 end
@@ -401,17 +403,17 @@ end
 
 image(𝒟::Derivative, s::SinFourier) = iseven(order(𝒟)) ? s : CosFourier(desymmetrize(s))
 
-_coeftype(::Derivative, ::SinFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*0*zero(S))
+_coeftype(::Derivative, ::SinFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*zero(S))
 
 function _apply!(c::Sequence{<:SinFourier}, 𝒟::Derivative, a)
     n = order(𝒟)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        ω = one(eltype(a))*frequency(a)
+        ω = one(real(eltype(a)))*frequency(a)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:order(c)
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             c[j] = iⁿωⁿjⁿ_real * a[j]
         end
     end
@@ -424,19 +426,19 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) wh
         C .= A
     elseif iseven(n)
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
         end
     else
         ord = order(space)
-        ω = one(eltype(A))*frequency(space)
+        ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
         end
     end
@@ -451,21 +453,21 @@ function _apply(𝒟::Derivative, space::SinFourier, ::Val{D}, A::AbstractArray{
     elseif iseven(n)
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
-        ω = one(T)*frequency(space)
+        ω = one(real(T))*frequency(space)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
         end
         return C
     else
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
-        ω = one(T)*frequency(space)
+        ω = one(real(T))*frequency(space)
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
         iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
-            iⁿωⁿjⁿ_real = iⁿ_real*(ω*j)^n
+            iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
         end
         return C
@@ -475,7 +477,7 @@ end
 function _nzind_domain(::Derivative, domain::SinFourier, codomain::Union{CosFourier,SinFourier})
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return 1:ord
 end
@@ -483,7 +485,7 @@ end
 function _nzind_codomain(::Derivative, domain::Union{CosFourier,SinFourier}, codomain::SinFourier)
     ω₁ = frequency(domain)
     ω₂ = frequency(codomain)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     ord = min(order(domain), order(codomain))
     return 1:ord
 end
@@ -493,7 +495,7 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFou
     if n == 0
         return one(T)
     else
-        ωⁿjⁿ = (one(T)*frequency(domain)*j)^n
+        ωⁿjⁿ = _safe_pow(_safe_mul(one(real(T))*frequency(domain), j), n)
         return convert(T, ifelse(n%4 < 2, -ωⁿjⁿ, ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
     end
 end
@@ -518,18 +520,18 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{<:CosFourier})
     ord = order(a)
     @inbounds c[0] = a[ord]
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 c[0] += a[j]
             end
         else
             ωx = frequency(a)*x
-            @inbounds c[0] *= cos(ωx*ord)
+            @inbounds c[0] *= cos(_safe_mul(ωx, ord))
             @inbounds for j ∈ ord-1:-1:1
-                c[0] += a[j] * cos(ωx*j)
+                c[0] += a[j] * cos(_safe_mul(ωx, j))
             end
         end
-        @inbounds c[0] = 2c[0] + a[0]
+        @inbounds c[0] = _safe_mul(2, c[0]) + a[0]
     end
     return c
 end
@@ -543,18 +545,18 @@ function _apply!(C::AbstractArray, ℰ::Evaluation, space::CosFourier, A)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, 1, j+1)
             end
         else
             ωx = frequency(space)*x
-            C .*= cos(ωx*ord)
+            C .*= cos(_safe_mul(ωx, ord))
             @inbounds for j ∈ ord-1:-1:1
-                C .+= selectdim(A, 1, j+1) .* cos(ωx*j)
+                C .+= selectdim(A, 1, j+1) .* cos(_safe_mul(ωx, j))
             end
         end
-        @inbounds C .= 2 .* C .+ selectdim(A, 1, 1)
+        @inbounds C .= _safe_mul.(2, C) .+ selectdim(A, 1, 1)
     end
     return C
 end
@@ -566,18 +568,18 @@ function _apply(ℰ::Evaluation, space::CosFourier, ::Val{D}, A::AbstractArray{T
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, D, j+1)
             end
         else
             ωx = frequency(space)*x
-            C .*= cos(ωx*ord)
+            C .*= cos(_safe_mul(ωx, ord))
             @inbounds for j ∈ ord-1:-1:1
-                C .+= selectdim(A, D, j+1) .* cos(ωx*j)
+                C .+= selectdim(A, D, j+1) .* cos(_safe_mul(ωx, j))
             end
         end
-        @inbounds C .= 2 .* C .+ selectdim(A, D, 1)
+        @inbounds C .= _safe_mul.(2, C) .+ selectdim(A, D, 1)
     end
     return C
 end
@@ -589,10 +591,10 @@ function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T},
         x = value(ℰ)
         if j == 0
             return one(T)
-        elseif iszero(x)
-            return convert(T, 2one(T))
+        elseif _safe_iszero(x)
+            return _safe_convert(T, 2)
         else
-            return convert(T, 2cos(frequency(domain)*j*x))
+            return convert(T, _safe_mul(2, cos(_safe_mul(frequency(domain)*x, j))))
         end
     else
         return zero(T)
@@ -616,16 +618,16 @@ function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:SinFourier})
 end
 function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds c[0] = zero(eltype(c))
     else
         ord = order(a)
         ωx = frequency(a)*x
-        @inbounds c[0] = a[ord] * sin(ωx*ord)
+        @inbounds c[0] = a[ord] * sin(_safe_mul(ωx, ord))
         @inbounds for j ∈ ord-1:-1:1
-            c[0] += a[j] * sin(ωx*j)
+            c[0] += a[j] * sin(_safe_mul(ωx, j))
         end
-        @inbounds c[0] *= 2
+        @inbounds c[0] *= _safe_mul(2, c[0])
     end
     return c
 end
@@ -636,16 +638,16 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
 end
 function _apply!(C::AbstractArray, ℰ::Evaluation, space::SinFourier, A)
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         C .= zero(eltype(C))
     else
         ord = order(space)
         ωx = frequency(space)*x
-        @inbounds C .= selectdim(A, 1, ord) .* sin(ωx*ord)
+        @inbounds C .= selectdim(A, 1, ord) .* sin(_safe_mul(ωx, ord))
         @inbounds for j ∈ ord-1:-1:1
-            C .+= selectdim(A, 1, j) .* sin(ωx*j)
+            C .+= selectdim(A, 1, j) .* sin(_safe_mul(ωx, j))
         end
-        C .*= 2
+        C .= _safe_mul.(2, C)
     end
     return C
 end
@@ -656,15 +658,15 @@ function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T
     CoefType = _coeftype(ℰ, space, T)
     @inbounds Aᵢ = selectdim(A, D, ord)
     C = Array{CoefType,N-1}(undef, size(Aᵢ))
-    if iszero(x)
+    if _safe_iszero(x)
         C .= zero(CoefType)
     else
         ωx = frequency(space)*x
-        @inbounds C .= Aᵢ .* sin(ωx*ord)
+        @inbounds C .= Aᵢ .* sin(_safe_mul(ωx, ord))
         @inbounds for j ∈ ord-1:-1:1
-            C .+= selectdim(A, D, j) .* sin(ωx*j)
+            C .+= selectdim(A, D, j) .* sin(_safe_mul(ωx, j))
         end
-        C .*= 2
+        C .= _safe_mul.(2, C)
     end
     return C
 end
@@ -672,9 +674,9 @@ end
 _getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, memo) where {T} =
     ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::SinFourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
-    if i == 0 && !iszero(x)
+    if i == 0 && !_safe_iszero(x)
         x = value(ℰ)
-        return convert(T, 2sin(frequency(domain)*j*x))
+        return convert(T, _safe_mul(2, sin(_safe_mul(frequency(domain)*x, j))))
     else
         return zero(T)
     end
@@ -690,20 +692,18 @@ _isvalid(s::SinFourier, i::Int, j::Int) = (0 < abs(j)) & (0 < abs(i-j) ≤ order
 
 # Norm
 
-_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ i
-_getindex(weight::GeometricWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ interval(i)
+_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = _safe_pow(rate(weight), i)
 
-_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = (one(rate(weight)) + i) ^ rate(weight)
-_getindex(weight::AlgebraicWeight{<:Interval}, ::Union{CosFourier,SinFourier}, i::Int) = (one(rate(weight)) + interval(i)) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = _safe_pow(1 + i, rate(weight))
 
 
 
 
 
 _apply(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds abs(A[1]) + 2sum(abs, view(A, 2:length(A)))
+    @inbounds abs(A[1]) + _safe_mul(2, sum(abs, view(A, 2:length(A))))
 function _apply(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T)))
+    CoefType = typeof(abs(zero(T)))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -712,14 +712,14 @@ function _apply(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= 2 .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= _safe_mul.(2, s) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 _apply_dual(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A)))/2)
+    @inbounds max(abs(A[1]), _safe_div(maximum(abs, view(A, 2:length(A))), 2))
 function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))/2)
+    CoefType = typeof(abs(zero(T)))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -728,7 +728,7 @@ function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(s ./ 2, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(_safe_div.(s, 2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
@@ -736,18 +736,18 @@ end
 function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
     ν = rate(weight(X))
     ord = order(space)
-    @inbounds s = 1abs(A[ord+1]) * one(ν)
+    @inbounds s = abs(A[ord+1]) * one(ν)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = 2s * ν + abs(A[1])
+        @inbounds s = _safe_mul(2, ν) * s + abs(A[1])
     end
     return s
 end
 function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = rate(weight(X))
-    CoefType = typeof(2abs(zero(T))*ν)
+    CoefType = typeof(abs(zero(T))*ν)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -756,13 +756,13 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= 2 .* s .* ν .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= _safe_mul(2, ν) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector{T}) where {T}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν)/2
+    νⁱ½ = _safe_div(one(ν), 2)
     @inbounds s = abs(A[1]) * one(νⁱ½)
     @inbounds for i ∈ 1:order(space)
         νⁱ½ *= ν
@@ -772,7 +772,7 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractV
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν)/2
+    νⁱ½ = _safe_div(one(ν), 2)
     CoefType = typeof(abs(zero(T))*νⁱ½)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -786,17 +786,17 @@ end
 
 function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = 1abs(A[ord+1]) * _getindex(weight(X), space, ord)
+    @inbounds s = abs(A[ord+1]) * _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) * _getindex(weight(X), space, i)
         end
-        @inbounds s = 2s + abs(A[1])
+        @inbounds s = _safe_mul(2, s) + abs(A[1])
     end
     return s
 end
 function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T))*_getindex(weight(X), space, 0))
+    CoefType = typeof(abs(zero(T))*_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -805,23 +805,23 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i)
         end
-        @inbounds s .= 2 .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= _safe_mul.(2, s) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = (abs(A[ord+1]) / _getindex(weight(X), space, ord)) / 1
+    @inbounds s = abs(A[ord+1]) / _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) / _getindex(weight(X), space, i))
         end
-        @inbounds s = max(s/2, abs(A[1]))
+        @inbounds s = max(_safe_div(s, 2), abs(A[1]))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof((abs(zero(T))/_getindex(weight(X), space, 0))/2)
+    CoefType = typeof(abs(zero(T))/_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -830,15 +830,15 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractA
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(s ./ 2, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(_safe_div.(s, 2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
 
 _apply(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + 2sum(abs2, view(A, 2:length(A))))
+    @inbounds sqrt(abs2(A[1]) + _safe_mul(2, sum(abs2, view(A, 2:length(A)))))
 function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(sqrt(2abs2(zero(T))))
+    CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -846,13 +846,13 @@ function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(2 .* s .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(_safe_mul.(2, s) .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 _apply_dual(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A)))/2)
+    @inbounds sqrt(abs2(A[1]) + _safe_div(sum(abs2, view(A, 2:length(A))), 2))
 function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(sqrt(abs2(zero(T))/2))
+    CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -860,14 +860,14 @@ function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(s ./ 2 .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(_safe_div.(s, 2) .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 
 _apply(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds max(abs(A[1]), 2maximum(abs, view(A, 2:length(A))))
+    @inbounds max(abs(A[1]), _safe_mul(2, maximum(abs, view(A, 2:length(A)))))
 function _apply(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T)))
+    CoefType = typeof(abs(zero(T)))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -876,14 +876,14 @@ function _apply(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(2 .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(_safe_mul.(2, s), abs.(selectdim(A, N, 1)))
     end
     return s
 end
 _apply_dual(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A)))/2
+    @inbounds abs(A[1]) + _safe_div(sum(abs, view(A, 2:length(A))), 2)
 function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(abs(zero(T))/2)
+    CoefType = typeof(abs(zero(T)))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -892,14 +892,14 @@ function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArr
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= s ./ 2 .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= _safe_div.(s, 2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
     ν = rate(weight(X))
-    νⁱ2 = 2one(ν)
+    νⁱ2 = _safe_mul(2, one(ν))
     @inbounds s = abs(A[1]) * one(νⁱ)
     @inbounds for i ∈ 1:order(space)
         νⁱ2 *= ν
@@ -909,7 +909,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVect
 end
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = rate(weight(X))
-    νⁱ2 = 2one(ν)
+    νⁱ2 = _safe_mul(2, one(ν))
     CoefType = typeof(abs(zero(T))*νⁱ2)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -923,18 +923,18 @@ end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
     ν = inv(rate(weight(X)))
     ord = order(space)
-    @inbounds s = (abs(A[ord+1]) * one(ν)) / 1
+    @inbounds s = abs(A[ord+1]) * one(ν)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = (s * ν)/2 + abs(A[1])
+        @inbounds s = s * _safe_div(ν, 2) + abs(A[1])
     end
     return s
 end
 function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = inv(rate(weight(X)))
-    CoefType = typeof((abs(zero(T))*ν)/2)
+    CoefType = typeof(abs(zero(T))*ν)
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -943,24 +943,24 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= (s .* ν) ./ 2 .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s .* _safe_div(ν, 2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 
 function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = 1abs(A[ord+1]) * _getindex(weight(X), space, ord)
+    @inbounds s = abs(A[ord+1]) * _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) * _getindex(weight(X), space, i))
         end
-        @inbounds s = max(2s, abs(A[1]))
+        @inbounds s = max(_safe_mul(2, s), abs(A[1]))
     end
     return s
 end
 function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof(2abs(zero(T))*_getindex(weight(X), space, 0))
+    CoefType = typeof(abs(zero(T))*_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -969,23 +969,23 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArra
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(2 .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(_safe_mul.(2, s), abs.(selectdim(A, N, 1)))
     end
     return s
 end
 function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
     ord = order(space)
-    @inbounds s = (abs(A[ord+1]) / _getindex(weight(X), space, ord)) / 1
+    @inbounds s = abs(A[ord+1]) / _getindex(weight(X), space, ord)
     if ord > 0
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) / _getindex(weight(X), space, i)
         end
-        @inbounds s = s/2 + abs(A[1])
+        @inbounds s = _safe_div(s, 2) + abs(A[1])
     end
     return s
 end
 function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
-    CoefType = typeof((abs(zero(T))/_getindex(weight(X), space, 0))/2)
+    CoefType = typeof(abs(zero(T))/_getindex(weight(X), space, 0))
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, N, ord+1)
     s = Array{CoefType,N-1}(undef, size(Aᵢ))
@@ -994,7 +994,7 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i)
         end
-        @inbounds s .= s ./ 2 .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= _safe_div.(s, 2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end

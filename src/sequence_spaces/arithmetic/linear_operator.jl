@@ -21,7 +21,7 @@ function Base.:*(A::LinearOperator, B::LinearOperator)
     _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     CoefType = promote_type(eltype(A), eltype(B))
     C = LinearOperator(domain_B, codomain_A, Matrix{CoefType}(undef, dimension(codomain_A), dimension(domain_B)))
-    _mul!(C, A, B, true, false)
+    _mul!(C, A, B, _safe_convert(real(CoefType), true), _safe_convert(real(CoefType), false))
     return C
 end
 
@@ -39,28 +39,28 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
         if domain_B == domain_C && codomain_A == codomain_C
             __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
-            if iszero(β)
+            if _safe_iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
+            elseif !_safe_isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
+            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, _safe_convert(real(eltype(C)), true))
         end
     else
         inds_mult = indices(domain_A ∩ codomain_B)
         if domain_B == domain_C && codomain_A == codomain_C
             @inbounds __mul!(coefficients(C), view(A, :, inds_mult), view(B, inds_mult, :), α, β)
         else
-            if iszero(β)
+            if _safe_iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
+            elseif !_safe_isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, inds_mult), view(B, inds_mult, inds_domain), α, true)
+            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, inds_mult), view(B, inds_mult, inds_domain), α, _safe_convert(real(eltype(C)), true))
         end
     end
     return C
@@ -86,7 +86,7 @@ function Base.:^(A::LinearOperator, n::Integer)
     elseif n == 0
         return one(A)
     elseif n == 2
-        return *(A, A)
+        return *(A, A) # TODO: implement `_sqr` function to improve accuracy with intervals
     else
         A_ = LinearOperator(domain(A), codomain(A), Matrix{eltype(A)}(undef, size(A)))
         coefficients(A_) .= coefficients(A)
@@ -357,16 +357,16 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
         m = nspaces(domain_B)
-        if iszero(β)
+        if _safe_iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !isone(β)
+        elseif !_safe_isone(β)
             coefficients(C) .*= β
         end
         for j ∈ 1:m
             @inbounds for k ∈ 1:l
                 Bₖⱼ = component(B, k, j)
                 @inbounds for i ∈ 1:n
-                    _mul!(component(C, i, j), component(A, i, k), Bₖⱼ, α, true)
+                    _mul!(component(C, i, j), component(A, i, k), Bₖⱼ, α, _safe_convert(real(eltype(C)), true))
                 end
             end
         end
@@ -402,15 +402,15 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     else
         l = nspaces(domain_A)
         m = nspaces(domain_B)
-        if iszero(β)
+        if _safe_iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !isone(β)
+        elseif !_safe_isone(β)
             coefficients(C) .*= β
         end
         @inbounds for j ∈ 1:m
             Cⱼ = component(C, j)
             @inbounds for k ∈ 1:l
-                _mul!(Cⱼ, component(A, k), component(B, k, j), α, true)
+                _mul!(Cⱼ, component(A, k), component(B, k, j), α, _safe_convert(real(eltype(C)), true))
             end
         end
     end
@@ -440,15 +440,15 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     else
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
-        if iszero(β)
+        if _safe_iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !isone(β)
+        elseif !_safe_isone(β)
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:l
             Bₖ = component(B, k)
             @inbounds for i ∈ 1:n
-                _mul!(component(C, i), component(A, i, k), Bₖ, α, true)
+                _mul!(component(C, i), component(A, i, k), Bₖ, α, _safe_convert(real(eltype(C)), true))
             end
         end
     end
@@ -477,23 +477,23 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
         if domain_B == domain_C && codomain_A == codomain_C
             __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
-            if iszero(β)
+            if _safe_iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !isone(β)
+            elseif !_safe_isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, true)
+            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, _safe_convert(real(eltype(C)), true))
         end
     else
-        if iszero(β)
+        if _safe_iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !isone(β)
+        elseif !_safe_isone(β)
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:nspaces(domain_A)
-            _mul!(C, component(A, k), component(B, k), α, true)
+            _mul!(C, component(A, k), component(B, k), α, _safe_convert(real(eltype(C)), true))
         end
     end
     return C

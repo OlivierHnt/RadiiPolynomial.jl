@@ -61,6 +61,7 @@ include("sequence_spaces/arithmetic/convolution.jl")
         pow_bar, ^̄, banach_rounding_pow, banach_rounding_pow_bar
 include("sequence_spaces/arithmetic/fft.jl")
     export fft_size, fft, fft!, ifft!, rifft!
+include("sequence_spaces/arithmetic/elementary.jl")
 
     export mul!, rmul!, lmul!, rdiv!, ldiv!, UniformScaling, I
 

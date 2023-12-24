@@ -127,9 +127,9 @@ end
 # ==, iszero, isapprox
 
 Base.:(==)(A::LinearOperator, B::LinearOperator) =
-    codomain(A) == codomain(B) && domain(A) == domain(B) && coefficients(A) == coefficients(B)
+    codomain(A) == codomain(B) && domain(A) == domain(B) && all(t -> _safe_isequal(t...), zip(coefficients(A), coefficients(B)))
 
-Base.iszero(A::LinearOperator) = iszero(coefficients(A))
+Base.iszero(A::LinearOperator) = _safe_iszero(coefficients(A))
 
 Base.isapprox(A::LinearOperator, B::LinearOperator; kwargs...) =
     codomain(A) == codomain(B) && domain(A) == domain(B) && isapprox(coefficients(A), coefficients(B); kwargs...)

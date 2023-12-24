@@ -63,7 +63,7 @@ image(::typeof(add_bar), s₁::Fourier, s₂::Fourier) = intersect(s₁, s₂)
 function image(::typeof(*), s₁::Fourier{T}, s₂::Fourier{S}) where {T,S}
     ω₁ = frequency(s₁)
     ω₂ = frequency(s₂)
-    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
     R = promote_type(T, S)
     return Fourier(order(s₁) + order(s₂), convert(R, ω₁))
 end

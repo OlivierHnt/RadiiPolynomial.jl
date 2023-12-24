@@ -1,36 +1,64 @@
-# Allocation free reshaping (cf. Issue #36313)
+# safe conversion of integers
+
+_safe_mul(x, y) = x * y
+_safe_mul(x::Union{Interval{T},Complex{Interval{T}}}, y) where {T} = x * interval(T, y)
+_safe_mul(x, y::Union{Interval{T},Complex{Interval{T}}}) where {T} = interval(T, x) * y
+
+_safe_div(x, y) = x / y
+_safe_div(x::Union{Interval{T},Complex{Interval{T}}}, y::Integer) where {T} = x / interval(T, y)
+
+_safe_pow(x, y) = x ^ y
+_safe_pow(x::Interval{T}, n::Integer) where {T} = x ^ interval(T, n)
+_safe_pow(n::Integer, x::Interval{T}) where {T} = interval(T, n) ^ x
+
+_safe_convert(::Type{T}, x) where {T} = convert(T, x)
+_safe_convert(::Type{Interval{T}}, x) where {T} = interval(T, x)
+_safe_convert(::Type{Complex{Interval{T}}}, x) where {T} = interval(T, complex(x))
+
+_safe_iszero(x) = iszero(x)
+_safe_iszero(x::Interval) = isthin(x, 0)
+
+_safe_isone(x) = isone(x)
+_safe_isone(x::Interval) = isthin(x, 1)
+
+_safe_isequal(x, y) = x == y
+_safe_isequal(x::Union{Interval,Complex{<:Interval}}, y::Union{Interval,Complex{<:Interval}}) =
+    isequal_interval(x, y)
+
+# allocation free reshaping (cf. Issue #36313)
 
 _no_alloc_reshape(a, dims) = invoke(Base._reshape, Tuple{AbstractArray,typeof(dims)}, a, dims)
 
-# Implement fast interval matrix multiplication
+# implement fast interval matrix multiplication
 
 @inline __mul!(C, A, B, α, β) = mul!(C, A, B, α, β)
 
 for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
     @eval function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
-        if iszero(α)
-            if iszero(β)
-                C .= zero(eltype(C))
-            elseif !isone(β)
+        CoefType = eltype(C)
+        if _safe_iszero(α)
+            if _safe_iszero(β)
+                C .= zero(CoefType)
+            elseif !_safe_isone(β)
                 C .*= β
             end
         else
             ABinf, ABsup = __mul(A, B)
-            if isone(α)
-                if iszero(β)
-                    C .= interval.(ABinf, ABsup)
-                elseif isone(β)
-                    C .+= interval.(ABinf, ABsup)
+            if _safe_isone(α)
+                if _safe_iszero(β)
+                    C .= interval.(CoefType, ABinf, ABsup)
+                elseif _safe_isone(β)
+                    C .+= interval.(CoefType, ABinf, ABsup)
                 else
-                    C .= interval.(ABinf, ABsup) .+ C .* β
+                    C .= interval.(CoefType, ABinf, ABsup) .+ C .* β
                 end
             else
-                if iszero(β)
-                    C .= interval.(ABinf, ABsup) .* α
-                elseif isone(β)
-                    C .+= interval.(ABinf, ABsup) .* α
+                if _safe_iszero(β)
+                    C .= interval.(CoefType, ABinf, ABsup) .* α
+                elseif _safe_isone(β)
+                    C .+= interval.(CoefType, ABinf, ABsup) .* α
                 else
-                    C .= interval.(ABinf, ABsup) .* α .+ C .* β
+                    C .= interval.(CoefType, ABinf, ABsup) .* α .+ C .* β
                 end
             end
         end
@@ -41,10 +69,11 @@ end
 for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
         (:(Complex{<:Interval}), :Complex), (:Complex, :(Complex{<:Interval})))
     @eval function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
-        if iszero(α)
-            if iszero(β)
-                C .= zero(eltype(C))
-            elseif !isone(β)
+        CoefType = eltype(C)
+        if _safe_iszero(α)
+            if _safe_iszero(β)
+                C .= zero(CoefType)
+            elseif !_safe_isone(β)
                 C .*= β
             end
         else
@@ -54,27 +83,27 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
             ABinf_2, ABsup_2 = __mul(A_imag, B_imag)
             ABinf_3, ABsup_3 = __mul(A_real, B_imag)
             ABinf_4, ABsup_4 = __mul(A_imag, B_real)
-            if isone(α)
-                if iszero(β)
-                    C .= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4))
-                elseif isone(β)
-                    C .+= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4))
+            if _safe_isone(α)
+                if _safe_iszero(β)
+                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4))
+                elseif _safe_isone(β)
+                    C .+= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                   interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4))
                 else
-                    C .= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4)) .+ C .* β
+                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .+ C .* β
                 end
             else
-                if iszero(β)
-                    C .= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4)) .* α
-                elseif isone(β)
-                    C .+= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4)) .* α
+                if _safe_iszero(β)
+                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α
+                elseif _safe_isone(β)
+                    C .+= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                   interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α
                 else
-                    C .= complex.(interval.(ABinf_1, ABsup_1) .- interval.(ABinf_2, ABsup_2),
-                        interval.(ABinf_3, ABsup_3) .+ interval.(ABinf_4, ABsup_4)) .* α .+ C .* β
+                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
+                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α .+ C .* β
                 end
             end
         end
@@ -85,31 +114,32 @@ end
 for (T, S) ∈ ((:(Complex{<:Interval{<:AbstractFloat}}), :Interval), (:(Complex{<:Interval{<:AbstractFloat}}), :Any), (:Complex, :Interval))
     @eval begin
         function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
-            if iszero(α)
-                if iszero(β)
-                    C .= zero(eltype(C))
-                elseif !isone(β)
+            CoefType = eltype(C)
+            if _safe_iszero(α)
+                if _safe_iszero(β)
+                    C .= zero(CoefType)
+                elseif !_safe_isone(β)
                     C .*= β
                 end
             else
                 A_real, A_imag = reim(A)
                 ABinf_real, ABsup_real = __mul(A_real, B)
                 ABinf_imag, ABsup_imag = __mul(A_imag, B)
-                if isone(α)
-                    if iszero(β)
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag))
-                    elseif isone(β)
-                        C .+= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag))
+                if _safe_isone(α)
+                    if _safe_iszero(β)
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                    elseif _safe_isone(β)
+                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
                     else
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .+ C .* β
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .+ C .* β
                     end
                 else
-                    if iszero(β)
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α
-                    elseif isone(β)
-                        C .+= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α
+                    if _safe_iszero(β)
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                    elseif _safe_isone(β)
+                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
                     else
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α .+ C .* β
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
                     end
                 end
             end
@@ -117,31 +147,32 @@ for (T, S) ∈ ((:(Complex{<:Interval{<:AbstractFloat}}), :Interval), (:(Complex
         end
 
         function __mul!(C, A::AbstractMatrix{$S}, B::AbstractVecOrMat{$T}, α, β)
-            if iszero(α)
-                if iszero(β)
-                    C .= zero(eltype(C))
-                elseif !isone(β)
+            CoefType = eltype(C)
+            if _safe_iszero(α)
+                if _safe_iszero(β)
+                    C .= zero(CoefType)
+                elseif !_safe_isone(β)
                     C .*= β
                 end
             else
                 B_real, B_imag = reim(B)
                 ABinf_real, ABsup_real = __mul(A, B_real)
                 ABinf_imag, ABsup_imag = __mul(A, B_imag)
-                if isone(α)
-                    if iszero(β)
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag))
-                    elseif isone(β)
-                        C .+= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag))
+                if _safe_isone(α)
+                    if _safe_iszero(β)
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                    elseif _safe_isone(β)
+                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
                     else
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .+ C .* β
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .+ C .* β
                     end
                 else
-                    if iszero(β)
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α
-                    elseif isone(β)
-                        C .+= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α
+                    if _safe_iszero(β)
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                    elseif _safe_isone(β)
+                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
                     else
-                        C .= complex.(interval.(ABinf_real, ABsup_real), interval.(ABinf_imag, ABsup_imag)) .* α .+ C .* β
+                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
                     end
                 end
             end

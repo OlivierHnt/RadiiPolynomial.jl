@@ -296,8 +296,8 @@ function _fft_pow2!(a::AbstractVector{Complex{T}}, Ω) where {T<:Interval}
     N = 2
     @inbounds while N ≤ n
         N½ = N÷2
-        π2N⁻¹ = π_/N½
-        view(Ω, 1:N½) .= cis.((-π2N⁻¹) .* (0:N½-1))
+        π2N⁻¹ = _safe_div(π_, N½)
+        view(Ω, 1:N½) .= cis.(_safe_mul.(-π2N⁻¹, 0:N½-1))
         for k ∈ 1:N:n
             @inbounds for (i, j) ∈ enumerate(k:k+N½-1)
                 j′ = j + N½

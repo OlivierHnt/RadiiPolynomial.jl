@@ -40,9 +40,9 @@ value(𝒮::Scale) = 𝒮.value
 Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
 Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(value(𝒮) ^ n)
-Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> ^(γᵢ, n), value(𝒮)))
-Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map(^, value(𝒮), n))
+Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(_safe_pow(value(𝒮), n))
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> _safe_pow(γᵢ, n), value(𝒮)))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map(_safe_pow, value(𝒮), n))
 
 """
     *(𝒮::Scale, a::AbstractSequence)
@@ -198,7 +198,7 @@ _coeftype(::Scale{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Taylor}, 𝒮::Scale, a)
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         coefficients(c) .= coefficients(a)
     else
         @inbounds c[0] = a[0]
@@ -213,7 +213,7 @@ end
 
 function _apply!(C, 𝒮::Scale, space::Taylor, ::Val{D}, A) where {D}
     γ = value(𝒮)
-    if !isone(γ)
+    if !_safe_isone(γ)
         γⁱ = one(γ)
         @inbounds for i ∈ 1:order(space)
             γⁱ *= γ
@@ -225,7 +225,7 @@ end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Taylor, A) where {T,N}
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         C .= A
     else
         @inbounds selectdim(C, N, 1) .= selectdim(A, N, 1)
@@ -242,10 +242,10 @@ _nzind_domain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), 
 _nzind_codomain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         return one(T)
     else
-        return convert(T, γ^i)
+        return convert(T, _safe_pow(γ, i))
     end
 end
 
@@ -285,7 +285,7 @@ _coeftype(::Scale{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒮::Scale, a)
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
         return throw(DomainError)
@@ -295,13 +295,13 @@ end
 
 function _apply!(C, 𝒮::Scale, space::Chebyshev, ::Val{D}, A) where {D}
     γ = value(𝒮)
-    isone(γ) || return throw(DomainError) # TODO: lift restriction
+    _safe_isone(γ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Chebyshev, A) where {T,N}
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         C .= A
     else # TODO: lift restriction
         return throw(DomainError)
@@ -313,7 +313,7 @@ _nzind_domain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(dom
 _nzind_codomain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
     γ = value(𝒮)
-    if isone(γ)
+    if _safe_isone(γ)
         return one(T)
     else # TODO: lift restriction
         return throw(DomainError)

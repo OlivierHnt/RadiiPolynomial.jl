@@ -14,7 +14,7 @@ Julia colors:
     <h3 style="text-align: center; color: #CA3C32;">Installation</h3>
 ```
 ```@repl
-using Pkg # Julia v1.6 or above
+using Pkg # Julia v1.9 or above
 redirect_stderr(devnull) do # hide
 Pkg.add("RadiiPolynomial")
 end # hide

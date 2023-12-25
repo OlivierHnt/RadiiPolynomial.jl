@@ -45,7 +45,7 @@ julia> rate(w)
 struct GeometricWeight{T<:Real} <: Weight
     rate :: T
     function GeometricWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 1) || return throw(DomainError(rate, "rate must be finite and greater or equal to one"))
+        isfinite(inf(rate)) & (inf(rate) ≥ 1) || return throw(DomainError(rate, "rate must be finite and greater or equal to one"))
         return new{T}(rate)
     end
 end
@@ -300,7 +300,7 @@ julia> rate(w)
 struct AlgebraicWeight{T<:Real} <: Weight
     rate :: T
     function AlgebraicWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
+        isfinite(inf(rate)) & (inf(rate) ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
         return new{T}(rate)
     end
 end

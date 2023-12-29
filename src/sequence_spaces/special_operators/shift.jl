@@ -198,7 +198,7 @@ _coeftype(::Shift{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
         return throw(DomainError)
@@ -208,13 +208,13 @@ end
 
 function _apply!(C, 𝒮::Shift, space::Taylor, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    _safe_iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    iszero(τ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Taylor, A) where {T,N}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         C .= A
     else # TODO: lift restriction
         return throw(DomainError)
@@ -226,7 +226,7 @@ _nzind_domain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), 
 _nzind_codomain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Shift, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         return one(T)
     else # TODO: lift restriction
         return throw(DomainError)
@@ -242,7 +242,7 @@ _coeftype(::Shift{T}, s::Fourier, ::Type{S}) where {T,S} =
 
 function _apply!(c::Sequence{<:Fourier}, 𝒮::Shift, a)
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         coefficients(c) .= coefficients(a)
     else
         @inbounds c[0] = a[0]
@@ -259,7 +259,7 @@ end
 
 function _apply!(C, 𝒮::Shift, space::Fourier, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    if !_safe_iszero(τ)
+    if !iszero(τ)
         ord = order(space)
         eiωτ = cis(frequency(space)*τ)
         eiωτj = one(eiωτ)
@@ -274,7 +274,7 @@ end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Fourier, A) where {T,N}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         C .= A
     else
         ord = order(space)
@@ -300,7 +300,7 @@ function _nzind_codomain(::Shift, domain::Fourier, codomain::Fourier)
 end
 function _nzval(𝒮::Shift, domain::Fourier, ::Fourier, ::Type{T}, i, j) where {T}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         return one(T)
     else
         return convert(T, cis(_safe_mul(frequency(domain)*τ, i)))
@@ -315,7 +315,7 @@ _coeftype(::Shift{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
         return throw(DomainError)
@@ -325,13 +325,13 @@ end
 
 function _apply!(C, 𝒮::Shift, space::Chebyshev, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    _safe_iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    iszero(τ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Chebyshev, A) where {T,N}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         C .= A
     else # TODO: lift restriction
         return throw(DomainError)
@@ -343,7 +343,7 @@ _nzind_domain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(dom
 _nzind_codomain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Shift, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
     τ = value(𝒮)
-    if _safe_iszero(τ)
+    if iszero(τ)
         return one(T)
     else # TODO: lift restriction
         return throw(DomainError)

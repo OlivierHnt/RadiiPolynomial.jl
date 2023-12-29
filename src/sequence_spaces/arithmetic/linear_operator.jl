@@ -39,9 +39,9 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
         if domain_B == domain_C && codomain_A == codomain_C
             __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
@@ -53,9 +53,9 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
         if domain_B == domain_C && codomain_A == codomain_C
             @inbounds __mul!(coefficients(C), view(A, :, inds_mult), view(B, inds_mult, :), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
@@ -357,9 +357,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
         m = nspaces(domain_B)
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(C) .*= β
         end
         for j ∈ 1:m
@@ -402,9 +402,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     else
         l = nspaces(domain_A)
         m = nspaces(domain_B)
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(C) .*= β
         end
         @inbounds for j ∈ 1:m
@@ -440,9 +440,9 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     else
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:l
@@ -477,9 +477,9 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
         if domain_B == domain_C && codomain_A == codomain_C
             __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(C) .= zero(eltype(C))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(C) .*= β
             end
             inds_domain = indices(domain_B ∩ domain_C)
@@ -487,9 +487,9 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
             @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, _safe_convert(real(eltype(C)), true))
         end
     else
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(C) .= zero(eltype(C))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:nspaces(domain_A)

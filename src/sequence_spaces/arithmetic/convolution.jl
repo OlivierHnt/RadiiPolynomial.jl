@@ -180,9 +180,9 @@ function mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Seq
     return c
 end
 function _mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, α::Number, β::Number)
-    if _safe_iszero(β)
+    if iszero(β)
         coefficients(c) .= zero(eltype(c))
-    elseif !_safe_isone(β)
+    elseif !isone(β)
         coefficients(c) .*= β
     end
     _add_mul!(c, a, b, α)
@@ -331,7 +331,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
     @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
     @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
         x = _inverse_symmetry_action(current_space_c, i) * _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
-        if !_safe_iszero(x)
+        if !iszero(x)
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
                 selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
@@ -347,7 +347,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
     @inbounds Cᵢ = selectdim(C, N, _findposition(i, current_space_c))
     @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
         x = _inverse_symmetry_action(current_space_c, i) * _symmetry_action(current_space_a, i, j) * _symmetry_action(current_space_b, j)
-        if !_safe_iszero(x)
+        if !iszero(x)
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
                 selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
@@ -362,7 +362,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i)
     Cᵢ = zero(promote_type(eltype(A), eltype(B)))
     @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
         x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
-        if !_safe_iszero(x)
+        if !iszero(x)
             Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
         end
     end
@@ -379,7 +379,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, 
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
-            if !_safe_iszero(x)
+            if !iszero(x)
                 Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
             end
         end
@@ -397,7 +397,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, t, sum_t, ful
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
-            if !_safe_iszero(x)
+            if !iszero(x)
                 Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
             end
         end

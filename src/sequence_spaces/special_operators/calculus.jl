@@ -686,7 +686,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     if n == 0
         coefficients(c) .= coefficients(a)
     else
-        @inbounds _safe_iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
+        @inbounds iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
         ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
@@ -726,7 +726,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
         C .= A
     else
         ord = order(space)
-        @inbounds all(_safe_iszero, selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
+        @inbounds all(iszero, selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
         ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
@@ -767,7 +767,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
         return convert(Array{CoefType,N}, A)
     else
         ord = order(space)
-        @inbounds all(_safe_iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
+        @inbounds all(iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
         ω = one(real(T))*frequency(space)
         C = Array{CoefType,N}(undef, size(A))
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)

@@ -68,9 +68,9 @@ coefficients(a::Sequence) = a.coefficients
 # utilities
 
 Base.:(==)(a::Sequence, b::Sequence) =
-    space(a) == space(b) && all(t -> _safe_isequal(t...), zip(coefficients(a), coefficients(b)))
+    space(a) == space(b) && coefficients(a) == coefficients(b)
 
-Base.iszero(a::Sequence) = all(_safe_iszero, coefficients(a))
+Base.iszero(a::Sequence) = iszero(coefficients(a))
 
 Base.isapprox(a::Sequence, b::Sequence; kwargs...) =
     space(a) == space(b) && isapprox(coefficients(a), coefficients(b); kwargs...)

@@ -520,7 +520,7 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{<:CosFourier})
     ord = order(a)
     @inbounds c[0] = a[ord]
     if ord > 0
-        if _safe_iszero(x)
+        if iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 c[0] += a[j]
             end
@@ -545,7 +545,7 @@ function _apply!(C::AbstractArray, ℰ::Evaluation, space::CosFourier, A)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
     if ord > 0
-        if _safe_iszero(x)
+        if iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, 1, j+1)
             end
@@ -568,7 +568,7 @@ function _apply(ℰ::Evaluation, space::CosFourier, ::Val{D}, A::AbstractArray{T
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if ord > 0
-        if _safe_iszero(x)
+        if iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, D, j+1)
             end
@@ -591,7 +591,7 @@ function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T},
         x = value(ℰ)
         if j == 0
             return one(T)
-        elseif _safe_iszero(x)
+        elseif iszero(x)
             return _safe_convert(T, 2)
         else
             return convert(T, _safe_mul(2, cos(_safe_mul(frequency(domain)*x, j))))
@@ -618,7 +618,7 @@ function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:SinFourier})
 end
 function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
     x = value(ℰ)
-    if _safe_iszero(x)
+    if iszero(x)
         @inbounds c[0] = zero(eltype(c))
     else
         ord = order(a)
@@ -638,7 +638,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
 end
 function _apply!(C::AbstractArray, ℰ::Evaluation, space::SinFourier, A)
     x = value(ℰ)
-    if _safe_iszero(x)
+    if iszero(x)
         C .= zero(eltype(C))
     else
         ord = order(space)
@@ -658,7 +658,7 @@ function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T
     CoefType = _coeftype(ℰ, space, T)
     @inbounds Aᵢ = selectdim(A, D, ord)
     C = Array{CoefType,N-1}(undef, size(Aᵢ))
-    if _safe_iszero(x)
+    if iszero(x)
         C .= zero(CoefType)
     else
         ωx = frequency(space)*x
@@ -674,7 +674,7 @@ end
 _getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, memo) where {T} =
     ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::SinFourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
-    if i == 0 && !_safe_iszero(x)
+    if i == 0 && !iszero(x)
         x = value(ℰ)
         return convert(T, _safe_mul(2, sin(_safe_mul(frequency(domain)*x, j))))
     else

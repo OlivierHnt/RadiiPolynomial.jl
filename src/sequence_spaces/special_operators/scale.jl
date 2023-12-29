@@ -198,7 +198,7 @@ _coeftype(::Scale{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Taylor}, 𝒮::Scale, a)
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         coefficients(c) .= coefficients(a)
     else
         @inbounds c[0] = a[0]
@@ -213,7 +213,7 @@ end
 
 function _apply!(C, 𝒮::Scale, space::Taylor, ::Val{D}, A) where {D}
     γ = value(𝒮)
-    if !_safe_isone(γ)
+    if !isone(γ)
         γⁱ = one(γ)
         @inbounds for i ∈ 1:order(space)
             γⁱ *= γ
@@ -225,7 +225,7 @@ end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Taylor, A) where {T,N}
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         C .= A
     else
         @inbounds selectdim(C, N, 1) .= selectdim(A, N, 1)
@@ -242,7 +242,7 @@ _nzind_domain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), 
 _nzind_codomain(::Scale, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         return one(T)
     else
         return convert(T, _safe_pow(γ, i))
@@ -285,7 +285,7 @@ _coeftype(::Scale{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒮::Scale, a)
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
         return throw(DomainError)
@@ -295,13 +295,13 @@ end
 
 function _apply!(C, 𝒮::Scale, space::Chebyshev, ::Val{D}, A) where {D}
     γ = value(𝒮)
-    _safe_isone(γ) || return throw(DomainError) # TODO: lift restriction
+    isone(γ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Chebyshev, A) where {T,N}
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         C .= A
     else # TODO: lift restriction
         return throw(DomainError)
@@ -313,7 +313,7 @@ _nzind_domain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(dom
 _nzind_codomain(::Scale, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
 function _nzval(𝒮::Scale, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
     γ = value(𝒮)
-    if _safe_isone(γ)
+    if isone(γ)
         return one(T)
     else # TODO: lift restriction
         return throw(DomainError)

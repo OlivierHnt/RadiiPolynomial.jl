@@ -943,7 +943,7 @@ function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
     @inbounds v[1] = v₁
     @inbounds for i ∈ 2:sz
         A_view = view(A_, :, i)
-        if all(_safe_iszero, A_view)
+        if all(iszero, A_view)
             v[i] = zero(T)
         else
             v[i] = norm(Sequence(codomain_A, A_view), Y)

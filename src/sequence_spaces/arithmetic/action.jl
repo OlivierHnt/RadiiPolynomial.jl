@@ -26,9 +26,9 @@ function _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, 
         if codomain_A == space_c
             __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(c) .= zero(eltype(c))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
@@ -39,9 +39,9 @@ function _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, 
         if codomain_A == space_c
             @inbounds __mul!(coefficients(c), view(A, :, inds_mult), view(b, inds_mult), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(c) .= zero(eltype(c))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
@@ -69,9 +69,9 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace
     else
         m = nspaces(domain_A)
         n = nspaces(codomain_A)
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(c) .= zero(eltype(c))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(c) .*= β
         end
         @inbounds for j ∈ 1:m
@@ -106,18 +106,18 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
         if codomain_A == space_c
             __mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
         else
-            if _safe_iszero(β)
+            if iszero(β)
                 coefficients(c) .= zero(eltype(c))
-            elseif !_safe_isone(β)
+            elseif !isone(β)
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
             @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, _safe_convert(real(eltype(c)), true))
         end
     else
-        if _safe_iszero(β)
+        if iszero(β)
             coefficients(c) .= zero(eltype(c))
-        elseif !_safe_isone(β)
+        elseif !isone(β)
             coefficients(c) .*= β
         end
         @inbounds for j ∈ 1:nspaces(domain_A)

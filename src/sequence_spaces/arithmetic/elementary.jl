@@ -5,8 +5,6 @@ function Base.inv(a::Sequence{<:SequenceSpace})
     A = fft(a, fft_size(space_c))
     C = inv.(A)
     c = _call_ifft!(C, space_c, eltype(a))
-    X = Ell1(weight(c))
-    banach_rounding!(c, norm(c, X), X)
     return c
 end
 
@@ -25,8 +23,6 @@ function Base.:/(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     B = fft(b, fft_size(space_c))
     C = A ./ B
     c = _call_ifft!(C, space_c, promote_type(eltype(a), eltype(b)))
-    X = Ell1(weight(c))
-    banach_rounding!(c, norm(c, X), X)
     return c
 end
 function Base.:/(a::Number, b::Sequence{<:SequenceSpace})
@@ -34,8 +30,6 @@ function Base.:/(a::Number, b::Sequence{<:SequenceSpace})
     B = fft(b, fft_size(space_c))
     C = a ./ B
     c = _call_ifft!(C, space_c, promote_type(typeof(a), eltype(b)))
-    X = Ell1(weight(c))
-    banach_rounding!(c, norm(c, X), X)
     return c
 end
 
@@ -53,7 +47,6 @@ function Base.sqrt(a::Sequence{<:SequenceSpace})
     A = fft(a, fft_size(space_c))
     C = sqrt.(A)
     c = _call_ifft!(C, space_c, eltype(a))
-    _banach_rounding!(c)
     return c
 end
 

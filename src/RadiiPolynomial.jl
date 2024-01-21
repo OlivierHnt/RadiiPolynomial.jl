@@ -93,7 +93,7 @@ include("rpa/newton.jl")
 #
 
 include("sequence_spaces/symmetry.jl")
-    export desymmetrize, CosFourier, SinFourier
+    export conjugacy_symmetry!, desymmetrize, CosFourier, SinFourier
 
 #
 

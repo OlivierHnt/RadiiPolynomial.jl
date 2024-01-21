@@ -1,4 +1,4 @@
-conjugacy_symmetry!(a::Sequence{<:VectorSpace,<:AbstractVector{<:Real}}) = a
+# conjugacy_symmetry!(a::Sequence{<:VectorSpace,<:AbstractVector{<:Real}}) = a
 
 conjugacy_symmetry!(a::Sequence) = _conjugacy_symmetry!(a)
 

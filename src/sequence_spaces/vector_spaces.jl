@@ -789,7 +789,25 @@ _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
 
 #
 
-for f ∈ (:(==), :issubset, :intersect, :union)
+for f ∈ (:(==), :issubset)
+    @eval begin
+        function Base.$f(s₁::CartesianPower, s₂::CartesianProduct)
+            n = nspaces(s₁)
+            m = nspaces(s₂)
+            n == m || return false
+            return all(s₂ᵢ -> $f(s₁.space, s₂ᵢ), s₂.spaces)
+        end
+
+        function Base.$f(s₁::CartesianProduct, s₂::CartesianPower)
+            n = nspaces(s₁)
+            m = nspaces(s₂)
+            n == m || return false
+            return all(s₁ᵢ -> $f(s₁ᵢ, s₂.space), s₁.spaces)
+        end
+    end
+end
+
+for f ∈ (:intersect, :union)
     @eval begin
         function Base.$f(s₁::CartesianPower, s₂::CartesianProduct)
             n = nspaces(s₁)

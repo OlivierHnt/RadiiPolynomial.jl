@@ -50,7 +50,7 @@ function interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real; verbose
         verbose && @info "failure: could not compute the roots sufficently accuratly\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ"
         return emptyinterval(r₁)
     else
-        if R < 0 | isnan(R)
+        if R < 0 || isnan(R)
             verbose && @info "failure: the threshold R is invalid\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
             return emptyinterval(r₁)
         else
@@ -58,7 +58,7 @@ function interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real; verbose
                 if 0 ≤ r₂_inf ≤ R && sup(interval(Z₁) + interval(Z₂) * r₂_inf) < 1
                     verbose && @info "success: both roots delimit an interval of existence\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
                     ie = IntervalArithmetic._unsafe_bareinterval(IntervalArithmetic.numtype(r₁), r₁_sup, r₂_inf)
-                elseif sup(interval(Z₁) + interval(Z₂) * R) < 1
+                elseif isfinite(R) && sup(interval(Z₁) + interval(Z₂) * interval(R)) < 1
                     verbose && @info "success: the smallest root and R delimit an interval of existence\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
                     ie = IntervalArithmetic._unsafe_bareinterval(IntervalArithmetic.numtype(r₁), r₁_sup, R)
                 else

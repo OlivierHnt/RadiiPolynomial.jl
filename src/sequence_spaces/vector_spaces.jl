@@ -356,7 +356,7 @@ struct Fourier{T<:Real} <: BaseSpace
     order :: Int
     frequency :: T
     function Fourier{T}(order::Int, frequency::T) where {T<:Real}
-        (order < 0) | !(inf(frequency) ≥ 0) && return throw(DomainError(order, "Fourier is only defined for positive orders and frequencies"))
+        (order < 0) | !(inf(frequency) ≥ 0) && return throw(DomainError((order, frequency), "Fourier is only defined for positive orders and frequencies"))
         return new{T}(order, frequency)
     end
 end
@@ -774,7 +774,7 @@ _iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTup
 _iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _iscompatible(s₁[1], s₂[1])
 _iscompatible(::Taylor, ::Taylor) = true
-_iscompatible(s₁::Fourier, s₂::Fourier) = frequency(s₁) == frequency(s₂)
+_iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
 _iscompatible(::Chebyshev, ::Chebyshev) = true
 _iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
     (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))

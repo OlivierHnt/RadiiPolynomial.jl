@@ -1,10 +1,10 @@
 """
-    interval_of_existence(Y::Real, Z₁::Real, R::Real)
+    interval_of_existence(Y::Interval, Z₁::Interval, R::Real)
 
 Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` and ``Z_1 < 1`` for all ``r \\in I``.
 """
-function interval_of_existence(Y::Real, Z₁::Real, R::Real; verbose::Bool=false)
-    r = interval(Y)/(interval(one(Z₁)) - interval(Z₁))
+function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=true)
+    r = Y/(one(Z₁) - Z₁)
     r_sup = sup(r)
 
     if R < 0 || isnan(R)
@@ -22,18 +22,18 @@ function interval_of_existence(Y::Real, Z₁::Real, R::Real; verbose::Bool=false
     end
 end
 
-interval_of_existence(::Real, ::Real, R::Interval; verbose::Bool=false) = throw(ArgumentError("R cannot be an interval, got $R"))
+interval_of_existence(::Interval, ::Interval, R::Interval; verbose::Bool=true) = throw(ArgumentError("R cannot be an interval, got $R"))
 
 """
-    interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real)
+    interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
 
 Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
 """
-function interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real; verbose::Bool=false)
-    iszero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose = verbose)
+function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=true)
+    isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose = verbose)
 
-    b = interval(Z₁) - interval(one(Z₁))
-    Δ = b*b - _safe_mul(2, interval(Z₂))*interval(Y)
+    b = Z₁ - one(Z₁)
+    Δ = b*b - _safe_mul(2, Z₂)*Y
 
     sqrtΔ = sqrt(Δ)
 
@@ -54,15 +54,15 @@ function interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real; verbose
             verbose && @info "failure: the threshold R is invalid\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
             return emptyinterval(r₁)
         else
-            if 0 ≤ r₁_sup ≤ R && sup(interval(Z₁) + interval(Z₂) * r₁_sup) < 1
-                if 0 ≤ r₂_inf ≤ R && sup(interval(Z₁) + interval(Z₂) * r₂_inf) < 1
+            if 0 ≤ r₁_sup ≤ R && sup(Z₁ + Z₂ * r₁_sup) < 1
+                if 0 ≤ r₂_inf ≤ R && sup(Z₁ + Z₂ * r₂_inf) < 1
                     verbose && @info "success: both roots delimit an interval of existence\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
                     ie = IntervalArithmetic._unsafe_bareinterval(IntervalArithmetic.numtype(r₁), r₁_sup, r₂_inf)
-                elseif isfinite(R) && sup(interval(Z₁) + interval(Z₂) * interval(R)) < 1
+                elseif isfinite(R) && sup(Z₁ + Z₂ * R) < 1
                     verbose && @info "success: the smallest root and R delimit an interval of existence\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\ndiscrimant: (Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
                     ie = IntervalArithmetic._unsafe_bareinterval(IntervalArithmetic.numtype(r₁), r₁_sup, R)
                 else
-                    z = inf(-b/interval(Z₂))
+                    z = inf(-b/Z₂)
                     x = float(z)
                     while x > z
                         x = prevfloat(x)
@@ -77,11 +77,11 @@ function interval_of_existence(Y::Real, Z₁::Real, Z₂::Real, R::Real; verbose
                 end
                 return IntervalArithmetic._unsafe_interval(ie, min(decoration(r₁), decoration(ie)), isguaranteed(r₁))
             else
-                verbose && @info "failure: both roots are either not contained in [0, R], and/or too large\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\n(Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
+                verbose && @info "failure: both roots are either not contained in [0, R], and/or too large to verify the contraction\nY  = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR  = $R\n(Z₁ - 1)² - 2Z₂Y = $Δ\nroots = ($r₁, $r₂)"
                 return emptyinterval(r₁)
             end
         end
     end
 end
 
-interval_of_existence(::Real, ::Real, ::Real, R::Interval; verbose::Bool=false) = throw(ArgumentError("R cannot be an interval, got $R"))
+interval_of_existence(::Interval, ::Interval, ::Interval, R::Interval; verbose::Bool=true) = throw(ArgumentError("R cannot be an interval, got $R"))

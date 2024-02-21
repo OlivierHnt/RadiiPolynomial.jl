@@ -8,7 +8,7 @@ _safe_div(x, y) = x / y
 _safe_div(x::Union{Interval{T},Complex{Interval{T}}}, y::Integer) where {T} = x / interval(T, y)
 
 _safe_pow(x, y) = x ^ y
-_safe_pow(x::Interval{T}, n::Integer) where {T} = x ^ interval(T, n)
+_safe_pow(x::Union{Interval{T},Complex{Interval{T}}}, n::Integer) where {T} = x ^ interval(T, n)
 _safe_pow(n::Integer, x::Interval{T}) where {T} = interval(T, n) ^ x
 
 _safe_convert(::Type{T}, x) where {T} = convert(T, x)

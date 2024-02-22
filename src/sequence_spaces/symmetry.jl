@@ -315,7 +315,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
         ord = order(space)
         ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
-        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
@@ -323,7 +323,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) wh
     else
         ord = order(space)
         ω = one(real(eltype(A)))*frequency(space)
-        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
@@ -342,20 +342,22 @@ function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{
         ord = order(space)
         ω = one(real(T))*frequency(space)
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
-        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
         end
         return C
     else
+        C = Array{CoefType,N}(undef, ntuple(i -> size(A, i) - ifelse(i == D, 1, 0), Val(N)))
         ord = order(space)
         ω = one(real(T))*frequency(space)
-        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
-            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+            selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
         end
+        return C
     end
 end
 
@@ -411,7 +413,7 @@ function _apply!(c::Sequence{<:SinFourier}, 𝒟::Derivative, a)
         coefficients(c) .= coefficients(a)
     else
         ω = one(real(eltype(a)))*frequency(a)
-        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
         @inbounds for j ∈ 1:order(c)
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             c[j] = iⁿωⁿjⁿ_real * a[j]
@@ -427,7 +429,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) wh
     elseif iseven(n)
         ord = order(space)
         ω = one(real(eltype(A)))*frequency(space)
-        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
@@ -436,7 +438,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) wh
         ord = order(space)
         ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
-        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
@@ -454,18 +456,18 @@ function _apply(𝒟::Derivative, space::SinFourier, ::Val{D}, A::AbstractArray{
         C = Array{CoefType,N}(undef, size(A))
         ord = order(space)
         ω = one(real(T))*frequency(space)
-        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
         end
         return C
     else
-        C = Array{CoefType,N}(undef, size(A))
+        C = Array{CoefType,N}(undef, ntuple(i -> size(A, i) + ifelse(i == D, 1, 0), Val(N)))
         ord = order(space)
         ω = one(real(T))*frequency(space)
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
-        iⁿ_real = ifelse(n%4 < 2, -1, 1) # (n%4 == 0) | (n%4 == 1)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
         @inbounds for j ∈ 1:ord
             iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
             selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
@@ -496,7 +498,7 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFou
         return one(T)
     else
         ωⁿjⁿ = _safe_pow(_safe_mul(one(real(T))*frequency(domain), j), n)
-        return convert(T, ifelse(n%4 < 2, -ωⁿjⁿ, ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
+        return convert(T, ifelse((n+1)%4 < 2, ωⁿjⁿ, -ωⁿjⁿ)) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
     end
 end
 

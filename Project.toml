@@ -1,7 +1,7 @@
 name = "RadiiPolynomial"
 uuid = "f2081a94-c849-46b6-8dc9-07bb90ed72a9"
 authors = ["Olivier Hénot"]
-version = "0.7.6"
+version = "0.8.0"
 
 [deps]
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
@@ -11,7 +11,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-IntervalArithmetic = "0.22.3"
+IntervalArithmetic = "0.22"
 Reexport = "1"
 julia = "1.9"
 

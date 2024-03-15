@@ -629,7 +629,7 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
         @inbounds for j ∈ ord-1:-1:1
             c[0] += a[j] * sin(_safe_mul(ωx, j))
         end
-        @inbounds c[0] *= _safe_mul(2, c[0])
+        @inbounds c[0] = _safe_mul(2, c[0])
     end
     return c
 end

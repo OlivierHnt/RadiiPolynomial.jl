@@ -686,11 +686,13 @@ end
 
 # Multiplication
 
-_mult_domain_indices(s::CosFourier) = _mult_domain_indices(Chebyshev(order(s)))
-_isvalid(s::CosFourier, i::Int, j::Int) = _isvalid(Chebyshev(order(s)), i, j)
+_mult_domain_indices(s::CosFourier) = -order(s):order(s)
+_isvalid(::CosFourier, s::CosFourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
+_isvalid(::SinFourier, s::CosFourier, i::Int, j::Int) = (0 < abs(j)) & (abs(i-j) ≤ order(s))
 
 _mult_domain_indices(s::SinFourier) = -order(s):order(s)
-_isvalid(s::SinFourier, i::Int, j::Int) = 0 < abs(i-j) ≤ order(s)
+_isvalid(::SinFourier, s::SinFourier, i::Int, j::Int) = (0 < abs(j)) & (0 < abs(i-j) ≤ order(s))
+_isvalid(::CosFourier, s::SinFourier, i::Int, j::Int) = 0 < abs(i-j) ≤ order(s)
 
 # Norm
 

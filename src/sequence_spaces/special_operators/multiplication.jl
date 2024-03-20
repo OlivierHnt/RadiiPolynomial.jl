@@ -111,7 +111,7 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Mult
     codom = codomain(C)
     space_ℳ = space(sequence(ℳ))
     @inbounds for β ∈ _mult_domain_indices(dom), α ∈ indices(codom)
-        if _isvalid(space_ℳ, α, β)
+        if _isvalid(dom, space_ℳ, α, β)
             x = _inverse_symmetry_action(codom, α) * _symmetry_action(space_ℳ, α, β) * _symmetry_action(dom, β)
             C[α,_extract_valid_index(dom, β)] += _safe_mul(x, sequence(ℳ)[_extract_valid_index(space_ℳ, α, β)])
         end
@@ -121,10 +121,10 @@ end
 
 _mult_domain_indices(s::TensorSpace) = TensorIndices(map(_mult_domain_indices, spaces(s)))
 
-_isvalid(s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
-    @inbounds _isvalid(s[1], α[1], β[1]) & _isvalid(Base.tail(s), Base.tail(α), Base.tail(β))
-_isvalid(s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
-    @inbounds _isvalid(s[1], α[1], β[1])
+_isvalid(dom::TensorSpace{<:NTuple{N,BaseSpace}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}, β::NTuple{N,Int}) where {N} =
+    @inbounds _isvalid(dom[1], s[1], α[1], β[1]) & _isvalid(Base.tail(dom), Base.tail(s), Base.tail(α), Base.tail(β))
+_isvalid(dom::TensorSpace{<:Tuple{BaseSpace}}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}, β::Tuple{Int}) =
+    @inbounds _isvalid(dom[1], s[1], α[1], β[1])
 
 # Taylor
 
@@ -138,7 +138,7 @@ function _project!(C::LinearOperator{Taylor,Taylor}, ℳ::Multiplication)
 end
 
 _mult_domain_indices(s::Taylor) = indices(s)
-_isvalid(s::Taylor, i::Int, j::Int) = 0 ≤ i-j ≤ order(s)
+_isvalid(::Taylor, s::Taylor, i::Int, j::Int) = 0 ≤ i-j ≤ order(s)
 
 # Fourier
 
@@ -152,7 +152,7 @@ function _project!(C::LinearOperator{<:Fourier,<:Fourier}, ℳ::Multiplication)
 end
 
 _mult_domain_indices(s::Fourier) = indices(s)
-_isvalid(s::Fourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
+_isvalid(::Fourier, s::Fourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
 
 # Chebyshev
 
@@ -175,4 +175,4 @@ function _project!(C::LinearOperator{Chebyshev,Chebyshev}, ℳ::Multiplication)
 end
 
 _mult_domain_indices(s::Chebyshev) = -order(s):order(s)
-_isvalid(s::Chebyshev, i::Int, j::Int) = abs(i-j) ≤ order(s)
+_isvalid(::Chebyshev, s::Chebyshev, i::Int, j::Int) = abs(i-j) ≤ order(s)

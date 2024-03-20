@@ -214,8 +214,4 @@ The following figure[^1] shows the numerical approximation of the proven branch 
 
 [^1]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
-```@raw html
-<video width="800" height="400" controls autoplay>
-  <source src="../fhn_pseudo_arclength.svg" type="video/mp4">
-</video>
-```
+![](fhn_pseudo_arclength.svg)

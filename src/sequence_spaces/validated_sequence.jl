@@ -8,6 +8,7 @@ struct ValidatedSequence{T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{
 end
 
 function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{R,Complex{R}}},U<:BanachSpace}
+    _iscompatbanachspace(space(sequence), banachspace) || return throw(ArgumentError("invalid norm for the sequence space"))
     if isempty_interval(sequence_error)
         seq = fill(emptyinterval(sequence_error), space(sequence))
         sequence_norm = emptyinterval(sequence_error)
@@ -20,11 +21,21 @@ function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspa
     end
 end
 
+_iscompatbanachspace(::SequenceSpace, ::Ell1{<:Weight}) = true
+_iscompatbanachspace(::SequenceSpace, ::Ell2{<:Weight}) = true
+_iscompatbanachspace(::SequenceSpace, ::EllInf{<:Weight}) = true
+_iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::Ell1{<:NTuple{N,Weight}}) where {N} = true
+_iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::Ell2{<:NTuple{N,Weight}}) where {N} = true
+_iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::EllInf{<:NTuple{N,Weight}}) where {N} = true
+
 ValidatedSequence(sequence::Sequence, banachspace::BanachSpace) =
     ValidatedSequence(sequence, interval(zero(real(eltype(sequence)))), banachspace)
 
 ValidatedSequence(space::SequenceSpace, coefficients::AbstractVector, banachspace::BanachSpace) =
     ValidatedSequence(Sequence(space, coefficients), banachspace)
+
+ValidatedSequence(space::SequenceSpace, coefficients::AbstractVector, sequence_error::Interval, banachspace::BanachSpace) =
+    ValidatedSequence(Sequence(space, coefficients), sequence_error, banachspace)
 
 sequence(a::ValidatedSequence) = a.sequence
 sequence_norm(a::ValidatedSequence) = a.sequence_norm
@@ -67,7 +78,30 @@ function Base.show(io::IO, a::ValidatedSequence)
     return print(io, "ValidatedSequence(", space(a), ", ", coefficients(a), ", ", sequence_norm(a), ", ", sequence_error(a), ", ", banachspace(a), ")")
 end
 
-#
+# special operators
+
+# TODO: projection, integration, etc.
+
+function differentiate(a::ValidatedSequence, α=1)
+    sequence_error(a) == 0 || return throw(DomainError) # TODO: lift restriction
+    c = differentiate(sequence(a), α)
+    return ValidatedSequence(c, banachspace(a))
+end
+
+evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
+_return_evaluate(c, a::ValidatedSequence) = interval(c, sequence_error(a); format = :midpoint)
+function _return_evaluate(c::Sequence, a::ValidatedSequence)
+    c .= interval.(c, sequence_error(a); format = :midpoint)
+    return ValidatedSequence(c, sequence_error(a), banachspace(a))
+end
+
+# norm
+
+LinearAlgebra.norm(a::ValidatedSequence) = sequence_norm(a) + sequence_error(a)
+
+
+
+# rigorous evaluation of nonlinearities
 
 _banachspace_identity(::Ell1) = Ell1()
 _banachspace_identity(::Ell2) = Ell2()
@@ -140,6 +174,8 @@ function Base.:^(a::ValidatedSequence, n::Integer)
     return c
 end
 
+#
+
 function Base.inv(a::ValidatedSequence)
     space_approx = _image_trunc(inv, space(a))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
@@ -187,6 +223,8 @@ Base.:\(a::ValidatedSequence, b::ValidatedSequence) = b / a
 Base.:\(a::ValidatedSequence, b::Number) = b / a
 Base.:\(a::Number, b::ValidatedSequence) = b / a
 
+#
+
 function Base.sqrt(a::ValidatedSequence)
     space_approx = _image_trunc(sqrt, space(a))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
@@ -209,26 +247,94 @@ function Base.sqrt(a::ValidatedSequence)
     return ValidatedSequence(sequence(approx_sqrta), emptyinterval(real(eltype(seq_approx_sqrta))), X)
 end
 
+#
+
+function Base.cbrt(a::ValidatedSequence)
+    space_approx = _image_trunc(cbrt, space(a))
+    A = fft(mid.(sequence(a)), fft_size(space_approx))
+    cbrtA = A .^ (1//3)
+    cbrtA⁻² = inv.(cbrtA) .^ 2
+    seq_approx_cbrta = _call_ifft!(cbrtA, space_approx, eltype(a))
+    seq_approx_cbrta⁻² = _call_ifft!(cbrtA⁻², space_approx, eltype(a))
+
+    X = banachspace(a)
+    approx_cbrta = ValidatedSequence(interval.(seq_approx_cbrta), X)
+    approx_cbrta⁻² = ValidatedSequence(interval.(seq_approx_cbrta⁻²), X)
+
+    Y = norm(approx_cbrta⁻² * (approx_cbrta ^ 3 - a))/interval(real(eltype(seq_approx_cbrta)), 3)
+    Z₁ = norm(approx_cbrta⁻² * approx_cbrta ^ 2 - interval(real(eltype(seq_approx_cbrta)), 1))
+    v = 2mid(norm(approx_cbrta⁻²)) * mid(norm(approx_cbrta))
+    w = 2mid(norm(approx_cbrta⁻²))
+    R = max(2sup(Y), (-v + sqrt(v^2 - 2w*(mid(Z₁) - 1)))/ w) # could use: 0.1*sup( (1-Z₁)^2/(4Y * norm(approx_cbrta⁻²)) - norm(approx_cbrta) )
+    Z₂ = interval(real(eltype(seq_approx_cbrta)), 2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + interval(real(eltype(seq_approx_cbrta)), R))
+    r = interval_of_existence(Y, Z₁, Z₂, R; verbose = false)
+
+    isempty_interval(r) || return ValidatedSequence(sequence(approx_cbrta), interval(real(eltype(seq_approx_cbrta)), inf(r)), X)
+    fill!(sequence(approx_cbrta), emptyinterval(eltype(seq_approx_cbrta)))
+    return ValidatedSequence(sequence(approx_cbrta), emptyinterval(real(eltype(seq_approx_cbrta))), X)
+end
+
+#
+
 Base.abs(a::ValidatedSequence) = sqrt(a^2)
 Base.abs2(a::ValidatedSequence) = a^2
 
-# special operators
+#
 
-# TODO: projection, integration, etc.
+for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
+    @eval begin
+        function Base.$f(a::ValidatedSequence{<:BaseSpace})
+            @assert banachspace(a) isa Ell1{<:GeometricWeight}
 
-function differentiate(a::ValidatedSequence, α=1)
-    sequence_error(a) == 0 || return throw(DomainError) # TODO: lift restriction
-    c = differentiate(sequence(a), α)
-    return ValidatedSequence(c, banachspace(a))
+            space_approx = _image_trunc($f, space(a))
+            mida = mid.(sequence(a))
+            N_fft = fft_size(space_approx)
+            A = fft(mida, N_fft)
+            fA = $f.(A)
+            seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
+
+            seq_fa = interval.(seq_approx_fa)
+
+            ν = rate(weight(banachspace(a)))
+
+            ν_finite_part = rate(geometricweight(seq_approx_fa))
+            ν_finite_part = interval(max(nextfloat(sup(ν)), ν_finite_part))
+            ν_finite_part⁻¹ = inv(ν_finite_part)
+
+            C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
+                    _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
+
+            error = C * (
+                mapreduce(k -> (_safe_pow(ν_finite_part⁻¹, k) + _safe_pow(ν_finite_part, k)) * _safe_pow(ν_finite_part, abs(k)), +, indices(space_approx)) / (_safe_pow(ν_finite_part, N_fft) - 1) +
+                _safe_mul(2, ν_finite_part) / (ν_finite_part - ν) * _safe_pow(ν * ν_finite_part⁻¹, order(a) + 1))
+
+            if !isthinzero(sequence_error(a))
+                r_star = 1 + sequence_error(a)
+                W = mapreduce(
+                        θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, real(eltype(seq_fa))),
+                                 _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, real(eltype(seq_fa)))),
+                        max,
+                        mince(interval(IntervalArithmetic.numtype(ν), -1, 1), N_fft)
+                    ) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                error += W * sequence_error(a)
+            end
+
+            return ValidatedSequence(seq_fa, error, banachspace(a))
+        end
+    end
 end
 
-evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
-_return_evaluate(c, a::ValidatedSequence) = interval(c, sequence_error(a); format = :midpoint)
-function _return_evaluate(c::Sequence, a::ValidatedSequence)
-    c .= interval.(c, sequence_error(a); format = :midpoint)
-    return ValidatedSequence(c, sequence_error(a), banachspace(a))
+function _contour(f, ū, ν_finite_part, N_fft, T)
+    ū_contour = complex.(ū)
+    val = sup(inv(interval(IntervalArithmetic.numtype(ν_finite_part), N_fft)))
+    δ = interval(-val, val)
+    for k ∈ indices(space(ū))
+        ū_contour[k] *= _safe_pow(ν_finite_part, k) * cispi(_safe_mul(k, δ))
+    end
+    grid_ū_contour = fft(ū_contour, N_fft)
+    contour_integral = zero(real(T))
+    for v ∈ grid_ū_contour
+        contour_integral += abs(f(v))
+    end
+    return interval(sup(_safe_div(contour_integral, N_fft)))
 end
-
-# norm
-
-LinearAlgebra.norm(a::ValidatedSequence) = sequence_norm(a) + sequence_error(a)

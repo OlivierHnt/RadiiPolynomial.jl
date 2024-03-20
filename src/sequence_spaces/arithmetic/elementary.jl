@@ -52,5 +52,45 @@ end
 
 #
 
+_image_trunc(::typeof(cbrt), s::SequenceSpace) = s
+
+function Base.cbrt(a::Sequence{<:SequenceSpace})
+    space_c = _image_trunc(cbrt, space(a))
+    A = fft(a, fft_size(space_c))
+    C = A .^ (1//3)
+    c = _call_ifft!(C, space_c, eltype(a))
+    return c
+end
+
+#
+
 Base.abs(a::Sequence{<:SequenceSpace}) = sqrt(a^2)
 Base.abs2(a::Sequence{<:SequenceSpace}) = a^2
+
+#
+
+_image_trunc(::typeof(^), s::SequenceSpace) = s
+
+function Base.:^(a::Sequence{<:SequenceSpace}, x::Real)
+    space_c = _image_trunc(^, space(a))
+    A = fft(a, fft_size(space_c))
+    C = A .^ x
+    c = _call_ifft!(C, space_c, eltype(a))
+    return c
+end
+
+#
+
+for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
+    @eval begin
+        _image_trunc(::typeof($f), s::SequenceSpace) = s
+
+        function Base.$f(a::Sequence{<:SequenceSpace})
+            space_c = _image_trunc($f, space(a))
+            A = fft(a, fft_size(space_c))
+            C = $f.(A)
+            c = _call_ifft!(C, space_c, eltype(a))
+            return c
+        end
+    end
+end

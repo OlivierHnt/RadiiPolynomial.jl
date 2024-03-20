@@ -194,19 +194,19 @@ Base.@propagate_inbounds function Base.view(a::AbstractSequence, α)
     return view(coefficients(a), _findposition(α, space_a))
 end
 
-Base.@propagate_inbounds function Base.setindex!(a::AbstractSequence, x, α)
+Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
     space_a = space(a)
     @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(indices(space_a), α)))
     setindex!(coefficients(a), x, _findposition(α, space_a))
     return a
 end
-Base.@propagate_inbounds function Base.setindex!(a::AbstractSequence, x, u::AbstractVector)
+Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVector)
     for (i, uᵢ) ∈ enumerate(u)
         a[uᵢ] = x[i]
     end
     return a
 end
-Base.@propagate_inbounds function Base.setindex!(a::AbstractSequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
+Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
     for (i, uᵢ) ∈ enumerate(u)
         a[uᵢ] = x[i]
     end

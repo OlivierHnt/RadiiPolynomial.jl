@@ -31,8 +31,8 @@ Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T \in C^1(U, X)`` 
 - (First-order) Suppose ``Y, Z_1 \ge 0`` satisfy
 ```math
 \begin{aligned}
-|T(\bar{x}) - \bar{x}|_X &\le Y,\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} |DT(x)|_{\mathscr{B}(X, X)} &\le Z_1,
+\|T(\bar{x}) - \bar{x}\|_X &\le Y,\\
+\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|DT(x)\|_{\mathscr{B}(X, X)} &\le Z_1,
 \end{aligned}
 ```
 and define the *radii polynomial* by ``p(r) \bydef Y + (Z_1 - 1) r``.
@@ -40,9 +40,9 @@ If there exists a *radius* ``\bar{r} \in [0, R]`` such that ``p(\bar{r}) \le 0``
 - (Second-order) Suppose ``Y, Z_1, Z_2 \ge 0`` satisfy
 ```math
 \begin{aligned}
-|T(\bar{x}) - \bar{x}|_X &\le Y,\\
-|DT(\bar{x})|_{\mathscr{B}(X, X)} &\le Z_1,\\
-|DT(x) - DT(\bar{x})|_{\mathscr{B}(X, X)} &\le Z_2 |x - \bar{x}|_X, \qquad \text{for all } x \in \text{cl}( B_R(\bar{x}) ),
+\|T(\bar{x}) - \bar{x}\|_X &\le Y,\\
+\|DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le Z_1,\\
+\|DT(x) - DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le Z_2 \|x - \bar{x}\|_X, \qquad \text{for all } x \in \text{cl}( B_R(\bar{x}) ),
 \end{aligned}
 ```
 and define the *radii polynomial* by ``p(r) \bydef Y + (Z_1 - 1) r + \frac{Z_2}{2} r^2``.

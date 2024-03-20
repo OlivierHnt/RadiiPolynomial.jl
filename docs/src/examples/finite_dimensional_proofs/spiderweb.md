@@ -135,7 +135,7 @@ x₀, success = newton(x -> (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀)
 nothing # hide
 ```
 
-Let ``R > 0``. According to the first-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)), we need to estimate ``|T(x_0) - x_0|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} |DT(x)|_\infty`` which can be readily computed with interval arithmetic.
+Let ``R > 0``. According to the first-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)), we need to estimate ``\|T(x_0) - x_0\|_\infty`` and ``\sup_{x \in \text{cl}( B_R(x_0) )} \|DT(x)\|_\infty`` which can be readily computed with interval arithmetic.
 
 The computer-assisted proof may be implemented as follows:
 

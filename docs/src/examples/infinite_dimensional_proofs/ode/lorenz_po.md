@@ -3,7 +3,7 @@
 In this example, we will prove the existence of a periodic orbit of the Lorenz system
 
 ```math
-\frac{d}{dt} u(t) = f(u(t), \sigma, \rho, \beta) :=
+\frac{d}{dt} u(t) = f(u(t), \sigma, \rho, \beta) \bydef
 \begin{pmatrix}
 \sigma(u_2(t) - u_1(t))\\
 u_1(t)(\rho - u_3(t)) - u_2(t)\\
@@ -11,7 +11,7 @@ u_1(t) u_2(t) - \beta u_3(t)
 \end{pmatrix}, \qquad \sigma, \rho, \beta \in \mathbb{R}.
 ```
 
-The vector field ``f`` and its derivative with respect to ``u``, denoted ``Df``, may be implemented as follows:
+The vector field ``f`` and its derivative with respect to ``u``, denoted ``D_u f``, may be implemented as follows:
 
 ```@example lorenz_po
 using RadiiPolynomial
@@ -43,27 +43,27 @@ nothing # hide
 Let ``\nu > 1``,
 
 ```math
-X_\textnormal{F} := \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, |u|_{X_\textnormal{F}} := \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}
+\ell^1_{\nu, \mathbb{Z}} \bydef \left\{ u \in \mathbb{C}^\mathbb{Z} \, : \, \|u\|_{\ell^1_{\nu, \mathbb{Z}}} \bydef \sum_{k \in \mathbb{Z}} |u_k| \nu^{|k|} \right\}
 ```
 
-and ``* : X_\textnormal{F} \times X_\textnormal{F} \to X_\textnormal{F}`` be the discrete convolution given by
+and ``* : \ell^1_{\nu, \mathbb{Z}} \times \ell^1_{\nu, \mathbb{Z}} \to \ell^1_{\nu, \mathbb{Z}}`` be the discrete convolution given by
 
 ```math
-u * v := \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in X_\textnormal{F}.
+u * v \bydef \left\{ \sum_{l \in \mathbb{Z}} u_{k - l} v_l \right\}_{k \in \mathbb{Z}}, \qquad \text{for all } u, v \in \ell^1_{\nu, \mathbb{Z}}.
 ```
 
-For any sequence ``u \in X_\textnormal{F}``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
+For any sequence ``u \in \ell^1_{\nu, \mathbb{Z}}``, the Fourier series ``\sum_{k \in \mathbb{Z}} u_k e^{i \omega k t}``, for some frequency ``\omega > 0``, defines an analytic ``2\pi\omega^{-1}``-periodic function in ``C^\omega(\mathbb{R}, \mathbb{C})``; while the discrete convolution ``*`` corresponds to the product of Fourier series in sequence space.
 
-The Banach space ``X_\textnormal{F}`` is a suitable space to represent each component of a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
+The Banach space ``\ell^1_{\nu, \mathbb{Z}}`` is a suitable space to represent each component of a periodic solution of the Lorenz system. Indeed, it is a standard result from ODE theory that analytic vector fields yield analytic solutions.[^1]
 
 [^1]: A. Hungria, J.-P. Lessard and J. D. Mireles James, [Rigorous numerics for analytic solutions of differential equations: the radii polynomial approach](https://doi.org/10.1090/mcom/3046), *Mathematics of Computation*, **85** (2016), 1427-1459.
 
-Define the Banach space ``X := \mathbb{C} \times X_\textnormal{F}^3`` endowed with the norm ``|x|_X := \max(|\gamma|, |u_1|_{X_\textnormal{F}}, |u_2|_{X_\textnormal{F}}, |u_3|_{X_\textnormal{F}})`` for all ``x = (\gamma, u_1, u_2, u_3) \in X``. It follows that the sequence of coefficients of a ``2\pi\gamma``-periodic Fourier series solving the Lorenz equations is a zero of the mapping ``F : X \to X`` given by
+Define the Banach space ``X \bydef \mathbb{C} \times (\ell^1_{\nu, \mathbb{Z}})^3`` endowed with the norm ``\|x\|_X \bydef |\gamma| + \|u_1\|_{\ell^1_{\nu, \mathbb{Z}}} + \|u_2\|_{\ell^1_{\nu, \mathbb{Z}}} + \|u_3\|_{\ell^1_{\nu, \mathbb{Z}}}`` for all ``x = (\gamma, u_1, u_2, u_3) \in X``. It follows that the sequence of coefficients of a ``2\pi\gamma``-periodic Fourier series solving the Lorenz equations is a zero of the mapping ``F : X \to X`` given by
 
 ```math
-F(x) :=
+F(x) \bydef
 \begin{pmatrix}
-\sum_{j = 1}^3 (\sum_{k = -n}^n (u_j)_k - \xi_j)\eta_j\\
+\sum_{j = 1}^3 (\sum_{k = -K}^K (u_j)_k - \xi_j)\eta_j\\
 \left\{ \gamma ( f(u, \sigma, \rho, \beta) )_k - i k u_k \right\}_{k \in \mathbb{Z}}
 \end{pmatrix}, \qquad \text{for all } x = (\gamma, u_1, u_2, u_3) \in \text{domain}(F),
 ```
@@ -73,27 +73,27 @@ where ``\xi \in \mathbb{R}^3`` is a chosen approximate position of the periodic 
 The mapping ``F`` and its Fréchet derivative, denoted ``DF``, may be implemented as follows:
 
 ```@example lorenz_po
-function F!(F, x, σ, ρ, β)
+function F!(F, x, σ, ρ, β, ξ, η)
     γ, u = x[1], component(x, 2)
 
     F[1] =
-        (sum(component(u, 1)) - 10.205222700615433) * 24.600655549587863 +
-        (sum(component(u, 2)) - 11.899530531689562) * (-2.4927169722923335) +
-        (sum(component(u, 3)) - 27.000586375896557) * 71.81142025024573
+        (component(u, 1)(0) - ξ[1]) * η[1] +
+        (component(u, 2)(0) - ξ[2]) * η[2] +
+        (component(u, 3)(0) - ξ[3]) * η[3]
 
     project!(component(F, 2), γ * f!(component(F, 2), u, σ, ρ, β) - differentiate(u))
 
     return F
 end
 
-function DF!(DF, x, σ, ρ, β)
+function DF!(DF, x, σ, ρ, β, η)
     γ, u = x[1], component(x, 2)
 
     DF .= 0
 
-    component(component(DF, 1, 2), 1)[1,:] .= 24.600655549587863
-    component(component(DF, 1, 2), 2)[1,:] .= -2.4927169722923335
-    component(component(DF, 1, 2), 3)[1,:] .= 71.81142025024573
+    component(component(DF, 1, 2), 1)[1,:] .= η[1]
+    component(component(DF, 1, 2), 2)[1,:] .= η[2]
+    component(component(DF, 1, 2), 3)[1,:] .= η[3]
 
     f!(component(DF, 2, 1), u, σ, ρ, β)
 
@@ -107,7 +107,7 @@ nothing # hide
 Consider the fixed-point operator ``T : X \to X`` defined by
 
 ```math
-T(x) := x - A F(x),
+T(x) \bydef x - A F(x),
 ```
 
 where ``A : X \to X`` is an injective operator corresponding to an approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X`` of ``F``.
@@ -117,109 +117,116 @@ Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained 
 ```@example lorenz_po
 σ, ρ, β = 10.0, 28.0, 8/3
 
-n = 400
+K = 60
 
-x̄ = Sequence(ParameterSpace() × Fourier(n, 1.0)^3, zeros(ComplexF64, 1+3*(2n+1)))
-x̄[1] = 9.150971830259179/2π # γ, i.e. approximate inverse of the frequency
-component(component(x̄, 2), 1)[0:14] =
-    [6.25, -0.66 - 1.45im, 0.6 - 1.2im, 1.11 - 0.26im, 0.77 + 0.57im,
-    0.08 + 0.76im, -0.35 + 0.45im, -0.39 + 0.13im, -0.37 - 0.0008im, -0.44 - 0.23im,
-    -0.18 - 0.68im, 0.65 - 0.61im, 0.80 + 0.50im, -0.53 + 0.43im, 1.25 - 0.07im]
-component(component(x̄, 2), 2)[0:14] =
-    [6.25, -0.56 - 1.5im, 0.76 - 1.12im, 1.17 - 0.03im, 0.62 + 0.78im,
-    -0.18 + 0.76im,-0.54 + 0.3im, -0.45 - 0.06im, -0.37 - 0.2im, -0.3 - 0.51im,
-    0.29 - 0.8im, 1.11 - 0.13im, 0.4 + 1.16im, -0.91 - 0.05im, 1.31 + 1.13im]
-component(component(x̄, 2), 3)[0:14] =
-    [24.45, -0.22 - 1.62im, 1.13 - 0.83im, 1.2 + 0.53im, 0.14 + 1.28im,
-    -1.03 + 0.75im, -1.14 - 0.52im, -0.08 - 1.21im, 0.98 - 0.57im, 0.79 + 0.59im,
-    -0.27 + 0.69im, -0.34 - 0.23im, 0.57 + 0.22im, -1.23 + 1.02im, 0.75 - 2.69im]
-component(component(x̄, 2), 1)[-14:-1] .= conj.(component(component(x̄, 2), 1)[14:-1:1])
-component(component(x̄, 2), 2)[-14:-1] .= conj.(component(component(x̄, 2), 2)[14:-1:1])
-component(component(x̄, 2), 3)[-14:-1] .= conj.(component(component(x̄, 2), 3)[14:-1:1])
+x̄ = zeros(ComplexF64, ParameterSpace() × Fourier(K, 1.0)^3)
+x̄[1] = 1.5/(2π) # γ, i.e. approximate inverse of the frequency
+component(component(x̄, 2), 1)[1:2:5] =
+    [-2.9 - 4.3im,
+      1.6 - 1.1im,
+      0.3 + 0.4im]
+component(component(x̄, 2), 2)[1:2:5] =
+    [-1.2 - 5.4im,
+      3.0 + 0.8im,
+     -0.4 + 1.1im]
+component(component(x̄, 2), 3)[0:2:4] =
+    [ 23,
+      3.8 + 4.7im,
+     -1.8 + 0.9im]
+component(component(x̄, 2), 1)[-5:2:-1] .= conj.(component(component(x̄, 2), 1)[5:-2:1])
+component(component(x̄, 2), 2)[-5:2:-1] .= conj.(component(component(x̄, 2), 2)[5:-2:1])
+component(component(x̄, 2), 3)[-4:2:0] .= conj.(component(component(x̄, 2), 3)[4:-2:0])
 
-newton!((F, DF, x) -> (F!(F, x, σ, ρ, β), DF!(DF, x, σ, ρ, β)), x̄)
+ξ = component(x̄, 2)(0)
+η = differentiate(component(x̄, 2))(0)
+
+newton!((F, DF, x) -> (F!(F, x, σ, ρ, β, ξ, η), DF!(DF, x, σ, ρ, β, η)), x̄)
 
 # impose that x̄[1] is real and component(x̄, 2) are the coefficients of a real Fourier series
 x̄[1] = real(x̄[1])
 for i ∈ 1:3
     component(component(x̄, 2), i)[0] = real(component(component(x̄, 2), i)[0])
-    component(component(x̄, 2), i)[-n:-1] .= conj.(component(component(x̄, 2), i)[n:-1:1])
+    component(component(x̄, 2), i)[-K:-1] .= conj.(component(component(x̄, 2), i)[K:-1:1])
 end
 ```
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``|T(\bar{x}) - \bar{x}|_X``, ``|DT(\bar{x})|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``\|T(\bar{x}) - \bar{x}\|_X``, ``\|DT(\bar{x})\|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))}``.
 
 To this end, consider the truncation operator
 
 ```math
-(\pi^n u)_k :=
+(\Pi_K u)_k \bydef
 \begin{cases}
-u_k, & |k| \le n,\\
-0, & |k| > n,
+u_k, & |k| \le K,\\
+0, & |k| > K,
 \end{cases}
-\qquad \textnormal{for all } u \in X_\textnormal{F}.
+\qquad \text{for all } u \in \ell^1_{\nu, \mathbb{Z}}.
 ```
 
-Using the same symbol, this projection extends naturally to ``X_\textnormal{F}^3`` and ``X`` by acting on each component as follows ``\pi^n u := (\pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``u = (u_1, u_2, u_3) \in X_\textnormal{F}^3``, and ``\pi^n x := (\gamma, \pi^n u_1, \pi^n u_2, \pi^n u_3)``, for all ``x = (\gamma, u_1, u_2, u_3) \in X``. For each of the Banach spaces ``X_\textnormal{F}, X_\textnormal{F}^3, X``, we define the complementary operator ``\pi^{\infty(n)} := I - \pi^n``.
+Using the same symbol, this projection extends naturally to ``(\ell^1_{\nu, \mathbb{Z}})^3`` and ``X`` by acting on each component as follows ``\Pi_K u \bydef (\Pi_K u_1, \Pi_K u_2, \Pi_K u_3)``, for all ``u = (u_1, u_2, u_3) \in (\ell^1_{\nu, \mathbb{Z}})^3``, and ``\Pi_K x \bydef (\gamma, \Pi_K u_1, \Pi_K u_2, \Pi_K u_3)``, for all ``x = (\gamma, u_1, u_2, u_3) \in X``. For each of the Banach spaces ``\ell^1_{\nu, \mathbb{Z}}, (\ell^1_{\nu, \mathbb{Z}})^3, X``, we define the complementary operator ``\Pi_{\infty(K)} \bydef I - \Pi_K``.
 
 Thus, denoting ``\bar{u} = (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 
 ```math
 \begin{aligned}
-|T(\bar{x}) - \bar{x}|_X &\le
-|\pi^n A \pi^n F(\bar{x})|_X + \frac{\bar{\gamma}}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3},\\
-|DT(\bar{x})|_{\mathscr{B}(X, X)} &\le
-|\pi^n A \pi^n DF(\bar{x}) \pi^{2n} - \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1} | \pi^{\infty(n)} f(\bar{u}) |_{X_\textnormal{F}^3} +\\
-&\qquad \frac{\bar{\gamma}}{n+1}
-\max \left(2 \sigma, 1 + |\bar{u}_1|_{X_\textnormal{F}} + |\rho - \bar{u}_3|_{X_\textnormal{F}}, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}}\right),\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} |D^2T(x)|_{\mathscr{B}(X^2, X)} &\le
-2\left(|\pi^n A \pi^n|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \Big(\bar{\gamma} + R +\\
-&\qquad \max \left(2 \sigma, 1 + \rho + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_3|_{X_\textnormal{F}} + 2R, \beta + |\bar{u}_1|_{X_\textnormal{F}} + |\bar{u}_2|_{X_\textnormal{F}} + 2R\right)\Big).
+\|T(\bar{x}) - \bar{x}\|_X &\le
+\|\Pi_K A \Pi_K F(\bar{x})\|_X + \frac{\bar{\gamma}}{n+1} \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
+\|DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le
+\|\Pi_K A \Pi_K DF(\bar{x}) \Pi_{2K} - \Pi_K\|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \max\Big( \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
+&\qquad \bar{\gamma} \max\left(\sigma + \|\rho-\bar{u}_3\|_{\ell^1_{\nu, \mathbb{Z}}} + \|\bar{u}_2\|_{\ell^1_{\nu, \mathbb{Z}}}, \sigma + 1 + \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}}, \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + \beta\right) \Big),\\
+\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))} &\le
+\left(\|\Pi_K A \Pi_K\|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \max\Big( 2 (\bar{\gamma} + R),\\
+&\qquad \max\left(\sigma + \|\rho-\bar{u}_3\|_{\ell^1_{\nu, \mathbb{Z}}} + \|\bar{u}_2\|_{\ell^1_{\nu, \mathbb{Z}}} + 2R, \sigma + 1 + \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + R, \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + R + \beta\right) \Big).
 \end{aligned}
 ```
 
 The computer-assisted proof may be implemented as follows:
 
 ```@example lorenz_po
-ν = interval(1.01)
+ν = interval(1.05)
 X_F = ℓ¹(GeometricWeight(ν))
-X_F³ = NormedCartesianSpace(X_F, ℓ∞())
-X = NormedCartesianSpace((ℓ∞(), X_F³), ℓ∞())
-R = 1e-8
+X_F³ = NormedCartesianSpace(X_F, ℓ¹())
+X = NormedCartesianSpace((ℓ¹(), X_F³), ℓ¹())
+R = 1e-10
 
-σ_interval, ρ_interval, β_interval = interval(10.0), interval(28.0), 8.0/interval(3.0)
+σ_interval, ρ_interval, β_interval = interval(10), interval(28), interval(8)/interval(3)
 
-x̄_interval = Sequence(ParameterSpace() × Fourier(n, interval(1.0))^3, interval.(coefficients(x̄)))
+x̄_interval = Sequence(ParameterSpace() × Fourier(K, interval(1))^3, interval.(coefficients(x̄)))
 γ̄_interval = real(x̄_interval[1])
 ū_interval = component(x̄_interval, 2)
 
-F_interval = Sequence(ParameterSpace() × Fourier(2n, interval(1.0))^3, similar(coefficients(x̄_interval), 1+3*(4n+1)))
-F!(F_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
+ξ_interval = interval.(ξ)
+η_interval = interval.(η)
+
+F_interval = zeros(eltype(x̄_interval), ParameterSpace() × Fourier(2K, interval(1))^3)
+F!(F_interval, x̄_interval, σ_interval, ρ_interval, β_interval, ξ_interval, η_interval)
 
 tail_γ̄f_interval = copy(component(F_interval, 2))
 for i ∈ 1:3
-    component(tail_γ̄f_interval, i)[-n:n] .= 0
+    component(tail_γ̄f_interval, i)[-K:K] .= interval(0)
 end
 
-DF_interval = LinearOperator(space(F_interval), space(x̄_interval), similar(coefficients(x̄_interval), length(x̄_interval), length(F_interval)))
-DF!(DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval)
+DF_interval = zeros(eltype(x̄_interval), space(F_interval), space(x̄_interval))
+DF!(DF_interval, x̄_interval, σ_interval, ρ_interval, β_interval, η_interval)
 
-A = inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval))))
-bound_tail_A = inv(interval(n+1))
+A = interval.(inv(mid.(project(DF_interval, space(x̄_interval), space(x̄_interval)))))
+bound_tail_A = inv(interval(K+1))
 
 # computation of the bounds
 
 Y = norm(A * F_interval, X) + bound_tail_A * norm(tail_γ̄f_interval, X_F³)
 
-Z₁ = opnorm(A * DF_interval - I, X) + bound_tail_A * norm(tail_γ̄f_interval, X_F³) / γ̄_interval +
-    bound_tail_A * γ̄_interval * max(2σ_interval,
-        1 + norm(component(ū_interval, 1), X_F) + norm(ρ_interval-component(ū_interval, 3), X_F),
-        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F))
+opnorm_Df = max(σ_interval + norm(ρ_interval-component(ū_interval, 3), X_F) + norm(component(ū_interval, 2), X_F),
+                σ_interval + 1 + norm(component(ū_interval, 1), X_F),
+                norm(component(ū_interval, 1), X_F) + β_interval)
 
-Z₂ = (opnorm(interval.(A), X) + bound_tail_A) * 2 * (γ̄_interval + R +
-    max(2σ_interval,
-        1 + ρ_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 3), X_F) + 2R,
-        β_interval + norm(component(ū_interval, 1), X_F) + norm(component(ū_interval, 2), X_F) + 2R))
+Z₁ = opnorm(A * DF_interval - UniformScaling(interval(1)), X) +
+    bound_tail_A * max(norm(tail_γ̄f_interval / γ̄_interval, X_F³), γ̄_interval * opnorm_Df)
+
+Z₂ = (opnorm(A, X) + bound_tail_A) * max(2 * (γ̄_interval + R),
+    max(σ_interval + norm(ρ_interval - component(ū_interval, 3), X_F) + R + norm(component(ū_interval, 2), X_F) + R,
+        σ_interval + 1 + norm(component(ū_interval, 1), X_F) + R,
+        norm(component(ū_interval, 1), X_F) + R + β_interval))
 
 setdisplay(:full)
 

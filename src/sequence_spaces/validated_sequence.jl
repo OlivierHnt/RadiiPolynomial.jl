@@ -54,7 +54,7 @@ Base.copy(a::ValidatedSequence) =
     _unsafe_validated_sequence(copy(sequence(a)), sequence_norm(a), sequence_error(a), banachspace(a))
 
 Base.zero(a::ValidatedSequence) = ValidatedSequence(zero(sequence(a)), banachspace(a))
-# Base.one(a::ValidatedSequence) = ValidatedSequence(one(sequence(a)), banachspace(a))
+Base.one(a::ValidatedSequence) = ValidatedSequence(one(sequence(a)), banachspace(a))
 
 for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::ValidatedSequence) = ValidatedSequence($f(sequence(a)), sequence_error(a), banachspace(a))

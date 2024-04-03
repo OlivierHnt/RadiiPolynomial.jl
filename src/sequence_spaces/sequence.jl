@@ -102,6 +102,11 @@ function Base.zero(a::Sequence)
 end
 
 Base.one(a::Sequence{ParameterSpace}) = Sequence(space(a), [one(eltype(a))])
+function Base.one(a::Sequence{<:SequenceSpace})
+    c = zero(a)
+    @inbounds c[_findindex_constant(space(a))] = one(eltype(a))
+    return c
+end
 
 for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f(coefficients(a)))
@@ -115,6 +120,27 @@ Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
 
 eachcomponent(a::Sequence{<:CartesianSpace}) =
     (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
+
+# setindex!
+
+Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
+    space_a = space(a)
+    @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(indices(space_a), α)))
+    setindex!(coefficients(a), x, _findposition(α, space_a))
+    return a
+end
+Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVector)
+    for (i, uᵢ) ∈ enumerate(u)
+        a[uᵢ] = x[i]
+    end
+    return a
+end
+Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
+    for (i, uᵢ) ∈ enumerate(u)
+        a[uᵢ] = x[i]
+    end
+    return a
+end
 
 # promotion
 
@@ -166,7 +192,7 @@ Base.iterate(a::AbstractSequence, i) = iterate(coefficients(a), i)
 Base.eltype(a::AbstractSequence) = eltype(coefficients(a))
 Base.eltype(::Type{<:AbstractSequence{<:VectorSpace,T}}) where {T<:AbstractVector} = eltype(T)
 
-# getindex, view, setindex!
+# getindex, view
 
 Base.@propagate_inbounds function Base.getindex(a::AbstractSequence, α)
     space_a = space(a)
@@ -192,33 +218,6 @@ Base.@propagate_inbounds function Base.view(a::AbstractSequence, α)
     space_a = space(a)
     @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(indices(space_a), α)))
     return view(coefficients(a), _findposition(α, space_a))
-end
-
-Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)
-    space_a = space(a)
-    @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(indices(space_a), α)))
-    setindex!(coefficients(a), x, _findposition(α, space_a))
-    return a
-end
-Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVector)
-    for (i, uᵢ) ∈ enumerate(u)
-        a[uᵢ] = x[i]
-    end
-    return a
-end
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
-    for (i, uᵢ) ∈ enumerate(u)
-        a[uᵢ] = x[i]
-    end
-    return a
-end
-
-# one
-
-function Base.one(a::AbstractSequence{<:SequenceSpace})
-    c = zero(a)
-    @inbounds c[_findindex_constant(space(a))] = one(eltype(a))
-    return c
 end
 
 # selectdim

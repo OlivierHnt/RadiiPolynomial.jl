@@ -89,12 +89,14 @@ banach_rounding!(x³_fft, norm(x, X) ^ 3, X, 5)
 
 ## API
 
-```@docs
-Sequence
-*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})
-mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)
-banach_rounding_mul
-banach_rounding_mul!
-^(::Sequence{<:SequenceSpace}, ::Int)
-banach_rounding_pow
+```@meta
+CollapsedDocStrings = true
+```
+
+```@autodocs
+Modules = [RadiiPolynomial]
+Private = false
+Pages   = ["sequence_spaces/sequence.jl",
+    "sequence_spaces/arithmetic/convolution.jl",
+    "sequence_spaces/arithmetic/fft.jl"]
 ```

@@ -6,18 +6,6 @@ Computer-assisted proofs aim to **validate numerical simulations** and **derive 
 
 [RadiiPolynomial.jl](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a Julia package to conduct the computational steps of a type of computer-assisted proofs referred to as the *radii polynomial approach* (see the next section below).
 
-In the context of the radii polynomial approach, we discretize functions spaces with respect to a basis that best fit the underlying problem. The multiplication of the basis elements usually provide a natural algebra on the corresponding sequence space. For instance, the space of Taylor coefficients equipped with the Cauchy product forms a [Banach algebra](https://en.wikipedia.org/wiki/Banach_algebra). Currently, the RadiiPolynomial library does not automatically propagate error bounds which limits us to polynomial nonlinearities. However, note that by means of strategies akin to *automatic differentiation*, it is possible to generate, for a large class of differential equations, an auxiliary polynomial system of equations.[^1] To illustrate, the differential equation ``\frac{d}{dt} u(t) = e^{u(t)} - 1``, with initial condition ``u(0) = u_0``, can be solved by studying the system
-
-```math
-\begin{cases}
-\displaystyle \frac{d}{dt} u(t) = v(t) - 1,\\
-\displaystyle \frac{d}{dt} v(t) = v(t)(v(t) - 1),\\
-u(0) = u_0,\, v(0) = e^{u_0}.
-\end{cases}
-```
-
-[^1]: O. Hénot, [On polynomial forms of nonlinear functional differential equations](https://doi.org/10.3934/jcd.2021013), *Journal of Computational Dynamics*, **8** (2021), 307-323.
-
 ## [Radii polynomial approach](@id radii_polynomial_approach)
 
 Given a problem in dynamical systems (e.g. existence of an invariant set, stability analysis, etc.), one approach of computer-assisted proofs consists in representing the desired solution ``\tilde{x}`` as an isolated fixed-point in a Banach space ``X``. The assistance of the computer is used to verify that the corresponding fixed-point operator ``T`` abides by the [Banach Fixed-Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem) in a vicinity of a numerical approximation ``\bar{x}``. Note that a particular case of this procedure is the well-known [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).

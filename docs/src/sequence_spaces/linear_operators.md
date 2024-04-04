@@ -82,6 +82,12 @@ D \ x
 
 ## API
 
-```@docs
-LinearOperator
+```@meta
+CollapsedDocStrings = true
+```
+
+```@autodocs
+Modules = [RadiiPolynomial]
+Private = false
+Pages   = ["sequence_spaces/linear_operator.jl"]
 ```

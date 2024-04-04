@@ -143,23 +143,18 @@ project(Shift(π), Fourier(1, 1.0), image(Shift(π), Fourier(1, 1.0)), Complex{F
 
 ## API
 
-```@docs
-project
-project!
-Multiplication
-Derivative
-differentiate
-differentiate!
-Integral
-integrate
-integrate!
-Evaluation
-evaluate
-evaluate!
-Scale
-scale
-scale!
-Shift
-shift
-shift!
+```@meta
+CollapsedDocStrings = true
+```
+
+```@autodocs
+Modules = [RadiiPolynomial]
+Private = false
+Pages   = ["sequence_spaces/special_operators/special_operator.jl",
+    "sequence_spaces/special_operators/projection.jl",
+    "sequence_spaces/special_operators/multiplication.jl",
+    "sequence_spaces/special_operators/calculus.jl",
+    "sequence_spaces/special_operators/evaluation.jl",
+    "sequence_spaces/special_operators/scale.jl",
+    "sequence_spaces/special_operators/shift.jl"]
 ```

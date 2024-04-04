@@ -89,22 +89,12 @@ norm(a, NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞()))
 
 ## API
 
-```@docs
-BanachSpace
-norm
-opnorm
-Weight
-IdentityWeight
-GeometricWeight
-geometricweight
-AlgebraicWeight
-algebraicweight
-BesselWeight
-Ell1
-ℓ¹
-Ell2
-ℓ²
-EllInf
-ℓ∞
-NormedCartesianSpace
+```@meta
+CollapsedDocStrings = true
+```
+
+```@autodocs
+Modules = [RadiiPolynomial]
+Private = false
+Pages   = ["sequence_spaces/norm.jl"]
 ```

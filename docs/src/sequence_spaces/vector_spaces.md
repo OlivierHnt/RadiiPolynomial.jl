@@ -140,20 +140,12 @@ indices(𝒫_times_𝒯)
 
 ## API
 
-```@docs
-VectorSpace
-ParameterSpace
-SequenceSpace
-BaseSpace
-Taylor
-Fourier
-Chebyshev
-TensorSpace
-TensorIndices
-⊗
-CartesianSpace
-CartesianPower
-RadiiPolynomial.:^
-CartesianProduct
-RadiiPolynomial.:×
+```@meta
+CollapsedDocStrings = true
+```
+
+```@autodocs
+Modules = [RadiiPolynomial]
+Private = false
+Pages   = ["sequence_spaces/vector_spaces.jl"]
 ```

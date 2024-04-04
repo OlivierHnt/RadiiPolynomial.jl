@@ -73,7 +73,7 @@ To improve performance, the FFT algorithm may be used to compute discrete convol
 ```@repl sequences
 x = Sequence(Taylor(3), interval.([inv(10_000.0 ^ i) for i ∈ 0:3]))
 x³ = x ^ 3
-x³_fft = rifft!(zero(x³), fft(x, fft_size(space(x), 3)) .^ 3)
+x³_fft = rifft!(zero(x³), fft(x, fft_size(space(x³))) .^ 3)
 ```
 
 To circumvent machine precision limitations, the `banach_rounding!` method enclose rigorously each term of the convolution beyond a prescribed order.[^1]

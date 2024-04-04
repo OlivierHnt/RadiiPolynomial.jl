@@ -42,8 +42,8 @@ In a nutshell, the pseudo-arclength continuation consists in computing a sequenc
 ```math
 F_\text{Newton}(x) \bydef
 \begin{pmatrix}
-(x - w) \cdot v\\
-f(x)
+f(x) \\
+(x - w) \cdot v
 \end{pmatrix}.
 ```
 
@@ -114,13 +114,13 @@ where ``A(s) : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresp
 Let ``R > 0``. We use a uniform version of the second-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)) such that we need to estimate ``\|T(\bar{x}(s), s) - \bar{x}(s)\|_1``, ``\|D_x T(\bar{x}(s), s)\|_1`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}(s)) )} \|D_x^2 T(x, s)\|_1`` for all ``s \in [-1,1]``. In particular, we have
 
 ```math
-\|T(\bar{x}(s), s) - \bar{x}(s)\|_1 = \left\|A \begin{pmatrix} f(\bar{x}(s)) \\ 0 \end{pmatrix} \right\|_1, \qquad \text{for all } s \in [-1,1].
+\|T(\bar{x}(s), s) - \bar{x}(s)\|_1 = \left\|A(s) \begin{pmatrix} f(\bar{x}(s)) \\ 0 \end{pmatrix} \right\|_1, \qquad \text{for all } s \in [-1,1].
 ```
 
 The computer-assisted proof may be implemented as follows:
 
 ```@example fhn_pseudo_arclength
-N = 500
+N = 700
 N_fft = nextpow(2, 2N + 1)
 npts = N_fft ÷ 2 + 1
 
@@ -157,11 +157,6 @@ end
 
 # construct the approximations
 
-function cheb2grid(x::VecOrMat{<:Sequence}, N_fft)
-    vals = fft.(x, N_fft)
-    return [real.(getindex.(vals, i)) for i ∈ eachindex(vals[1])]
-end
-
 grid2cheb(x_fft::Vector{<:Vector}, N) =
     [rifft!(complex.(getindex.(x_fft, i)), Chebyshev(N)) for i ∈ eachindex(x_fft[1])]
 
@@ -176,29 +171,36 @@ v̄ = map(v -> interval.(v), grid2cheb(v_fft, N))
 
 A = map(A -> interval.(A), grid2cheb(inv.(DF.(x_fft, v_fft)), N))
 
-# AF is a polynomial with respect to s of order 3N
+# compute the bounds
+
+function cheb2grid(x::VecOrMat{<:Sequence}, N_fft)
+    vals = fft.(x, N_fft)
+    return [real.(getindex.(vals, i)) for i ∈ eachindex(vals[1])]
+end
+
+# AF is a polynomial with respect to s of order 4N
+
+N4 = 4N
+N4_fft = nextpow(2, 2N4 + 1)
+
+AF_fft = cheb2grid(A, N4_fft) .* F.(cheb2grid(x̄, N4_fft), cheb2grid(v̄, N4_fft), cheb2grid(x̄, N4_fft))
+AF = grid2cheb(AF_fft, N4)
+
+Y = norm(norm.(AF, 1), 1)
+
+# ADF is a polynomial with respect to s of order 3N
 
 N3 = 3N
 N3_fft = nextpow(2, 2N3 + 1)
 
-AF_fft = cheb2grid(A, N3_fft) .* F.(cheb2grid(x̄, N3_fft), cheb2grid(v̄, N3_fft), cheb2grid(x̄, N3_fft))
-AF = grid2cheb(AF_fft, N3)
-
-Y = norm(norm.(AF, 1), 1)
-
-# ADF is a polynomial with respect to s of order 2N
-
-N2 = 2N
-N2_fft = nextpow(2, 2N2 + 1)
-
-I_ADF_fft = Ref(I) .- cheb2grid(A, N2_fft) .* DF.(cheb2grid(x̄, N2_fft), cheb2grid(v̄, N2_fft))
-I_ADF = grid2cheb(I_ADF_fft, N2)
+I_ADF_fft = [I] .- cheb2grid(A, N3_fft) .* DF.(cheb2grid(x̄, N3_fft), cheb2grid(v̄, N3_fft))
+I_ADF = grid2cheb(I_ADF_fft, N3)
 
 Z₁ = opnorm(norm.(I_ADF, 1), 1)
 
 #
 
-R = 2sup(Y)
+R = 1.2sup(Y)
 
 a, ϵ = 5, 1
 Z₂ = opnorm(norm.(A, 1), 1) * max(abs(2a + 2) + 6(norm(x̄[1], 1) + R) + abs(ϵ), abs(ϵ))

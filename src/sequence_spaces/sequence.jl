@@ -103,8 +103,11 @@ end
 
 Base.one(a::Sequence{ParameterSpace}) = Sequence(space(a), [one(eltype(a))])
 function Base.one(a::Sequence{<:SequenceSpace})
-    c = zero(a)
-    @inbounds c[_findindex_constant(space(a))] = one(eltype(a))
+    new_space = _compatible_space_with_constant_index(space(a))
+    CoefType = eltype(a)
+    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+    coefficients(c) .= zero(CoefType)
+    @inbounds c[_findindex_constant(new_space)] = one(CoefType)
     return c
 end
 

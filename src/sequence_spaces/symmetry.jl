@@ -86,6 +86,7 @@ Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s
 
 indices(s::CosFourier) = 0:order(s)
 
+_compatible_space_with_constant_index(s::CosFourier) = s
 _findindex_constant(::CosFourier) = 0
 
 _findposition(i::Int, ::CosFourier) = i + 1
@@ -121,6 +122,8 @@ Base.intersect(s₁::SinFourier, s₂::SinFourier) = SinFourier(intersect(desymm
 Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
 
 indices(s::SinFourier) = 1:order(s)
+
+_compatible_space_with_constant_index(s::SinFourier) = desymmetrize(s)
 
 _findposition(i::Int, ::SinFourier) = i
 _findposition(u::AbstractRange{Int}, ::SinFourier) = u

@@ -222,7 +222,9 @@ _checkbounds_indices(α::NTuple{N,Colon}, s::TensorSpace{<:NTuple{N,BaseSpace}})
     true
 _checkbounds_indices(α::Tuple{Colon}, s::TensorSpace{<:Tuple{BaseSpace}}) = true
 
-_findindex_constant(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = ntuple(_ -> 0, Val(N))
+_compatible_space_with_constant_index(s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map(_compatible_space_with_constant_index, s.spaces))
+_findindex_constant(s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = map(_findindex_constant, s.spaces)
 
 _findposition(α::Tuple{Int}, s::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _findposition(α[1], s.spaces[1])
@@ -316,6 +318,7 @@ indices(s::Taylor) = 0:s.order
 
 __checkbounds_indices(α::Int, s::Taylor) = 0 ≤ α ≤ order(s)
 
+_compatible_space_with_constant_index(s::Taylor) = s
 _findindex_constant(::Taylor) = 0
 
 _findposition(i::Int, ::Taylor) = i + 1
@@ -387,6 +390,7 @@ indices(s::Fourier) = -s.order:s.order
 
 __checkbounds_indices(α::Int, s::Fourier) = -order(s) ≤ α ≤ order(s)
 
+_compatible_space_with_constant_index(s::Fourier) = s
 _findindex_constant(::Fourier) = 0
 
 _findposition(i::Int, s::Fourier) = i + s.order + 1
@@ -449,6 +453,7 @@ indices(s::Chebyshev) = 0:s.order
 
 __checkbounds_indices(α::Int, s::Chebyshev) = 0 ≤ α ≤ order(s)
 
+_compatible_space_with_constant_index(s::Chebyshev) = s
 _findindex_constant(::Chebyshev) = 0
 
 _findposition(i::Int, ::Chebyshev) = i + 1

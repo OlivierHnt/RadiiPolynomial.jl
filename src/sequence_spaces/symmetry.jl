@@ -1002,3 +1002,108 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::Abstrac
     end
     return s
 end
+
+
+
+
+
+_apply(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = _safe_mul(2, sum(abs, A))
+function _apply(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .+= abs.(selectdim(A, N, i))
+    end
+    s .= _safe_mul.(2, s)
+    return s
+end
+_apply_dual(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = _safe_div(maximum(abs, A), 2)
+function _apply_dual(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= max.(s, abs.(selectdim(A, N, i)))
+    end
+    s .= _safe_div.(s, 2)
+    return s
+end
+
+function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector)
+    ν = rate(weight(X))
+    ord = order(space)
+    @inbounds s = abs(A[ord]) * one(ν)
+    @inbounds for i ∈ ord-1:-1:1
+        s = s * ν + abs(A[i])
+    end
+    s = _safe_mul(2, ν) * s
+    return s
+end
+function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = rate(weight(X))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= s .* ν .+ abs.(selectdim(A, N, i))
+    end
+    s .= _safe_mul(2, ν) .* s
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector{T}) where {T}
+    ν = νⁱ = inv(rate(weight(X)))
+    @inbounds s = abs(A[1]) * νⁱ
+    @inbounds for i ∈ 2:order(space)
+        νⁱ *= ν
+        s = max(s, abs(A[i]) * νⁱ)
+    end
+    s = _safe_div(s, 2)
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = νⁱ = inv(rate(weight(X)))
+    CoefType = typeof(abs(zero(T))*νⁱ)
+    @inbounds A₁ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₁))
+    s .= abs.(A₁) .* νⁱ
+    @inbounds for i ∈ 2:order(space)
+        νⁱ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i)) .* νⁱ)
+    end
+    s .= _safe_div.(s, 2)
+    return s
+end
+
+_apply(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = _safe_mul(2, maximum(abs, A))
+function _apply(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= max.(s, abs.(selectdim(A, N, i)))
+    end
+    s .= _safe_mul.(2, s)
+    return s
+end
+_apply_dual(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = _safe_div(sum(abs, A), 2)
+function _apply_dual(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .+= abs.(selectdim(A, N, i))
+    end
+    s .= _safe_div.(s, 2)
+    return s
+end

@@ -10,7 +10,7 @@ end
 function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{R,Complex{R}}},U<:BanachSpace}
     _iscompatbanachspace(space(sequence), banachspace) || return throw(ArgumentError("invalid norm for the sequence space"))
     if isempty_interval(sequence_error)
-        seq = fill(emptyinterval(sequence_error), space(sequence))
+        seq = fill(emptyinterval(eltype(sequence)), space(sequence))
         sequence_norm = emptyinterval(sequence_error)
         return _unsafe_validated_sequence(seq, sequence_norm, sequence_error, banachspace)
     elseif (inf(sequence_error) ≥ 0) & isbounded(sequence_error)
@@ -69,7 +69,7 @@ function Base.show(io::IO, ::MIME"text/plain", a::ValidatedSequence)
     println(io, "Sequence in ", _prettystring(space(a)), " with coefficients ", typeof(coefficients(a)), ":")
     Base.print_array(io, coefficients(a))
     println(io, "\nNorm of the truncated sequence: ", sequence_norm(a))
-    println(io, "Truncation error: ", sequence_error(a))
+    println(io, "Sequence error: ", sequence_error(a))
     return print(io, "Banach space: ", _prettystring(banachspace(a)))
 end
 
@@ -284,12 +284,12 @@ Base.abs2(a::ValidatedSequence) = a^2
 for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
     @eval begin
         function Base.$f(a::ValidatedSequence{<:BaseSpace})
-            @assert banachspace(a) isa Ell1{<:GeometricWeight}
+            banachspace(a) isa Ell1{<:GeometricWeight} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
 
             space_approx = _image_trunc($f, space(a))
             mida = mid.(sequence(a))
-            N_fft = fft_size(space_approx)
-            A = fft(mida, N_fft)
+            N_fft_ = fft_size(space_approx)
+            A = fft(mida, N_fft_)
             fA = $f.(A)
             seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
 
@@ -297,9 +297,10 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             ν = rate(weight(banachspace(a)))
 
-            ν_finite_part = rate(geometricweight(seq_approx_fa))
-            ν_finite_part = interval(max(nextfloat(sup(ν)), ν_finite_part))
+            ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_approx_fa))))
             ν_finite_part⁻¹ = inv(ν_finite_part)
+
+            N_fft = 2 * N_fft_
 
             C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
                     _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))

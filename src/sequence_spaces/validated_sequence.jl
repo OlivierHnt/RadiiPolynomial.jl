@@ -139,7 +139,7 @@ function Base.:*(a::ValidatedSequence, b::ValidatedSequence)
     X = _banachspace_intersect(banachspace(a), banachspace(b))
     full_c = sequence(a) * sequence(b) # banach_rounding_mul(sequence(a), sequence(b), X)
     c = project(full_c, space(a) ∪ space(b))
-    @inbounds view(full_c, indices(space(c))) .= 0
+    @inbounds view(full_c, indices(space(c))) .= zero(eltype(c))
     return ValidatedSequence(c, norm(full_c, X) +
             sequence_norm(a) * sequence_error(b) +
             sequence_norm(b) * sequence_error(a) +
@@ -306,11 +306,11 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
                     _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
 
             error = C * (
-                mapreduce(k -> (_safe_pow(ν_finite_part⁻¹, k) + _safe_pow(ν_finite_part, k)) * _safe_pow(ν_finite_part, abs(k)), +, indices(space_approx)) / (_safe_pow(ν_finite_part, N_fft) - 1) +
+                mapreduce(k -> (_safe_pow(ν_finite_part⁻¹, k) + _safe_pow(ν_finite_part, k)) * _safe_pow(ν_finite_part, abs(k)), +, indices(space_approx)) / (_safe_pow(ν_finite_part, N_fft) - interval(IntervalArithmetic.numtype(ν_finite_part), 1)) +
                 _safe_mul(2, ν_finite_part) / (ν_finite_part - ν) * _safe_pow(ν * ν_finite_part⁻¹, order(a) + 1))
 
             if !isthinzero(sequence_error(a))
-                r_star = 1 + sequence_error(a)
+                r_star = interval(IntervalArithmetic.numtype(sequence_error(a)), 1) + sequence_error(a)
                 W = mapreduce(
                         θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, real(eltype(seq_fa))),
                                  _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, real(eltype(seq_fa)))),

@@ -359,7 +359,7 @@ struct Fourier{T<:Real} <: BaseSpace
     order :: Int
     frequency :: T
     function Fourier{T}(order::Int, frequency::T) where {T<:Real}
-        (order < 0) | !(inf(frequency) ≥ 0) && return throw(DomainError((order, frequency), "Fourier is only defined for positive orders and frequencies"))
+        (order ≥ 0) & (inf(frequency) ≥ 0) || return throw(DomainError((order, frequency), "Fourier is only defined for positive orders and frequencies"))
         return new{T}(order, frequency)
     end
 end

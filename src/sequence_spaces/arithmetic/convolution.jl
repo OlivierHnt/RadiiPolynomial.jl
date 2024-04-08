@@ -41,7 +41,7 @@ end
 banach_rounding!(a, bound, X) = banach_rounding!(a, bound, X, banach_rounding_order(bound, X))
 
 function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound::Real, X::Ell1, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S}
-    bound ≥ 0 || return throw(ArgumentError("the bound must be positive"))
+    (inf(bound) ≥ 0) & all(≥(0), rounding_order) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     space_a = space(a)
     M = typemax(Int)
     @inbounds for α ∈ indices(space_a)
@@ -56,7 +56,7 @@ end
 # Taylor
 
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weight(X)))
         μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
@@ -69,7 +69,7 @@ function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, 
 end
 
 function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(weight(X), space_a, i)
@@ -81,7 +81,7 @@ end
 # Fourier
 
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weight(X)))
         μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
@@ -96,7 +96,7 @@ function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Rea
 end
 
 function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(weight(X), space_a, i)
@@ -110,7 +110,7 @@ end
 # Chebyshev
 
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     if rounding_order ≤ order(a)
         ν⁻¹ = inv(rate(weight(X)))
         μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
@@ -123,7 +123,7 @@ function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Rea
 end
 
 function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
-    (bound ≥ 0) & (rounding_order ≥ 0) || return throw(ArgumentError("the bound and the rounding order must be positive"))
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     space_a = space(a)
     @inbounds for i ∈ rounding_order:order(a)
         μⁱ = bound / _getindex(weight(X), space_a, i)

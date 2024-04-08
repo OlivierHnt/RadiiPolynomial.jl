@@ -289,15 +289,13 @@ end
 
 _fft_pow2!(a::AbstractVector{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, length(a)÷2))
 
-function _fft_pow2!(a::AbstractVector{Complex{T}}, Ω) where {T<:Interval}
+function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}, Ω) where {T}
     _bitreverse!(a)
-    π_ = convert(T, π)
     n = length(a)
     N = 2
     @inbounds while N ≤ n
         N½ = N÷2
-        π2N⁻¹ = _safe_div(π_, N½)
-        view(Ω, 1:N½) .= cis.(_safe_mul.(-π2N⁻¹, 0:N½-1))
+        view(Ω, 1:N½) .= cispi.(interval.(T, (0:N½-1) .// N½))
         for k ∈ 1:N:n
             @inbounds for (i, j) ∈ enumerate(k:k+N½-1)
                 j′ = j + N½
@@ -343,7 +341,7 @@ end
 
 function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
     conj!(_fft_pow2!(conj!(a), Ω))
-    a ./= length(a)
+    a .= _safe_div.(a, length(a))
     return a
 end
 

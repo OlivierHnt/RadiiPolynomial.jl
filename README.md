@@ -1,10 +1,10 @@
-# RadiiPolynomial.jl
-
-[![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions/workflows/ci.yml)
-
-[![DOI](https://zenodo.org/badge/426607582.svg)](https://zenodo.org/badge/latestdoi/426607582)
+<h1 align="center">
+RadiiPolynomial
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable)
+[![DOI](https://zenodo.org/badge/426607582.svg)](https://zenodo.org/badge/latestdoi/426607582)
+[![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions/workflows/ci.yml)
+</h1>
 
 RadiiPolynomial.jl is a Julia package for computer-assisted proofs in dynamical systems.
 

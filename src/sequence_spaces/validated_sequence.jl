@@ -288,8 +288,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             space_approx = _image_trunc($f, space(a))
             mida = mid.(sequence(a))
-            N_fft_ = fft_size(space_approx)
-            A = fft(mida, N_fft_)
+            N_fft = 2 * fft_size(space_approx)
+            A = fft(mida, N_fft)
             fA = $f.(A)
             seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
 
@@ -299,8 +299,6 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_approx_fa))))
             ν_finite_part⁻¹ = inv(ν_finite_part)
-
-            N_fft = 2 * N_fft_
 
             C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
                     _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))

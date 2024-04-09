@@ -367,7 +367,7 @@ function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
             @inbounds c[0] = zero(eltype(c))
         elseif n == 1
             @inbounds for i ∈ 1:order_a
-                c[i-1] = _safe_mul(i, a[i])
+                c[i-1] = ExactReal(i) * a[i]
             end
         else
             space_a = space(a)
@@ -390,7 +390,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where 
             C .= zero(T)
         elseif n == 1
             @inbounds for i ∈ 1:ord
-                selectdim(C, 1, i) .= _safe_mul.(i, selectdim(A, 1, i+1))
+                selectdim(C, 1, i) .= ExactReal(i) .* selectdim(A, 1, i+1)
             end
         else
             @inbounds for i ∈ n:ord
@@ -413,7 +413,7 @@ function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}
         elseif n == 1
             C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord, size(A, i)), Val(N)))
             @inbounds for i ∈ 1:ord
-                selectdim(C, D, i) .= _safe_mul.(i, selectdim(A, D, i+1))
+                selectdim(C, D, i) .= ExactReal(i) .* selectdim(A, D, i+1)
             end
             return C
         else
@@ -436,7 +436,7 @@ function _nzval(𝒟::Derivative, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     n = order(𝒟)
     p = one(real(T))
     for k ∈ 1:n
-        p = _safe_mul(i+k, p)
+        p = ExactReal(i+k) * p
     end
     return convert(T, p)
 end
@@ -452,7 +452,7 @@ function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
     elseif n == 1
         @inbounds c[0] = zero(eltype(c))
         @inbounds for i ∈ 0:order(a)
-            c[i+1] = _safe_div(a[i], i+1)
+            c[i+1] = a[i] / ExactReal(i+1)
         end
     else
         space_a = space(a)
@@ -473,7 +473,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
         ord = order(space)
         @inbounds selectdim(C, 1, 1) .= zero(T)
         @inbounds for i ∈ 0:ord
-            selectdim(C, 1, i+2) .= _safe_div.(selectdim(A, 1, i+1), i+1)
+            selectdim(C, 1, i+2) .= selectdim(A, 1, i+1) ./ ExactReal(i+1)
         end
     else
         ord = order(space)
@@ -495,7 +495,7 @@ function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) w
         C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord+2, size(A, i)), Val(N)))
         @inbounds selectdim(C, D, 1) .= zero(CoefType)
         @inbounds for i ∈ 0:ord
-            selectdim(C, D, i+2) .= _safe_div.(selectdim(A, D, i+1), i+1)
+            selectdim(C, D, i+2) .= selectdim(A, D, i+1) ./ ExactReal(i+1)
         end
         return C
     else
@@ -533,7 +533,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
             @inbounds for j ∈ 1:order(c)
-                ωj = _safe_mul(ω, j)
+                ωj = ω * ExactReal(j)
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
                 c[j] = complex(-ωj * imag(aⱼ), ωj * real(aⱼ))
@@ -543,7 +543,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
+                    sign_iⁿ_ωⁿjⁿ = ExactReal(sign_iⁿ) * (ω * ExactReal(j)) ^ ExactReal(n)
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
                     c[j] = complex(-sign_iⁿ_ωⁿjⁿ * imag(aⱼ), sign_iⁿ_ωⁿjⁿ * real(aⱼ))
@@ -552,7 +552,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
+                    iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
                     c[j] = iⁿωⁿjⁿ_real * a[j]
                     c[-j] = iⁿωⁿjⁿ_real * a[-j]
                 end
@@ -572,7 +572,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ωj = _safe_mul(ω, j)
+                ωj = ω * ExactReal(j)
                 Aⱼ = selectdim(A, 1, ord+1+j)
                 A₋ⱼ = selectdim(A, 1, ord+1-j)
                 selectdim(C, 1, ord+1+j) .= complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
@@ -582,7 +582,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
+                    sign_iⁿ_ωⁿjⁿ = ExactReal(sign_iⁿ) * (ω * ExactReal(j)) ^ ExactReal(n)
                     Aⱼ = selectdim(A, 1, ord+1+j)
                     A₋ⱼ = selectdim(A, 1, ord+1-j)
                     selectdim(C, 1, ord+1+j) .= complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
@@ -591,7 +591,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
+                    iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
                     selectdim(C, 1, ord+1+j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1+j)
                     selectdim(C, 1, ord+1-j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1-j)
                 end
@@ -613,7 +613,7 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ωj = _safe_mul(ω, j)
+                ωj = ω * ExactReal(j)
                 Aⱼ = selectdim(A, D, ord+1+j)
                 A₋ⱼ = selectdim(A, D, ord+1-j)
                 selectdim(C, D, ord+1+j) .= complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
@@ -623,7 +623,7 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ωⁿjⁿ = _safe_mul(sign_iⁿ, _safe_pow(_safe_mul(ω, j), n))
+                    sign_iⁿ_ωⁿjⁿ = ExactReal(sign_iⁿ) * (ω * ExactReal(j)) ^ ExactReal(n)
                     Aⱼ = selectdim(A, D, ord+1+j)
                     A₋ⱼ = selectdim(A, D, ord+1-j)
                     selectdim(C, D, ord+1+j) .= complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
@@ -632,7 +632,7 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ_real = _safe_mul(iⁿ_real, _safe_pow(_safe_mul(ω, j), n))
+                    iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
                     selectdim(C, D, ord+1+j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, ord+1+j)
                     selectdim(C, D, ord+1-j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, ord+1-j)
                 end
@@ -663,7 +663,7 @@ function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) w
     if n == 0
         return one(T)
     else
-        ωⁿjⁿ = _safe_pow(_safe_mul(one(real(T))*frequency(domain), j), n)
+        ωⁿjⁿ = (one(real(T)) * frequency(domain) * ExactReal(j)) ^ ExactReal(n)
         r = n % 4
         if r == 0
             return convert(T, complex(ωⁿjⁿ, zero(ωⁿjⁿ)))
@@ -691,7 +691,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
         @inbounds c[0] = zero(eltype(c))
         if n == 1
             @inbounds for j ∈ 1:order(c)
-                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
+                ω⁻¹j⁻¹ = inv(ω * ExactReal(j))
                 aⱼ = a[j]
                 a₋ⱼ = a[-j]
                 c[j] = complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
@@ -701,7 +701,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = ExactReal(sign_iⁿ) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     aⱼ = a[j]
                     a₋ⱼ = a[-j]
                     c[j] = complex(sign_iⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_iⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
@@ -710,7 +710,7 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:order(c)
-                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    iⁿω⁻ⁿj⁻ⁿ_real = ExactReal(iⁿ_real) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     c[j] = iⁿω⁻ⁿj⁻ⁿ_real * a[j]
                     c[-j] = iⁿω⁻ⁿj⁻ⁿ_real * a[-j]
                 end
@@ -731,7 +731,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
+                ω⁻¹j⁻¹ = inv(ω * ExactReal(j))
                 Aⱼ = selectdim(A, 1, ord+1+j)
                 A₋ⱼ = selectdim(A, 1, ord+1-j)
                 selectdim(C, 1, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
@@ -741,7 +741,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = ExactReal(sign_iⁿ) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     Aⱼ = selectdim(A, 1, ord+1+j)
                     A₋ⱼ = selectdim(A, 1, ord+1-j)
                     selectdim(C, 1, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
@@ -750,7 +750,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    iⁿω⁻ⁿj⁻ⁿ_real = ExactReal(iⁿ_real) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     selectdim(C, 1, ord+1+j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1+j)
                     selectdim(C, 1, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1-j)
                 end
@@ -773,7 +773,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
         if n == 1
             @inbounds for j ∈ 1:ord
-                ω⁻¹j⁻¹ = inv(_safe_mul(ω, j))
+                ω⁻¹j⁻¹ = inv(ω * ExactReal(j))
                 Aⱼ = selectdim(A, D, ord+1+j)
                 A₋ⱼ = selectdim(A, D, ord+1-j)
                 selectdim(C, D, ord+1+j) .= Complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
@@ -783,7 +783,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
             if isodd(n)
                 sign_iⁿ = ifelse(n%4 == 1, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = _safe_mul(sign_iⁿ, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    sign_iⁿ_ω⁻ⁿj⁻ⁿ = ExactReal(sign_iⁿ) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     Aⱼ = selectdim(A, D, ord+1+j)
                     A₋ⱼ = selectdim(A, D, ord+1-j)
                     selectdim(C, D, ord+1+j) .= Complex.(sign_iⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_iⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
@@ -792,7 +792,7 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
             else
                 iⁿ_real = ifelse(n%4 == 0, 1, -1)
                 @inbounds for j ∈ 1:ord
-                    iⁿω⁻ⁿj⁻ⁿ_real = _safe_mul(iⁿ_real, _safe_pow(inv(_safe_mul(ω, j)), n))
+                    iⁿω⁻ⁿj⁻ⁿ_real = ExactReal(iⁿ_real) * inv(ω * ExactReal(j)) ^ ExactReal(n)
                     selectdim(C, D, ord+1+j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1+j)
                     selectdim(C, D, ord+1-j) .= iⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1-j)
                 end
@@ -826,7 +826,7 @@ function _nzval(ℐ::Integral, domain::Fourier, ::Fourier, ::Type{T}, i, j) wher
         if j == 0
             return zero(T)
         else
-            ω⁻ⁿj⁻ⁿ = _safe_pow(inv(_safe_mul(one(real(T))*frequency(domain), j)), n)
+            ω⁻ⁿj⁻ⁿ = inv(one(real(T)) * frequency(domain) * ExactReal(j)) ^ ExactReal(n)
             r = n % 4
             if r == 0
                 return convert(T, complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
@@ -860,9 +860,9 @@ function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
             @inbounds for i ∈ 0:order_a-1
                 c[i] = zero(CoefType)
                 @inbounds for j ∈ i+1:2:order_a
-                    c[i] += _safe_mul(j, a[j])
+                    c[i] += ExactReal(j) * a[j]
                 end
-                c[i] = _safe_mul(2, c[i])
+                c[i] *= ExactReal(2)
             end
         end
     else # TODO: lift restriction
@@ -884,7 +884,7 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) whe
                 Cᵢ = selectdim(C, 1, i+1)
                 Cᵢ .= zero(T)
                 @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= _safe_mul.(2j, selectdim(A, 1, j+1))
+                    Cᵢ .+= ExactReal(2j) .* selectdim(A, 1, j+1)
                 end
             end
         end
@@ -908,7 +908,7 @@ function _apply(𝒟::Derivative, space::Chebyshev, ::Val{D}, A::AbstractArray{T
             @inbounds for i ∈ 0:ord-1
                 Cᵢ = selectdim(C, D, i+1)
                 @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= _safe_mul.(2j, selectdim(A, D, j+1))
+                    Cᵢ .+= ExactReal(2j) .* selectdim(A, D, j+1)
                 end
             end
             return C
@@ -960,7 +960,7 @@ function _nzval(𝒟::Derivative, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) whe
     if n == 0
         return one(T)
     elseif n == 1
-        return _safe_convert(T, 2j)
+        return convert(T, ExactReal(2j))
     else # TODO: lift restriction
         return throw(DomainError)
     end
@@ -978,26 +978,26 @@ function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
         order_a = order(a)
         if order_a == 0
             @inbounds c[0] = a[0]
-            @inbounds c[1] = _safe_div(a[0], 2)
+            @inbounds c[1] = a[0] / ExactReal(2)
         elseif order_a == 1
-            @inbounds c[0] = a[0] - _safe_div(a[1], 2)
-            @inbounds c[1] = _safe_div(a[0], 2)
-            @inbounds c[2] = _safe_div(a[1], 4)
+            @inbounds c[0] = a[0] - a[1] / ExactReal(2)
+            @inbounds c[1] = a[0] / ExactReal(2)
+            @inbounds c[2] = a[1] / ExactReal(4)
         else
             @inbounds c[0] = zero(eltype(c))
             @inbounds for i ∈ 2:2:order_a-1
-                c[0] += _safe_div(a[i+1], (i+1)^2-1) - _safe_div(a[i], i^2-1)
+                c[0] += a[i+1] / ExactReal((i+1)^2-1) - a[i] / ExactReal(i^2-1)
             end
             if iseven(order_a)
-                @inbounds c[0] -= _safe_div(a[order_a], order_a^2-1)
+                @inbounds c[0] -= a[order_a] / ExactReal(order_a^2-1)
             end
-            @inbounds c[0] = _safe_mul(2, c[0]) + a[0] - _safe_div(a[1], 2)
-            @inbounds c[1] = _safe_div(a[0] - a[2], 2)
+            @inbounds c[0] = ExactReal(2) * c[0] + a[0] - a[1] / ExactReal(2)
+            @inbounds c[1] = (a[0] - a[2]) / ExactReal(2)
             @inbounds for i ∈ 2:order_a-1
-                c[i] = _safe_div(a[i-1] - a[i+1], 2i)
+                c[i] = (a[i-1] - a[i+1]) / ExactReal(2i)
             end
-            @inbounds c[order_a] = _safe_div(a[order_a-1], 2order_a)
-            @inbounds c[order_a+1] = _safe_div(a[order_a], 2(order_a+1))
+            @inbounds c[order_a] = a[order_a-1] / ExactReal(2order_a)
+            @inbounds c[order_a+1] = a[order_a] / ExactReal(2(order_a+1))
         end
     else # TODO: lift restriction
         return throw(DomainError)
@@ -1016,27 +1016,27 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where 
         @inbounds A₀ = selectdim(A, 1, 1)
         if ord == 0
             C₀ .= A₀
-            C₁ .= _safe_div.(A₀, 2)
+            C₁ .= A₀ ./ ExactReal(2)
         elseif ord == 1
             @inbounds A₁ = selectdim(A, 1, 2)
-            C₀ .= A₀ .- _safe_div.(A₁, 2)
-            C₁ .= _safe_div.(A₀, 2)
-            @inbounds selectdim(C, 1, 3) .= _safe_div.(A₁, 4)
+            C₀ .= A₀ .- A₁ ./ ExactReal(2)
+            C₁ .= A₀ ./ ExactReal(2)
+            @inbounds selectdim(C, 1, 3) .= A₁ ./ ExactReal(4)
         else
             C₀ .= zero(T)
             @inbounds for i ∈ 2:2:ord-1
-                C₀ .+= _safe_div.(selectdim(A, 1, i+2), (i+1)^2-1) .- _safe_div.(selectdim(A, 1, i+1), i^2-1)
+                C₀ .+= selectdim(A, 1, i+2) ./ ExactReal((i+1)^2-1) .- selectdim(A, 1, i+1) ./ ExactReal(i^2-1)
             end
             if iseven(ord)
-                @inbounds C₀ .-= _safe_div.(selectdim(A, 1, ord+1), ord^2-1)
+                @inbounds C₀ .-= selectdim(A, 1, ord+1) ./ ExactReal(ord^2-1)
             end
-            @inbounds C₀ .= _safe_mul.(2, C₀) .+ A₀ .- _safe_div.(selectdim(A, 1, 2), 2)
-            @inbounds C₁ .= _safe_div.(A₀ .- selectdim(A, 1, 3), 2)
+            @inbounds C₀ .= ExactReal(2) .* C₀ .+ A₀ .- selectdim(A, 1, 2) ./ ExactReal(2)
+            @inbounds C₁ .= (A₀ .- selectdim(A, 1, 3)) ./ ExactReal(2)
             @inbounds for i ∈ 2:ord-1
-                selectdim(C, 1, i+1) .= _safe_div.(selectdim(A, 1, i) .- selectdim(A, 1, i+2), 2i)
+                selectdim(C, 1, i+1) .= (selectdim(A, 1, i) .- selectdim(A, 1, i+2)) ./ ExactReal(2i)
             end
-            @inbounds selectdim(C, 1, ord+1) .= _safe_div.(selectdim(A, 1, ord), 2ord)
-            @inbounds selectdim(C, 1, ord+2) .= _safe_div.(selectdim(A, 1, ord+1), 2(ord+1))
+            @inbounds selectdim(C, 1, ord+1) .= selectdim(A, 1, ord) ./ ExactReal(2ord)
+            @inbounds selectdim(C, 1, ord+2) .= selectdim(A, 1, ord+1) ./ ExactReal(2(ord+1))
         end
     else # TODO: lift restriction
         return throw(DomainError)
@@ -1057,27 +1057,27 @@ function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}
         @inbounds A₀ = selectdim(A, D, 1)
         if ord == 0
             C₀ .= A₀
-            C₁ .= _safe_div.(A₀, 2)
+            C₁ .= A ./ ExactReal(2)
         elseif ord == 1
             @inbounds A₁ = selectdim(A, D, 2)
-            C₀ .= A₀ .- _safe_div.(A₁, 2)
-            C₁ .= _safe_div.(A₀, 2)
-            @inbounds selectdim(C, D, 3) .= _safe_div.(A₁, 4)
+            C₀ .= A₀ .- A₁ ./ ExactReal(2)
+            C₁ .= A₀ ./ ExactReal(2)
+            @inbounds selectdim(C, D, 3) .= A₁ ./ ExactReal(4)
         else
             C₀ .= zero(CoefType)
             @inbounds for i ∈ 2:2:ord-1
-                C₀ .+= _safe_div.(selectdim(A, D, i+2), (i+1)^2-1) .- _safe_div.(selectdim(A, D, i+1), i^2-1)
+                C₀ .+= selectdim(A, D, i+2) ./ ExactReal((i+1)^2-1) .- selectdim(A, D, i+1) ./ ExactReal(i^2-1)
             end
             if iseven(ord)
-                @inbounds C₀ .-= _safe_div.(selectdim(A, D, ord+1), ord^2-1)
+                @inbounds C₀ .-= selectdim(A, D, ord+1) ./ ExactReal(ord^2-1)
             end
-            @inbounds C₀ .= _safe_mul.(2, C₀) .+ A₀ .- _safe_div.(selectdim(A, D, 2), 2)
-            @inbounds C₁ .= _safe_div.(A₀ .- selectdim(A, D, 3), 2)
+            @inbounds C₀ .= ExactReal(2) .* C₀ .+ A₀ .- selectdim(A, D, 2) ./ ExactReal(2)
+            @inbounds C₁ .= (A₀ .- selectdim(A, D, 3)) ./ ExactReal(2)
             @inbounds for i ∈ 2:ord-1
-                selectdim(C, D, i+1) .= _safe_div.(selectdim(A, D, i) .- selectdim(A, D, i+2), 2i)
+                selectdim(C, D, i+1) .= (selectdim(A, D, i) .- selectdim(A, D, i+2)) ./ ExactReal(2i)
             end
-            @inbounds selectdim(C, D, ord+1) .= _safe_div.(selectdim(A, D, ord), 2ord)
-            @inbounds selectdim(C, D, ord+2) .= _safe_div.(selectdim(A, D, ord+1), 2(ord+1))
+            @inbounds selectdim(C, D, ord+1) .= selectdim(A, D, ord) ./ ExactReal(2ord)
+            @inbounds selectdim(C, D, ord+2) .= selectdim(A, D, ord+1) ./ ExactReal(2(ord+1))
         end
         return C
     else # TODO: lift restriction
@@ -1171,21 +1171,21 @@ function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where 
             if j == 0
                 return one(T)
             elseif j == 1
-                return convert(T, -_safe_div(one(T), 2))
+                return convert(T, -one(T) / ExactReal(2))
             elseif iseven(j)
-                return convert(T, _safe_mul(2, _safe_div(one(T), 1-j^2)))
+                return convert(T, ExactReal(2) * one(T) / ExactReal(1-j^2))
             else
-                return convert(T, _safe_mul(2, _safe_div(one(T), j^2-1)))
+                return convert(T, ExactReal(2) * one(T) / ExactReal(j^2-1))
             end
         elseif i == 1 && j == 0
-            return convert(T, _safe_div(one(T), 2))
+            return convert(T, one(T) / ExactReal(2))
         elseif i == 2 && j == 1
-            return convert(T, _safe_div(one(T), 4))
+            return convert(T, one(T) / ExactReal(4))
         else
             if i+1 == j
-                return convert(T, -_safe_div(one(T), 2i))
+                return convert(T, -one(T) / ExactReal(2i))
             else # i == j+1
-                return convert(T, _safe_div(one(T), 2i))
+                return convert(T, one(T) / ExactReal(2i))
             end
         end
     else # TODO: lift restriction

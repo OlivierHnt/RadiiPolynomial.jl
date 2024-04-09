@@ -313,7 +313,7 @@ function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) w
             if iszero(x)
                 return zero(T)
             else
-                return convert(T, _safe_pow(x, j))
+                return convert(T, x ^ ExactReal(j))
             end
         end
     else
@@ -348,7 +348,7 @@ function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
     elseif ord > 0
         ωx = frequency(a)*x
         @inbounds for j ∈ 1:ord
-            eiωxj = cis(_safe_mul(ωx, j))
+            eiωxj = cis(ωx * ExactReal(j))
             c[0] += a[j] * eiωxj + a[-j] / eiωxj
         end
     end
@@ -371,7 +371,7 @@ function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
     elseif ord > 0
         ωx = frequency(space)*x
         @inbounds for j ∈ 1:ord
-            eiωxj = cis(_safe_mul(ωx, j))
+            eiωxj = cis(ωx * ExactReal(j))
             C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) ./ eiωxj
         end
     end
@@ -391,7 +391,7 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     elseif ord > 0
         ωx = frequency(space)*x
         @inbounds for j ∈ 1:ord
-            eiωxj = cis(_safe_mul(ωx, j))
+            eiωxj = cis(ωx * ExactReal(j))
             C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) ./ eiωxj
         end
     end
@@ -406,7 +406,7 @@ function _getindex(ℰ::Evaluation, domain::Fourier, ::Fourier, ::Type{T}, i, j,
         if j == 0 || iszero(x)
             return one(T)
         else
-            return convert(T, cis(_safe_mul(frequency(domain)*x, j)))
+            return convert(T, cis(frequency(domain) * x * ExactReal(j)))
         end
     else
         return zero(T)
@@ -433,32 +433,32 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{Chebyshev})
     if iszero(x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 2:2:ord
-            c[0] += _safe_mul(ifelse(i%4 == 0, 2, -2), a[i])
+            c[0] += ExactReal(ifelse(i%4 == 0, 2, -2)) * a[i]
         end
     elseif isone(-x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
-            c[0] += _safe_mul(ifelse(isodd(i), -2, 2), a[i])
+            c[0] += ExactReal(ifelse(isodd(i), -2, 2)) * a[i]
         end
     elseif isone(x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
-            c[0] += _safe_mul(2, a[i])
+            c[0] += ExactReal(2) * a[i]
         end
     else
         if ord == 0
             @inbounds c[0] = a[0]
         elseif ord == 1
-            @inbounds c[0] = a[0] + _safe_mul(2, x) * a[1]
+            @inbounds c[0] = a[0] + ExactReal(2) * x * a[1]
         else
             CoefType = eltype(c)
-            x2 = _safe_mul(2, x)
+            x2 = ExactReal(2) * x
             s = zero(CoefType)
-            @inbounds t = convert(CoefType, _safe_mul(2, a[ord]))
+            @inbounds t = convert(CoefType, ExactReal(2) * a[ord])
             @inbounds c[0] = zero(CoefType)
             @inbounds for i ∈ ord-1:-1:1
                 c[0] = t
-                t = x2 * t - s + _safe_mul(2, a[i])
+                t = x2 * t - s + ExactReal(2) * a[i]
                 s = c[0]
             end
             @inbounds c[0] = x * t - s + a[0]
@@ -477,33 +477,33 @@ function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, A) wher
     if iszero(x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 2:2:ord
-            C .+= _safe_mul.(ifelse(i%4 == 0, 2, -2), selectdim(A, 1, i+1))
+            C .+= ExactReal(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, 1, i+1)
         end
     elseif isone(-x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 1:ord
-            C .+= _safe_mul.(ifelse(isodd(i), -2, 2), selectdim(A, 1, i+1))
+            C .+= ExactReal(ifelse(isodd(i), -2, 2)) .* selectdim(A, 1, i+1)
         end
     elseif isone(x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 1:ord
-            C .+= _safe_mul.(2, selectdim(A, 1, i+1))
+            C .+= ExactReal(2) .* selectdim(A, 1, i+1)
         end
     else
         if ord == 0
             @inbounds C .= selectdim(A, 1, 1)
         elseif ord == 1
-            @inbounds C .= selectdim(A, 1, 1) .+ _safe_mul(2, x) .* selectdim(A, 1, 2)
+            @inbounds C .= selectdim(A, 1, 1) .+ (ExactReal(2) * x) .* selectdim(A, 1, 2)
         else
-            x2 = _safe_mul(2, x)
+            x2 = ExactReal(2) * x
             @inbounds Aᵢ = selectdim(A, 1, ord+1)
             sz = size(Aᵢ)
             s = zeros(T, sz)
             t = Array{T}(undef, sz)
-            t .= _safe_mul.(2, Aᵢ)
+            t .= ExactReal(2) .* Aᵢ
             @inbounds for i ∈ ord-1:-1:1
                 C .= t
-                t .= x2 .* t .- s .+ _safe_mul.(2, selectdim(A, 1, i+1))
+                t .= x2 .* t .- s .+ ExactReal(2) .* selectdim(A, 1, i+1)
                 s .= C
             end
             @inbounds C .= x .* t .- s .+ selectdim(A, 1, 1)
@@ -520,37 +520,37 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     if iszero(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 2:2:ord
-            C .+= _safe_mul.(ifelse(i%4 == 0, 2, -2), selectdim(A, D, i+1))
+            C .+= ExactReal(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, D, i+1)
         end
         return C
     elseif isone(-x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
-            C .+= _safe_mul.(ifelse(isodd(i), -2, 2), selectdim(A, D, i+1))
+            C .+= ExactReal(ifelse(isodd(i), -2, 2)) .* selectdim(A, D, i+1)
         end
         return C
     elseif isone(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
-            C .+= _safe_mul.(2, selectdim(A, D, i+1))
+            C .+= ExactReal(2) .* selectdim(A, D, i+1)
         end
         return C
     else
         if ord == 0
             return @inbounds convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         elseif ord == 1
-            return @inbounds convert(Array{CoefType,N-1}, selectdim(A, D, 1) .+ _safe_mul(2, x) .* selectdim(A, D, 2))
+            return @inbounds convert(Array{CoefType,N-1}, selectdim(A, D, 1) .+ (ExactReal(2) * x) .* selectdim(A, D, 2))
         else
-            x2 = _safe_mul(2, x)
+            x2 = ExactReal(2) * x
             @inbounds Aᵢ = selectdim(A, D, ord+1)
             sz = size(Aᵢ)
             s = zeros(CoefType, sz)
             t = Array{CoefType,N-1}(undef, sz)
-            t .= _safe_mul.(2, Aᵢ)
+            t .= ExactReal(2) .* Aᵢ
             C = Array{CoefType,N-1}(undef, sz)
             @inbounds for i ∈ ord-1:-1:1
                 C .= t
-                t .= x2 .* t .- s .+ _safe_mul.(2, selectdim(A, D, i+1))
+                t .= x2 .* t .- s .+ ExactReal(2) .* selectdim(A, D, i+1)
                 s .= C
             end
             @inbounds C .= x .* t .- s .+ selectdim(A, D, 1)
@@ -571,24 +571,24 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
                 if isodd(j)
                     return zero(T)
                 elseif j%4 == 0
-                    return _safe_convert(T, 2)
+                    return convert(T, ExactReal(2))
                 else
-                    return _safe_convert(T, -2)
+                    return convert(T, ExactReal(-2))
                 end
             elseif isone(-x)
                 if isodd(j)
-                    return _safe_convert(T, -2)
+                    return convert(T, ExactReal(-2))
                 else
-                    return _safe_convert(T, 2)
+                    return convert(T, ExactReal(2))
                 end
             elseif isone(x)
-                return _safe_convert(T, 2)
+                return convert(T, ExactReal(2))
             else
-                x2 = convert(T, _safe_mul(2, x))
+                x2 = convert(T, ExactReal(2) * x)
                 if j == 1
                     return x2
                 elseif j == 2
-                    return convert(T, x2 * x2 - _safe_convert(T, 2))
+                    return convert(T, x2 * x2 - convert(T, ExactReal(2)))
                 else
                     return get!(memo, j) do
                         x2 * _getindex(ℰ, domain, codomain, T, i, j-1, memo) - _getindex(ℰ, domain, codomain, T, i, j-2, memo)

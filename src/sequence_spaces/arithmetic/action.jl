@@ -8,7 +8,7 @@ function Base.:*(A::LinearOperator, b::AbstractSequence)
     _iscompatible(domain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, b has space $space_b"))
     CoefType = promote_type(eltype(A), eltype(b))
     c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
-    _mul!(c, A, b, _safe_convert(real(CoefType), true), _safe_convert(real(CoefType), false))
+    _mul!(c, A, b, convert(real(CoefType), ExactReal(true)), convert(real(CoefType), ExactReal(false)))
     return c
 end
 
@@ -32,7 +32,7 @@ function _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, 
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
-            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, _safe_convert(real(eltype(c)), true))
+            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, convert(real(eltype(c)), ExactReal(true)))
         end
     else
         inds_mult = indices(domain_A ∩ space_b)
@@ -45,7 +45,7 @@ function _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, 
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
-            @inbounds __mul!(view(c, inds_space), view(A, inds_space, inds_mult), view(b, inds_mult), α, _safe_convert(real(eltype(c)), true))
+            @inbounds __mul!(view(c, inds_space), view(A, inds_space, inds_mult), view(b, inds_mult), α, convert(real(eltype(c)), ExactReal(true)))
         end
     end
     return c
@@ -77,7 +77,7 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace
         @inbounds for j ∈ 1:m
             bⱼ = component(b, j)
             @inbounds for i ∈ 1:n
-                _mul!(component(c, i), component(A, i, j), bⱼ, α, _safe_convert(real(eltype(c)), true))
+                _mul!(component(c, i), component(A, i, j), bⱼ, α, convert(real(eltype(c)), ExactReal(true)))
             end
         end
     end
@@ -112,7 +112,7 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
                 coefficients(c) .*= β
             end
             inds_space = indices(codomain_A ∩ space_c)
-            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, _safe_convert(real(eltype(c)), true))
+            @inbounds __mul!(view(c, inds_space), view(A, inds_space, :), coefficients(b), α, convert(real(eltype(c)), ExactReal(true)))
         end
     else
         if iszero(β)
@@ -121,7 +121,7 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
             coefficients(c) .*= β
         end
         @inbounds for j ∈ 1:nspaces(domain_A)
-            _mul!(c, component(A, j), component(b, j), α, _safe_convert(real(eltype(c)), true))
+            _mul!(c, component(A, j), component(b, j), α, convert(real(eltype(c)), ExactReal(true)))
         end
     end
     return c

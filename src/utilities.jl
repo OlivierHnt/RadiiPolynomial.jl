@@ -1,19 +1,4 @@
-# safe conversion of integers
-
-_safe_mul(x, y) = x * y
-_safe_mul(x::Union{Interval{T},Complex{Interval{T}}}, y) where {T} = x * interval(T, y)
-_safe_mul(x, y::Union{Interval{T},Complex{Interval{T}}}) where {T} = interval(T, x) * y
-
-_safe_div(x, y) = x / y
-_safe_div(x::Union{Interval{T},Complex{Interval{T}}}, y::Integer) where {T} = x / interval(T, y)
-
-_safe_pow(x, y) = x ^ y
-_safe_pow(x::Union{Interval{T},Complex{Interval{T}}}, n::Integer) where {T} = x ^ interval(T, n)
-_safe_pow(n::Integer, x::Interval{T}) where {T} = interval(T, n) ^ x
-
-_safe_convert(::Type{T}, x) where {T} = convert(T, x)
-_safe_convert(::Type{Interval{T}}, x) where {T} = interval(T, x)
-_safe_convert(::Type{Complex{Interval{T}}}, x) where {T} = interval(T, complex(x))
+# safe equality
 
 _safe_isequal(x, y) = x == y
 _safe_isequal(x::Union{Interval,Complex{<:Interval}}, y::Union{Interval,Complex{<:Interval}}) =

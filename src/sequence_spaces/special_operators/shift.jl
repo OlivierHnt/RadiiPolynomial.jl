@@ -40,9 +40,9 @@ value(𝒮::Shift) = 𝒮.value
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(value(𝒮₁) + value(𝒮₂))
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Shift{<:Number}, n::Integer) = Shift(_safe_mul(value(𝒮), n))
-Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Integer) = Shift(map(τᵢ -> _safe_mul(τᵢ, n), value(𝒮)))
-Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Shift(map(_safe_mul, value(𝒮), n))
+Base.:^(𝒮::Shift{<:Number}, n::Integer) = Shift(value(𝒮) * ExactReal(n))
+Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Integer) = Shift(map(τᵢ -> τᵢ * ExactReal(n), value(𝒮)))
+Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Shift(map((τᵢ, nᵢ) -> τᵢ * ExactReal(nᵢ), value(𝒮), n))
 
 """
     *(𝒮::Shift, a::AbstractSequence)
@@ -303,7 +303,7 @@ function _nzval(𝒮::Shift, domain::Fourier, ::Fourier, ::Type{T}, i, j) where 
     if iszero(τ)
         return one(T)
     else
-        return convert(T, cis(_safe_mul(frequency(domain)*τ, i)))
+        return convert(T, cis(frequency(domain) * τ * ExactReal(i)))
     end
 end
 

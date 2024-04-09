@@ -148,7 +148,7 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(*, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    _mul!(c, a, b, _safe_convert(real(CoefType), true), _safe_convert(real(CoefType), false))
+    _mul!(c, a, b, convert(real(CoefType), ExactReal(true)), convert(real(CoefType), ExactReal(false)))
     return c
 end
 
@@ -156,7 +156,7 @@ function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     new_space = image(mul_bar, space(a), space(b))
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    _mul!(c, a, b, _safe_convert(real(CoefType), true), _safe_convert(real(CoefType), false))
+    _mul!(c, a, b, convert(real(CoefType), ExactReal(true)), convert(real(CoefType), ExactReal(false)))
     return c
 end
 
@@ -206,7 +206,7 @@ function banach_rounding_mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:Sequenc
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     bound_ab = norm(a, X) * norm(b, X)
-    _add_mul!(c, a, b, _safe_convert(real(CoefType), true), bound_ab, X)
+    _add_mul!(c, a, b, convert(real(CoefType), ExactReal(true)), bound_ab, X)
     return c
 end
 
@@ -215,7 +215,7 @@ function banach_rounding_mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:Seq
     CoefType = promote_type(eltype(a), eltype(b))
     c = Sequence(new_space, zeros(CoefType, dimension(new_space)))
     bound_ab = norm(a, X) * norm(b, X)
-    _add_mul!(c, a, b, _safe_convert(real(CoefType), true), bound_ab, X)
+    _add_mul!(c, a, b, convert(real(CoefType), ExactReal(true)), bound_ab, X)
     return c
 end
 
@@ -238,7 +238,7 @@ function banach_rounding_mul!(c::Sequence{<:SequenceSpace}, a::Sequence{<:Sequen
     _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a*b has space $new_space"))
     coefficients(c) .= zero(eltype(c))
     bound_ab = norm(a, X) * norm(b, X)
-    _add_mul!(c, a, b, _safe_convert(real(eltype(c)), true), bound_ab, X)
+    _add_mul!(c, a, b, convert(real(eltype(c)), ExactReal(true)), bound_ab, X)
     return c
 end
 
@@ -335,7 +335,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
                 selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
-                _safe_mul(x, α), remaining_space_c, remaining_space_a, remaining_space_b)
+                ExactReal(x) * α, remaining_space_c, remaining_space_a, remaining_space_b)
         end
     end
     return C
@@ -351,7 +351,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
                 selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
-                _safe_mul(x, α), remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
+                ExactReal(x) * α, remaining_space_c, remaining_space_a, remaining_space_b, t_, sum_t, full_space_c, bound_ab, X, rounding_order)
         end
     end
     return C
@@ -363,7 +363,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i)
     @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
         x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
         if !iszero(x)
-            Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
+            Cᵢ += ExactReal(x) * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
         end
     end
     @inbounds C[_findposition(i, space_c)] += Cᵢ * α
@@ -380,7 +380,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, bound_ab, X, 
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
             if !iszero(x)
-                Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
+                Cᵢ += ExactReal(x) * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
             end
         end
         @inbounds C[_findposition(i, space_c)] += Cᵢ * α
@@ -398,7 +398,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i, t, sum_t, ful
         @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
             if !iszero(x)
-                Cᵢ += _safe_mul(x, A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)])
+                Cᵢ += ExactReal(x) * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
             end
         end
         @inbounds C[_findposition(i, space_c)] += Cᵢ * α
@@ -831,15 +831,15 @@ function _banach_rounding_sqr_bar(a::Sequence{<:SequenceSpace}, X::Ell1)
     return c
 end
 
-_add_sqr!(c::Sequence, a) = _add_mul!(c, a, a, _safe_convert(real(eltype(c)), true))
-_add_sqr!(c::Sequence, a, bound_a², X) = _add_mul!(c, a, a, _safe_convert(real(eltype(c)), true), bound_a², X)
+_add_sqr!(c::Sequence, a) = _add_mul!(c, a, a, convert(real(eltype(c)), ExactReal(true)))
+_add_sqr!(c::Sequence, a, bound_a², X) = _add_mul!(c, a, a, convert(real(eltype(c)), ExactReal(true)), bound_a², X)
 
 # Taylor
 
 function _add_sqr!(c::Sequence{Taylor}, a)
     order_a = order(space(a))
     @inbounds a₀ = a[0]
-    @inbounds c[0] += _safe_pow(a₀, 2)
+    @inbounds c[0] += a₀ ^ ExactReal(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = zero(eltype(a))
         i_odd = i%2
@@ -849,9 +849,9 @@ function _add_sqr!(c::Sequence{Taylor}, a)
         end
         if iszero(i_odd)
             a_i½ = a[i÷2]
-            c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
+            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
         else
-            c[i] += _safe_mul(2, cᵢ)
+            c[i] += ExactReal(2) * cᵢ
         end
     end
     return c
@@ -862,7 +862,7 @@ function _add_sqr!(c::Sequence{Taylor}, a, bound_a², X)
     if rounding_order > 0
         order_a = order(space(a))
         @inbounds a₀ = a[0]
-        @inbounds c[0] += _safe_pow(a₀, 2)
+        @inbounds c[0] += a₀ ^ ExactReal(2)
         @inbounds for i ∈ 1:min(order(space(c)), rounding_order-1)
             cᵢ = zero(eltype(a))
             i_odd = i%2
@@ -872,9 +872,9 @@ function _add_sqr!(c::Sequence{Taylor}, a, bound_a², X)
             end
             if iszero(i_odd)
                 a_i½ = a[i÷2]
-                c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
+                c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
             else
-                c[i] += _safe_mul(2, cᵢ)
+                c[i] += ExactReal(2) * cᵢ
             end
         end
     end
@@ -891,7 +891,7 @@ function _add_sqr!(c::Sequence{<:Fourier}, a)
         c₀ += a[j] * a[-j]
     end
     @inbounds a₀ = a[0]
-    @inbounds c[0] += _safe_mul(2, c₀) + _safe_pow(a₀, 2)
+    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = c₋ᵢ = zero(eltype(a))
         i½, i_odd = divrem(i, 2)
@@ -902,11 +902,11 @@ function _add_sqr!(c::Sequence{<:Fourier}, a)
         if iszero(i_odd)
             a_i½ = a[i½]
             a_neg_i½ = a[-i½]
-            c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
-            c[-i] += _safe_mul(2, c₋ᵢ) + _safe_pow(a_neg_i½, 2)
+            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+            c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
         else
-            c[i] += _safe_mul(2, cᵢ)
-            c[-i] += _safe_mul(2, c₋ᵢ)
+            c[i] += ExactReal(2) * cᵢ
+            c[-i] += ExactReal(2) * c₋ᵢ
         end
     end
     return c
@@ -921,7 +921,7 @@ function _add_sqr!(c::Sequence{<:Fourier}, a, bound_a², X)
             c₀ += a[j] * a[-j]
         end
         @inbounds a₀ = a[0]
-        @inbounds c[0] += _safe_mul(2, c₀) + _safe_pow(a₀, 2)
+        @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
         @inbounds for i ∈ 1:min(order(space(c)), rounding_order-1)
             cᵢ = c₋ᵢ = zero(eltype(a))
             i½, i_odd = divrem(i, 2)
@@ -932,11 +932,11 @@ function _add_sqr!(c::Sequence{<:Fourier}, a, bound_a², X)
             if iszero(i_odd)
                 a_i½ = a[i½]
                 a_neg_i½ = a[-i½]
-                c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
-                c[-i] += _safe_mul(2, c₋ᵢ) + _safe_pow(a_neg_i½, 2)
+                c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+                c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
             else
-                c[i] += _safe_mul(2, cᵢ)
-                c[-i] += _safe_mul(2, c₋ᵢ)
+                c[i] += ExactReal(2) * cᵢ
+                c[-i] += ExactReal(2) * c₋ᵢ
             end
         end
     end
@@ -951,10 +951,10 @@ function _add_sqr!(c::Sequence{Chebyshev}, a)
     c₀ = zero(eltype(a))
     @inbounds for j ∈ 1:order_a
         aⱼ = a[j]
-        c₀ += _safe_pow(aⱼ, 2)
+        c₀ += aⱼ ^ ExactReal(2)
     end
     @inbounds a₀ = a[0]
-    @inbounds c[0] += _safe_mul(2, c₀) + _safe_pow(a₀, 2)
+    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = zero(eltype(a))
         i½, i_odd = divrem(i, 2)
@@ -963,9 +963,9 @@ function _add_sqr!(c::Sequence{Chebyshev}, a)
         end
         if iszero(i_odd)
             a_i½ = a[i½]
-            c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
+            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
         else
-            c[i] += _safe_mul(2, cᵢ)
+            c[i] += ExactReal(2) * cᵢ
         end
     end
     return c
@@ -978,10 +978,10 @@ function _add_sqr!(c::Sequence{Chebyshev}, a, bound_a², X)
         c₀ = zero(eltype(a))
         @inbounds for j ∈ 1:order_a
             aⱼ = a[j]
-            c₀ += _safe_pow(aⱼ, 2)
+            c₀ += aⱼ ^ ExactReal(2)
         end
         @inbounds a₀ = a[0]
-        @inbounds c[0] += _safe_mul(2, c₀) + _safe_pow(a₀, 2)
+        @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
         @inbounds for i ∈ 1:min(order(space(c)), rounding_order-1)
             cᵢ = zero(eltype(a))
             i½, i_odd = divrem(i, 2)
@@ -990,9 +990,9 @@ function _add_sqr!(c::Sequence{Chebyshev}, a, bound_a², X)
             end
             if iszero(i_odd)
                 a_i½ = a[i½]
-                c[i] += _safe_mul(2, cᵢ) + _safe_pow(a_i½, 2)
+                c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
             else
-                c[i] += _safe_mul(2, cᵢ)
+                c[i] += ExactReal(2) * cᵢ
             end
         end
     end

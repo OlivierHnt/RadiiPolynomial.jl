@@ -341,7 +341,7 @@ end
 
 function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
     conj!(_fft_pow2!(conj!(a), Ω))
-    a .= _safe_div.(a, length(a))
+    a ./= ExactReal(length(a))
     return a
 end
 

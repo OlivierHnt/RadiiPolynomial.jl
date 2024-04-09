@@ -40,9 +40,9 @@ value(𝒮::Scale) = 𝒮.value
 Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
 Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(_safe_pow(value(𝒮), n))
-Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> _safe_pow(γᵢ, n), value(𝒮)))
-Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map(_safe_pow, value(𝒮), n))
+Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(value(𝒮) ^ ExactReal(n))
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> γᵢ ^ ExactReal(n), value(𝒮)))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map((γᵢ, nᵢ) -> γᵢ ^ ExactReal(nᵢ), value(𝒮), n))
 
 """
     *(𝒮::Scale, a::AbstractSequence)
@@ -245,7 +245,7 @@ function _nzval(𝒮::Scale, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     if isone(γ)
         return one(T)
     else
-        return convert(T, _safe_pow(γ, i))
+        return convert(T, γ ^ ExactReal(i))
     end
 end
 

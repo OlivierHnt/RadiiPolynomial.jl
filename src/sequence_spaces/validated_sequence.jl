@@ -78,9 +78,9 @@ function Base.show(io::IO, a::ValidatedSequence)
     return print(io, "ValidatedSequence(", space(a), ", ", coefficients(a), ", ", sequence_norm(a), ", ", sequence_error(a), ", ", banachspace(a), ")")
 end
 
-# special operators
 
-# TODO: projection, integration, etc.
+
+# special operators
 
 function differentiate(a::ValidatedSequence, α=1)
     sequence_error(a) == 0 || return throw(DomainError) # TODO: lift restriction
@@ -88,12 +88,47 @@ function differentiate(a::ValidatedSequence, α=1)
     return ValidatedSequence(c, banachspace(a))
 end
 
-evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
-_return_evaluate(c, a::ValidatedSequence) = interval(c, sequence_error(a); format = :midpoint)
-function _return_evaluate(c::Sequence, a::ValidatedSequence)
-    c .= interval.(c, sequence_error(a); format = :midpoint)
-    return ValidatedSequence(c, sequence_error(a), banachspace(a))
+
+
+function integrate(a::ValidatedSequence, α=1)
+    c = integrate(sequence(a), α)
+    X = banachspace(a)
+    return ValidatedSequence(c, _integral_error(X, space(a), space(c), α) * sequence_error(a), X)
 end
+
+_integral_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _integral_error(X, dom[1], codom[1], α[1]) * _integral_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
+_integral_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _integral_error(X, dom[1], codom[1], α[1])
+
+_integral_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _integral_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _integral_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
+_integral_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _integral_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
+
+function _integral_error(X::Ell1, dom::Taylor, codom::Taylor, n::Int)
+    v = __getindex(weight(X), codom, n)
+    return v * _nzval(Integral(n), dom, codom, typeof(v), n, 0)
+end
+_integral_error(::Ell1, dom::Fourier{T}, codom::Fourier{S}, n::Int) where {T<:Real,S<:Real} =
+    abs(_nzval(Integral(n), dom, codom, complex(promote_type(T, S)), 1, 1))
+function _integral_error(X::Ell1, ::Chebyshev, codom::Chebyshev, n::Int)
+    v = ExactReal(1) + __getindex(weight(X), codom, n)
+    n == 0 && return one(v)
+    n == 1 && return v
+    return throw(DomainError) # TODO: lift restriction
+end
+
+__getindex(::IdentityWeight, ::BaseSpace, ::Int) = interval(1)
+__getindex(w::Weight, s::BaseSpace, n::Int) = _getindex(w, s, n)
+
+
+evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
+
+_return_evaluate(c, a::ValidatedSequence) = interval(c, sequence_error(a); format = :midpoint)
+_return_evaluate(c::Sequence, a::ValidatedSequence) = ValidatedSequence(c, sequence_error(a), banachspace(a))
+
+
 
 # norm
 
@@ -101,7 +136,7 @@ LinearAlgebra.norm(a::ValidatedSequence) = sequence_norm(a) + sequence_error(a)
 
 
 
-# rigorous evaluation of nonlinearities
+# rigorous enclosure of nonlinearities
 
 _banachspace_identity(::Ell1) = Ell1()
 _banachspace_identity(::Ell2) = Ell2()
@@ -185,7 +220,7 @@ function Base.inv(a::ValidatedSequence)
     X = banachspace(a)
     approx_a⁻¹ = ValidatedSequence(interval.(seq_approx_a⁻¹), X)
 
-    f = approx_a⁻¹ * a - interval(real(eltype(seq_approx_a⁻¹)), 1)
+    f = approx_a⁻¹ * a - ExactReal(1)
     Y = norm(approx_a⁻¹ * f)
     Z₁ = norm(f)
     r = interval_of_existence(Y, Z₁, Inf; verbose = false)
@@ -209,7 +244,7 @@ function Base.:/(a::ValidatedSequence, b::ValidatedSequence)
     approx_b⁻¹ = ValidatedSequence(interval.(seq_approx_b⁻¹), X)
 
     Y = norm(approx_b⁻¹ * (approx_ab⁻¹ * b - a))
-    Z₁ = norm(approx_b⁻¹ * b - interval(real(eltype(seq_approx_ab⁻¹)), 1))
+    Z₁ = norm(approx_b⁻¹ * b - ExactReal(1))
     r = interval_of_existence(Y, Z₁, Inf; verbose = false)
 
     isempty_interval(r) || return ValidatedSequence(sequence(approx_ab⁻¹), interval(real(eltype(seq_approx_ab⁻¹)), inf(r)), X)
@@ -237,8 +272,8 @@ function Base.sqrt(a::ValidatedSequence)
     approx_sqrta = ValidatedSequence(interval.(seq_approx_sqrta), X)
     approx_sqrta⁻¹ = ValidatedSequence(interval.(seq_approx_sqrta⁻¹), X)
 
-    Y = norm(approx_sqrta⁻¹ * (approx_sqrta ^ 2 - a))/interval(real(eltype(seq_approx_sqrta)), 2)
-    Z₁ = norm(approx_sqrta⁻¹ * approx_sqrta - interval(real(eltype(seq_approx_sqrta)), 1))
+    Y = norm(approx_sqrta⁻¹ * (approx_sqrta ^ 2 - a)) / ExactReal(2)
+    Z₁ = norm(approx_sqrta⁻¹ * approx_sqrta - ExactReal(1))
     Z₂ = norm(approx_sqrta⁻¹)
     r = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = false)
 
@@ -261,12 +296,13 @@ function Base.cbrt(a::ValidatedSequence)
     approx_cbrta = ValidatedSequence(interval.(seq_approx_cbrta), X)
     approx_cbrta⁻² = ValidatedSequence(interval.(seq_approx_cbrta⁻²), X)
 
-    Y = norm(approx_cbrta⁻² * (approx_cbrta ^ 3 - a))/interval(real(eltype(seq_approx_cbrta)), 3)
-    Z₁ = norm(approx_cbrta⁻² * approx_cbrta ^ 2 - interval(real(eltype(seq_approx_cbrta)), 1))
+    approx_cbrta² = approx_cbrta ^ 2
+    Y = norm(approx_cbrta⁻² * (approx_cbrta² * approx_cbrta - a)) / ExactReal(3)
+    Z₁ = norm(approx_cbrta⁻² * approx_cbrta² - ExactReal(1))
     v = 2mid(norm(approx_cbrta⁻²)) * mid(norm(approx_cbrta))
     w = 2mid(norm(approx_cbrta⁻²))
-    R = max(2sup(Y), (-v + sqrt(v^2 - 2w*(mid(Z₁) - 1)))/ w) # could use: 0.1*sup( (1-Z₁)^2/(4Y * norm(approx_cbrta⁻²)) - norm(approx_cbrta) )
-    Z₂ = interval(real(eltype(seq_approx_cbrta)), 2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + interval(real(eltype(seq_approx_cbrta)), R))
+    R = max(2sup(Y), (-v + sqrt(v^2 - 2w*(mid(Z₁) - 1))) / w) # could use: 0.1sup( (1-Z₁)^2/(4Y * norm(approx_cbrta⁻²)) - norm(approx_cbrta) )
+    Z₂ = ExactReal(2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + ExactReal(R))
     r = interval_of_existence(Y, Z₁, Z₂, R; verbose = false)
 
     isempty_interval(r) || return ValidatedSequence(sequence(approx_cbrta), interval(real(eltype(seq_approx_cbrta)), inf(r)), X)
@@ -287,9 +323,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             banachspace(a) isa Ell1{<:GeometricWeight} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
 
             space_approx = _image_trunc($f, space(a))
-            mida = mid.(sequence(a))
             N_fft = 2 * fft_size(space_approx)
-            A = fft(mida, N_fft)
+            A = fft(sequence(a), N_fft)
             fA = $f.(A)
             seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
 
@@ -303,12 +338,12 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
                     _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
 
-            error = C * (
-                mapreduce(k -> (_safe_pow(ν_finite_part⁻¹, k) + _safe_pow(ν_finite_part, k)) * _safe_pow(ν_finite_part, abs(k)), +, indices(space_approx)) / (_safe_pow(ν_finite_part, N_fft) - interval(IntervalArithmetic.numtype(ν_finite_part), 1)) +
-                _safe_mul(2, ν_finite_part) / (ν_finite_part - ν) * _safe_pow(ν * ν_finite_part⁻¹, order(a) + 1))
+            q = mapreduce(k -> (ν_finite_part⁻¹ ^ ExactReal(k) + ν_finite_part ^ ExactReal(k)) * ν_finite_part ^ ExactReal(abs(k)), +, indices(space_approx))
+            error = C * (q / (ν_finite_part ^ ExactReal(N_fft) - ExactReal(1)) +
+                         ExactReal(2) * ν_finite_part / (ν_finite_part - ν) * (ν * ν_finite_part⁻¹) ^ ExactReal(order(a) + 1))
 
             if !isthinzero(sequence_error(a))
-                r_star = interval(IntervalArithmetic.numtype(sequence_error(a)), 1) + sequence_error(a)
+                r_star = ExactReal(1) + sequence_error(a)
                 W = mapreduce(
                         θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, real(eltype(seq_fa))),
                                  _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, real(eltype(seq_fa)))),
@@ -328,12 +363,12 @@ function _contour(f, ū, ν_finite_part, N_fft, T)
     val = sup(inv(interval(IntervalArithmetic.numtype(ν_finite_part), N_fft)))
     δ = interval(-val, val)
     for k ∈ indices(space(ū))
-        ū_contour[k] *= _safe_pow(ν_finite_part, k) * cispi(_safe_mul(k, δ))
+        ū_contour[k] *= ν_finite_part ^ ExactReal(k) * cispi(ExactReal(k) * δ)
     end
     grid_ū_contour = fft(ū_contour, N_fft)
     contour_integral = zero(real(T))
     for v ∈ grid_ū_contour
         contour_integral += abs(f(v))
     end
-    return interval(sup(_safe_div(contour_integral, N_fft)))
+    return interval(sup(contour_integral / ExactReal(N_fft)))
 end

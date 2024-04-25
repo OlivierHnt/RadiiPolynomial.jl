@@ -210,7 +210,7 @@ Base.@propagate_inbounds component(A::LinearOperator{<:CartesianSpace,<:VectorSp
 Base.@propagate_inbounds component(A::LinearOperator{<:VectorSpace,<:CartesianSpace}, i) =
     LinearOperator(domain(A), codomain(A)[i], view(coefficients(A), _component_findposition(i, codomain(A)), :))
 
-Base.@propagate_inbounds function component(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, k::Any)
+Base.@propagate_inbounds function component(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, k)
     n = nspaces(codomain(A))
     j, i = divrem(k, n)
     if iszero(i)

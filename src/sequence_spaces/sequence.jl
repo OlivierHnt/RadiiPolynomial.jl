@@ -100,6 +100,10 @@ function Base.zero(a::Sequence)
     coefficients(c) .= zero(CoefType)
     return c
 end
+Base.zero(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = zeros(eltype(S), _zero_space(T))
+_zero_space(::Type{TensorSpace{T}}) where {T<:Tuple} = TensorSpace(map(_zero_space, fieldtypes(T)))
+_zero_space(::Type{Taylor}) = Taylor(0)
+_zero_space(::Type{Chebyshev}) = Chebyshev(0)
 
 Base.one(a::Sequence{ParameterSpace}) = Sequence(space(a), [one(eltype(a))])
 function Base.one(a::Sequence{<:SequenceSpace})
@@ -110,6 +114,10 @@ function Base.one(a::Sequence{<:SequenceSpace})
     @inbounds c[_findindex_constant(new_space)] = one(CoefType)
     return c
 end
+Base.one(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = ones(eltype(S), _zero_space(T))
+_zero_space(::Type{TensorSpace{T}}) where {T<:Tuple} = TensorSpace(map(_zero_space, fieldtypes(T)))
+_zero_space(::Type{Taylor}) = Taylor(0)
+_zero_space(::Type{Chebyshev}) = Chebyshev(0)
 
 for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f(coefficients(a)))

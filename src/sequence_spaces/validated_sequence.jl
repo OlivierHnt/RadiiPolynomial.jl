@@ -50,6 +50,10 @@ coefficients(a::ValidatedSequence) = coefficients(sequence(a))
 
 # utilities
 
+# by-pass default
+Base.:(==)(a::ValidatedSequence, b::ValidatedSequence) =
+    (sequence(a) == sequence(b)) & iszero(sequence_error(a)) & iszero(sequence_error(b))
+
 Base.copy(a::ValidatedSequence) =
     _unsafe_validated_sequence(copy(sequence(a)), sequence_norm(a), sequence_error(a), banachspace(a))
 
@@ -320,6 +324,7 @@ Base.abs2(a::ValidatedSequence) = a^2
 for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
     @eval begin
         function Base.$f(a::ValidatedSequence{<:BaseSpace})
+            @assert !iszero(sequence(a)) # TODO: lift restriction
             banachspace(a) isa Ell1{<:GeometricWeight} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
 
             space_approx = _image_trunc($f, space(a))
@@ -344,12 +349,58 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             if !isthinzero(sequence_error(a))
                 r_star = ExactReal(1) + sequence_error(a)
-                W = mapreduce(
-                        θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, real(eltype(seq_fa))),
-                                 _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, real(eltype(seq_fa)))),
+                # W = mapreduce(
+                #         θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
+                #                  _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))),
+                #         max,
+                #         mince(interval(IntervalArithmetic.numtype(ν), -1, 1), N_fft)
+                #     ) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                θ = interval(IntervalArithmetic.numtype(ν), -1, 1)
+                W = max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
+                        _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                error += W * sequence_error(a)
+            end
+
+            return ValidatedSequence(seq_fa, error, banachspace(a))
+        end
+
+        function Base.$f(a::ValidatedSequence{<:TensorSpace})
+            @assert !iszero(sequence(a)) # TODO: lift restriction
+            banachspace(a) isa Tuple{Vararg{Ell1{<:GeometricWeight}}} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
+
+            space_approx = _image_trunc($f, space(a))
+            N_fft = 2 .* fft_size(space_approx)
+            A = fft(sequence(a), N_fft)
+            fA = $f.(A)
+            seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
+
+            seq_fa = interval.(seq_approx_fa)
+
+            ν = rate.(weight(banachspace(a)))
+
+            ν_finite_part = interval.(max.(nextfloat.(sup.(rate.(weight(banachspace(a))))), rate.(geometricweight(seq_approx_fa))))
+            ν_finite_part⁻¹ = inv.(ν_finite_part)
+
+            _t_ = tuple(ν_finite_part, ν_finite_part⁻¹)
+            mix_ν = Iterators.product(getindex.(_t_, 1), getindex.(_t_, 2))
+
+            C = mapreduce(μ -> _contour($f, sequence(a), μ, N_fft, eltype(seq_fa)), max, mix_ν)
+
+            q = mapreduce(k -> mapreduce(μ -> prod(μ .^ ExactReal.(k)), +, mix_ν) * prod(ν_finite_part .^ ExactReal.(abs.(k))), +, indices(space_approx))
+            error = C * (q / prod(ν_finite_part .^ ExactReal.(N_fft) .- ExactReal(1)) +
+                         ExactReal(2^2) * prod(ν_finite_part) / prod(ν_finite_part .- ν) * prod((ν .* ν_finite_part⁻¹) .^ ExactReal.(order(a) .+ 1)))
+
+            if !isthinzero(sequence_error(a))
+                r_star = ExactReal(1) + sequence_error(a)
+                # W = mapreduce(
+                #         θ -> mapreduce(μ -> _contour($f, sequence(a) + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)), max, mix_ν),
+                #         max,
+                #         mince(interval(promote_type(IntervalArithmetic.numtype.(ν)...), -1, 1), minimum(N_fft))
+                #     ) * prod((ν_finite_part .+ ν) ./ (ν_finite_part .- ν))
+                θ = interval(promote_type(IntervalArithmetic.numtype.(ν)...), -1, 1)
+                W = mapreduce(μ -> _contour($f, sequence(a) + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)),
                         max,
-                        mince(interval(IntervalArithmetic.numtype(ν), -1, 1), N_fft)
-                    ) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                        mix_ν) * prod((ν_finite_part .+ ν) ./ (ν_finite_part .- ν))
                 error += W * sequence_error(a)
             end
 
@@ -358,17 +409,32 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
     end
 end
 
-function _contour(f, ū, ν_finite_part, N_fft, T)
-    ū_contour = complex.(ū)
-    val = sup(inv(interval(IntervalArithmetic.numtype(ν_finite_part), N_fft)))
+function _contour(f, ū, μ, N_fft, T)
+    ū_δ = complex.(ū)
+    val = sup(inv(interval(IntervalArithmetic.numtype(μ), N_fft)))
     δ = interval(-val, val)
     for k ∈ indices(space(ū))
-        ū_contour[k] *= ν_finite_part ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+        ū_δ[k] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
     end
-    grid_ū_contour = fft(ū_contour, N_fft)
+    grid_ū_δ = fft(ū_δ, N_fft)
     contour_integral = zero(real(T))
-    for v ∈ grid_ū_contour
+    for v ∈ grid_ū_δ
         contour_integral += abs(f(v))
     end
     return interval(sup(contour_integral / ExactReal(N_fft)))
+end
+
+function _contour(f, ū, μ, N_fft::Tuple, T)
+    ū_δ = complex.(ū)
+    val = sup.(inv.(interval.(IntervalArithmetic.numtype.(μ), N_fft)))
+    δ = interval.(.- val, val)
+    for k ∈ indices(space(ū))
+        ū_δ[k] *= prod(μ .^ ExactReal.(k) .* cispi.(ExactReal.(k) .* δ))
+    end
+    grid_ū_δ = fft(ū_δ, N_fft)
+    contour_integral = zero(real(T))
+    for v ∈ grid_ū_δ
+        contour_integral += abs(f(v))
+    end
+    return interval(sup(contour_integral / ExactReal(prod(N_fft))))
 end

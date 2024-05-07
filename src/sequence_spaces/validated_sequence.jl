@@ -127,6 +127,7 @@ __getindex(::IdentityWeight, ::BaseSpace, ::Int) = interval(1)
 __getindex(w::Weight, s::BaseSpace, n::Int) = _getindex(w, s, n)
 
 
+
 evaluate(a::ValidatedSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
 
 _return_evaluate(c, a::ValidatedSequence) = interval(c, sequence_error(a); format = :midpoint)
@@ -331,13 +332,11 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             N_fft = 2 * fft_size(space_approx)
             A = fft(sequence(a), N_fft)
             fA = $f.(A)
-            seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
-
-            seq_fa = interval.(seq_approx_fa)
+            seq_fa = _call_ifft!(fA, space_approx, eltype(a))
 
             ν = rate(weight(banachspace(a)))
 
-            ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_approx_fa))))
+            ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_fa))))
             ν_finite_part⁻¹ = inv(ν_finite_part)
 
             C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
@@ -372,13 +371,11 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             N_fft = 2 .* fft_size(space_approx)
             A = fft(sequence(a), N_fft)
             fA = $f.(A)
-            seq_approx_fa = _call_ifft!(fA, space_approx, eltype(a))
-
-            seq_fa = interval.(seq_approx_fa)
+            seq_fa = _call_ifft!(fA, space_approx, eltype(a))
 
             ν = rate.(weight(banachspace(a)))
 
-            ν_finite_part = interval.(max.(nextfloat.(sup.(rate.(weight(banachspace(a))))), rate.(geometricweight(seq_approx_fa))))
+            ν_finite_part = interval.(max.(nextfloat.(sup.(rate.(weight(banachspace(a))))), rate.(geometricweight(seq_fa))))
             ν_finite_part⁻¹ = inv.(ν_finite_part)
 
             _t_ = tuple(ν_finite_part, ν_finite_part⁻¹)

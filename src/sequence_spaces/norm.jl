@@ -103,7 +103,7 @@ function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
     x = ones(Float64, len, N+1)
     n = 0
     @inbounds for (i, α) ∈ enumerate(indices(s))
-        if !iszero(A[i])
+        if !iszero(mid(A[i]))
             view(x, i-n, 2:N+1) .= abs.(α) .+ 1
         else
             n += 1
@@ -123,13 +123,13 @@ end
 
 function _geometric_max_rate(s::Taylor, A)
     i = length(A)
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     n = 1
     mean = abs_Aᵢ / n
     δ = abs(abs_Aᵢ - mean)
     while i ≥ 2 && δ ≤ 1e-12
         i -= 1
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz = !iszero(abs_Aᵢ)
         n_prev = n
         n += check_nz
@@ -144,7 +144,8 @@ function _geometric_rate(::Taylor, A, threshold)
     sum_x = t = n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += i
@@ -159,7 +160,8 @@ function _geometric_rate(::Taylor, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * i)^2
         end
@@ -172,8 +174,8 @@ end
 function _geometric_max_rate(s::Fourier, A)
     ord = order(s)
     len = i = length(A)
-    @inbounds abs_A₋ᵢ = abs(A[len-i+1])
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     n_neg = 1
     n_pos = 1
     mean_neg = abs_A₋ᵢ / n_neg
@@ -182,8 +184,8 @@ function _geometric_max_rate(s::Fourier, A)
     δ_pos = abs(abs_Aᵢ - mean_pos)
     while i ≥ ord+2 && min(δ_neg, δ_pos) ≤ 1e-12
         i -= 1
-        @inbounds abs_A₋ᵢ = abs(A[len-i+1])
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz_neg = !iszero(abs_A₋ᵢ)
         check_nz_pos = !iszero(abs_Aᵢ)
         n_prev_neg = n_neg
@@ -204,7 +206,8 @@ function _geometric_rate(s::Fourier, A, threshold)
     sum_x = t = n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             abs_i = abs(i-ord-1)+1
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
@@ -220,7 +223,8 @@ function _geometric_rate(s::Fourier, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * (abs(i-ord-1)+1))^2
         end
@@ -232,13 +236,13 @@ end
 
 function _geometric_max_rate(s::Chebyshev, A)
     i = length(A)
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     n = 1
     mean = abs_Aᵢ / n
     δ = abs(abs_Aᵢ - mean)
     while i ≥ 2 && δ ≤ 1e-12
         i -= 1
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz = !iszero(abs_Aᵢ)
         n_prev = n
         n += check_nz
@@ -253,7 +257,8 @@ function _geometric_rate(::Chebyshev, A, threshold)
     sum_x = t = n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
             sum_x += i
@@ -268,7 +273,8 @@ function _geometric_rate(::Chebyshev, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * i)^2
         end
@@ -358,7 +364,7 @@ function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
     x = ones(Float64, len, N+1)
     n = 0
     @inbounds for (i, α) ∈ enumerate(indices(s))
-        if !iszero(A[i])
+        if !iszero(mid(A[i]))
             view(x, i-n, 2:N+1) .= log.(abs.(α) .+ 1)
         else
             n += 1
@@ -377,13 +383,13 @@ end
 
 function _algebraic_max_rate(s::Taylor, A)
     i = length(A)
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     mean = abs_Aᵢ/1
     n = 0 + !iszero(abs_Aᵢ)
     δ = abs(abs_Aᵢ - mean)
     while i ≥ 2 && δ ≤ 1e-12
         i -= 1
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz = !iszero(abs_Aᵢ)
         n_prev = n
         n += check_nz
@@ -399,7 +405,8 @@ function _algebraic_rate(::Taylor, A, threshold)
     n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0.0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             log_i = log(i)
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
@@ -415,7 +422,8 @@ function _algebraic_rate(::Taylor, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * log(i))^2
         end
@@ -428,8 +436,8 @@ end
 function _algebraic_max_rate(s::Fourier, A)
     ord = order(s)
     len = i = length(A)
-    @inbounds abs_A₋ᵢ = abs(A[len-i+1])
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     mean_neg = abs_A₋ᵢ/1
     mean_pos = abs_Aᵢ/1
     n_neg = 0 + !iszero(abs_A₋ᵢ)
@@ -438,8 +446,8 @@ function _algebraic_max_rate(s::Fourier, A)
     δ_pos = abs(abs_Aᵢ - mean_pos)
     while i ≥ ord+2 && min(δ_neg, δ_pos) ≤ 1e-12
         i -= 1
-        @inbounds abs_A₋ᵢ = abs(A[len-i+1])
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz_neg = !iszero(abs_A₋ᵢ)
         check_nz_pos = !iszero(abs_Aᵢ)
         n_prev_neg = n_neg
@@ -461,7 +469,8 @@ function _algebraic_rate(s::Fourier, A, threshold)
     n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0.0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             log_abs_i = log(abs(i-ord-1)+1)
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
@@ -477,7 +486,8 @@ function _algebraic_rate(s::Fourier, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * log(abs(i-ord-1)+1))^2
         end
@@ -489,13 +499,13 @@ end
 
 function _algebraic_max_rate(s::Chebyshev, A)
     i = length(A)
-    @inbounds abs_Aᵢ = abs(A[i])
+    @inbounds abs_Aᵢ = abs(mid(A[i]))
     mean = abs_Aᵢ/1
     n = 0 + !iszero(abs_Aᵢ)
     δ = abs(abs_Aᵢ - mean)
     while i ≥ 2 && δ ≤ 1e-12
         i -= 1
-        @inbounds abs_Aᵢ = abs(A[i])
+        @inbounds abs_Aᵢ = abs(mid(A[i]))
         check_nz = !iszero(abs_Aᵢ)
         n_prev = n
         n += check_nz
@@ -511,7 +521,8 @@ function _algebraic_rate(::Chebyshev, A, threshold)
     n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     u = 0.0*sum_log_abs_A
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
             log_i = log(i)
             log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
@@ -527,7 +538,8 @@ function _algebraic_rate(::Chebyshev, A, threshold)
     β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
     α = sum_log_abs_A/n - β * x̄
     err = zero(sum_log_abs_A)
-    for (i, Aᵢ) ∈ enumerate(A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
         if !iszero(Aᵢ)
             err += (_linear_regression_log_abs(Aᵢ) - α - β * log(i))^2
         end

@@ -13,7 +13,7 @@ _no_alloc_reshape(a, dims) = invoke(Base._reshape, Tuple{AbstractArray,typeof(di
 @inline __mul!(C, A, B, α, β) = mul!(C, A, B, α, β)
 
 for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
-    @eval function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
+    @eval function __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β)
         CoefType = eltype(C)
         if iszero(α)
             if iszero(β)
@@ -22,22 +22,23 @@ for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
                 C .*= β
             end
         else
+            BoundType = IntervalArithmetic.numtype(CoefType)
             ABinf, ABsup = __mul(A, B)
             if isone(α)
                 if iszero(β)
-                    C .= interval.(CoefType, ABinf, ABsup)
+                    C .= interval.(BoundType, ABinf, ABsup)
                 elseif isone(β)
-                    C .+= interval.(CoefType, ABinf, ABsup)
+                    C .+= interval.(BoundType, ABinf, ABsup)
                 else
-                    C .= interval.(CoefType, ABinf, ABsup) .+ C .* β
+                    C .= interval.(BoundType, ABinf, ABsup) .+ C .* β
                 end
             else
                 if iszero(β)
-                    C .= interval.(CoefType, ABinf, ABsup) .* α
+                    C .= interval.(BoundType, ABinf, ABsup) .* α
                 elseif isone(β)
-                    C .+= interval.(CoefType, ABinf, ABsup) .* α
+                    C .+= interval.(BoundType, ABinf, ABsup) .* α
                 else
-                    C .= interval.(CoefType, ABinf, ABsup) .* α .+ C .* β
+                    C .= interval.(BoundType, ABinf, ABsup) .* α .+ C .* β
                 end
             end
         end
@@ -47,7 +48,7 @@ end
 
 for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
         (:(Complex{<:Interval}), :Complex), (:Complex, :(Complex{<:Interval})))
-    @eval function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
+    @eval function __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β)
         CoefType = eltype(C)
         if iszero(α)
             if iszero(β)
@@ -56,6 +57,7 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
                 C .*= β
             end
         else
+            BoundType = IntervalArithmetic.numtype(CoefType)
             A_real, A_imag = reim(A)
             B_real, B_imag = reim(B)
             ABinf_1, ABsup_1 = __mul(A_real, B_real)
@@ -64,25 +66,25 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
             ABinf_4, ABsup_4 = __mul(A_imag, B_real)
             if isone(α)
                 if iszero(β)
-                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4))
+                    C .= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                  interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4))
                 elseif isone(β)
-                    C .+= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                   interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4))
+                    C .+= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                   interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4))
                 else
-                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .+ C .* β
+                    C .= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                  interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4)) .+ C .* β
                 end
             else
                 if iszero(β)
-                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α
+                    C .= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                  interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4)) .* α
                 elseif isone(β)
-                    C .+= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                   interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α
+                    C .+= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                   interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4)) .* α
                 else
-                    C .= complex.(interval.(CoefType, ABinf_1, ABsup_1) .- interval.(CoefType, ABinf_2, ABsup_2),
-                                  interval.(CoefType, ABinf_3, ABsup_3) .+ interval.(CoefType, ABinf_4, ABsup_4)) .* α .+ C .* β
+                    C .= complex.(interval.(BoundType, ABinf_1, ABsup_1) .- interval.(BoundType, ABinf_2, ABsup_2),
+                                  interval.(BoundType, ABinf_3, ABsup_3) .+ interval.(BoundType, ABinf_4, ABsup_4)) .* α .+ C .* β
                 end
             end
         end
@@ -90,9 +92,9 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
     end
 end
 
-for (T, S) ∈ ((:(Complex{<:Interval{<:AbstractFloat}}), :Interval), (:(Complex{<:Interval{<:AbstractFloat}}), :Any), (:Complex, :Interval))
+for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :Any), (:Complex, :Interval))
     @eval begin
-        function __mul!(C, A::AbstractMatrix{$T}, B::AbstractVecOrMat{$S}, α, β)
+        function __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β)
             CoefType = eltype(C)
             if iszero(α)
                 if iszero(β)
@@ -101,31 +103,32 @@ for (T, S) ∈ ((:(Complex{<:Interval{<:AbstractFloat}}), :Interval), (:(Complex
                     C .*= β
                 end
             else
+                BoundType = IntervalArithmetic.numtype(CoefType)
                 A_real, A_imag = reim(A)
                 ABinf_real, ABsup_real = __mul(A_real, B)
                 ABinf_imag, ABsup_imag = __mul(A_imag, B)
                 if isone(α)
                     if iszero(β)
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag))
                     elseif isone(β)
-                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                        C .+= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag))
                     else
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .+ C .* β
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .+ C .* β
                     end
                 else
                     if iszero(β)
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α
                     elseif isone(β)
-                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                        C .+= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α
                     else
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
                     end
                 end
             end
             return C
         end
 
-        function __mul!(C, A::AbstractMatrix{$S}, B::AbstractVecOrMat{$T}, α, β)
+        function __mul!(C, A::AbstractMatrix{<:$S}, B::AbstractVecOrMat{<:$T}, α, β)
             CoefType = eltype(C)
             if iszero(α)
                 if iszero(β)
@@ -134,24 +137,25 @@ for (T, S) ∈ ((:(Complex{<:Interval{<:AbstractFloat}}), :Interval), (:(Complex
                     C .*= β
                 end
             else
+                BoundType = IntervalArithmetic.numtype(CoefType)
                 B_real, B_imag = reim(B)
                 ABinf_real, ABsup_real = __mul(A, B_real)
                 ABinf_imag, ABsup_imag = __mul(A, B_imag)
                 if isone(α)
                     if iszero(β)
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag))
                     elseif isone(β)
-                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag))
+                        C .+= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag))
                     else
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .+ C .* β
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .+ C .* β
                     end
                 else
                     if iszero(β)
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α
                     elseif isone(β)
-                        C .+= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α
+                        C .+= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α
                     else
-                        C .= complex.(interval.(CoefType, ABinf_real, ABsup_real), interval.(CoefType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
+                        C .= complex.(interval.(BoundType, ABinf_real, ABsup_real), interval.(BoundType, ABinf_imag, ABsup_imag)) .* α .+ C .* β
                     end
                 end
             end

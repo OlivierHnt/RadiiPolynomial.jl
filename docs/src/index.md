@@ -13,11 +13,10 @@ Julia colors:
   <div class="column">
     <h3 style="text-align: center; color: #CA3C32;">Installation</h3>
 ```
-```@repl
-using Pkg # Julia v1.9 or above
-redirect_stderr(devnull) do # hide
-Pkg.add("RadiiPolynomial")
-end # hide
+```julia-repl
+julia> using Pkg # Julia v1.9 or above
+
+julia> Pkg.add("RadiiPolynomial")
 ```
 ```@raw html
   </div>

@@ -42,20 +42,28 @@ mul!(c::Sequence, S::SpecialOperator, a::Sequence, α::Number, β::Number) =
 function Base.:+(A::LinearOperator, S::SpecialOperator)
     domain_A = domain(A)
     new_codomain = image(+, codomain(A), image(S, domain_A))
-    return ladd!(A, project(S, domain_A, new_codomain, _coeftype(S, domain_A, eltype(A))))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    ladd!(A, project!(C, S))
+    return C
 end
 function Base.:+(S::SpecialOperator, A::LinearOperator)
     domain_A = domain(A)
     new_codomain = image(+, image(S, domain_A), codomain(A))
-    return radd!(project(S, domain_A, new_codomain, _coeftype(S, domain_A, eltype(A))), A)
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    radd!(project!(C, S), A)
+    return C
 end
 function Base.:-(A::LinearOperator, S::SpecialOperator)
     domain_A = domain(A)
     new_codomain = image(-, codomain(A), image(S, domain_A))
-    return lsub!(A, project(S, domain_A, new_codomain, _coeftype(S, domain_A, eltype(A))))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    lsub!(A, project!(C, S))
+    return C
 end
 function Base.:-(S::SpecialOperator, A::LinearOperator)
     domain_A = domain(A)
     new_codomain = image(-, image(S, domain_A), codomain(A))
-    return rsub!(project(S, domain_A, new_codomain, _coeftype(S, domain_A, eltype(A))), A)
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    rsub!(project!(C, S), A)
+    return C
 end

@@ -335,7 +335,7 @@ end
 
 function _ifft_pow2!(a::AbstractVector{<:Complex})
     conj!(_fft_pow2!(conj!(a)))
-    a ./= length(a)
+    a ./= ExactReal(length(a))
     return a
 end
 

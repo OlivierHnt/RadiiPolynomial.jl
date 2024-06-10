@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model · RadiiPolynomial.jl</title><meta name="title" content="Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model · RadiiPolynomial.jl"/><meta property="og:title" content="Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model · RadiiPolynomial.jl"/><meta property="twitter:title" content="Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model · RadiiPolynomial.jl"/><meta name="description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:description" content="Documentation for RadiiPolynomial.jl."/><meta property="twitter:description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/fhn_pseudo_arclength/"/><meta property="twitter:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/fhn_pseudo_arclength/"/><link rel="canonical" href="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/fhn_pseudo_arclength/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/radiipolynomial.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img src="../../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">RadiiPolynomial.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../radii_polynomial_approach/">State of the art</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../../sequence_spaces/vector_spaces/">Vector spaces</a></li><li><a class="tocitem" href="../../../sequence_spaces/sequences/">Sequences</a></li><li><a class="tocitem" href="../../../sequence_spaces/linear_operators/">Linear operators</a></li><li><a class="tocitem" href="../../../sequence_spaces/norms/">Norms</a></li><li><a class="tocitem" href="../../../sequence_spaces/special_operators/">Special operators</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox" checked/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Finite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../spiderweb/">Spiderweb central configurations</a></li><li class="is-active"><a class="tocitem" href>Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Infinite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-2-1" type="checkbox"/><label class="tocitem" for="menuitem-4-2-1"><span class="docs-label">Ordinary differential equations (ODE)</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../infinite_dimensional_proofs/ode/logistic_ivp/">Initial value problem of the logistic equation</a></li><li><a class="tocitem" href="../../infinite_dimensional_proofs/ode/lorenz_po/">Periodic orbit of the Lorenz system</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2-2"><span class="docs-label">Delay differential equations (DDE)</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../infinite_dimensional_proofs/dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation</a></li></ul></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Finite-dimensional proofs</a></li><li class="is-active"><a href>Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/docs/src/examples/finite_dimensional_proofs/fhn_pseudo_arclength.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Pseudo-arclength-continuation-of-equilibria-of-the-FitzHugh-Nagumo-model"><a class="docs-heading-anchor" href="#Pseudo-arclength-continuation-of-equilibria-of-the-FitzHugh-Nagumo-model">Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model</a><a id="Pseudo-arclength-continuation-of-equilibria-of-the-FitzHugh-Nagumo-model-1"></a><a class="docs-heading-anchor-permalink" href="#Pseudo-arclength-continuation-of-equilibria-of-the-FitzHugh-Nagumo-model" title="Permalink"></a></h1><p>In this example, we will prove the existence of a branch of equilibria of the FitzHugh-Nagumo model</p><p class="math-container">\[\begin{cases}
+\displaystyle \frac{d}{dt} u(t) = f(u(t), \gamma) \bydef \begin{pmatrix} u_1(t)(u_1(t) - a)(1 - u_1(t)) - u_2(t) \\ \varepsilon(u_1(t) - \gamma u_2(t)) \end{pmatrix},\\
+u(0) = u_0 \in \mathbb{R}^2,
+\end{cases}\]</p><p>where <span>$a = 5$</span> and <span>$\varepsilon = 1$</span>.</p><p>The vector-field <span>$f$</span> and its Jacobian, denoted <span>$Df$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function f(u, γ)
+    a, ϵ = 5, 1
+    u₁, u₂ = u
+    return [u₁*(u₁ - a)*(1 - u₁) - u₂, ϵ*(u₁ - γ*u₂)]
+end
+
+function Dᵤf(u, γ)
+    a, ϵ = 5, 1
+    u₁, u₂ = u
+    return [a*(2u₁-1)+(2-3u₁)*u₁ -1
+            ϵ                    -ϵ*γ]
+end
+
+function ∂γf(u, γ)
+    a, ϵ = 5, 1
+    u₁, u₂ = u
+    return [0, -ϵ*u₂]
+end</code></pre><p>We use the <a href="https://en.wikipedia.org/wiki/Numerical_continuation#Pseudo-arclength_continuation">pseudo-arclength continuation</a> and retrieve a numerical approximation of the curve. By a contraction argument, we then prove that there exists a surrounding region that contains the desired curve.</p><p>In a nutshell, the pseudo-arclength continuation consists in computing a sequence of numerical zeros of <span>$f$</span>. Starting with an initial approximate zero <span>$x_\text{init} \in \mathbb{R}^3$</span>, we retrieve an approximate tangent vector <span>$v$</span> to the curve at <span>$x_\text{init}$</span> by looking at <span>$\ker Df(x_\text{init})$</span>. Then, our predictor for the next zero is set to <span>$w \bydef x_\text{init} + \delta v$</span> where <span>$\delta &gt; 0$</span> represents the step size. The Newton&#39;s method is applied on the mapping <span>$F_\text{Newton} : \mathbb{R}^3 \to \mathbb{R}^3$</span> given by</p><p class="math-container">\[F_\text{Newton}(x) \bydef
+\begin{pmatrix}
+f(x) \\
+(x - w) \cdot v
+\end{pmatrix}.\]</p><p>The mapping <span>$F_\text{Newton}$</span> and its Jacobian may be implemented as follows:</p><pre><code class="language-julia hljs">import LinearAlgebra: ⋅
+
+F(x, v, w) = [f(x[1:2], x[3]) ; (x - w) ⋅ v]
+
+DF(x, v) = [Dᵤf(x[1:2], x[3]) ∂γf(x[1:2], x[3]) ; transpose(v)]</code></pre><p>Next, we perform Newton&#39;s method:</p><pre><code class="language-julia hljs">using RadiiPolynomial
+import LinearAlgebra: nullspace
+
+# initial point on the branch of equilibria
+
+γ_init = 2.0
+
+u_init = [1.1, 0.5]
+u_init, success = newton(u -&gt; (f(u, γ_init), Dᵤf(u, γ_init)), u_init)
+
+# next point on the branch of equilibria
+
+x_init = [u_init ; γ_init]
+
+v = vec(nullspace([Dᵤf(x_init[1:2], x_init[3]) ∂γf(x_init[1:2], x_init[3])])) # initial tangent vector
+
+δ = 5e-2 # step size
+
+w = x_init + δ * v # predictor
+
+x_final, success = newton(x -&gt; (F(x, v, w), DF(x, v)), w)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Newton&#39;s method: Inf-norm, tol = 1.0e-12, maxiter = 15
+      iteration        |F(x)|
+-------------------------------------
+          0          1.0000e-01        |DF(x)\F(x)| = 6.4865e-02
+          1          2.3601e-03        |DF(x)\F(x)| = 5.5823e-04
+          2          8.1376e-07        |DF(x)\F(x)| = 1.9261e-07
+          3          9.6700e-14
+Newton&#39;s method: Inf-norm, tol = 1.0e-12, maxiter = 15
+      iteration        |F(x)|
+-------------------------------------
+          0          7.1482e-04        |DF(x)\F(x)| = 3.5180e-04
+          1          4.0697e-08        |DF(x)\F(x)| = 2.1450e-08
+          2          3.3307e-16</code></pre><p>Whenever Newton&#39;s method is successful, we proceed to the next iteration of the pseudo-arclength continuation by repeating the above strategy. Performing this sufficiently many times, we can construct an order <span>$N$</span> polynomial approximation of the curve of zeros:</p><p class="math-container">\[\bar{x}(s) \bydef \bar{x}_0 + 2 \sum_{n = 1}^N \bar{x}_n \phi_n (s), \qquad \text{for all } s \in [-1,1],\]</p><p>where <span>$\phi_n$</span> are the <a href="https://en.wikipedia.org/wiki/Chebyshev_polynomials">Chebyshev polynomials of the first kind</a>.</p><p>Define the mapping <span>$F : \mathbb{R}^3 \times [-1,1] \to \mathbb{R}^3$</span> by</p><p class="math-container">\[F(x, s) \bydef
+\begin{pmatrix}
+f(x) \\
+(x - \bar{x}(s)) \cdot \bar{v}(s)
+\end{pmatrix},\]</p><p>and the fixed-point operator <span>$T : \mathbb{R}^3 \times [-1,1] \to \mathbb{R}^3$</span> by</p><p class="math-container">\[T(x, s) \bydef x - A(s) F(x, s),\]</p><p>where <span>$A(s) : \mathbb{R}^3 \to \mathbb{R}^3$</span> is the injective operator corresponding to a numerical approximation of <span>$D_x F(\bar{x}(s), s)^{-1}$</span> for all <span>$s \in [-1, 1]$</span>.</p><p>Let <span>$R &gt; 0$</span>. We use a uniform version of the second-order Radii Polynomial Theorem (cf. Section <a href="../../../radii_polynomial_approach/#radii_polynomial_approach">Radii polynomial approach</a>) such that we need to estimate <span>$\|T(\bar{x}(s), s) - \bar{x}(s)\|_1$</span>, <span>$\|D_x T(\bar{x}(s), s)\|_1$</span> and <span>$\sup_{x \in \text{cl}( B_R(\bar{x}(s)) )} \|D_x^2 T(x, s)\|_1$</span> for all <span>$s \in [-1,1]$</span>. In particular, we have</p><p class="math-container">\[\|T(\bar{x}(s), s) - \bar{x}(s)\|_1 = \left\|A(s) \begin{pmatrix} f(\bar{x}(s)) \\ 0 \end{pmatrix} \right\|_1, \qquad \text{for all } s \in [-1,1].\]</p><p>The computer-assisted proof may be implemented as follows:</p><pre><code class="language-julia hljs">N = 700
+N_fft = nextpow(2, 2N + 1)
+npts = N_fft ÷ 2 + 1
+
+arclength = 15.0
+arclength_grid = [0.5 * arclength - 0.5 * cospi(2j/N_fft) * arclength for j ∈ 0:npts-1]
+x_grid = Vector{Vector{Float64}}(undef, npts)
+v_grid = Vector{Vector{Float64}}(undef, npts)
+
+# initialize
+
+direction = [0, 0, -1] # starts by decreasing the parameter
+x_grid[1] = x_init
+v_grid[1] = vec(nullspace([Dᵤf(x_grid[1][1:2], x_grid[1][3]) ∂γf(x_grid[1][1:2], x_grid[1][3])]))
+if direction ⋅ v_grid[1] &lt; 0 # enforce direction
+    v_grid[1] .*= -1
+end
+
+# run continuation scheme
+
+for i ∈ 2:npts
+    δᵢ = arclength_grid[i] - arclength_grid[i-1]
+
+    wᵢ = x_grid[i-1] .+ δᵢ .* v_grid[i-1]
+
+    x, success = newton(x -&gt; (F(x, v_grid[i-1], wᵢ), DF(x, v_grid[i-1])), wᵢ; verbose = true)
+    success || error()
+
+    x_grid[i] = x
+    v_grid[i] = vec(nullspace([Dᵤf(x_grid[i][1:2], x_grid[i][3]) ∂γf(x_grid[i][1:2], x_grid[i][3])]))
+    if v_grid[i-1] ⋅ v_grid[i] &lt; 0 # keep the same direction
+        v_grid[i] .*= -1
+    end
+end
+
+# construct the approximations
+
+grid2cheb(x_fft::Vector{&lt;:Vector}, N) =
+    [rifft!(complex.(getindex.(x_fft, i)), Chebyshev(N)) for i ∈ eachindex(x_fft[1])]
+
+grid2cheb(x_fft::Vector{&lt;:Matrix}, N) =
+    [rifft!(complex.(getindex.(x_fft, i, j)), Chebyshev(N)) for i ∈ axes(x_fft[1], 1), j ∈ axes(x_fft[1], 2)]
+
+x_fft = [reverse(x_grid) ; x_grid[begin+1:end-1]]
+x̄ = map(x -&gt; interval.(x), grid2cheb(x_fft, N))
+
+v_fft = [reverse(v_grid) ; v_grid[begin+1:end-1]]
+v̄ = map(v -&gt; interval.(v), grid2cheb(v_fft, N))
+
+A = map(A -&gt; interval.(A), grid2cheb(inv.(DF.(x_fft, v_fft)), N))
+
+# compute the bounds
+
+function cheb2grid(x::VecOrMat{&lt;:Sequence}, N_fft)
+    vals = fft.(x, N_fft)
+    return [real.(getindex.(vals, i)) for i ∈ eachindex(vals[1])]
+end
+
+# AF is a polynomial with respect to s of order 4N
+
+N4 = 4N
+N4_fft = nextpow(2, 2N4 + 1)
+
+AF_fft = cheb2grid(A, N4_fft) .* F.(cheb2grid(x̄, N4_fft), cheb2grid(v̄, N4_fft), cheb2grid(x̄, N4_fft))
+AF = grid2cheb(AF_fft, N4)
+
+Y = norm(norm.(AF, 1), 1)
+
+# ADF is a polynomial with respect to s of order 3N
+
+N3 = 3N
+N3_fft = nextpow(2, 2N3 + 1)
+
+I_ADF_fft = [I] .- cheb2grid(A, N3_fft) .* DF.(cheb2grid(x̄, N3_fft), cheb2grid(v̄, N3_fft))
+I_ADF = grid2cheb(I_ADF_fft, N3)
+
+Z₁ = opnorm(norm.(I_ADF, 1), 1)
+
+#
+
+R = 1.2sup(Y)
+
+a, ϵ = 5, 1
+Z₂ = opnorm(norm.(A, 1), 1) * max(abs(2a + 2) + 6(norm(x̄[1], 1) + R) + abs(ϵ), abs(ϵ))
+
+#
+
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, Z₂, R)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Interval{Float64}(4.936506408781034e-9, 5.92165970751046e-9, com, NG)</code></pre><p>The following figure<sup class="footnote-reference"><a id="citeref-1" href="#footnote-1">[1]</a></sup> shows the numerical approximation of the proven branch of equilibria of the FitzHugh-Nagumo model.</p><p><img src="../fhn_pseudo_arclength.svg" alt/></p><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../spiderweb/">« Spiderweb central configurations</a><a class="docs-footer-nextpage" href="../../infinite_dimensional_proofs/ode/logistic_ivp/">Initial value problem of the logistic equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Monday 10 June 2024 23:18">Monday 10 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -87,11 +87,44 @@ end
 # special operators
 
 function differentiate(a::ValidatedSequence, α=1)
-    sequence_error(a) == 0 || return throw(DomainError) # TODO: lift restriction
     c = differentiate(sequence(a), α)
-    return ValidatedSequence(c, banachspace(a))
+    X = banachspace(a)
+    return ValidatedSequence(c, _derivative_error(X, space(a), space(c), α) * sequence_error(a), X)
 end
 
+_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _derivative_error(X, dom[1], codom[1], α[1]) * _derivative_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
+_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _derivative_error(X, dom[1], codom[1], α[1])
+
+_derivative_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _derivative_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
+_derivative_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
+
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Taylor, n::Int)
+    ν = rate(weight(X))
+    n == 0 && return one(ν)
+    n == 1 && return ν / (ν - ExactReal(1))^2
+    n == 2 && return ν * (ν + ExactReal(1)) / (ν - ExactReal(1))^3
+    n == 3 && return ν * (ν^2 + ExactReal(4)*ν + ExactReal(1)) / (ν - ExactReal(1))^4
+    n == 4 && return ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
+    return throw(DomainError) # TODO: lift restriction
+end
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier{T}, ::Fourier{S}, n::Int) where {T<:Real,S<:Real}
+    ν = rate(weight(X))
+    n == 0 && return one(ν)
+    n == 1 && return ExactReal(2) * ν / (ν - ExactReal(1))^2
+    n == 2 && return ExactReal(2) * ν * (ν + ExactReal(1)) / (ν - ExactReal(1))^3
+    n == 3 && return ExactReal(2) * ν * (ν^2 + ExactReal(4)*ν + ExactReal(1)) / (ν - ExactReal(1))^4
+    n == 4 && return ExactReal(2) * ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
+    return throw(DomainError) # TODO: lift restriction
+end
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
+    ν = rate(weight(X))
+    n == 0 && return interval(1)
+    return throw(DomainError) # TODO: lift restriction
+end
 
 
 function integrate(a::ValidatedSequence, α=1)
@@ -330,7 +363,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             space_approx = _image_trunc($f, space(a))
             N_fft = 2 * fft_size(space_approx)
-            A = fft(sequence(a), N_fft)
+            seq_a = sequence(a)
+            A = fft(seq_a, N_fft)
             fA = $f.(A)
             seq_fa = _call_ifft!(fA, space_approx, eltype(a))
 
@@ -339,8 +373,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_fa))))
             ν_finite_part⁻¹ = inv(ν_finite_part)
 
-            C = max(_contour($f, sequence(a), ν_finite_part, N_fft, eltype(seq_fa)),
-                    _contour($f, sequence(a), ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
+            C = max(_contour($f, seq_a, ν_finite_part, N_fft, eltype(seq_fa)),
+                    _contour($f, seq_a, ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
 
             q = mapreduce(k -> (ν_finite_part⁻¹ ^ ExactReal(k) + ν_finite_part ^ ExactReal(k)) * ν_finite_part ^ ExactReal(abs(k)), +, indices(space_approx))
             error = C * (q / (ν_finite_part ^ ExactReal(N_fft) - ExactReal(1)) +
@@ -348,15 +382,9 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             if !isthinzero(sequence_error(a))
                 r_star = ExactReal(1) + sequence_error(a)
-                # W = mapreduce(
-                #         θ -> max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
-                #                  _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))),
-                #         max,
-                #         mince(interval(IntervalArithmetic.numtype(ν), -1, 1), N_fft)
-                #     ) * (ν_finite_part + ν) / (ν_finite_part - ν)
                 θ = interval(IntervalArithmetic.numtype(ν), -1, 1)
-                W = max(_contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
-                        _contour($f, sequence(a) + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                W = max(_contour($f, seq_a + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
+                        _contour($f, seq_a + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))) * (ν_finite_part + ν) / (ν_finite_part - ν)
                 error += W * sequence_error(a)
             end
 
@@ -369,7 +397,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             space_approx = _image_trunc($f, space(a))
             N_fft = 2 .* fft_size(space_approx)
-            A = fft(sequence(a), N_fft)
+            seq_a = sequence(a)
+            A = fft(seq_a, N_fft)
             fA = $f.(A)
             seq_fa = _call_ifft!(fA, space_approx, eltype(a))
 
@@ -381,7 +410,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             _t_ = tuple(ν_finite_part, ν_finite_part⁻¹)
             mix_ν = Iterators.product(getindex.(_t_, 1), getindex.(_t_, 2))
 
-            C = mapreduce(μ -> _contour($f, sequence(a), μ, N_fft, eltype(seq_fa)), max, mix_ν)
+            C = mapreduce(μ -> _contour($f, seq_a, μ, N_fft, eltype(seq_fa)), max, mix_ν)
 
             q = mapreduce(k -> mapreduce(μ -> prod(μ .^ ExactReal.(k)), +, mix_ν) * prod(ν_finite_part .^ ExactReal.(abs.(k))), +, indices(space_approx))
             error = C * (q / prod(ν_finite_part .^ ExactReal.(N_fft) .- ExactReal(1)) +
@@ -389,13 +418,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
             if !isthinzero(sequence_error(a))
                 r_star = ExactReal(1) + sequence_error(a)
-                # W = mapreduce(
-                #         θ -> mapreduce(μ -> _contour($f, sequence(a) + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)), max, mix_ν),
-                #         max,
-                #         mince(interval(promote_type(IntervalArithmetic.numtype.(ν)...), -1, 1), minimum(N_fft))
-                #     ) * prod((ν_finite_part .+ ν) ./ (ν_finite_part .- ν))
                 θ = interval(promote_type(IntervalArithmetic.numtype.(ν)...), -1, 1)
-                W = mapreduce(μ -> _contour($f, sequence(a) + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)),
+                W = mapreduce(μ -> _contour($f, seq_a + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)),
                         max,
                         mix_ν) * prod((ν_finite_part .+ ν) ./ (ν_finite_part .- ν))
                 error += W * sequence_error(a)
@@ -407,31 +431,105 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 end
 
 function _contour(f, ū, μ, N_fft, T)
-    ū_δ = complex.(ū)
+    CoefType = complex(eltype(ū))
+    grid_ū_δ = zeros(CoefType, N_fft)
+    U = coefficients(ū)
+    view(grid_ū_δ, eachindex(U)) .= U
+
     val = sup(inv(interval(IntervalArithmetic.numtype(μ), N_fft)))
     δ = interval(-val, val)
-    for k ∈ indices(space(ū))
-        ū_δ[k] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
-    end
-    grid_ū_δ = fft(ū_δ, N_fft)
+    _preprocess_contour!(grid_ū_δ, space(ū), μ, δ)
+
+    _fft_pow2!(grid_ū_δ)
     contour_integral = zero(real(T))
     for v ∈ grid_ū_δ
         contour_integral += abs(f(v))
     end
+
     return interval(sup(contour_integral / ExactReal(N_fft)))
 end
 
 function _contour(f, ū, μ, N_fft::Tuple, T)
-    ū_δ = complex.(ū)
+    CoefType = complex(eltype(ū))
+    grid_ū_δ = zeros(CoefType, N_fft)
+    U = _no_alloc_reshape(coefficients(ū), dimensions(space(ū)))
+    view(grid_ū_δ, axes(U)...) .= U
+
     val = sup.(inv.(interval.(IntervalArithmetic.numtype.(μ), N_fft)))
     δ = interval.(.- val, val)
-    for k ∈ indices(space(ū))
-        ū_δ[k] *= prod(μ .^ ExactReal.(k) .* cispi.(ExactReal.(k) .* δ))
-    end
-    grid_ū_δ = fft(ū_δ, N_fft)
+    _apply_preprocess_contour!(grid_ū_δ, space(ū), μ, δ)
+
+    _fft_pow2!(grid_ū_δ)
     contour_integral = zero(real(T))
     for v ∈ grid_ū_δ
         contour_integral += abs(f(v))
     end
+
     return interval(sup(contour_integral / ExactReal(prod(N_fft))))
+end
+
+_apply_preprocess_contour!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}, μ, δ) where {T,N₁,N₂} =
+    @inbounds _preprocess_contour!(_apply_preprocess_contour!(C, Base.tail(space), Base.tail(μ), Base.tail(δ)), space[1], Val(N₁-N₂+1), μ[1], δ[1])
+
+_apply_preprocess_contour!(C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}, μ, δ) where {T,N} =
+    @inbounds _preprocess_contour!(C, space[1], Val(N), μ[1], δ[1])
+
+# Taylor
+
+function _preprocess_contour!(C::AbstractVector, space::Taylor, μ, δ)
+    for k ∈ 1:order(space)
+        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    end
+    return C
+end
+
+function _preprocess_contour!(C::AbstractArray, space::Taylor, ::Val{D}, μ, δ) where {D}
+    for k ∈ 1:order(space)
+        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    end
+    return C
+end
+
+# Fourier
+
+function _preprocess_contour!(C::AbstractVector, space::Fourier, μ, δ)
+    ord = order(space)
+    circshift!(C, copy(C), -ord)
+    len = length(C)
+    for k ∈ 1:ord
+        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+        C[len+1-k] *= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
+    end
+    return C
+end
+
+function _preprocess_contour!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}, μ, δ) where {T,N,D}
+    ord = order(space)
+    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -ord, 0), Val(N)))
+    len = size(C, D)
+    for k ∈ 1:ord
+        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+        selectdim(C, D, len+1-k) .*= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
+    end
+    return C
+end
+
+# Chebyshev
+
+function _preprocess_contour!(C::AbstractVector, space::Chebyshev, μ, δ)
+    len = length(C)
+    for k ∈ 1:order(space)
+        C[len+1-k] = C[k+1] * μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
+        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    end
+    return C
+end
+
+function _preprocess_contour!(C::AbstractArray, space::Chebyshev, ::Val{D}, μ, δ) where {D}
+    len = size(C, D)
+    for k ∈ 1:order(space)
+        selectdim(C, D, len+1-k) .= selectdim(C, D, k+1) .* (μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ))
+        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    end
+    return C
 end

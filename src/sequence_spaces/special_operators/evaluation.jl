@@ -588,7 +588,9 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
                 if j == 1
                     return x2
                 elseif j == 2
-                    return convert(T, x2 * x2 - convert(T, ExactReal(2)))
+                    return get!(memo, j) do
+                        convert(T, x2 * x2 - convert(T, ExactReal(2)))
+                    end
                 else
                     return get!(memo, j) do
                         x2 * _getindex(ℰ, domain, codomain, T, i, j-1, memo) - _getindex(ℰ, domain, codomain, T, i, j-2, memo)

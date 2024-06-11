@@ -393,7 +393,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
 
         function Base.$f(a::ValidatedSequence{<:TensorSpace})
             @assert !iszero(sequence(a)) # TODO: lift restriction
-            banachspace(a) isa Tuple{Vararg{Ell1{<:GeometricWeight}}} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
+            banachspace(a) isa Ell1{<:Tuple{Vararg{GeometricWeight}}} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
 
             space_approx = _image_trunc($f, space(a))
             N_fft = 2 .* fft_size(space_approx)

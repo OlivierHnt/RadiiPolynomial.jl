@@ -196,12 +196,12 @@ function _mC_Γ(mA, rA, mB::AbstractVector, rB)
     n = size(mA, 1)
     mC, Γ = zeros(NewType, n), zeros(NewType, n)
 
-    Threads.@threads for l ∈ axes(mA, 2)
-        @inbounds for i ∈ axes(mA, 1)
+    Threads.@threads for i ∈ axes(mA, 1)
+        @inbounds for l ∈ axes(mA, 2)
             a, c = mA[i,l], rA[i,l]
             b, d = mB[l], rB[l]
-            e = sign(a)*min(abs(a), c)
-            f = sign(b)*min(abs(b), d)
+            e = sign(a) * min(abs(a), c)
+            f = sign(b) * min(abs(b), d)
             p = a*b + e*f
             mC[i] += p
             Γ[i] += abs(p)
@@ -238,11 +238,9 @@ function _matmul_up(A, B::AbstractVector)
     NewType = promote_type(eltype(A), eltype(B))
     C = zeros(NewType, size(A, 1))
 
-    Threads.@threads for j ∈ axes(B, 2)
-        for l ∈ axes(A, 2)
-            @inbounds for i ∈ axes(A, 1)
-                C[i,j] = IntervalArithmetic._add_round.(IntervalArithmetic._mul_round.(A[i,l], B[l,j], RoundUp), C[i,j], RoundUp)
-            end
+    Threads.@threads for i ∈ axes(A, 1)
+        @inbounds for l ∈ axes(A, 2)
+            C[i] = IntervalArithmetic._add_round(IntervalArithmetic._mul_round(A[i,l], B[l], RoundUp), C[i], RoundUp)
         end
     end
 
@@ -256,7 +254,7 @@ function _matmul_up(A, B::AbstractMatrix)
     Threads.@threads for j ∈ axes(B, 2)
         for l ∈ axes(A, 2)
             @inbounds for i ∈ axes(A, 1)
-                C[i,j] = IntervalArithmetic._add_round.(IntervalArithmetic._mul_round.(A[i,l], B[l,j], RoundUp), C[i,j], RoundUp)
+                C[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._mul_round(A[i,l], B[l,j], RoundUp), C[i,j], RoundUp)
             end
         end
     end

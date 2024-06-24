@@ -661,6 +661,7 @@ _apply(::Evaluation{Nothing}, ::SinFourier, ::Val, A::AbstractArray) = A
 function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
     x = value(ℰ)
     CoefType = _coeftype(ℰ, space, T)
+    ord = order(space)
     @inbounds Aᵢ = selectdim(A, D, ord)
     C = Array{CoefType,N-1}(undef, size(Aᵢ))
     if iszero(x)

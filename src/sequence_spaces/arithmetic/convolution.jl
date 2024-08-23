@@ -25,8 +25,8 @@ end
 for T ∈ (:GeometricWeight, :AlgebraicWeight)
     @eval begin
         function banach_rounding_order(bound_::Real, X::Ell1{<:$T})
-            bound, rate = promote(float(sup(bound_)), float(sup(rate(weight(X)))))
-            return banach_rounding_order(bound, Ell1($T(rate)))
+            bound, r = promote(float(sup(bound_)), float(sup(rate(weight(X)))))
+            return banach_rounding_order(bound, Ell1($T(r)))
         end
     end
 end
@@ -45,7 +45,7 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound
     space_a = space(a)
     M = typemax(Int)
     @inbounds for α ∈ indices(space_a)
-        if mapreduce((i, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i) // ord)), +, α, rounding_order) ≥ 1
+        if mapreduce((i, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i) // max(1, ord))), +, α, rounding_order) ≥ 1
             μᵅ = bound / _getindex(weight(X), space_a, α)
             a[α] = _to_interval(S, sup(μᵅ))
         end

@@ -11,7 +11,7 @@ _dfs_dimension(s::Taylor) = dimension(s)
 
 _dfs_dimension(s::Fourier) = dimension(s)
 
-_dfs_dimension(s::Chebyshev) = 2order(s)+1
+_dfs_dimension(s::Chebyshev) = 2order(s)
 
 # sequence to discrete Fourier series
 
@@ -95,7 +95,7 @@ end
 function _preprocess!(C::AbstractVector, space::Chebyshev)
     len = length(C)
     @inbounds for i ∈ 2:order(space)+1
-        C[len+2-i] = C[i]
+        C[len+2-i] += C[i]
     end
     return C
 end
@@ -103,7 +103,7 @@ end
 function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     @inbounds for i ∈ 2:order(space)+1
-        selectdim(C, D, len+2-i) .= selectdim(C, D, i)
+        selectdim(C, D, len+2-i) .+= selectdim(C, D, i)
     end
     return C
 end
@@ -204,7 +204,7 @@ function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:
     return c
 end
 
-_is_ifft_size_compatible(n, s) = ispow2(n) & (dimension(s) ≤ n)
+_is_ifft_size_compatible(n, s) = ispow2(n) & (_dfs_dimension(s) ≤ n)
 _is_ifft_size_compatible(n::Tuple, s) = @inbounds _is_ifft_size_compatible(n[1], s[1]) & _is_ifft_size_compatible(Base.tail(n), Base.tail(s))
 _is_ifft_size_compatible(n::Tuple{Int}, s) = @inbounds _is_ifft_size_compatible(n[1], s[1])
 
@@ -235,11 +235,113 @@ end
 
 # Chebyshev
 
-_postprocess!(C, ::Chebyshev) = C
+function _postprocess!(C::AbstractVector, space::Chebyshev)
+    len = length(C)
+    if len == _dfs_dimension(space)
+        @inbounds C[len÷2+1] /= 2
+    end
+    return C
+end
 
-_postprocess!(C, ::Chebyshev, ::Val) = C
+function _postprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
+    len = size(C, D)
+    if len == _dfs_dimension(space)
+        @inbounds selectdim(C, D, len÷2+1) ./= 2
+    end
+    return C
+end
 
 # FFT routines
+
+function _bitreverse!(a::AbstractVector)
+    n = length(a)
+    n½ = n÷2
+    j = 1
+    for i ∈ 1:n-1
+        if i < j
+            @inbounds a[j], a[i] = a[i], a[j]
+        end
+        k = n½
+        while 2 ≤ k < j
+            j -= k
+            k ÷= 2
+        end
+        j += k
+    end
+    return a
+end
+
+const roots_of_unity = Dict{Tuple{Int,Int},Complex{Interval{Float64}}}()
+
+N_fft = 2^16
+for k ∈ 0:N_fft-1
+    rat = -k//N_fft
+    ω = setprecision(256) do
+        return cispi(interval(BigFloat, rat))
+    end
+    roots_of_unity[(numerator(rat),denominator(rat))] = ω
+end
+
+#
+
+function _ifft_pow2!(a::AbstractVector{<:Complex})
+    conj!(_fft_pow2!(conj!(a)))
+    a ./= ExactReal(length(a))
+    return a
+end
+
+function _ifft_pow2!(a::AbstractArray{<:Complex})
+    @inbounds for i ∈ axes(a, 1)
+        _ifft_pow2!(selectdim(a, 1, i))
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _ifft_pow2!(a_col)
+    end
+    return a
+end
+
+
+
+function _ifft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
+    conj!(_fft_pow2!(conj!(a)))
+    a ./= ExactReal(length(a))
+    return a
+end
+
+function _ifft_pow2!(a::AbstractArray{Complex{Interval{Float64}}})
+    @inbounds for i ∈ axes(a, 1)
+        _ifft_pow2!(selectdim(a, 1, i))
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _ifft_pow2!(a_col)
+    end
+    return a
+end
+
+
+
+_ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _ifft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
+
+function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
+    conj!(_fft_pow2!(conj!(a), Ω))
+    a ./= ExactReal(length(a))
+    return a
+end
+
+function _ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
+    @inbounds for i ∈ axes(a, 1)
+        _ifft_pow2!(selectdim(a, 1, i), Ω)
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _ifft_pow2!(a_col, Ω)
+    end
+    return a
+end
+
+#
 
 function _fft_pow2!(a::AbstractArray{<:Complex})
     @inbounds for i ∈ axes(a, 1)
@@ -248,19 +350,6 @@ function _fft_pow2!(a::AbstractArray{<:Complex})
     n = size(a, 1)
     for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
         _fft_pow2!(a_col)
-    end
-    return a
-end
-
-_fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
-
-function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
-    @inbounds for i ∈ axes(a, 1)
-        _fft_pow2!(selectdim(a, 1, i), Ω)
-    end
-    n = size(a, 1)
-    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _fft_pow2!(a_col, Ω)
     end
     return a
 end
@@ -287,19 +376,35 @@ function _fft_pow2!(a::AbstractVector{Complex{T}}) where {T}
     return a
 end
 
-_fft_pow2!(a::AbstractVector{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, length(a)÷2))
 
-function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}, Ω) where {T}
+
+function _fft_pow2!(a::AbstractArray{Complex{Interval{Float64}}})
+    @inbounds for i ∈ axes(a, 1)
+        _fft_pow2!(selectdim(a, 1, i))
+    end
+    n = size(a, 1)
+    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
+        _fft_pow2!(a_col)
+    end
+    return a
+end
+
+function _fft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
     _bitreverse!(a)
     n = length(a)
     N = 2
     @inbounds while N ≤ n
         N½ = N÷2
-        view(Ω, 1:N½) .= cispi.(interval.(T, (0:N½-1) .// N½))
         for k ∈ 1:N:n
-            @inbounds for (i, j) ∈ enumerate(k:k+N½-1)
+            @inbounds for j ∈ k:k+N½-1
                 j′ = j + N½
-                aj′_ω = a[j′] * Ω[i]
+                rat = (k-j)//N½
+                ω = get!(roots_of_unity, (numerator(rat),denominator(rat))) do
+                    return setprecision(256) do
+                        return cispi(interval(BigFloat, rat))
+                    end
+                end
+                aj′_ω = a[j′] * ω
                 a[j′] = a[j] - aj′_ω
                 a[j] = a[j] + aj′_ω
             end
@@ -309,56 +414,37 @@ function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}, Ω) where {T}
     return a
 end
 
-function _ifft_pow2!(a::AbstractArray{<:Complex})
+
+
+_fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
+
+function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
     @inbounds for i ∈ axes(a, 1)
-        _ifft_pow2!(selectdim(a, 1, i))
+        _fft_pow2!(selectdim(a, 1, i), Ω)
     end
     n = size(a, 1)
     for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _ifft_pow2!(a_col)
+        _fft_pow2!(a_col, Ω)
     end
     return a
 end
 
-_ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _ifft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
-
-function _ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
-    @inbounds for i ∈ axes(a, 1)
-        _ifft_pow2!(selectdim(a, 1, i), Ω)
-    end
-    n = size(a, 1)
-    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _ifft_pow2!(a_col, Ω)
-    end
-    return a
-end
-
-function _ifft_pow2!(a::AbstractVector{<:Complex})
-    conj!(_fft_pow2!(conj!(a)))
-    a ./= ExactReal(length(a))
-    return a
-end
-
-function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
-    conj!(_fft_pow2!(conj!(a), Ω))
-    a ./= ExactReal(length(a))
-    return a
-end
-
-function _bitreverse!(a::AbstractVector)
+function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}, Ω) where {T}
+    _bitreverse!(a)
     n = length(a)
-    n½ = n÷2
-    j = 1
-    for i ∈ 1:n-1
-        if i < j
-            @inbounds a[j], a[i] = a[i], a[j]
+    N = 2
+    @inbounds while N ≤ n
+        N½ = N÷2
+        view(Ω, 1:N½) .= cispi.(interval.(T, (0:-1:1-N½) .// N½))
+        for k ∈ 1:N:n
+            @inbounds for (i, j) ∈ enumerate(k:k+N½-1)
+                j′ = j + N½
+                aj′_ω = a[j′] * Ω[i]
+                a[j′] = a[j] - aj′_ω
+                a[j] = a[j] + aj′_ω
+            end
         end
-        k = n½
-        while 2 ≤ k < j
-            j -= k
-            k ÷= 2
-        end
-        j += k
+        N <<= 1
     end
     return a
 end

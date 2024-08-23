@@ -2,6 +2,49 @@ _linear_regression_log_abs(x) = log(abs(x))
 _linear_regression_log_abs(x::Interval) = log(mag(x))
 _linear_regression_log_abs(x::Complex{<:Interval}) = log(mag(x))
 
+function _linear_regression(f, A, j)
+    sum_x = t = n = 0
+    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
+    mean = sum_log_abs_A/1
+    u = 0*sum_log_abs_A
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
+        if !iszero(Aᵢ)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
+            if i ≤ j
+                f_i = f(i)
+                sum_x += f_i
+                u += f_i*log_abs_Aᵢ
+                t += f_i*f_i
+                sum_log_abs_A += log_abs_Aᵢ
+                n += 1
+            else
+                mean += log_abs_Aᵢ
+            end
+        end
+    end
+    mean /= (length(A) - j)
+    x̄ = sum_x/n
+    val = t - sum_x*x̄
+    β = (u - x̄*sum_log_abs_A)/ifelse(iszero(val), one(val), val)
+    α = sum_log_abs_A/n - β * x̄
+    err = zero(sum_log_abs_A)
+    for (i, _Aᵢ_) ∈ enumerate(A)
+        Aᵢ = mid(_Aᵢ_)
+        if !iszero(Aᵢ)
+            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
+            if i ≤ j
+                err += (log_abs_Aᵢ - α - β * f(i))^2
+            else
+                err += (log_abs_Aᵢ - mean)^2
+            end
+        end
+    end
+    return β, err
+end
+
+#
+
 """
     Weight
 
@@ -121,165 +164,52 @@ end
 
 # Taylor
 
-function _geometric_max_rate(s::Taylor, A)
-    i = length(A)
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    n = 1
-    mean = abs_Aᵢ / n
-    δ = abs(abs_Aᵢ - mean)
-    while i ≥ 2 && δ ≤ 1e-12
-        i -= 1
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz = !iszero(abs_Aᵢ)
-        n_prev = n
-        n += check_nz
-        mean = (n_prev * mean + abs_Aᵢ) / n
-        δ = ifelse(check_nz, abs(abs_Aᵢ - mean), δ)
+function _geometric_max_rate(::Taylor, A)
+    len = length(A)
+    β, err = _linear_regression(identity, A, len)
+    for j ∈ len-1:-1:2
+        β_, err_ = _linear_regression(identity, A, j)
+        err_ > err && break
+        β = β_
+        err = err_
     end
-    @inbounds rate, err = _geometric_rate(s, view(A, 1:i), mean)
-    return rate, err
-end
-
-function _geometric_rate(::Taylor, A, threshold)
-    sum_x = t = n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += i
-            u += i*log_abs_Aᵢ
-            t += i*i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * i)^2
-        end
-    end
-    return exp(-β), err
+    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
 end
 
 # Fourier
 
 function _geometric_max_rate(s::Fourier, A)
-    ord = order(s)
-    len = i = length(A)
-    @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    n_neg = 1
-    n_pos = 1
-    mean_neg = abs_A₋ᵢ / n_neg
-    mean_pos = abs_Aᵢ / n_pos
-    δ_neg = abs(abs_A₋ᵢ - mean_neg)
-    δ_pos = abs(abs_Aᵢ - mean_pos)
-    while i ≥ ord+2 && min(δ_neg, δ_pos) ≤ 1e-12
-        i -= 1
-        @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz_neg = !iszero(abs_A₋ᵢ)
-        check_nz_pos = !iszero(abs_Aᵢ)
-        n_prev_neg = n_neg
-        n_prev_pos = n_pos
-        n_neg += check_nz_neg
-        n_pos += check_nz_pos
-        mean_neg = (n_prev_neg * mean_neg + abs_A₋ᵢ) / n_neg
-        mean_pos = (n_prev_pos * mean_pos + abs_Aᵢ) / n_pos
-        δ_neg = ifelse(check_nz_neg, abs(abs_A₋ᵢ - mean_neg), δ_neg)
-        δ_pos = ifelse(check_nz_pos, abs(abs_Aᵢ - mean_pos), δ_pos)
+    len = order(s)+1
+    @inbounds A1 = view(A, len:2*len-1)
+    β1, err1 = _linear_regression(identity, A1, len)
+    @inbounds A2 = view(A, len:-1:1)
+    β2, err2 = _linear_regression(identity, A2, len)
+    err = max(err1, err2)
+    for j ∈ len-1:-1:2
+        β1_, err1_ = _linear_regression(identity, A1, j)
+        β2_, err2_ = _linear_regression(identity, A2, j)
+        err_ = max(err1_, err2_)
+        err_ > err && break
+        β1 = β1_
+        β2 = β2_
+        err = err_
     end
-    @inbounds rate, err = _geometric_rate(Fourier(i - ord - 1, frequency(s)), view(A, (len-i+1):i), min(mean_pos, mean_neg))
-    return rate, err
-end
-
-function _geometric_rate(s::Fourier, A, threshold)
-    ord = order(s)
-    sum_x = t = n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            abs_i = abs(i-ord-1)+1
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += abs_i
-            u += abs_i*log_abs_Aᵢ
-            t += abs_i*abs_i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * (abs(i-ord-1)+1))^2
-        end
-    end
-    return exp(-β), err
+    β = (β1 + β2)/2
+    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
 end
 
 # Chebyshev
 
-function _geometric_max_rate(s::Chebyshev, A)
-    i = length(A)
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    n = 1
-    mean = abs_Aᵢ / n
-    δ = abs(abs_Aᵢ - mean)
-    while i ≥ 2 && δ ≤ 1e-12
-        i -= 1
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz = !iszero(abs_Aᵢ)
-        n_prev = n
-        n += check_nz
-        mean = (n_prev * mean + abs_Aᵢ) / n
-        δ = ifelse(check_nz, abs(abs_Aᵢ - mean), δ)
+function _geometric_max_rate(::Chebyshev, A)
+    len = length(A)
+    β, err = _linear_regression(identity, A, len)
+    for j ∈ len-1:-1:2
+        β_, err_ = _linear_regression(identity, A, j)
+        err_ > err && break
+        β = β_
+        err = err_
     end
-    @inbounds rate, err = _geometric_rate(s, view(A, 1:i), mean)
-    return rate, err
-end
-
-function _geometric_rate(::Chebyshev, A, threshold)
-    sum_x = t = n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += i
-            u += i*log_abs_Aᵢ
-            t += i*i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * i)^2
-        end
-    end
-    return exp(-β), err
+    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
 end
 
 """
@@ -381,170 +311,52 @@ end
 
 # Taylor
 
-function _algebraic_max_rate(s::Taylor, A)
-    i = length(A)
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    mean = abs_Aᵢ/1
-    n = 0 + !iszero(abs_Aᵢ)
-    δ = abs(abs_Aᵢ - mean)
-    while i ≥ 2 && δ ≤ 1e-12
-        i -= 1
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz = !iszero(abs_Aᵢ)
-        n_prev = n
-        n += check_nz
-        mean = (n_prev * mean + abs_Aᵢ) / n
-        δ = ifelse(check_nz, abs(abs_Aᵢ - mean), δ)
+function _algebraic_max_rate(::Taylor, A)
+    len = length(A)
+    β, err = _linear_regression(log, A, len)
+    for j ∈ len-1:-1:2
+        β_, err_ = _linear_regression(log, A, j)
+        err_ > err && break
+        β = β_
+        err = err_
     end
-    @inbounds rate, err = _algebraic_rate(s, view(A, 1:i), mean)
-    return rate, err
-end
-
-function _algebraic_rate(::Taylor, A, threshold)
-    sum_x = t = 0.0
-    n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0.0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            log_i = log(i)
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += log_i
-            u += log_i*log_abs_Aᵢ
-            t += log_i*log_i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * log(i))^2
-        end
-    end
-    return β, err
+    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
 end
 
 # Fourier
 
 function _algebraic_max_rate(s::Fourier, A)
-    ord = order(s)
-    len = i = length(A)
-    @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    mean_neg = abs_A₋ᵢ/1
-    mean_pos = abs_Aᵢ/1
-    n_neg = 0 + !iszero(abs_A₋ᵢ)
-    n_pos = 0 + !iszero(abs_Aᵢ)
-    δ_neg = abs(abs_A₋ᵢ - mean_neg)
-    δ_pos = abs(abs_Aᵢ - mean_pos)
-    while i ≥ ord+2 && min(δ_neg, δ_pos) ≤ 1e-12
-        i -= 1
-        @inbounds abs_A₋ᵢ = abs(mid(A[len-i+1]))
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz_neg = !iszero(abs_A₋ᵢ)
-        check_nz_pos = !iszero(abs_Aᵢ)
-        n_prev_neg = n_neg
-        n_prev_pos = n_pos
-        n_neg += check_nz_neg
-        n_pos += check_nz_pos
-        mean_neg = (n_prev_neg * mean_neg + abs_A₋ᵢ) / n_neg
-        mean_pos = (n_prev_pos * mean_pos + abs_Aᵢ) / n_pos
-        δ_neg = ifelse(check_nz_neg, abs(abs_A₋ᵢ - mean_neg), δ_neg)
-        δ_pos = ifelse(check_nz_pos, abs(abs_Aᵢ - mean_pos), δ_pos)
+    len = order(s)+1
+    @inbounds A1 = view(A, len:2*len-1)
+    β1, err1 = _linear_regression(log, A1, len)
+    @inbounds A2 = view(A, len:-1:1)
+    β2, err2 = _linear_regression(log, A2, len)
+    err = max(err1, err2)
+    for j ∈ len-1:-1:2
+        β1_, err1_ = _linear_regression(log, A1, j)
+        β2_, err2_ = _linear_regression(log, A2, j)
+        err_ = max(err1_, err2_)
+        err_ > err && break
+        β1 = β1_
+        β2 = β2_
+        err = err_
     end
-    @inbounds rate, err = _algebraic_rate(Fourier(i - ord - 1, frequency(s)), view(A, (len-i+1):i), min(mean_pos, mean_neg))
-    return rate, err
-end
-
-function _algebraic_rate(s::Fourier, A, threshold)
-    ord = order(s)
-    sum_x = t = 0.0
-    n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0.0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            log_abs_i = log(abs(i-ord-1)+1)
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += log_abs_i
-            u += log_abs_i*log_abs_Aᵢ
-            t += log_abs_i*log_abs_i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * log(abs(i-ord-1)+1))^2
-        end
-    end
-    return β, err
+    β = (β1 + β2)/2
+    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
 end
 
 # Chebyshev
 
-function _algebraic_max_rate(s::Chebyshev, A)
-    i = length(A)
-    @inbounds abs_Aᵢ = abs(mid(A[i]))
-    mean = abs_Aᵢ/1
-    n = 0 + !iszero(abs_Aᵢ)
-    δ = abs(abs_Aᵢ - mean)
-    while i ≥ 2 && δ ≤ 1e-12
-        i -= 1
-        @inbounds abs_Aᵢ = abs(mid(A[i]))
-        check_nz = !iszero(abs_Aᵢ)
-        n_prev = n
-        n += check_nz
-        mean = (n_prev * mean + abs_Aᵢ) / n
-        δ = ifelse(check_nz, abs(abs_Aᵢ - mean), δ)
+function _algebraic_max_rate(::Chebyshev, A)
+    len = length(A)
+    β, err = _linear_regression(log, A, len)
+    for j ∈ len-1:-1:2
+        β_, err_ = _linear_regression(log, A, j)
+        err_ > err && break
+        β = β_
+        err = err_
     end
-    @inbounds rate, err = _algebraic_rate(s, view(A, 1:i), mean)
-    return rate, err
-end
-
-function _algebraic_rate(::Chebyshev, A, threshold)
-    sum_x = t = 0.0
-    n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    u = 0.0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ) && abs(Aᵢ) ≥ threshold
-            log_i = log(i)
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            sum_x += log_i
-            u += log_i*log_abs_Aᵢ
-            t += log_i*log_i
-            sum_log_abs_A += log_abs_Aᵢ
-            n += 1
-        end
-    end
-    x̄ = sum_x/n
-    r = (u - x̄*sum_log_abs_A)/(t - sum_x*x̄)
-    β = ifelse(isfinite(r) & (r < 0), -r, zero(r))
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            err += (_linear_regression_log_abs(Aᵢ) - α - β * log(i))^2
-        end
-    end
-    return β, err
+    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
 end
 
 # retrieve the optimal weight

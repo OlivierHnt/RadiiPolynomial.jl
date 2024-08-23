@@ -274,12 +274,22 @@ end
 const roots_of_unity = Dict{Tuple{Int,Int},Complex{Interval{Float64}}}()
 
 N_fft = 2^16
-for k ∈ 0:N_fft-1
-    rat = -k//N_fft
-    ω = setprecision(256) do
-        return cispi(interval(BigFloat, rat))
+if VERSION ≥ v"1.10"
+    for k ∈ 0:N_fft-1
+        rat = -k//N_fft
+        ω = setprecision(256) do
+            return cispi(interval(BigFloat, rat))
+        end
+        roots_of_unity[(numerator(rat),denominator(rat))] = ω
     end
-    roots_of_unity[(numerator(rat),denominator(rat))] = ω
+else
+    for k ∈ 0:N_fft-1
+        rat = -k//N_fft
+        ω = setprecision(256) do
+            return cis(interval(BigFloat, rat) * convert(Interval{BigFloat}, π))
+        end
+        roots_of_unity[(numerator(rat),denominator(rat))] = ω
+    end
 end
 
 #

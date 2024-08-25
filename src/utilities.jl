@@ -164,100 +164,149 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
     end
 end
 
-__mul(A::AbstractMatrix{<:Interval{<:Rational}}, B::AbstractMatrix{<:Interval{<:Rational}}) = A * B
+__mul(A::AbstractMatrix{<:Interval{<:Rational}}, B::AbstractVecOrMat{<:Interval{<:Rational}}) = A * B
 
-__mul(A::AbstractMatrix{<:Interval{<:Rational}}, B) = A * B
-
-__mul(A, B::AbstractMatrix{<:Interval{<:Rational}}) = A * B
-
-function __mul(A, B)
-    mA, rA = mid.(A), radius.(A)
-    mB, rB = mid.(B), radius.(B)
-
-    mC, Γ = _mC_Γ(mA, rA, mB, rB)
-
-    NewType = eltype(mC)
-
-    u = eps(NewType)
-    η = floatmin(NewType)
-    γ = IntervalArithmetic._add_round.(
-        IntervalArithmetic._mul_round.(convert(NewType, size(A, 2) + 1), eps.(Γ), RoundUp),
-        IntervalArithmetic._div_round.(η, IntervalArithmetic._mul_round.(convert(NewType, 2), u, RoundUp), RoundUp),
-        RoundUp)
-
-    H = _matmul_up(IntervalArithmetic._add_round.(abs.(mA), rA, RoundUp), IntervalArithmetic._add_round.(abs.(mB), rB, RoundUp))
-    rC = IntervalArithmetic._add_round.(IntervalArithmetic._sub_round.(H, Γ, RoundUp), IntervalArithmetic._mul_round.(convert(NewType, 2), γ, RoundUp), RoundUp)
-
-    return IntervalArithmetic._sub_round.(mC, rC, RoundDown), IntervalArithmetic._add_round.(mC, rC, RoundUp)
+function __mul(A::AbstractMatrix{T}, B::AbstractVecOrMat{S}) where {T,S}
+    NewType = IntervalArithmetic.promote_numtype(T, S)
+    return __mul(interval.(NewType, A), interval.(NewType, B))
 end
 
-function _mC_Γ(mA, rA, mB::AbstractVector, rB)
-    NewType = promote_type(eltype(mA), eltype(mB))
-    n = size(mA, 1)
-    mC, Γ = zeros(NewType, n), zeros(NewType, n)
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractMatrix{Interval{T}}) where {T<:AbstractFloat}
+    mA = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(A), sup.(A), RoundUp), convert(T, 2), RoundUp) # (inf.(A) .+ sup.(A)) ./ 2
+    rA = IntervalArithmetic._sub_round.(mA, inf.(A), RoundUp)
+    mB = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(B), sup.(B), RoundUp), convert(T, 2), RoundUp) # (inf.(B) .+ sup.(B)) ./ 2
+    rB = IntervalArithmetic._sub_round.(mB, inf.(B), RoundUp)
 
-    Threads.@threads for i ∈ axes(mA, 1)
-        @inbounds for l ∈ axes(mA, 2)
-            a, c = mA[i,l], rA[i,l]
-            b, d = mB[l], rB[l]
-            e = sign(a) * min(abs(a), c)
-            f = sign(b) * min(abs(b), d)
-            p = a*b + e*f
-            mC[i] += p
-            Γ[i] += abs(p)
-        end
-    end
-
-    return mC, Γ
-end
-
-function _mC_Γ(mA, rA, mB::AbstractMatrix, rB)
-    NewType = promote_type(eltype(mA), eltype(mB))
-    n = size(mA, 1)
-    m = size(mB, 2)
-    mC, Γ = zeros(NewType, n, m), zeros(NewType, n, m)
-
-    Threads.@threads for j ∈ axes(mB, 2)
-        for l ∈ axes(mA, 2)
-            @inbounds for i ∈ axes(mA, 1)
-                a, c = mA[i,l], rA[i,l]
-                b, d = mB[l,j], rB[l,j]
-                e = sign(a) * min(abs(a), c)
-                f = sign(b) * min(abs(b), d)
-                p = a*b + e*f
-                mC[i,j] += p
-                Γ[i,j] += abs(p)
-            end
-        end
-    end
-
-    return mC, Γ
-end
-
-function _matmul_up(A, B::AbstractVector)
-    NewType = promote_type(eltype(A), eltype(B))
-    C = zeros(NewType, size(A, 1))
-
-    Threads.@threads for i ∈ axes(A, 1)
-        @inbounds for l ∈ axes(A, 2)
-            C[i] = IntervalArithmetic._add_round(IntervalArithmetic._mul_round(A[i,l], B[l], RoundUp), C[i], RoundUp)
-        end
-    end
-
-    return C
-end
-
-function _matmul_up(A, B::AbstractMatrix)
-    NewType = promote_type(eltype(A), eltype(B))
-    C = zeros(NewType, size(A, 1), size(B, 2))
+    Cinf = zeros(T, size(A, 1), size(B, 2))
+    Csup = zeros(T, size(A, 1), size(B, 2))
 
     Threads.@threads for j ∈ axes(B, 2)
         for l ∈ axes(A, 2)
             @inbounds for i ∈ axes(A, 1)
-                C[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._mul_round(A[i,l], B[l,j], RoundUp), C[i,j], RoundUp)
+                U_ij         = IntervalArithmetic._mul_round(abs(mA[i,l]), rB[l,j], RoundUp)
+                V_ij         = IntervalArithmetic._mul_round(rA[i,l], IntervalArithmetic._add_round(abs(mB[l,j]), rB[l,j], RoundUp), RoundUp)
+                rC_ij        = IntervalArithmetic._add_round(U_ij, V_ij, RoundUp)
+                mAmB_up_ij   = IntervalArithmetic._mul_round(mA[i,l], mB[l,j], RoundUp)
+                mAmB_down_ij = IntervalArithmetic._mul_round(mA[i,l], mB[l,j], RoundDown)
+
+                Cinf[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(mAmB_down_ij, rC_ij, RoundDown), Cinf[i,j], RoundDown)
+                Csup[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(mAmB_up_ij,   rC_ij, RoundUp),   Csup[i,j], RoundUp)
             end
         end
     end
 
-    return C
+    return Cinf, Csup
+end
+
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractMatrix{T}) where {T<:AbstractFloat}
+    mA = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(A), sup.(A), RoundUp), convert(T, 2), RoundUp) # (inf.(A) .+ sup.(A)) ./ 2
+    rA = IntervalArithmetic._sub_round.(mA, inf.(A), RoundUp)
+
+    Cinf = zeros(T, size(A, 1), size(B, 2))
+    Csup = zeros(T, size(A, 1), size(B, 2))
+
+    Threads.@threads for j ∈ axes(B, 2)
+        for l ∈ axes(A, 2)
+            @inbounds for i ∈ axes(A, 1)
+                rC_ij        = IntervalArithmetic._mul_round(rA[i,l], abs(B[l,j]), RoundUp)
+                mAmB_up_ij   = IntervalArithmetic._mul_round(mA[i,l], B[l,j], RoundUp)
+                mAmB_down_ij = IntervalArithmetic._mul_round(mA[i,l], B[l,j], RoundDown)
+
+                Cinf[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(mAmB_down_ij, rC_ij, RoundDown), Cinf[i,j], RoundDown)
+                Csup[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(mAmB_up_ij,   rC_ij, RoundUp),   Csup[i,j], RoundUp)
+            end
+        end
+    end
+
+    return Cinf, Csup
+end
+
+function __mul(A::AbstractMatrix{T}, B::AbstractMatrix{Interval{T}}) where {T<:AbstractFloat}
+    mB = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(B), sup.(B), RoundUp), convert(T, 2), RoundUp) # (inf.(B) .+ sup.(B)) ./ 2
+    rB = IntervalArithmetic._sub_round.(mB, inf.(B), RoundUp)
+
+    Cinf = zeros(T, size(A, 1), size(B, 2))
+    Csup = zeros(T, size(A, 1), size(B, 2))
+
+    Threads.@threads for j ∈ axes(B, 2)
+        for l ∈ axes(A, 2)
+            @inbounds for i ∈ axes(A, 1)
+                rC_ij        = IntervalArithmetic._mul_round(abs(A[i,l]), rB[l,j], RoundUp)
+                mAmB_up_ij   = IntervalArithmetic._mul_round(A[i,l], mB[l,j], RoundUp)
+                mAmB_down_ij = IntervalArithmetic._mul_round(A[i,l], mB[l,j], RoundDown)
+
+                Cinf[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(mAmB_down_ij, rC_ij, RoundDown), Cinf[i,j], RoundDown)
+                Csup[i,j] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(mAmB_up_ij,   rC_ij, RoundUp),   Csup[i,j], RoundUp)
+            end
+        end
+    end
+
+    return Cinf, Csup
+end
+
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVector{Interval{T}}) where {T<:AbstractFloat}
+    mA = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(A), sup.(A), RoundUp), convert(T, 2), RoundUp) # (inf.(A) .+ sup.(A)) ./ 2
+    rA = IntervalArithmetic._sub_round.(mA, inf.(A), RoundUp)
+    mB = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(B), sup.(B), RoundUp), convert(T, 2), RoundUp) # (inf.(B) .+ sup.(B)) ./ 2
+    rB = IntervalArithmetic._sub_round.(mB, inf.(B), RoundUp)
+
+    Cinf = zeros(T, size(A, 1))
+    Csup = zeros(T, size(A, 1))
+
+    Threads.@threads for i ∈ axes(A, 1)
+        @inbounds for l ∈ axes(A, 2)
+            U_il         = IntervalArithmetic._mul_round(abs(mA[i,l]), rB[l], RoundUp)
+            V_il         = IntervalArithmetic._mul_round(rA[i,l], IntervalArithmetic._add_round(abs(mB[l]), rB[l], RoundUp), RoundUp)
+            rC_il        = IntervalArithmetic._add_round(U_il, V_il, RoundUp)
+            mAmB_up_il   = IntervalArithmetic._mul_round(mA[i,l], mB[l], RoundUp)
+            mAmB_down_il = IntervalArithmetic._mul_round(mA[i,l], mB[l], RoundDown)
+
+            Cinf[i] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(mAmB_down_il, rC_il, RoundDown), Cinf[i], RoundDown)
+            Csup[i] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(mAmB_up_il,   rC_il, RoundUp),   Csup[i], RoundUp)
+        end
+    end
+
+    return Cinf, Csup
+end
+
+function __mul(A::AbstractMatrix{Interval{T}}, B::AbstractVector{T}) where {T<:AbstractFloat}
+    mA = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(A), sup.(A), RoundUp), convert(T, 2), RoundUp) # (inf.(A) .+ sup.(A)) ./ 2
+    rA = IntervalArithmetic._sub_round.(mA, inf.(A), RoundUp)
+
+    Cinf = zeros(T, size(A, 1))
+    Csup = zeros(T, size(A, 1))
+
+    Threads.@threads for i ∈ axes(A, 1)
+        @inbounds for l ∈ axes(A, 2)
+            rC_il       = IntervalArithmetic._mul_round(rA[i,l], abs(B[l]), RoundUp)
+            mAB_up_il   = IntervalArithmetic._mul_round(mA[i,l], B[l], RoundUp)
+            mAB_down_il = IntervalArithmetic._mul_round(mA[i,l], B[l], RoundDown)
+
+            Cinf[i] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(mAB_down_il, rC_il, RoundDown), Cinf[i], RoundDown)
+            Csup[i] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(mAB_up_il,   rC_il, RoundUp),   Csup[i], RoundUp)
+        end
+    end
+
+    return Cinf, Csup
+end
+
+function __mul(A::AbstractMatrix{T}, B::AbstractVector{Interval{T}}) where {T<:AbstractFloat}
+    mB = IntervalArithmetic._div_round.(IntervalArithmetic._add_round.(inf.(B), sup.(B), RoundUp), convert(T, 2), RoundUp) # (inf.(B) .+ sup.(B)) ./ 2
+    rB = IntervalArithmetic._sub_round.(mB, inf.(B), RoundUp)
+
+    Cinf = zeros(T, size(A, 1))
+    Csup = zeros(T, size(A, 1))
+
+    Threads.@threads for i ∈ axes(A, 1)
+        @inbounds for l ∈ axes(A, 2)
+            rC_il       = IntervalArithmetic._mul_round(abs(A[i,l]), rB[l], RoundUp)
+            AmB_up_il   = IntervalArithmetic._mul_round(A[i,l], mB[l], RoundUp)
+            AmB_down_il = IntervalArithmetic._mul_round(A[i,l], mB[l], RoundDown)
+
+            Cinf[i] = IntervalArithmetic._add_round(IntervalArithmetic._sub_round(AmB_down_il, rC_il, RoundDown), Cinf[i], RoundDown)
+            Csup[i] = IntervalArithmetic._add_round(IntervalArithmetic._add_round(AmB_up_il,   rC_il, RoundUp),   Csup[i], RoundUp)
+        end
+    end
+
+    return Cinf, Csup
 end

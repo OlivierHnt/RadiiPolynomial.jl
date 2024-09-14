@@ -88,6 +88,10 @@ function Base.fill!(a::Sequence, value)
     return a
 end
 
+Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
+
+Base.reverse!(a::Sequence; dims = :) = Sequence(space(a), reverse!(coefficients(a); dims = dims))
+
 Base.copy(a::Sequence) = Sequence(space(a), copy(coefficients(a)))
 
 Base.similar(a::Sequence) = Sequence(space(a), similar(coefficients(a)))

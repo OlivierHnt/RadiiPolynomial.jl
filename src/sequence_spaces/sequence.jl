@@ -75,6 +75,11 @@ Base.iszero(a::Sequence) = iszero(coefficients(a))
 Base.isapprox(a::Sequence, b::Sequence; kwargs...) =
     space(a) == space(b) && isapprox(coefficients(a), coefficients(b); kwargs...)
 
+Base.copy(a::Sequence) = Sequence(space(a), copy(coefficients(a)))
+
+Base.similar(a::Sequence) = Sequence(space(a), similar(coefficients(a)))
+Base.similar(a::Sequence, ::Type{T}) where {T} = Sequence(space(a), similar(coefficients(a), T))
+
 Base.zeros(s::VectorSpace) = Sequence(s, zeros(dimension(s)))
 Base.zeros(::Type{T}, s::VectorSpace) where {T} = Sequence(s, zeros(T, dimension(s)))
 
@@ -88,14 +93,18 @@ function Base.fill!(a::Sequence, value)
     return a
 end
 
+IntervalArithmetic.interval(::Type{T}, a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
+    Sequence(space(a), interval(T, coefficients(a), d; format = format))
+IntervalArithmetic.interval(a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
+    Sequence(space(a), interval(coefficients(a), d; format = format))
+IntervalArithmetic.interval(::Type{T}, a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
+    Sequence(space(a), interval(T, coefficients(a), d; format = format))
+IntervalArithmetic.interval(a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
+    Sequence(space(a), interval(coefficients(a), d; format = format))
+
 Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
 
 Base.reverse!(a::Sequence; dims = :) = Sequence(space(a), reverse!(coefficients(a); dims = dims))
-
-Base.copy(a::Sequence) = Sequence(space(a), copy(coefficients(a)))
-
-Base.similar(a::Sequence) = Sequence(space(a), similar(coefficients(a)))
-Base.similar(a::Sequence, ::Type{T}) where {T} = Sequence(space(a), similar(coefficients(a), T))
 
 function Base.zero(a::Sequence)
     space_a = space(a)

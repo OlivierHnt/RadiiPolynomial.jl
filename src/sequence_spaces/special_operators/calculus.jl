@@ -1193,6 +1193,174 @@ function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where 
     end
 end
 
+# Hermite
+
+image(𝒟::Derivative, s::Hermite) = Hermite(order(s)+order(𝒟))
+
+_coeftype(::Derivative, ::Hermite, ::Type{T}) where {T} = float(T)
+
+function _apply!(c::Sequence{Hermite}, 𝒟::Derivative, a)
+    n = order(𝒟)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    elseif n == 1
+        real_CoefType = real(eltype(c))
+        order_a = order(a)
+        if order_a ≥ 1
+            @inbounds c[0] = - sqrt(convert(real_CoefType, ExactReal(1)) / ExactReal(2)) * a[1]
+        end
+        @inbounds for i ∈ 1:order_a+1
+            c[i] = sqrt(convert(real_CoefType, ExactReal(i)) / ExactReal(2)) * a[i-1]
+            if i+1 ≤ order_a
+                c[i] -= sqrt(convert(real_CoefType, ExactReal(i+1)) / ExactReal(2)) * a[i+1]
+            end
+        end
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Hermite, A) where {T}
+    n = order(𝒟)
+    if n == 0
+        C .= A
+    elseif n == 1
+        real_T = real(T)
+        ord = order(space)
+        if ord ≥ 1
+            @inbounds selectdim(C, 1, 1) .= (-sqrt(convert(real_T, ExactReal(1)) / ExactReal(2))) .* selectdim(A, 1, i+1)
+        end
+        @inbounds for i ∈ 1:ord+1
+            Cᵢ = selectdim(C, 1, i+1)
+            Cᵢ .= (sqrt(convert(real_T, ExactReal(i)) / ExactReal(2))) .* selectdim(A, 1, i)
+            if i+1 ≤ ord
+                Cᵢ .-= (sqrt(convert(real_T, ExactReal(i+1)) / ExactReal(2))) .* selectdim(A, 1, i+2)
+            end
+        end
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return C
+end
+
+function _apply(𝒟::Derivative, space::Hermite, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(𝒟)
+    CoefType = _coeftype(𝒟, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    elseif n == 1
+        real_CoefType = real(CoefType)
+        ord = order(space)
+        C = zeros(CoefType, ntuple(i -> i == D ? ord : size(A, i), Val(N)))
+        if ord ≥ 1
+            @inbounds selectdim(C, D, 1) .= (-sqrt(convert(real_CoefType, ExactReal(1)) / ExactReal(2))) .* selectdim(A, D, i+1)
+        end
+        @inbounds for i ∈ 1:ord+1
+            Cᵢ = selectdim(C, D, i+1)
+            Cᵢ .= (sqrt(convert(real_CoefType, ExactReal(i)) / ExactReal(2))) .* selectdim(A, D, i)
+            if i+1 ≤ ord
+                Cᵢ .-= (sqrt(convert(real_CoefType, ExactReal(i+1)) / ExactReal(2))) .* selectdim(A, D, i+2)
+            end
+        end
+        return C
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+function _nzind_domain(𝒟::Derivative, domain::Hermite, codomain::Hermite)
+    if order(𝒟) == 0
+        return collect(0:min(order(domain), order(codomain)))
+    elseif order(𝒟) == 1
+        len = 0
+        for j ∈ 0:order(domain)
+            if j == 0
+                len += 1 ≤ order(codomain)
+            else
+                len += (0 + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+            end
+        end
+        v = Vector{Int}(undef, len)
+        idx = 1
+        for j ∈ 0:order(domain)
+            if j == 0
+                if j+1 ≤ order(codomain)
+                    v[1] = 0
+                    idx += 1
+                end
+            else
+                idx2 = (idx-1 + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+                view(v, idx:idx2) .= j
+                idx = idx2 + 1
+            end
+        end
+        return v
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+function _nzind_codomain(𝒟::Derivative, domain::Hermite, codomain::Hermite)
+    if order(𝒟) == 0
+        return collect(0:min(order(domain), order(codomain)))
+    elseif order(𝒟) == 1
+        len = 0
+        for j ∈ 0:order(domain)
+            if j == 0
+                len += 1 ≤ order(codomain)
+            else
+                len += (0 + (j+1 ≤ order(codomain))) + (j-1 ≤ order(codomain))
+            end
+        end
+        v = Vector{Int}(undef, len)
+        idx = 1
+        for j ∈ 0:order(domain)
+            if j == 0
+                if 1 ≤ order(codomain)
+                    v[idx] = 1
+                    idx += 1
+                end
+            else
+                if j+1 ≤ order(codomain)
+                    v[idx] = j-1
+                    v[idx+1] = j+1
+                    idx += 2
+                elseif j-1 ≤ order(codomain)
+                    v[idx] = j-1
+                    idx += 1
+                end
+            end
+        end
+        return v
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+function _nzval(𝒟::Derivative, ::Hermite, ::Hermite, ::Type{T}, i, j) where {T}
+    n = order(𝒟)
+    if n == 0
+        return one(T)
+    elseif n == 1
+        if i == 0
+            if j == 1
+                return convert(T, -sqrt(convert(real(T), ExactReal(1)) / ExactReal(2)))
+            else
+                return zero(T)
+            end
+        else
+            if i+1 == j
+                return convert(T, -sqrt(convert(real(T), ExactReal(i+1)) / ExactReal(2)))
+            else # i == j+1
+                return convert(T, sqrt(convert(real(T), ExactReal(i)) / ExactReal(2)))
+            end
+        end
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
 # Cartesian spaces
 
 for F ∈ (:Derivative, :Integral)
@@ -1263,3 +1431,165 @@ for F ∈ (:Derivative, :Integral)
         end
     end
 end
+
+
+
+#
+
+"""
+    Laplacian <: SpecialOperator
+
+Laplacian operator.
+"""
+struct Laplacian <: SpecialOperator end
+
+"""
+    *(Δ::Laplacian, a::AbstractSequence)
+
+Compute the laplacian of `a`; equivalent to `laplacian(a)`.
+
+See also: [`(::Laplacian)(::AbstractSequence)`](@ref), [`Laplacian`](@ref),
+[`laplacian`](@ref) and [`laplacian!`](@ref).
+"""
+Base.:*(::Laplacian, a::AbstractSequence) = laplacian(a)
+
+"""
+    (Δ::Laplacian)(a::AbstractSequence)
+
+Compute the laplacian `a`; equivalent to `laplacian(a)`.
+
+See also: [`*(::Laplacian, ::AbstractSequence)`](@ref), [`Laplacian`](@ref),
+[`laplacian`](@ref) and [`laplacian!`](@ref).
+"""
+(Δ::Laplacian)(a::AbstractSequence) = *(Δ, a)
+
+"""
+    laplacian(a::Sequence)
+
+Compute the laplacian of `a`.
+
+See also: [`laplacian!`](@ref), [`Laplacian`](@ref),
+[`*(::Laplacian, ::Sequence)`](@ref) and [`(::Laplacian)(::Sequence)`](@ref).
+"""
+function laplacian(a::Sequence)
+    Δ = Laplacian()
+    space_a = space(a)
+    new_space = image(Δ, space_a)
+    CoefType = _coeftype(Δ, space_a, eltype(a))
+    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
+    _apply!(c, Δ, a)
+    return c
+end
+
+"""
+    laplacian!(c::Sequence, a::Sequence)
+
+Compute the laplacian `a`. The result is stored in `c` by overwriting it.
+
+See also: [`laplacian`](@ref), [`Laplacian`](@ref),
+[`*(::Laplacian, ::Sequence)`](@ref) and [`(::Laplacian)(::Sequence)`](@ref).
+"""
+function laplacian!(c::Sequence, a::Sequence)
+    Δ = Laplacian()
+    space_c = space(c)
+    new_space = image(Δ, space(a))
+    space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, Laplacian(a) has space $new_space"))
+    _apply!(c, Δ, a)
+    return c
+end
+
+"""
+    project(Δ::Laplacian, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(Δ, domain, Float64))
+
+Represent `Δ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+
+See also: [`project!(::LinearOperator, ::Laplacian)`](@ref) and [`Laplacian`](@ref).
+"""
+function project(Δ::Laplacian, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(Δ, domain, Float64)) where {T}
+    image_domain = image(Δ, domain)
+    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $Δ is $image_domain, codomain is $codomain"))
+    ind_domain = _findposition_nzind_domain(Δ, domain, codomain)
+    ind_codomain = _findposition_nzind_codomain(Δ, domain, codomain)
+    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
+    _project!(C, Δ)
+    return C
+end
+
+"""
+    project!(C::LinearOperator, Δ::Laplacian)
+
+Represent `Δ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
+The result is stored in `C` by overwriting it.
+
+See also: [`project(::Laplacian, ::VectorSpace, ::VectorSpace)`](@ref) and
+[`Laplacian`](@ref)
+"""
+function project!(C::LinearOperator, Δ::Laplacian)
+    image_domain = image(Δ, domain(C))
+    codomain_C = codomain(C)
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $Δ is $image_domain, C has codomain $codomain_C"))
+    coefficients(C) .= zero(eltype(C))
+    _project!(C, Δ)
+    return C
+end
+
+#
+
+image(::Laplacian, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    image(Derivative(ntuple(i -> 2, Val(N))), s)
+
+image(::Laplacian, s::BaseSpace) = image(Derivative(2), s)
+
+
+_coeftype(::Laplacian, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
+    _coeftype(Derivative(ntuple(i -> 2, Val(N))), s, T)
+
+_coeftype(::Laplacian, s::BaseSpace, ::Type{T}) where {T} = _coeftype(Derivative(2), s, T)
+
+
+function _apply!(c::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}, ::Laplacian, a) where {N}
+    _apply!(c, Derivative(ntuple(j -> ifelse(j==1, 2, 0), Val(N))), a)
+    c_ = similar(c)
+    for i ∈ 2:N
+        radd!(c, _apply!(c_, Derivative(ntuple(j -> ifelse(j==i, 2, 0), Val(N))), a))
+    end
+    return c
+end
+
+_apply!(c::Sequence{<:BaseSpace}, ::Laplacian, a) = _apply!(c, Derivative(2), a)
+
+
+function _project!(C::LinearOperator{<:BaseSpace,<:BaseSpace}, ::Laplacian)
+    _project!(C, Derivative(2))
+    return C
+end
+
+function _project!(C::LinearOperator{<:TensorSpace{<:NTuple{N,BaseSpace}},<:TensorSpace{<:NTuple{N,BaseSpace}}}, ::Laplacian) where {N}
+    CoefType = eltype(C)
+    C_ = zero(C)
+    for i ∈ 1:N
+        radd!(C, _project!(C_, Derivative(ntuple(j -> ifelse(j==i, 2, 0), Val(N)))))
+        coefficients(C_) .= zero(CoefType)
+    end
+    return C
+end
+
+
+_findposition_nzind_domain(Δ::Laplacian, domain, codomain) =
+    _findposition(_nzind_domain(Δ, domain, codomain), domain)
+
+_findposition_nzind_codomain(Δ::Laplacian, domain, codomain) =
+    _findposition(_nzind_codomain(Δ, domain, codomain), codomain)
+
+
+_nzind_domain(::Laplacian, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    _nzind_domain(Derivative(ntuple(i -> 2, Val(N))), domain, codomain)
+
+_nzind_codomain(::Laplacian, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    _nzind_codomain(Derivative(ntuple(i -> 2, Val(N))), domain, codomain)
+
+_nzind_domain(::Laplacian, domain::BaseSpace, codomain::BaseSpace) =
+    _nzind_domain(Derivative(2), domain, codomain)
+
+_nzind_codomain(::Laplacian, domain::BaseSpace, codomain::BaseSpace) =
+    _nzind_codomain(Derivative(2), domain, codomain)

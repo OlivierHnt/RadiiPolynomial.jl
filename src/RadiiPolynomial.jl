@@ -73,7 +73,9 @@ include("sequence_spaces/special_operators/special_operator.jl")
 include("sequence_spaces/special_operators/multiplication.jl")
     export Multiplication, sequence
 include("sequence_spaces/special_operators/calculus.jl")
-    export Derivative, differentiate, differentiate!, Integral, integrate, integrate!
+    export Derivative, differentiate, differentiate!,
+        Integral, integrate, integrate!,
+        Laplacian, laplacian, laplacian!
 include("sequence_spaces/special_operators/evaluation.jl")
     export Evaluation, evaluate, evaluate!
 include("sequence_spaces/special_operators/scale.jl")

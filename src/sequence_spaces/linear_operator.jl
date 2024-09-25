@@ -162,6 +162,9 @@ IntervalArithmetic.interval(::Type{T}, A::LinearOperator, d::AbstractMatrix{Inte
 IntervalArithmetic.interval(A::LinearOperator, d::AbstractMatrix{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
     LinearOperator(domain(A), codomain(A), interval(coefficients(A), d; format = format))
 
+Base.reverse(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse(coefficients(A); dims = dims))
+
+Base.reverse!(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse!(coefficients(A); dims = dims))
 
 # zero, one
 

@@ -110,7 +110,10 @@ _prettystring(s::CosFourier) = "CosFourier(" * string(order(s)) * ", " * string(
 
 struct SinFourier{T<:Real} <: SymBaseSpace
     space :: Fourier{T}
-    SinFourier{T}(space::Fourier{T}) where {T<:Real} = new{T}(space)
+    function SinFourier{T}(space::Fourier{T}) where {T<:Real}
+        order(space) < 1 && return throw(DomainError(order, "SinFourier is only defined for orders greater or equal to 1"))
+        return new{T}(space)
+    end
 end
 SinFourier(space::Fourier{T}) where {T<:Real} = SinFourier{T}(space)
 SinFourier{T}(order::Int, frequency::T) where {T<:Real} = SinFourier(Fourier{T}(order, frequency))

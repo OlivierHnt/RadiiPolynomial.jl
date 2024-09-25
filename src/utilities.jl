@@ -42,6 +42,8 @@ for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
                 end
             end
         end
+        t = all(isguaranteed, A) & all(isguaranteed, B) & isguaranteed(α) & isguaranteed(β)
+        C .= IntervalArithmetic._unsafe_interval.(getfield.(C, :bareinterval), decoration.(C), t)
         return C
     end
 end
@@ -88,6 +90,10 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
                 end
             end
         end
+        t = all(isguaranteed, A) & all(isguaranteed, B) & isguaranteed(α) & isguaranteed(β)
+        C .= complex.(
+                IntervalArithmetic._unsafe_interval.(getfield.(real.(C), :bareinterval), decoration.(C), t),
+                IntervalArithmetic._unsafe_interval.(getfield.(imag.(C), :bareinterval), decoration.(C), t))
         return C
     end
 end
@@ -125,6 +131,10 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
                     end
                 end
             end
+            t = all(isguaranteed, A) & all(isguaranteed, B) & isguaranteed(α) & isguaranteed(β)
+            C .= complex.(
+                IntervalArithmetic._unsafe_interval.(getfield.(real.(C), :bareinterval), decoration.(C), t),
+                IntervalArithmetic._unsafe_interval.(getfield.(imag.(C), :bareinterval), decoration.(C), t))
             return C
         end
 
@@ -159,6 +169,10 @@ for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :A
                     end
                 end
             end
+            t = all(isguaranteed, A) & all(isguaranteed, B) & isguaranteed(α) & isguaranteed(β)
+            C .= complex.(
+                IntervalArithmetic._unsafe_interval.(getfield.(real.(C), :bareinterval), decoration.(C), t),
+                IntervalArithmetic._unsafe_interval.(getfield.(imag.(C), :bareinterval), decoration.(C), t))
             return C
         end
     end

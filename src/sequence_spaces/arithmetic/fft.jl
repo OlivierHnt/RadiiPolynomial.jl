@@ -173,7 +173,7 @@ function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     C = coefficients(c)
     C .= zero(eltype(c))
     inds_C, inds_A = _ifft_get_index(l, space(c))
-    view(C, inds_C) .= view(A, inds_A)
+    view(C, inds_C) .= real.(view(A, inds_A))
     return c
 end
 

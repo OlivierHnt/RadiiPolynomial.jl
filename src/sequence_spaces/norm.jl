@@ -696,6 +696,10 @@ _prettystring(X::NormedCartesianSpace{<:Tuple{Vararg{BanachSpace}}}) =
 
 #
 
+norm(::LinearOperator, ::Real=Inf) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
+norm(::LinearOperator, ::BanachSpace) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
+norm(::LinearOperator, ::BanachSpace, ::BanachSpace) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
+
 """
     norm(a::AbstractSequence, p::Real=Inf)
 

@@ -159,7 +159,7 @@ function ifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     _postprocess!(A, space(c))
     C = coefficients(c)
     C .= zero(eltype(c))
-    inds_C, inds_A = _ifft_get_index(l, space)
+    inds_C, inds_A = _ifft_get_index(l, space(c))
     view(C, inds_C) .= view(A, inds_A)
     return c
 end
@@ -172,7 +172,7 @@ function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
     _postprocess!(A, space(c))
     C = coefficients(c)
     C .= zero(eltype(c))
-    inds_C, inds_A = _ifft_get_index(l, space)
+    inds_C, inds_A = _ifft_get_index(l, space(c))
     view(C, inds_C) .= view(A, inds_A)
     return c
 end
@@ -210,7 +210,7 @@ function ifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:N
     _ifft_pow2!(A)
     _apply_postprocess!(A, space(c))
     C = _no_alloc_reshape(coefficients(c), dimensions(space(c)))
-    inds_C, inds_A = _ifft_get_index(sz, space)
+    inds_C, inds_A = _ifft_get_index(sz, space(c))
     view(C, inds_C...) .= view(A, inds_A...)
     return c
 end
@@ -222,7 +222,7 @@ function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:
     _ifft_pow2!(A)
     _apply_postprocess!(A, space(c))
     C = _no_alloc_reshape(coefficients(c), dimensions(space(c)))
-    inds_C, inds_A = _ifft_get_index(sz, space)
+    inds_C, inds_A = _ifft_get_index(sz, space(c))
     view(C, inds_C...) .= real.(view(A, inds_A...))
     return c
 end

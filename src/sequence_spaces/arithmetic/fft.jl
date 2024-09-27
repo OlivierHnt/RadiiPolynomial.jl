@@ -283,12 +283,18 @@ end
 _ifft_get_index(n, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
 
 function _postprocess!(C::AbstractVector, ::Chebyshev)
-    C[length(C)÷2+1] /= ExactReal(2)
+    len = length(C)
+    if len != 1
+        C[len÷2+1] /= ExactReal(2)
+    end
     return C
 end
 
 function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
-    selectdim(C, D, size(C, D)÷2+1) ./= ExactReal(2)
+    len = size(C, D)
+    if len != 1
+        selectdim(C, D, len÷2+1) ./= ExactReal(2)
+    end
     return C
 end
 

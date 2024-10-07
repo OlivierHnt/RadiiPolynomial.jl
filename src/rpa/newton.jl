@@ -58,12 +58,12 @@ end
 
 #
 
-function newton!(F_DF!::Function, x₀::AbstractVector, F::AbstractVector=similar(x₀), DF::AbstractMatrix=similar(x₀, length(x₀), length(x₀)); tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+function newton!(F_DF!::Function, x₀::AbstractVector, F::AbstractVector=zeros(eltype(x₀), length(x₀)), DF::AbstractMatrix=zeros(eltype(x₀), length(x₀), length(x₀)); tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
     (tol < 0) | (maxiter < 0) && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     return _newton!(F_DF!, x₀, F, DF, tol, maxiter, verbose)
 end
 
-function newton!(F_DF!::Function, x₀::Sequence, F::Sequence=similar(x₀), DF::LinearOperator=LinearOperator(space(x₀), space(x₀), similar(coefficients(x₀), length(x₀), length(x₀))); tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
+function newton!(F_DF!::Function, x₀::Sequence, F::Sequence=zeros(eltype(x₀), space(x₀)), DF::LinearOperator=zeros(eltype(x₀), space(x₀), space(x₀)); tol::Real=1e-12, maxiter::Int=15, verbose::Bool=true)
     (tol < 0) | (maxiter < 0) && return throw(DomainError((tol, maxiter), "tolerance and maximum number of iterations must be positive"))
     return _newton!(F_DF!, x₀, F, DF, tol, maxiter, verbose)
 end

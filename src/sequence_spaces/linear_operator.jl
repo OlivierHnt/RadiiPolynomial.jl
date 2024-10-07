@@ -50,6 +50,8 @@ LinearOperator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<
 LinearOperator(coefficients::AbstractMatrix) =
     LinearOperator(ParameterSpace()^size(coefficients, 2), ParameterSpace()^size(coefficients, 1), coefficients)
 
+LinearOperator(a::Sequence) = LinearOperator(ParameterSpace(), space(a), reshape(coefficients(a), length(a), 1))
+
 Sequence(A::LinearOperator) = Sequence(codomain(A), vec(coefficients(A)))
 
 domain(A::LinearOperator) = A.domain
@@ -191,6 +193,11 @@ end
 for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(A::LinearOperator) = LinearOperator(domain(A), codomain(A), $f(coefficients(A)))
 end
+
+#
+
+adjoint(A::LinearOperator) = LinearOperator(codomain(A), domain(A), adjoint(coefficients(A)))
+adjoint(a::Sequence) = adjoint(LinearOperator(a))
 
 # promotion
 

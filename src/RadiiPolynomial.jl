@@ -29,8 +29,9 @@ include("sequence_spaces/vector_spaces.jl")
 
 include("sequence_spaces/sequence.jl")
     export Sequence
+import LinearAlgebra: adjoint
 include("sequence_spaces/linear_operator.jl")
-    export LinearOperator, domain, codomain
+    export LinearOperator, domain, codomain, adjoint
 include("sequence_spaces/broadcast.jl")
 
     export coefficients, eachcol, eachrow, eachcomponent, component

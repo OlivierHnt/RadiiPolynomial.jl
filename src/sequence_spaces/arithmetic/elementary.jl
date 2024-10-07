@@ -57,7 +57,7 @@ _image_trunc(::typeof(cbrt), s::SequenceSpace) = s
 function Base.cbrt(a::Sequence{<:SequenceSpace})
     space_c = _image_trunc(cbrt, space(a))
     A = fft(a, fft_size(space_c))
-    C = A .^ (1//3)
+    C = A .^ ExactReal(1//3)
     c = _call_ifft!(C, space_c, eltype(a))
     return c
 end

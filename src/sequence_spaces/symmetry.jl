@@ -237,57 +237,48 @@ _convolution_indices(s₁::SinFourier, s₂::CosFourier, i::Int) =
 
 # FFT
 
-_dfs_dimension(s::CosFourier) = 2order(s)+1
-function _preprocess!(C::AbstractVector, space::CosFourier)
-    len = length(C)
-    @inbounds for i ∈ 2:order(space)+1
-        C[len+2-i] = C[i]
-    end
-    return C
-end
-function _preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D}
-    len = size(C, D)
-    @inbounds for i ∈ 2:order(space)+1
-        selectdim(C, D, len+2-i) .= selectdim(C, D, i)
-    end
-    return C
-end
-_postprocess!(C, ::CosFourier) = C
-_postprocess!(C, ::CosFourier, ::Val) = C
+_dft_dimension(s::CosFourier) = 2order(s)+1
 
-_dfs_dimension(s::SinFourier) = 2order(s)+1
+_preprocess!(C::AbstractVector, space::CosFourier) = _preprocess!(C, Chebyshev(order(space)))
+_preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _preprocess!(C, Chebyshev(order(space)), Val(D))
+
+_ifft_get_index(n, space::CosFourier) = _ifft_get_index(n, Chebyshev(order(space)))
+_postprocess!(C::AbstractVector, space::CosFourier) = _postprocess!(C, Chebyshev(order(space)))
+_postprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _postprocess!(C, Chebyshev(order(space)), Val(D))
+
+
+
+_dft_dimension(s::SinFourier) = 2order(s)+1
+
 function _preprocess!(C::AbstractVector, space::SinFourier)
-    CoefType = eltype(C)
     len = length(C)
-    @inbounds for i ∈ order(space)+1:-1:2
-        C[i] = complex(zero(CoefType), -C[i-1])
-        C[len+2-i] = -C[i]
-    end
-    @inbounds C[1] = zero(CoefType)
+    ord = order(space)
+    view(C, 2:ord+1) .= view(C, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    C[1] = zero(eltype(C))
+    view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
     return C
 end
+
 function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
-    CoefType = eltype(C)
     len = size(C, D)
-    @inbounds for i ∈ order(space)+1:-1:2
-        selectdim(C, D, i) .= complex.(zero(CoefType), .- selectdim(C, D, i-1))
-        selectdim(C, D, len+2-i) .= .- selectdim(C, D, i)
-    end
-    @inbounds selectdim(C, D, 1) .= zero(CoefType)
+    ord = order(space)
+    selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    selectdim(C, D, 1) .= zero(eltype(C))
+    selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
     return C
 end
-function _postprocess!(C, space::SinFourier)
-    CoefType = eltype(C)
-    @inbounds for i ∈ 1:order(space)
-        C[i] = complex(zero(CoefType), C[i+1])
-    end
+
+_ifft_get_index(n, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷2, dimension(space))
+
+function _postprocess!(C::AbstractVector, ::SinFourier)
+    ord = length(C) ÷ 2
+    view(C, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* view(C, 2:ord+1)
     return C
 end
-function _postprocess!(C, space::SinFourier, ::Val{D}) where {D}
-    CoefType = eltype(C)
-    @inbounds for i ∈ 1:order(space)
-        selectdim(C, D, i) .= complex.(zero(CoefType), selectdim(C, D, i+1))
-    end
+
+function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
+    ord = size(C, D) ÷ 2
+    selectdim(C, D, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* selectdim(C, D, 2:ord+1)
     return C
 end
 

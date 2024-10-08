@@ -101,6 +101,6 @@ include("sequence_spaces/symmetry.jl")
 #
 
 include("sequence_spaces/validated_sequence.jl")
-    export ValidatedSequence
+    export ValidatedSequence, sequence_norm, sequence_error, banachspace
 
 end

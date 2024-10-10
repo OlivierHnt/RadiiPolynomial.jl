@@ -123,16 +123,7 @@ julia> rate.(geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2
 (true, true)
 ```
 """
-geometricweight(::Sequence{<:SequenceSpace})
-
-function geometricweight(a::Sequence{<:BaseSpace})
-    s = space(a)
-    A = coefficients(a)
-    rate, _ = _geometric_max_rate(s, A)
-    return GeometricWeight(rate)
-end
-
-function geometricweight(a::Sequence{<:TensorSpace})
+function geometricweight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
     rate, _ = _geometric_rate(s, A)
@@ -164,7 +155,7 @@ end
 
 # Taylor
 
-function _geometric_max_rate(::Taylor, A)
+function _geometric_rate(::Taylor, A)
     len = length(A)
     β, err = _linear_regression(identity, A, len)
     for j ∈ len-1:-1:2
@@ -178,7 +169,7 @@ end
 
 # Fourier
 
-function _geometric_max_rate(s::Fourier, A)
+function _geometric_rate(s::Fourier, A)
     len = order(s)+1
     @inbounds A1 = view(A, len:2*len-1)
     β1, err1 = _linear_regression(identity, A1, len)
@@ -200,7 +191,7 @@ end
 
 # Chebyshev
 
-function _geometric_max_rate(::Chebyshev, A)
+function _geometric_rate(::Chebyshev, A)
     len = length(A)
     β, err = _linear_regression(identity, A, len)
     for j ∈ len-1:-1:2
@@ -271,12 +262,10 @@ julia> rate.(algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((
 (true, true)
 ```
 """
-algebraicweight(::Sequence{<:SequenceSpace})
-
-function algebraicweight(a::Sequence{<:BaseSpace})
+function algebraicweight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
-    rate, _ = _algebraic_max_rate(s, A)
+    rate, _ = _algebraic_rate(s, A)
     return AlgebraicWeight(rate)
 end
 
@@ -311,7 +300,7 @@ end
 
 # Taylor
 
-function _algebraic_max_rate(::Taylor, A)
+function _algebraic_rate(::Taylor, A)
     len = length(A)
     β, err = _linear_regression(log, A, len)
     for j ∈ len-1:-1:2
@@ -325,7 +314,7 @@ end
 
 # Fourier
 
-function _algebraic_max_rate(s::Fourier, A)
+function _algebraic_rate(s::Fourier, A)
     len = order(s)+1
     @inbounds A1 = view(A, len:2*len-1)
     β1, err1 = _linear_regression(log, A1, len)
@@ -347,7 +336,7 @@ end
 
 # Chebyshev
 
-function _algebraic_max_rate(::Chebyshev, A)
+function _algebraic_rate(::Chebyshev, A)
     len = length(A)
     β, err = _linear_regression(log, A, len)
     for j ∈ len-1:-1:2
@@ -361,16 +350,7 @@ end
 
 # retrieve the optimal weight
 
-function weight(a::Sequence{<:BaseSpace})
-    s = space(a)
-    A = coefficients(a)
-    geo_rate, geo_err = _geometric_max_rate(s, A)
-    alg_rate, alg_err = _algebraic_max_rate(s, A)
-    geo_err ≤ alg_err && return GeometricWeight(geo_rate)
-    return AlgebraicWeight(alg_rate)
-end
-
-function weight(a::Sequence{<:TensorSpace})
+function weight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
     geo_rate, geo_err = _geometric_rate(s, A)

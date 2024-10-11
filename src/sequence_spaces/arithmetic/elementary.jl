@@ -71,11 +71,13 @@ Base.abs2(a::Sequence{<:SequenceSpace}) = a^2
 
 _image_trunc(::typeof(^), s::SequenceSpace) = s
 
-function Base.:^(a::Sequence{<:SequenceSpace}, x::Real)
+function Base.:^(a::Sequence{<:SequenceSpace}, p::Real)
     space_c = _image_trunc(^, space(a))
     A = fft(a, fft_size(space_c))
-    C = A .^ x
+    C = A .^ p
     c = _call_ifft!(C, space_c, eltype(a))
+    ν̄ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+    _resolve_saturation!(x -> ^(x, p), c, a, ν̄)
     return c
 end
 
@@ -86,11 +88,158 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
         _image_trunc(::typeof($f), s::SequenceSpace) = s
 
         function Base.$f(a::Sequence{<:SequenceSpace})
+            _isconstant(a) && return _at_value($f, a)
             space_c = _image_trunc($f, space(a))
             A = fft(a, fft_size(space_c))
             C = $f.(A)
             c = _call_ifft!(C, space_c, eltype(a))
+            ν̄ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+            _resolve_saturation!($f, c, a, ν̄)
+            return c
+        end
+
+        function _at_value(::typeof($f), a)
+            c = one(a)
+            idx = _findindex_constant(space(a))
+            c[idx] = $f(a[idx])
             return c
         end
     end
 end
+
+#
+
+function _isconstant(a::Sequence)
+    s = space(a)
+    idx = _findindex_constant(s) # throws for `SinFourier`
+    return all(k -> ifelse(k == idx, true, iszero(a[k])), indices(s))
+end
+
+
+
+function _resolve_saturation!(f, c, a, ν)
+    ν⁻¹ = inv(ν)
+    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+    CoefType = eltype(c)
+    for k ∈ indices(space(c))
+        if mag(c[k]) > mag(C / ν ^ abs(k))
+            c[k] = zero(CoefType)
+        end
+    end
+    return c
+end
+
+function _resolve_saturation!(f, c, a, ν::NTuple{N}) where {N}
+    ν⁻¹ = inv.(ν)
+    _tuple_ = tuple(ν, ν⁻¹)
+    _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
+    C = maximum(μ -> _contour(f, a, μ), _mix_)
+    CoefType = eltype(c)
+    for k ∈ indices(space(c))
+        if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+            c[k] = zero(CoefType)
+        end
+    end
+    return c
+end
+
+
+
+function _contour(f, a, ν)
+    # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(ν < 1, floatmin(ν), floatmax(ν)) ) / log(ν))) # maybe there is a better N_fft value to consider
+    N_fft = fft_size(space(a))
+
+    CoefType = complex(IntervalArithmetic.numtype(eltype(a)))
+    grid_a_δ = zeros(CoefType, N_fft)
+
+    A = coefficients(a)
+    view(grid_a_δ, eachindex(A)) .= mid.(A)
+    _preprocess!(grid_a_δ, space(a))
+    _boxes!(grid_a_δ, ν)
+
+    _fft_pow2!(grid_a_δ)
+    contour_integral = sum(abs ∘ f, grid_a_δ)
+
+    return contour_integral / N_fft
+end
+
+function _contour(f, a, ν::Tuple)
+    # N_fft = min.(fft_size(space(a)), prevpow.(2, log.( ifelse.(mid.(ν) .< 1, floatmin.(ν), floatmax.(ν)) ) ./ log.(ν)))
+    N_fft = fft_size(space(a))
+
+    CoefType = complex(IntervalArithmetic.numtype(eltype(a)))
+    grid_a_δ = zeros(CoefType, N_fft)
+
+    A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
+    view(grid_a_δ, axes(A)...) .= mid.(A)
+    _apply_preprocess!(grid_a_δ, space(a))
+    _apply_boxes!(grid_a_δ, ν)
+
+    _fft_pow2!(grid_a_δ)
+    contour_integral = sum(abs ∘ f, grid_a_δ)
+
+    return contour_integral / prod(N_fft)
+end
+
+
+
+_apply_boxes!(C::AbstractArray{S,N₁}, ν::NTuple{N₂,Number}) where {S,N₁,N₂} =
+    @inbounds _boxes!(_apply_boxes!(C, Base.tail(ν)), ν[1], Val(N₁-N₂+1))
+
+_apply_boxes!(C::AbstractArray{S,N}, ν::Tuple{Number}) where {S,N} =
+    @inbounds _boxes!(C, ν[1], Val(N))
+
+function _boxes!(C, ν)
+    len = length(C)
+    for k ∈ 1:len÷2-1
+        C[k+1]     *= ν ^ ExactReal(-k)
+        C[len+1-k] *= ν ^ ExactReal( k)
+    end
+    return C
+end
+
+function _boxes!(C, ν, ::Val{D}) where {D}
+    len = size(C, D)
+    for k ∈ 1:len÷2-1
+        selectdim(C, D, k+1)     .*= ν ^ ExactReal(-k)
+        selectdim(C, D, len+1-k) .*= ν ^ ExactReal( k)
+    end
+    return C
+end
+
+
+
+
+
+# function _find_decay(f, a, approx, ν::NTuple{N}) where {N}
+#     T = IntervalArithmetic.numtype(eltype(approx))
+#     N_v = order(approx)
+#     N_fft = fft_size(space(approx))
+#     ν̄_max = _rate(geometricweight(a)) # _rate(geometricweight(approx))
+
+#     #
+
+#     mid_a = mid.(a) # unnecessary allocation
+
+#     #
+
+#     ν̄_opt = ν̄_max
+
+#     C_opt, m_opt = _error(f, mid_a, approx, ν̄_opt, ν, N_fft, N_v, T)
+#     error_opt = C_opt * m_opt
+
+#     for i ∈ 1:N
+#         for ν̄ᵢ_ ∈ LinRange(ν̄_max[i], ν[i], 10)
+#             ν̄_ = ntuple(j -> ifelse(j == i, ν̄ᵢ_, ν̄_opt[j]), Val(N))
+#             C_, m_ = _error(f, mid_a, approx, ν̄_, ν, N_fft, N_v, T)
+#             error_ = C_ * m_
+
+#             error_ > error_opt && break
+
+#             ν̄_opt = ν̄_
+#             error_opt = error_
+#         end
+#     end
+
+#     return ν̄_opt
+# end

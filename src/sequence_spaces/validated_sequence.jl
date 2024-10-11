@@ -1,13 +1,13 @@
-struct ValidatedSequence{T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{R,Complex{R}}},U<:BanachSpace} <: AbstractSequence{T,S}
+struct ValidatedSequence{T<:SequenceSpace,R<:Interval,S<:Union{AbstractVector{R},AbstractVector{Complex{R}}},U<:BanachSpace} <: AbstractSequence{T,S}
     sequence :: Sequence{T,S}
     sequence_norm :: R
     sequence_error :: R
     banachspace :: U
-    global _unsafe_validated_sequence(sequence::Sequence{T,S}, sequence_norm::R, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{R,Complex{R}}},U<:BanachSpace} =
+    global _unsafe_validated_sequence(sequence::Sequence{T,S}, sequence_norm::R, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:Union{AbstractVector{R},AbstractVector{Complex{R}}},U<:BanachSpace} =
         new{T,R,S,U}(sequence, sequence_norm, sequence_error, banachspace)
 end
 
-function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:AbstractVector{<:Union{R,Complex{R}}},U<:BanachSpace}
+function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,R<:Interval,S<:Union{AbstractVector{R},AbstractVector{Complex{R}}},U<:BanachSpace}
     _iscompatbanachspace(space(sequence), banachspace) || return throw(ArgumentError("invalid norm for the sequence space"))
     if isempty_interval(sequence_error)
         seq = fill(emptyinterval(eltype(sequence)), space(sequence))
@@ -250,6 +250,8 @@ end
 #
 
 function Base.inv(a::ValidatedSequence)
+    # TODO: propagate "NG" flag
+
     space_approx = _image_trunc(inv, space(a))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
     A⁻¹ = inv.(A)
@@ -269,6 +271,8 @@ function Base.inv(a::ValidatedSequence)
 end
 
 function Base.:/(a::ValidatedSequence, b::ValidatedSequence)
+    # TODO: propagate "NG" flag
+
     space_approx = _image_trunc(/, space(a), space(b))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
     B = fft(mid.(sequence(b)), fft_size(space_approx))
@@ -299,6 +303,8 @@ Base.:\(a::Number, b::ValidatedSequence) = b / a
 #
 
 function Base.sqrt(a::ValidatedSequence)
+    # TODO: propagate "NG" flag
+
     space_approx = _image_trunc(sqrt, space(a))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
     sqrtA = sqrt.(A)
@@ -323,6 +329,8 @@ end
 #
 
 function Base.cbrt(a::ValidatedSequence)
+    # TODO: propagate "NG" flag
+
     space_approx = _image_trunc(cbrt, space(a))
     A = fft(mid.(sequence(a)), fft_size(space_approx))
     cbrtA = A .^ (1//3)
@@ -355,181 +363,184 @@ Base.abs2(a::ValidatedSequence) = a^2
 
 #
 
+function Base.:^(a::ValidatedSequence, p::Real)
+    @assert isthinzero(sequence_error(a)) # TODO: lift restriction
+    seq_a = sequence(a)
+    _isconstant(seq_a) && return ValidatedSequence(_at_value(x -> ^(x, p), seq_a), banachspace(a))
+    ν_ = rate.(weight(banachspace(a)))
+
+    #
+
+    space_c = _image_trunc(^, space(a))
+    A = fft(seq_a, fft_size(space_c))
+    C = A .^ p
+    c = _call_ifft!(C, space_c, eltype(a))
+    ν̄_ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+    _resolve_saturation!(x -> ^(x, p), c, a, ν̄_)
+
+    #
+
+    error = prod(_error(x -> ^(x, p), seq_a, c, ν_, ν̄_))
+
+    #
+
+    if !isthinzero(sequence_error(a))
+        ν = tuple(ν_...)
+        ν̄ = tuple(ν̄_...)
+        ν̄⁻¹ = inv.(ν̄)
+
+        _tuple_ = tuple(ν̄, ν̄⁻¹)
+        _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
+
+        r_star = ExactReal(1) + sequence_error(a)
+        θ = interval(IntervalArithmetic.numtype(r_star), -1, 1)
+        W = maximum(μ -> _contour(x -> ^(x, p), seq_a + r_star * cispi(θ), ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
+
+        error += W * sequence_error(a)
+    end
+
+    #
+
+    return ValidatedSequence(c, error, banachspace(a))
+end
+
+# function _cross_branch_cut_log(a, N_fft)
+#     ν = rate(weight(banachspace(a)))
+#     image_on_boundary = [a( (ν * cispi(θ) + cispi(-θ) / ν) / 2 ) for θ ∈ mince(interval(IntervalArithmetic.numtype(ν), -1, 1), N_fft)]
+#     return any(piece -> !isdisjoint_interval(interval(-Inf, 0), piece), image_on_boundary)
+# end
+
+#
+
 for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
     @eval begin
-        function Base.$f(a::ValidatedSequence{<:BaseSpace})
-            @assert !iszero(sequence(a)) # TODO: lift restriction
-            banachspace(a) isa Ell1{<:GeometricWeight} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
-
-            space_approx = _image_trunc($f, space(a))
-            N_fft = 2 * fft_size(space_approx)
+        function Base.$f(a::ValidatedSequence)
             seq_a = sequence(a)
-            A = fft(seq_a, N_fft)
-            fA = $f.(A)
-            seq_fa = _call_ifft!(fA, space_approx, eltype(a))
+            _isconstant(seq_a) & isthinzero(sequence_error(a)) && return ValidatedSequence(_at_value($f, seq_a), banachspace(a))
+            ν_ = rate.(weight(banachspace(a)))
 
-            ν = rate(weight(banachspace(a)))
+            #
 
-            ν_finite_part = interval(max(nextfloat(sup(rate(weight(banachspace(a))))), rate(geometricweight(seq_fa))))
-            ν_finite_part⁻¹ = inv(ν_finite_part)
+            space_c = _image_trunc($f, space(a))
+            A = fft(seq_a, fft_size(space_c))
+            C = $f.(A)
+            c = _call_ifft!(C, space_c, eltype(a))
+            ν̄_ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+            _resolve_saturation!($f, c, a, ν̄_)
 
-            C = max(_contour($f, seq_a, ν_finite_part, N_fft, eltype(seq_fa)),
-                    _contour($f, seq_a, ν_finite_part⁻¹, N_fft, eltype(seq_fa)))
+            #
 
-            q = mapreduce(k -> (ν_finite_part⁻¹ ^ ExactReal(k) + ν_finite_part ^ ExactReal(k)) * ν_finite_part ^ ExactReal(abs(k)), +, indices(space_approx))
-            error = C * (q / (ν_finite_part ^ ExactReal(N_fft) - ExactReal(1)) +
-                         ExactReal(2) * ν_finite_part / (ν_finite_part - ν) * (ν * ν_finite_part⁻¹) ^ ExactReal(order(a) + 1))
+            error = prod(_error($f, seq_a, c, ν_, ν̄_))
+
+            #
 
             if !isthinzero(sequence_error(a))
+                ν = tuple(ν_...)
+                ν̄ = tuple(ν̄_...)
+                ν̄⁻¹ = inv.(ν̄)
+
+                _tuple_ = tuple(ν̄, ν̄⁻¹)
+                _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
+
                 r_star = ExactReal(1) + sequence_error(a)
-                θ = interval(IntervalArithmetic.numtype(ν), -1, 1)
-                W = max(_contour($f, seq_a + r_star * cispi(θ), ν_finite_part, N_fft, eltype(seq_fa)),
-                        _contour($f, seq_a + r_star * cispi(θ), ν_finite_part⁻¹, N_fft, eltype(seq_fa))) * (ν_finite_part + ν) / (ν_finite_part - ν)
+                θ = interval(IntervalArithmetic.numtype(r_star), -1, 1)
+                W = maximum(μ -> _contour($f, seq_a + r_star * cispi(θ), ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
+
                 error += W * sequence_error(a)
             end
 
-            return ValidatedSequence(seq_fa, error, banachspace(a))
-        end
+            #
 
-        function Base.$f(a::ValidatedSequence{<:TensorSpace})
-            @assert !iszero(sequence(a)) # TODO: lift restriction
-            banachspace(a) isa Ell1{<:Tuple{Vararg{GeometricWeight}}} || return throw(ArgumentError("only Ell1{<:GeometricWeight} is allowed"))
-
-            space_approx = _image_trunc($f, space(a))
-            N_fft = 2 .* fft_size(space_approx)
-            seq_a = sequence(a)
-            A = fft(seq_a, N_fft)
-            fA = $f.(A)
-            seq_fa = _call_ifft!(fA, space_approx, eltype(a))
-
-            ν = rate.(weight(banachspace(a)))
-
-            ν_finite_part = interval.(max.(nextfloat.(sup.(rate.(weight(banachspace(a))))), rate.(geometricweight(seq_fa))))
-            ν_finite_part⁻¹ = inv.(ν_finite_part)
-
-            _t_ = tuple(ν_finite_part, ν_finite_part⁻¹)
-            mix_ν = Iterators.product(getindex.(_t_, 1), getindex.(_t_, 2))
-
-            C = mapreduce(μ -> _contour($f, seq_a, μ, N_fft, eltype(seq_fa)), max, mix_ν)
-
-            q = mapreduce(k -> mapreduce(μ -> prod(μ .^ ExactReal.(k)), +, mix_ν) * prod(ν_finite_part .^ ExactReal.(abs.(k))), +, indices(space_approx))
-            error = C * (q / prod(ν_finite_part .^ ExactReal.(N_fft) .- ExactReal(1)) +
-                         ExactReal(2^2) * prod(ν_finite_part) / prod(ν_finite_part .- ν) * prod((ν .* ν_finite_part⁻¹) .^ ExactReal.(order(a) .+ 1)))
-
-            if !isthinzero(sequence_error(a))
-                r_star = ExactReal(1) + sequence_error(a)
-                θ = interval(promote_type(IntervalArithmetic.numtype.(ν)...), -1, 1)
-                W = mapreduce(μ -> _contour($f, seq_a + r_star * cispi(θ), μ, N_fft, eltype(seq_fa)),
-                        max,
-                        mix_ν) * prod((ν_finite_part .+ ν) ./ (ν_finite_part .- ν))
-                error += W * sequence_error(a)
-            end
-
-            return ValidatedSequence(seq_fa, error, banachspace(a))
+            return ValidatedSequence(c, error, banachspace(a))
         end
     end
 end
 
-function _contour(f, ū, μ, N_fft, T)
-    CoefType = complex(eltype(ū))
-    grid_ū_δ = zeros(CoefType, N_fft)
-    U = coefficients(ū)
-    view(grid_ū_δ, eachindex(U)) .= U
+#
 
-    val = sup(inv(interval(IntervalArithmetic.numtype(μ), N_fft)))
+function _error(f, a, approx, ν::Interval, ν̄)
+    ν̄⁻¹ = inv(ν̄)
+
+    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+
+    N_v = order(approx) # TAG: should be the largest |n| such that the coefficients are zero beyond
+    q = sum(k -> (ν ^ ExactReal(k) + ν⁻¹ ^ ExactReal(k)) * ν ^ ExactReal(abs(k)), -N_v:N_v)
+
+    return C, q / prod(ν̄ ^ ExactReal( fft_size(space(approx)) ) - ExactReal(1)) + ExactReal(2) * ν̄ / (ν̄ - ν) * (ν * ν̄⁻¹) ^ ExactReal(N_v + 1)
+end
+
+function _error(f, a, approx, ν::NTuple{N,Interval}, ν̄) where {N}
+    ν̄⁻¹ = inv.(ν̄)
+    _tuple_ = tuple(ν̄, ν̄⁻¹)
+    _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
+    C = maximum(μ -> _contour(f, a, μ), _mix_)
+
+    N_v = order(approx) # TAG: error, should be the largest |n| such that the coefficients are zero beyond
+    q = sum(k -> sum(μ -> prod(μ .^ ExactReal.(k)), _mix_) * prod(ν̄ .^ ExactReal.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
+
+    return C, q / prod(ν̄ .^ ExactReal.( fft_size(space(approx)) ) .- ExactReal(1)) + ExactReal(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ ExactReal.(N_v .+ 1))
+end
+
+
+
+function _contour(f, a, ν::Interval)
+    # mid_ν = mid(ν)
+    # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(mid_ν < 1, floatmin(mid_ν), floatmax(mid_ν)) ) / log(mid_ν))) # maybe there is a better N_fft value to consider
+    N_fft = fft_size(space(a))
+
+    CoefType = complex(eltype(a))
+    grid_a_δ = zeros(CoefType, N_fft)
+
+    A = coefficients(a)
+    view(grid_a_δ, eachindex(A)) .= A
+    _preprocess!(grid_a_δ, space(a))
+    _boxes!(grid_a_δ, ν)
+
+    _fft_pow2!(grid_a_δ)
+    contour_integral = sum(abs ∘ f, grid_a_δ)
+
+    return contour_integral / ExactReal(N_fft)
+end
+
+function _contour(f, a, ν::Tuple{Vararg{Interval}})
+    # mid_ν = mid.(ν)
+    # N_fft = min.(fft_size(space(a)), prevpow.(2, log.( ifelse.(mid_ν .< 1, floatmin.(mid_ν), floatmax.(mid_ν)) ) ./ log.(mid_ν)))
+    N_fft = fft_size(space(a))
+
+    CoefType = complex(eltype(a))
+    grid_a_δ = zeros(CoefType, N_fft)
+
+    A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
+    view(grid_a_δ, axes(A)...) .= A
+    _apply_preprocess!(grid_a_δ, space(a))
+    _apply_boxes!(grid_a_δ, ν)
+
+    _fft_pow2!(grid_a_δ)
+    contour_integral = sum(abs ∘ f, grid_a_δ)
+
+    return contour_integral / ExactReal(prod(N_fft))
+end
+
+
+
+function _boxes!(C, μ::Interval)
+    len = length(C)
+    val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
     δ = interval(-val, val)
-    _preprocess_contour!(grid_ū_δ, space(ū), μ, δ)
-
-    _fft_pow2!(grid_ū_δ)
-    contour_integral = zero(real(T))
-    for v ∈ grid_ū_δ
-        contour_integral += abs(f(v))
-    end
-
-    return interval(sup(contour_integral / ExactReal(N_fft)))
-end
-
-function _contour(f, ū, μ, N_fft::Tuple, T)
-    CoefType = complex(eltype(ū))
-    grid_ū_δ = zeros(CoefType, N_fft)
-    U = _no_alloc_reshape(coefficients(ū), dimensions(space(ū)))
-    view(grid_ū_δ, axes(U)...) .= U
-
-    val = sup.(inv.(interval.(IntervalArithmetic.numtype.(μ), N_fft)))
-    δ = interval.(.- val, val)
-    _apply_preprocess_contour!(grid_ū_δ, space(ū), μ, δ)
-
-    _fft_pow2!(grid_ū_δ)
-    contour_integral = zero(real(T))
-    for v ∈ grid_ū_δ
-        contour_integral += abs(f(v))
-    end
-
-    return interval(sup(contour_integral / ExactReal(prod(N_fft))))
-end
-
-_apply_preprocess_contour!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}, μ, δ) where {T,N₁,N₂} =
-    @inbounds _preprocess_contour!(_apply_preprocess_contour!(C, Base.tail(space), Base.tail(μ), Base.tail(δ)), space[1], Val(N₁-N₂+1), μ[1], δ[1])
-
-_apply_preprocess_contour!(C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}, μ, δ) where {T,N} =
-    @inbounds _preprocess_contour!(C, space[1], Val(N), μ[1], δ[1])
-
-# Taylor
-
-function _preprocess_contour!(C::AbstractVector, space::Taylor, μ, δ)
-    for k ∈ 1:order(space)
-        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    for k ∈ 1:len÷2-1
+        C[k+1]     *= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
+        C[len+1-k] *= μ ^ ExactReal( k) * cispi(ExactReal( k) * δ)
     end
     return C
 end
 
-function _preprocess_contour!(C::AbstractArray, space::Taylor, ::Val{D}, μ, δ) where {D}
-    for k ∈ 1:order(space)
-        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
-    end
-    return C
-end
-
-# Fourier
-
-function _preprocess_contour!(C::AbstractVector, space::Fourier, μ, δ)
-    ord = order(space)
-    circshift!(C, copy(C), -ord)
-    len = length(C)
-    for k ∈ 1:ord
-        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
-        C[len+1-k] *= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
-    end
-    return C
-end
-
-function _preprocess_contour!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}, μ, δ) where {T,N,D}
-    ord = order(space)
-    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -ord, 0), Val(N)))
+function _boxes!(C, μ::Interval, ::Val{D}) where {D}
     len = size(C, D)
-    for k ∈ 1:ord
-        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
-        selectdim(C, D, len+1-k) .*= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
-    end
-    return C
-end
-
-# Chebyshev
-
-function _preprocess_contour!(C::AbstractVector, space::Chebyshev, μ, δ)
-    len = length(C)
-    for k ∈ 1:order(space)
-        C[len+1-k] = C[k+1] * μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
-        C[k+1] *= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
-    end
-    return C
-end
-
-function _preprocess_contour!(C::AbstractArray, space::Chebyshev, ::Val{D}, μ, δ) where {D}
-    len = size(C, D)
-    for k ∈ 1:order(space)
-        selectdim(C, D, len+1-k) .= selectdim(C, D, k+1) .* (μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ))
-        selectdim(C, D, k+1) .*= μ ^ ExactReal(k) * cispi(ExactReal(k) * δ)
+    val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
+    δ = interval(-val, val)
+    for k ∈ 1:len÷2-1
+        selectdim(C, D, k+1)     .*= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
+        selectdim(C, D, len+1-k) .*= μ ^ ExactReal( k) * cispi(ExactReal( k) * δ)
     end
     return C
 end

@@ -367,7 +367,7 @@ function Base.:^(a::ValidatedSequence, p::Real)
     @assert isthinzero(sequence_error(a)) # TODO: lift restriction
     seq_a = sequence(a)
     _isconstant(seq_a) && return ValidatedSequence(_at_value(x -> ^(x, p), seq_a), banachspace(a))
-    ν_ = rate.(weight(banachspace(a)))
+    ν_ = rate(banachspace(a))
 
     #
 
@@ -375,7 +375,7 @@ function Base.:^(a::ValidatedSequence, p::Real)
     A = fft(seq_a, fft_size(space_c))
     C = A .^ p
     c = _call_ifft!(C, space_c, eltype(a))
-    ν̄_ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+    ν̄_ = interval.(0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0)
     _resolve_saturation!(x -> ^(x, p), c, a, ν̄_)
 
     #
@@ -417,7 +417,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
         function Base.$f(a::ValidatedSequence)
             seq_a = sequence(a)
             _isconstant(seq_a) & isthinzero(sequence_error(a)) && return ValidatedSequence(_at_value($f, seq_a), banachspace(a))
-            ν_ = rate.(weight(banachspace(a)))
+            ν_ = rate(banachspace(a))
 
             #
 
@@ -425,12 +425,12 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             A = fft(seq_a, fft_size(space_c))
             C = $f.(A)
             c = _call_ifft!(C, space_c, eltype(a))
-            ν̄_ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
-            _resolve_saturation!($f, c, a, ν̄_)
+            ν̄_ = interval.(0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0)
+            _, N_v = _resolve_saturation!($f, c, a, ν̄_)
 
             #
 
-            error = prod(_error($f, seq_a, c, ν_, ν̄_))
+            error = prod(_error($f, seq_a, c, ν_, ν̄_, N_v))
 
             #
 
@@ -458,25 +458,23 @@ end
 
 #
 
-function _error(f, a, approx, ν::Interval, ν̄)
+function _error(f, a, approx, ν::Interval, ν̄, N_v)
     ν̄⁻¹ = inv(ν̄)
 
-    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+    C = max(_contour(f, a, ν̄), _contour(f, a, ν̄⁻¹))
 
-    N_v = order(approx) # TAG: should be the largest |n| such that the coefficients are zero beyond
-    q = sum(k -> (ν ^ ExactReal(k) + ν⁻¹ ^ ExactReal(k)) * ν ^ ExactReal(abs(k)), -N_v:N_v)
+    q = sum(k -> (ν̄ ^ ExactReal(k) + ν̄⁻¹ ^ ExactReal(k)) * ν ^ ExactReal(abs(k)), -N_v:N_v)
 
     return C, q / prod(ν̄ ^ ExactReal( fft_size(space(approx)) ) - ExactReal(1)) + ExactReal(2) * ν̄ / (ν̄ - ν) * (ν * ν̄⁻¹) ^ ExactReal(N_v + 1)
 end
 
-function _error(f, a, approx, ν::NTuple{N,Interval}, ν̄) where {N}
+function _error(f, a, approx, ν::NTuple{N,Interval}, ν̄, N_v) where {N}
     ν̄⁻¹ = inv.(ν̄)
     _tuple_ = tuple(ν̄, ν̄⁻¹)
     _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
     C = maximum(μ -> _contour(f, a, μ), _mix_)
 
-    N_v = order(approx) # TAG: error, should be the largest |n| such that the coefficients are zero beyond
-    q = sum(k -> sum(μ -> prod(μ .^ ExactReal.(k)), _mix_) * prod(ν̄ .^ ExactReal.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
+    q = sum(k -> sum(μ -> prod(μ .^ ExactReal.(k)), _mix_) * prod(ν .^ ExactReal.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
 
     return C, q / prod(ν̄ .^ ExactReal.( fft_size(space(approx)) ) .- ExactReal(1)) + ExactReal(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ ExactReal.(N_v .+ 1))
 end

@@ -76,7 +76,7 @@ function Base.:^(a::Sequence{<:SequenceSpace}, p::Real)
     A = fft(a, fft_size(space_c))
     C = A .^ p
     c = _call_ifft!(C, space_c, eltype(a))
-    ν̄ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+    ν̄ = 0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0
     _resolve_saturation!(x -> ^(x, p), c, a, ν̄)
     return c
 end
@@ -93,7 +93,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             A = fft(a, fft_size(space_c))
             C = $f.(A)
             c = _call_ifft!(C, space_c, eltype(a))
-            ν̄ = (_geometric_rate(space(a), coefficients(a))[1] .+ 1) ./ 2
+            ν̄ = 0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0
             _resolve_saturation!($f, c, a, ν̄)
             return c
         end
@@ -121,12 +121,14 @@ function _resolve_saturation!(f, c, a, ν)
     ν⁻¹ = inv(ν)
     C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
     CoefType = eltype(c)
+    min_ord = order(c)
     for k ∈ indices(space(c))
         if mag(c[k]) > mag(C / ν ^ abs(k))
+            min_ord = min(min_ord, abs(k))
             c[k] = zero(CoefType)
         end
     end
-    return c
+    return c, min_ord
 end
 
 function _resolve_saturation!(f, c, a, ν::NTuple{N}) where {N}
@@ -135,12 +137,14 @@ function _resolve_saturation!(f, c, a, ν::NTuple{N}) where {N}
     _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
     C = maximum(μ -> _contour(f, a, μ), _mix_)
     CoefType = eltype(c)
+    min_ord = order(c)
     for k ∈ indices(space(c))
         if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+            min_ord = min.(min_ord, abs.(k))
             c[k] = zero(CoefType)
         end
     end
-    return c
+    return c, min_ord
 end
 
 
@@ -206,40 +210,3 @@ function _boxes!(C, ν, ::Val{D}) where {D}
     end
     return C
 end
-
-
-
-
-
-# function _find_decay(f, a, approx, ν::NTuple{N}) where {N}
-#     T = IntervalArithmetic.numtype(eltype(approx))
-#     N_v = order(approx)
-#     N_fft = fft_size(space(approx))
-#     ν̄_max = _rate(geometricweight(a)) # _rate(geometricweight(approx))
-
-#     #
-
-#     mid_a = mid.(a) # unnecessary allocation
-
-#     #
-
-#     ν̄_opt = ν̄_max
-
-#     C_opt, m_opt = _error(f, mid_a, approx, ν̄_opt, ν, N_fft, N_v, T)
-#     error_opt = C_opt * m_opt
-
-#     for i ∈ 1:N
-#         for ν̄ᵢ_ ∈ LinRange(ν̄_max[i], ν[i], 10)
-#             ν̄_ = ntuple(j -> ifelse(j == i, ν̄ᵢ_, ν̄_opt[j]), Val(N))
-#             C_, m_ = _error(f, mid_a, approx, ν̄_, ν, N_fft, N_v, T)
-#             error_ = C_ * m_
-
-#             error_ > error_opt && break
-
-#             ν̄_opt = ν̄_
-#             error_opt = error_
-#         end
-#     end
-
-#     return ν̄_opt
-# end

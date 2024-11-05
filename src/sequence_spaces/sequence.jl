@@ -94,13 +94,13 @@ function Base.fill!(a::Sequence, value)
 end
 
 IntervalArithmetic.interval(::Type{T}, a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    Sequence(space(a), interval(T, coefficients(a), d; format = format))
+    Sequence(interval(T, space(a)), interval(T, coefficients(a), d; format = format))
 IntervalArithmetic.interval(a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    Sequence(space(a), interval(coefficients(a), d; format = format))
+    Sequence(interval(space(a)), interval(coefficients(a), d; format = format))
 IntervalArithmetic.interval(::Type{T}, a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    Sequence(space(a), interval(T, coefficients(a), d; format = format))
+    Sequence(interval(T, space(a)), interval(T, coefficients(a), d; format = format))
 IntervalArithmetic.interval(a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    Sequence(space(a), interval(coefficients(a), d; format = format))
+    Sequence(interval(space(a)), interval(coefficients(a), d; format = format))
 
 Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
 

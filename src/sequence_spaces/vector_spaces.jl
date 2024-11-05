@@ -830,6 +830,15 @@ for f ∈ (:intersect, :union)
     end
 end
 
+# interval
+
+IntervalArithmetic.interval(::Type, s::VectorSpace) = s
+IntervalArithmetic.interval(s::VectorSpace) = s
+IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = map(sᵢ -> interval(T, sᵢ), s.spaces)
+IntervalArithmetic.interval(s::TensorSpace) = map(interval, s.spaces)
+IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T} = Fourier(order(s), interval(T, frequency(s)))
+IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
+
 # show
 
 Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))

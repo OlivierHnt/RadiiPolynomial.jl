@@ -156,13 +156,13 @@ function Base.fill!(A::LinearOperator, value)
 end
 
 IntervalArithmetic.interval(::Type{T}, A::LinearOperator, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    LinearOperator(domain(A), codomain(A), interval(T, coefficients(A), d; format = format))
+    LinearOperator(interval(T, domain(A)), interval(T, codomain(A)), interval(T, coefficients(A), d; format = format))
 IntervalArithmetic.interval(A::LinearOperator, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    LinearOperator(domain(A), codomain(A), interval(coefficients(A), d; format = format))
+    LinearOperator(interval(domain(A)), interval(codomain(A)), interval(coefficients(A), d; format = format))
 IntervalArithmetic.interval(::Type{T}, A::LinearOperator, d::AbstractMatrix{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    LinearOperator(domain(A), codomain(A), interval(T, coefficients(A), d; format = format))
+    LinearOperator(interval(T, domain(A)), interval(T, codomain(A)), interval(T, coefficients(A), d; format = format))
 IntervalArithmetic.interval(A::LinearOperator, d::AbstractMatrix{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    LinearOperator(domain(A), codomain(A), interval(coefficients(A), d; format = format))
+    LinearOperator(interval(domain(A)), interval(codomain(A)), interval(coefficients(A), d; format = format))
 
 Base.reverse(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse(coefficients(A); dims = dims))
 

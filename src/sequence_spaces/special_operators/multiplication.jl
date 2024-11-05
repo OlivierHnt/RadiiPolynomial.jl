@@ -22,6 +22,15 @@ end
 
 sequence(ℳ::Multiplication) = ℳ.sequence
 
+IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
+    Multiplication(interval(T, sequence(ℳ), d; format = format))
+IntervalArithmetic.interval(ℳ::Multiplication, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
+    Multiplication(interval(sequence(ℳ), d; format = format))
+IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
+    Multiplication(interval(T, sequence(ℳ), d; format = format))
+IntervalArithmetic.interval(ℳ::Multiplication, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
+    Multiplication(interval(sequence(ℳ), d; format = format))
+
 """
     *(ℳ::Multiplication, a::Sequence)
 

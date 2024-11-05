@@ -462,6 +462,8 @@ Ell1() = Ell1{IdentityWeight}(IdentityWeight())
 Ell1(weight::Weight...) = Ell1(weight)
 
 weight(X::Ell1) = X.weight
+rate(X::Ell1{<:Weight}) = rate(weight(X))
+rate(X::Ell1{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 
 """
     ℓ¹(::Weight)
@@ -530,6 +532,8 @@ Ell2() = Ell2{IdentityWeight}(IdentityWeight())
 Ell2(weight::Weight...) = Ell2(weight)
 
 weight(X::Ell2) = X.weight
+rate(X::Ell2{<:Weight}) = rate(weight(X))
+rate(X::Ell2{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 
 """
     ℓ²(::Weight)
@@ -598,6 +602,8 @@ EllInf() = EllInf{IdentityWeight}(IdentityWeight())
 EllInf(weight::Weight...) = EllInf(weight)
 
 weight(X::EllInf) = X.weight
+rate(X::EllInf{<:Weight}) = rate(weight(X))
+rate(X::EllInf{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 
 """
     ℓ∞(::Weight)

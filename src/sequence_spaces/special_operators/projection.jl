@@ -228,3 +228,45 @@ function _project!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearO
     end
     return C
 end
+
+
+
+# tail
+
+tail(a::Sequence, order) = tail!(copy(a), order)
+
+_tail_order_getindex(order::Number, i) = order
+
+_tail_order_getindex(order, i) = order[i]
+
+function tail!(a::Sequence{<:CartesianSpace}, order)
+    for i ∈ 1:nspaces(space(a))
+        tail!(component(a, i), _tail_order_getindex(order, i))
+    end
+    return a
+end
+
+function tail!(a::Sequence{ParameterSpace}, order)
+    if order ≥ 0
+        a[1] = zero(eltype(a))
+    end
+    return a
+end
+
+function tail!(a::Sequence{<:TensorSpace}, order)
+    for α ∈ indices(space(a))
+        if all(abs.(α) .≤ order)
+            a[α] = zero(eltype(a))
+        end
+    end
+    return a
+end
+
+function tail!(a::Sequence{<:BaseSpace}, order)
+    for α ∈ indices(space(a))
+        if abs(α) ≤ order
+            a[α] = zero(eltype(a))
+        end
+    end
+    return a
+end

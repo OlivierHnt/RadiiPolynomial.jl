@@ -69,7 +69,7 @@ include("sequence_spaces/arithmetic/elementary.jl")
 # Special operators
 
 include("sequence_spaces/special_operators/projection.jl")
-    export project, project!
+    export project, project!, tail, tail!
 include("sequence_spaces/special_operators/special_operator.jl")
 include("sequence_spaces/special_operators/multiplication.jl")
     export Multiplication, sequence

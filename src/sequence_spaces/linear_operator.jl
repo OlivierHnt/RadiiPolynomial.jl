@@ -194,6 +194,11 @@ for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(A::LinearOperator) = LinearOperator(domain(A), codomain(A), $f(coefficients(A)))
 end
 
+Base.complex(A::LinearOperator, B::LinearOperator) =
+    LinearOperator(image(+, domain(A), domain(B)), image(+, codomain(A), codomain(B)), complex.(coefficients(A), coefficients(B)))
+
+Base.complex(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = LinearOperator{T,S,Matrix{complex(eltype(R))}}
+
 #
 
 adjoint(A::LinearOperator) = LinearOperator(codomain(A), domain(A), adjoint(coefficients(A)))

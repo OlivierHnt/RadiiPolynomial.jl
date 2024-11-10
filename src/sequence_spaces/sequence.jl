@@ -133,6 +133,10 @@ for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f(coefficients(a)))
 end
 
+Base.complex(a::Sequence, b::Sequence) = Sequence(image(+, space(a), space(b)), complex.(coefficients(a), coefficients(b)))
+
+Base.complex(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = Sequence{T,Vector{complex(eltype(S))}}
+
 Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{<:Integer}) =
     Sequence(space(a)[σ], vec(permutedims(_no_alloc_reshape(coefficients(a), dimensions(space(a))), σ)))
 

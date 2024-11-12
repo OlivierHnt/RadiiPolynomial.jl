@@ -481,6 +481,42 @@ end
 
 
 
+function _resolve_saturation!(f, c, a, ν::Interval)
+    ν⁻¹ = inv(ν)
+    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+    min_ord = order(c)
+    if isfinite(mag(C))
+        CoefType = eltype(c)
+        for k ∈ indices(space(c))
+            if mag(c[k]) > mag(C / ν ^ abs(k))
+                min_ord = min(min_ord, abs(k))
+                c[k] = zero(CoefType)
+            end
+        end
+    end
+    return c, min_ord
+end
+
+function _resolve_saturation!(f, c, a, ν::NTuple{N,Interval}) where {N}
+    ν⁻¹ = inv.(ν)
+    _tuple_ = tuple(ν, ν⁻¹)
+    _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
+    C = maximum(μ -> _contour(f, a, μ), _mix_)
+    min_ord = order(c)
+    if isfinite(mag(C))
+        CoefType = eltype(c)
+        for k ∈ indices(space(c))
+            if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+                min_ord = min.(min_ord, abs.(k))
+                c[k] = zero(CoefType)
+            end
+        end
+    end
+    return c, min_ord
+end
+
+
+
 function _contour(f, a, ν::Interval)
     # mid_ν = mid(ν)
     # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(mid_ν < 1, floatmin(mid_ν), floatmax(mid_ν)) ) / log(mid_ν))) # maybe there is a better N_fft value to consider

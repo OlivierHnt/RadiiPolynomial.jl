@@ -123,7 +123,7 @@ function _resolve_saturation!(f, c, a, ν)
     CoefType = eltype(c)
     min_ord = order(c)
     for k ∈ indices(space(c))
-        if mag(c[k]) > mag(C / ν ^ abs(k))
+        if abs(c[k]) > C / ν ^ abs(k)
             min_ord = min(min_ord, abs(k))
             c[k] = zero(CoefType)
         end
@@ -139,7 +139,7 @@ function _resolve_saturation!(f, c, a, ν::NTuple{N}) where {N}
     CoefType = eltype(c)
     min_ord = order(c)
     for k ∈ indices(space(c))
-        if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+        if abs(c[k]) > C / prod(ν .^ abs.(k))
             min_ord = min.(min_ord, abs.(k))
             c[k] = zero(CoefType)
         end

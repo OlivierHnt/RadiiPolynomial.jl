@@ -10,9 +10,13 @@ function _conjugacy_symmetry!(a::Sequence{ParameterSpace})
 end
 
 function _conjugacy_symmetry!(a::Sequence{<:Fourier})
-    ord = order(a)
-    @inbounds a[0] = real(a[0])
-    @inbounds view(a, -ord:-1) .= conj.(view(a, ord:-1:1))
+    a .= (a .+ conj.(reverse(a))) ./ 2
+    return a
+end
+
+function _conjugacy_symmetry!(a::Sequence{<:TensorSpace{<:Tuple{Vararg{Fourier}}}})
+    A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
+    A .= (A .+ conj.(reverse(A))) ./ 2
     return a
 end
 

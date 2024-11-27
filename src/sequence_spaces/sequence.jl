@@ -106,13 +106,7 @@ Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a)
 
 Base.reverse!(a::Sequence; dims = :) = Sequence(space(a), reverse!(coefficients(a); dims = dims))
 
-function Base.zero(a::Sequence)
-    space_a = space(a)
-    CoefType = eltype(a)
-    c = Sequence(space_a, Vector{CoefType}(undef, dimension(space_a)))
-    coefficients(c) .= zero(CoefType)
-    return c
-end
+Base.zero(a::Sequence) = zeros(eltype(a), space(a))
 Base.zero(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = zeros(eltype(S), _zero_space(T))
 _zero_space(::Type{TensorSpace{T}}) where {T<:Tuple} = TensorSpace(map(_zero_space, fieldtypes(T)))
 _zero_space(::Type{Taylor}) = Taylor(0)
@@ -122,8 +116,7 @@ Base.one(a::Sequence{ParameterSpace}) = Sequence(space(a), [one(eltype(a))])
 function Base.one(a::Sequence{<:SequenceSpace})
     new_space = _compatible_space_with_constant_index(space(a))
     CoefType = eltype(a)
-    c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-    coefficients(c) .= zero(CoefType)
+    c = zeros(CoefType, new_space)
     @inbounds c[_findindex_constant(new_space)] = one(CoefType)
     return c
 end

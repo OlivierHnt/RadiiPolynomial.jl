@@ -170,14 +170,7 @@ Base.reverse!(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(
 
 # zero, one
 
-function Base.zero(A::LinearOperator)
-    domain_A = domain(A)
-    codomain_A = codomain(A)
-    CoefType = eltype(A)
-    C = LinearOperator(domain_A, codomain_A, Matrix{CoefType}(undef, dimension(codomain_A), dimension(domain_A)))
-    coefficients(C) .= zero(CoefType)
-    return C
-end
+Base.zero(A::LinearOperator) = zeros(eltype(A), domain(A), codomain(A))
 
 function Base.one(A::LinearOperator)
     CoefType = eltype(A)

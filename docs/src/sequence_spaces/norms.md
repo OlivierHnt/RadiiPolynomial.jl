@@ -46,7 +46,7 @@ Given a set of indices ``\mathscr{I}^\prime \subset \mathbb{Z}``:
 
 - a [`BesselWeight`](@ref) of rate ``s \ge 0`` is defined by ``w(\alpha) \bydef (1 + \alpha^2)^s`` for all ``\alpha \in \mathscr{I}^\prime``. This weight is specific to [`Ell2`](@ref) and [`Fourier`](@ref) as it describes the [Sobolev space](https://en.wikipedia.org/wiki/Sobolev_space) ``H^s``.
 
-- a [`GeometricWeight`](@ref) of rate ``\nu > 0`` is defined by ``w(\alpha) \bydef \nu^{|\alpha|}`` for all ``\alpha \in \mathscr{I}^\prime``.
+- a [`GeometricWeight`](@ref) of rate ``\nu \ge 1`` is defined by ``w(\alpha) \bydef \nu^{|\alpha|}`` for all ``\alpha \in \mathscr{I}^\prime``.
 
 - an [`IdentityWeight`](@ref) is defined by ``w(\alpha) \bydef 1`` for all ``\alpha \in \mathscr{I}^\prime``. This is the default weight for [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
 

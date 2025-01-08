@@ -144,10 +144,11 @@ function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
         end
     end
     r = LinearAlgebra.svd(x) \ log_abs_A
+    trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
     rate = ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
-        v = ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), rᵢ₊₁, zero(rᵢ₊₁))
-        return exp(-v)
+        v = ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0) & (i ∉ trv_inds), -rᵢ₊₁, zero(rᵢ₊₁))
+        return exp(v)
     end
     err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
     return rate, err
@@ -290,9 +291,10 @@ function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
         end
     end
     r = LinearAlgebra.svd(x) \ log_abs_A
+    trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
     rate = ntuple(Val(N)) do i
         @inbounds rᵢ₊₁ = r[i+1]
-        return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0), -rᵢ₊₁, zero(rᵢ₊₁))
+        return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0) & (i ∉ trv_inds), -rᵢ₊₁, zero(rᵢ₊₁))
     end
     err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
     return rate, err

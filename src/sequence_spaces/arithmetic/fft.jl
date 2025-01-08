@@ -259,7 +259,7 @@ end
 function _ifft_get_index(n, space::Fourier)
     ord_C = order(space)
     ord_A = n÷2
-    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+ord_A, 1:n
+    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+1+ord_A, 1:n
     return 1:2ord_C+1, ord_A+1-ord_C:ord_A+1+ord_C
 end
 

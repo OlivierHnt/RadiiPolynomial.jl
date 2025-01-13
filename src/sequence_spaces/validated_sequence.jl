@@ -89,7 +89,9 @@ end
 function differentiate(a::ValidatedSequence, α=1)
     c = differentiate(sequence(a), α)
     X = banachspace(a)
-    return ValidatedSequence(c, _derivative_error(X, space(a), space(c), α) * sequence_error(a), X)
+    seq_err = sequence_error(a)
+    iszero(seq_err) && return ValidatedSequence(c, X)
+    return ValidatedSequence(c, _derivative_error(X, space(a), space(c), α) * seq_err, X)
 end
 
 _derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
@@ -105,23 +107,22 @@ _derivative_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}
 function _derivative_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Taylor, n::Int)
     ν = rate(weight(X))
     n == 0 && return one(ν)
-    n == 1 && return ν / (ν - ExactReal(1))^2
-    n == 2 && return ν * (ν + ExactReal(1)) / (ν - ExactReal(1))^3
-    n == 3 && return ν * (ν^2 + ExactReal(4)*ν + ExactReal(1)) / (ν - ExactReal(1))^4
+    n == 1 && return ν                                                               / (ν - ExactReal(1))^2
+    n == 2 && return ν * (ν + ExactReal(1))                                          / (ν - ExactReal(1))^3
+    n == 3 && return ν * (ν^2 + ExactReal(4)*ν + ExactReal(1))                       / (ν - ExactReal(1))^4
     n == 4 && return ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
     return throw(DomainError) # TODO: lift restriction
 end
-function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier{T}, ::Fourier{S}, n::Int) where {T<:Real,S<:Real}
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier, codom::Fourier, n::Int)
     ν = rate(weight(X))
     n == 0 && return one(ν)
-    n == 1 && return ExactReal(2) * ν / (ν - ExactReal(1))^2
-    n == 2 && return ExactReal(2) * ν * (ν + ExactReal(1)) / (ν - ExactReal(1))^3
-    n == 3 && return ExactReal(2) * ν * (ν^2 + ExactReal(4)*ν + ExactReal(1)) / (ν - ExactReal(1))^4
-    n == 4 && return ExactReal(2) * ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
+    n == 1 && return frequency(codom)   * ExactReal(2) * ν                                                               / (ν - ExactReal(1))^2
+    n == 2 && return frequency(codom)^2 * ExactReal(2) * ν * (ν + ExactReal(1))                                          / (ν - ExactReal(1))^3
+    n == 3 && return frequency(codom)^3 * ExactReal(2) * ν * (ν^2 + ExactReal(4)*ν + ExactReal(1))                       / (ν - ExactReal(1))^4
+    n == 4 && return frequency(codom)^4 * ExactReal(2) * ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
     return throw(DomainError) # TODO: lift restriction
 end
-function _derivative_error(X::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
-    ν = rate(weight(X))
+function _derivative_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
     n == 0 && return interval(1)
     return throw(DomainError) # TODO: lift restriction
 end

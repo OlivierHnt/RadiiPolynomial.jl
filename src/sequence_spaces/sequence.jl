@@ -122,9 +122,10 @@ function Base.one(a::Sequence{<:SequenceSpace})
 end
 Base.one(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = ones(eltype(S), _zero_space(T))
 
-for f ∈ (:float, :complex, :real, :imag, :conj, :conj!)
-    @eval Base.$f(a::Sequence) = Sequence(space(a), $f(coefficients(a)))
+for f ∈ (:float, :big, :complex, :real, :imag, :conj)
+    @eval Base.$f(a::Sequence) = Sequence(space(a), $f.(coefficients(a)))
 end
+Base.conj!(a::Sequence) = Sequence(space(a), conj!(coefficients(a)))
 
 Base.complex(a::Sequence, b::Sequence) = Sequence(image(+, space(a), space(b)), complex.(coefficients(a), coefficients(b)))
 

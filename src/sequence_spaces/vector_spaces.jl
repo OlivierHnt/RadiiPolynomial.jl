@@ -834,10 +834,18 @@ end
 
 IntervalArithmetic.interval(::Type, s::VectorSpace) = s
 IntervalArithmetic.interval(s::VectorSpace) = s
-IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = map(sᵢ -> interval(T, sᵢ), s.spaces)
-IntervalArithmetic.interval(s::TensorSpace) = map(interval, s.spaces)
+
+IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = TensorSpace(map(sᵢ -> interval(T, sᵢ), s.spaces))
+IntervalArithmetic.interval(s::TensorSpace) = TensorSpace(map(interval, s.spaces))
+
 IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T} = Fourier(order(s), interval(T, frequency(s)))
 IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
+
+IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T} = CartesianPower(interval(T, s.space), s.n)
+IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space), s.n)
+
+IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T} = CartesianProduct(map(sᵢ -> interval(T, sᵢ), s.spaces))
+IntervalArithmetic.interval(s::CartesianProduct) = CartesianPower(map(interval, s.spaces))
 
 # show
 

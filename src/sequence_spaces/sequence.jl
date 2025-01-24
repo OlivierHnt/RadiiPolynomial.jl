@@ -123,9 +123,28 @@ function Base.one(a::Sequence{<:SequenceSpace})
 end
 Base.one(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = ones(eltype(S), _zero_space(T))
 
-for f ∈ (:float, :big, :complex, :real, :imag, :conj)
+Base.float(a::Sequence) = Sequence(_float_space(space(a)), float.(coefficients(a)))
+
+Base.big(a::Sequence) = Sequence(_big_space(space(a)), big.(coefficients(a)))
+
+for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space))
+    @eval begin
+        $g(s::VectorSpace) = s
+
+        $g(s::TensorSpace) = TensorSpace(map($g, spaces(s)))
+
+        $g(s::Fourier) = Fourier(order(s), $f(frequency(s)))
+
+        $g(s::CartesianPower) = CartesianPower($g(space(s)), nspaces(s))
+
+        $g(s::CartesianProduct) = CartesianPower(map($g, spaces(s)))
+    end
+end
+
+for f ∈ (:complex, :real, :imag, :conj)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f.(coefficients(a)))
 end
+
 Base.conj!(a::Sequence) = Sequence(space(a), conj!(coefficients(a)))
 
 Base.complex(a::Sequence, b::Sequence) = Sequence(image(+, space(a), space(b)), complex.(coefficients(a), coefficients(b)))

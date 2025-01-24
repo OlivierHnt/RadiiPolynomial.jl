@@ -183,9 +183,14 @@ end
 
 # float, complex, real, imag, conj, conj!
 
-for f ∈ (:float, :big, :complex, :real, :imag, :conj)
-    @eval Base.$f(A::LinearOperator) = LinearOperator(domain(A), codomain(A), $f(coefficients(A)))
+Base.float(A::LinearOperator) = LinearOperator(_float_space(domain(A)), _float_space(codomain(A)), float.(coefficients(A)))
+
+Base.big(A::LinearOperator) = LinearOperator(_big_space(domain(A)), _big_space(codomain(A)), big.(coefficients(A)))
+
+for f ∈ (:complex, :real, :imag, :conj)
+    @eval Base.$f(A::LinearOperator) = LinearOperator(domain(A), codomain(A), $f.(coefficients(A)))
 end
+
 Base.conj!(A::LinearOperator) = LinearOperator(domain(A), codomain(A), conj!(coefficients(A)))
 
 Base.complex(A::LinearOperator, B::LinearOperator) =

@@ -115,6 +115,9 @@ _prettystring(s::CosFourier) = "CosFourier(" * string(order(s)) * ", " * string(
 
 _zero_space(::Type{CosFourier{T}}) where {T<:Real} = CosFourier(0, one(T))
 
+_float_space(s::CosFourier) = CosFourier(_float_space(desymmetrize(s)))
+_big_space(s::CosFourier) = CosFourier(_big_space(desymmetrize(s)))
+
 
 
 struct SinFourier{T<:Real} <: SymBaseSpace
@@ -158,6 +161,9 @@ IntervalArithmetic.interval(s::SinFourier) = SinFourier(interval(desymmetrize(s)
 _prettystring(s::SinFourier) = "SinFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
 
 _zero_space(::Type{SinFourier{T}}) where {T<:Real} = SinFourier(1, one(T))
+
+_float_space(s::SinFourier) = SinFourier(_float_space(desymmetrize(s)))
+_big_space(s::SinFourier) = SinFourier(_big_space(desymmetrize(s)))
 
 
 

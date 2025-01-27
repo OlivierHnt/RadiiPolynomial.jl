@@ -117,6 +117,7 @@ _zero_space(::Type{CosFourier{T}}) where {T<:Real} = CosFourier(0, one(T))
 
 _float_space(s::CosFourier) = CosFourier(_float_space(desymmetrize(s)))
 _big_space(s::CosFourier) = CosFourier(_big_space(desymmetrize(s)))
+_node(::CosFourier, j, N) = 2π*j[1]/N
 
 
 
@@ -164,6 +165,7 @@ _zero_space(::Type{SinFourier{T}}) where {T<:Real} = SinFourier(1, one(T))
 
 _float_space(s::SinFourier) = SinFourier(_float_space(desymmetrize(s)))
 _big_space(s::SinFourier) = SinFourier(_big_space(desymmetrize(s)))
+_node(::SinFourier, j, N) = 2π*j[1]/N
 
 
 

@@ -265,3 +265,20 @@ Base.@propagate_inbounds function Base.selectdim(a::AbstractSequence{<:TensorSpa
     A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
     return selectdim(A, dim, _findposition(i, spaces(space(a))[dim]))
 end
+
+
+
+# function approximation
+
+Sequence(a::Sequence, s::SequenceSpace) = ifft!(fft(a, fft_size(space(a))), s)
+
+function Sequence(f, s::SequenceSpace)
+    N = fft_size(s)
+    C = [complex(f(_node(s, j, N)...)) for j ∈ CartesianIndices(Base.UnitRange.(0, Tuple(N) .- 1))]
+    return ifft!(C, s)
+end
+
+_node(s::TensorSpace, j, N) = map((sᵢ, jᵢ, Nᵢ) -> _node(sᵢ, jᵢ, Nᵢ), spaces(s), Tuple(j), N)
+_node(::Taylor, j, N) = cispi(2j[1]/N)
+_node(::Fourier, j, N) = 2π*j[1]/N
+_node(::Chebyshev, j, N) = cospi(2*j[1]/N)

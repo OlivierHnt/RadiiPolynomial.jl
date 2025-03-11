@@ -1193,77 +1193,6 @@ function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where 
     end
 end
 
-# Cartesian spaces
-
-for F ∈ (:Derivative, :Integral)
-    @eval begin
-        image(ℱ::$F, s::CartesianPower) =
-            CartesianPower(image(ℱ, space(s)), nspaces(s))
-
-        image(ℱ::$F, s::CartesianProduct) =
-            CartesianProduct(map(sᵢ -> image(ℱ, sᵢ), spaces(s)))
-
-        _coeftype(ℱ::$F, s::CartesianPower, ::Type{T}) where {T} =
-            _coeftype(ℱ, space(s), T)
-
-        _coeftype(ℱ::$F, s::CartesianProduct, ::Type{T}) where {T} =
-            @inbounds promote_type(_coeftype(ℱ, s[1], T), _coeftype(ℱ, Base.tail(s), T))
-        _coeftype(ℱ::$F, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
-            @inbounds _coeftype(ℱ, s[1], T)
-
-        function _apply!(c::Sequence{<:CartesianPower}, ℱ::$F, a)
-            @inbounds for i ∈ 1:nspaces(space(c))
-                _apply!(component(c, i), ℱ, component(a, i))
-            end
-            return c
-        end
-        function _apply!(c::Sequence{CartesianProduct{T}}, ℱ::$F, a) where {N,T<:NTuple{N,VectorSpace}}
-            @inbounds _apply!(component(c, 1), ℱ, component(a, 1))
-            @inbounds _apply!(component(c, 2:N), ℱ, component(a, 2:N))
-            return c
-        end
-        function _apply!(c::Sequence{CartesianProduct{T}}, ℱ::$F, a) where {T<:Tuple{VectorSpace}}
-            @inbounds _apply!(component(c, 1), ℱ, component(a, 1))
-            return c
-        end
-
-        function _findposition_nzind_domain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
-            u = map((dom, codom) -> _findposition_nzind_domain(ℱ, dom, codom), spaces(domain), spaces(codomain))
-            len = sum(length, u)
-            v = Vector{Int}(undef, len)
-            δ = δδ = 0
-            @inbounds for (i, uᵢ) in enumerate(u)
-                δ_ = δ
-                δ += length(uᵢ)
-                view(v, 1+δ_:δ) .= δδ .+ uᵢ
-                δδ += dimension(domain[i])
-            end
-            return v
-        end
-
-        function _findposition_nzind_codomain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
-            u = map((dom, codom) -> _findposition_nzind_codomain(ℱ, dom, codom), spaces(domain), spaces(codomain))
-            len = sum(length, u)
-            v = Vector{Int}(undef, len)
-            δ = δδ = 0
-            @inbounds for (i, uᵢ) in enumerate(u)
-                δ_ = δ
-                δ += length(uᵢ)
-                view(v, 1+δ_:δ) .= δδ .+ uᵢ
-                δδ += dimension(codomain[i])
-            end
-            return v
-        end
-
-        function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℱ::$F)
-            @inbounds for i ∈ 1:nspaces(domain(C))
-                _project!(component(C, i, i), ℱ)
-            end
-            return C
-        end
-    end
-end
-
 
 
 #
@@ -1425,3 +1354,76 @@ _nzind_domain(::Laplacian, domain::BaseSpace, codomain::BaseSpace) =
 
 _nzind_codomain(::Laplacian, domain::BaseSpace, codomain::BaseSpace) =
     _nzind_codomain(Derivative(2), domain, codomain)
+
+
+
+# Cartesian spaces
+
+for F ∈ (:Derivative, :Integral, :Laplacian)
+    @eval begin
+        image(ℱ::$F, s::CartesianPower) =
+            CartesianPower(image(ℱ, space(s)), nspaces(s))
+
+        image(ℱ::$F, s::CartesianProduct) =
+            CartesianProduct(map(sᵢ -> image(ℱ, sᵢ), spaces(s)))
+
+        _coeftype(ℱ::$F, s::CartesianPower, ::Type{T}) where {T} =
+            _coeftype(ℱ, space(s), T)
+
+        _coeftype(ℱ::$F, s::CartesianProduct, ::Type{T}) where {T} =
+            @inbounds promote_type(_coeftype(ℱ, s[1], T), _coeftype(ℱ, Base.tail(s), T))
+        _coeftype(ℱ::$F, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
+            @inbounds _coeftype(ℱ, s[1], T)
+
+        function _apply!(c::Sequence{<:CartesianPower}, ℱ::$F, a)
+            @inbounds for i ∈ 1:nspaces(space(c))
+                _apply!(component(c, i), ℱ, component(a, i))
+            end
+            return c
+        end
+        function _apply!(c::Sequence{CartesianProduct{T}}, ℱ::$F, a) where {N,T<:NTuple{N,VectorSpace}}
+            @inbounds _apply!(component(c, 1), ℱ, component(a, 1))
+            @inbounds _apply!(component(c, 2:N), ℱ, component(a, 2:N))
+            return c
+        end
+        function _apply!(c::Sequence{CartesianProduct{T}}, ℱ::$F, a) where {T<:Tuple{VectorSpace}}
+            @inbounds _apply!(component(c, 1), ℱ, component(a, 1))
+            return c
+        end
+
+        function _findposition_nzind_domain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
+            u = map((dom, codom) -> _findposition_nzind_domain(ℱ, dom, codom), spaces(domain), spaces(codomain))
+            len = sum(length, u)
+            v = Vector{Int}(undef, len)
+            δ = δδ = 0
+            @inbounds for (i, uᵢ) in enumerate(u)
+                δ_ = δ
+                δ += length(uᵢ)
+                view(v, 1+δ_:δ) .= δδ .+ uᵢ
+                δδ += dimension(domain[i])
+            end
+            return v
+        end
+
+        function _findposition_nzind_codomain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
+            u = map((dom, codom) -> _findposition_nzind_codomain(ℱ, dom, codom), spaces(domain), spaces(codomain))
+            len = sum(length, u)
+            v = Vector{Int}(undef, len)
+            δ = δδ = 0
+            @inbounds for (i, uᵢ) in enumerate(u)
+                δ_ = δ
+                δ += length(uᵢ)
+                view(v, 1+δ_:δ) .= δδ .+ uᵢ
+                δδ += dimension(codomain[i])
+            end
+            return v
+        end
+
+        function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℱ::$F)
+            @inbounds for i ∈ 1:nspaces(domain(C))
+                _project!(component(C, i, i), ℱ)
+            end
+            return C
+        end
+    end
+end

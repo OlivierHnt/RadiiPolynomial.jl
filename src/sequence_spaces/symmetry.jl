@@ -202,29 +202,6 @@ image(::typeof(mul_bar), s₁::SinFourier, s₂::CosFourier) = SinFourier(image(
 
 # Convolution
 
-function __convolution!(C, A, B, α, ::CosFourier, space_a::CosFourier, space_b::CosFourier, i)
-    order_a = order(space_a)
-    order_b = order(space_b)
-    Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
-        Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
-    end
-    @inbounds C[i+1] += Cᵢ * α
-    return C
-end
-function _convolution!(C::AbstractArray{T,N}, A, B, α, ::CosFourier, current_space_a::CosFourier, current_space_b::CosFourier, remaining_space_c, remaining_space_a, remaining_space_b, i) where {T,N}
-    order_a = order(current_space_a)
-    order_b = order(current_space_b)
-    @inbounds Cᵢ = selectdim(C, N, i+1)
-    @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
-        _add_mul!(Cᵢ,
-            selectdim(A, N, abs(i-j)+1),
-            selectdim(B, N, abs(j)+1),
-            α, remaining_space_c, remaining_space_a, remaining_space_b)
-    end
-    return C
-end
-
 _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
     max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
 

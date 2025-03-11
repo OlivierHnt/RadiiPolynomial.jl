@@ -45,3 +45,7 @@ The set of all possible radii is called the *interval of existence*. Its minimum
 ```@docs
 interval_of_existence
 ```
+
+## Further readings
+
+A mini-lecture series on validated numerics can be found [here](https://olivierhnt.github.io/Computer-assisted-proofs-in-nonlinear-analysis/).

@@ -505,7 +505,7 @@ _extract_valid_index(::Taylor, i::Int) = i
 
 # Fourier
 
-_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
+_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = intersect(i .- indices(s₁), indices(s₂))
 
 _symmetry_action(::Fourier, ::Int, ::Int) = 1
 _symmetry_action(::Fourier, ::Int) = 1

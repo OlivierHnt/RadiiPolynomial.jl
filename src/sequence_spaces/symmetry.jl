@@ -203,7 +203,7 @@ image(::typeof(mul_bar), s₁::SinFourier, s₂::CosFourier) = SinFourier(image(
 # Convolution
 
 _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
+    _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 
 _symmetry_action(::CosFourier, ::Int, ::Int) = 1
 _symmetry_action(::CosFourier, ::Int) = 1
@@ -215,7 +215,7 @@ _extract_valid_index(::CosFourier, i::Int) = abs(i)
 
 
 _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
+    _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 
 function _symmetry_action(::SinFourier, i::Int, j::Int)
     x = j-i
@@ -234,9 +234,9 @@ _extract_valid_index(::SinFourier, i::Int) = abs(i)
 
 
 _convolution_indices(s₁::CosFourier, s₂::SinFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂))-1:min(i+order(s₁), order(s₂))
+    _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 _convolution_indices(s₁::SinFourier, s₂::CosFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂))-1:min(i+order(s₁), order(s₂))
+    _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 
 # FFT
 

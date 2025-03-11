@@ -100,7 +100,7 @@
         @test dimensions(𝑇) == (3, 5, 3)
         @test RadiiPolynomial._firstindex(𝑇) == (0, -2, 0)
         @test RadiiPolynomial._lastindex(𝑇) == (2, 2, 2)
-        @test indices(𝑇) == TensorIndices((0:2, -2:2, 0:2))
+        @test indices(𝑇) == TensorIndices((0:2, -2:1:2, 0:2))
         @test RadiiPolynomial._findindex_constant(𝑇) == (0, 0, 0)
         @test RadiiPolynomial._findposition((1, 2, 0), 𝑇) == 14
         @test RadiiPolynomial._findposition((:, -2:2, :), 𝑇) == collect(1:45)

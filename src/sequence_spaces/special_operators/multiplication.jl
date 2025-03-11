@@ -147,21 +147,12 @@ function _project!(C::LinearOperator{Taylor,Taylor}, ℳ::Multiplication)
 end
 
 _mult_domain_indices(s::Taylor) = indices(s)
-_isvalid(::Taylor, s::Taylor, i::Int, j::Int) = 0 ≤ i-j ≤ order(s)
+_isvalid(::Taylor, s::Taylor, i::Int, j::Int) = _checkbounds_indices(i-j, s)
 
 # Fourier
 
-function _project!(C::LinearOperator{<:Fourier,<:Fourier}, ℳ::Multiplication)
-    order_codomain = order(codomain(C))
-    ord = order(sequence(ℳ))
-    @inbounds for j ∈ indices(domain(C)), i ∈ max(-order_codomain, -ord+j):min(order_codomain, ord+j)
-        C[i,j] = sequence(ℳ)[i-j]
-    end
-    return C
-end
-
 _mult_domain_indices(s::Fourier) = indices(s)
-_isvalid(::Fourier, s::Fourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
+_isvalid(::Fourier, s::Fourier, i::Int, j::Int) = _checkbounds_indices(abs(i-j), s)
 
 # Chebyshev
 
@@ -184,4 +175,5 @@ function _project!(C::LinearOperator{Chebyshev,Chebyshev}, ℳ::Multiplication)
 end
 
 _mult_domain_indices(s::Chebyshev) = -order(s):order(s)
-_isvalid(::Chebyshev, s::Chebyshev, i::Int, j::Int) = abs(i-j) ≤ order(s)
+_isvalid(::Chebyshev, s::Chebyshev, i::Int, j::Int) = _checkbounds_indices(abs(i-j), s)
+

@@ -133,7 +133,7 @@ for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space))
 
         $g(s::TensorSpace) = TensorSpace(map($g, spaces(s)))
 
-        $g(s::Fourier) = Fourier(order(s), $f(frequency(s)))
+        $g(s::Fourier) = Fourier(order(s), $f(frequency(s)), multiple(s))
 
         $g(s::CartesianPower) = CartesianPower($g(space(s)), nspaces(s))
 

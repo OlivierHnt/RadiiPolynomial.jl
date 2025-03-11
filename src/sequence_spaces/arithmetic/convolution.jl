@@ -884,65 +884,67 @@ end
 
 # Fourier
 
-function _add_sqr!(c::Sequence{<:Fourier}, a)
-    order_a = order(space(a))
-    c₀ = zero(eltype(a))
-    @inbounds for j ∈ 1:order_a
-        c₀ += a[j] * a[-j]
-    end
-    @inbounds a₀ = a[0]
-    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
-    @inbounds for i ∈ 1:order(space(c))
-        cᵢ = c₋ᵢ = zero(eltype(a))
-        i½, i_odd = divrem(i, 2)
-        @inbounds for j ∈ i½+1:order_a
-            cᵢ += a[i-j] * a[j]
-            c₋ᵢ += a[j-i] * a[-j]
-        end
-        if iszero(i_odd)
-            a_i½ = a[i½]
-            a_neg_i½ = a[-i½]
-            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
-            c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
-        else
-            c[i] += ExactReal(2) * cᵢ
-            c[-i] += ExactReal(2) * c₋ᵢ
-        end
-    end
-    return c
-end
+# not compatible with `multiple != 1`
 
-function _add_sqr!(c::Sequence{<:Fourier}, a, bound_a², X)
-    rounding_order = banach_rounding_order(bound_a², X)
-    if rounding_order > 0
-        order_a = order(space(a))
-        c₀ = zero(eltype(a))
-        @inbounds for j ∈ 1:order_a
-            c₀ += a[j] * a[-j]
-        end
-        @inbounds a₀ = a[0]
-        @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
-        @inbounds for i ∈ 1:min(order(space(c)), rounding_order-1)
-            cᵢ = c₋ᵢ = zero(eltype(a))
-            i½, i_odd = divrem(i, 2)
-            @inbounds for j ∈ i½+1:order_a
-                cᵢ += a[i-j] * a[j]
-                c₋ᵢ += a[j-i] * a[-j]
-            end
-            if iszero(i_odd)
-                a_i½ = a[i½]
-                a_neg_i½ = a[-i½]
-                c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
-                c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
-            else
-                c[i] += ExactReal(2) * cᵢ
-                c[-i] += ExactReal(2) * c₋ᵢ
-            end
-        end
-    end
-    banach_rounding!(c, bound_a², X, rounding_order)
-    return c
-end
+# function _add_sqr!(c::Sequence{<:Fourier}, a)
+#     order_a = order(space(a))
+#     c₀ = zero(eltype(a))
+#     @inbounds for j ∈ 1:order_a
+#         c₀ += a[j] * a[-j]
+#     end
+#     @inbounds a₀ = a[0]
+#     @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
+#     @inbounds for i ∈ 1:order(space(c))
+#         cᵢ = c₋ᵢ = zero(eltype(a))
+#         i½, i_odd = divrem(i, 2)
+#         @inbounds for j ∈ i½+1:order_a
+#             cᵢ += a[i-j] * a[j]
+#             c₋ᵢ += a[j-i] * a[-j]
+#         end
+#         if iszero(i_odd)
+#             a_i½ = a[i½]
+#             a_neg_i½ = a[-i½]
+#             c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+#             c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
+#         else
+#             c[i] += ExactReal(2) * cᵢ
+#             c[-i] += ExactReal(2) * c₋ᵢ
+#         end
+#     end
+#     return c
+# end
+
+# function _add_sqr!(c::Sequence{<:Fourier}, a, bound_a², X)
+#     rounding_order = banach_rounding_order(bound_a², X)
+#     if rounding_order > 0
+#         order_a = order(space(a))
+#         c₀ = zero(eltype(a))
+#         @inbounds for j ∈ 1:order_a
+#             c₀ += a[j] * a[-j]
+#         end
+#         @inbounds a₀ = a[0]
+#         @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
+#         @inbounds for i ∈ 1:min(order(space(c)), rounding_order-1)
+#             cᵢ = c₋ᵢ = zero(eltype(a))
+#             i½, i_odd = divrem(i, 2)
+#             @inbounds for j ∈ i½+1:order_a
+#                 cᵢ += a[i-j] * a[j]
+#                 c₋ᵢ += a[j-i] * a[-j]
+#             end
+#             if iszero(i_odd)
+#                 a_i½ = a[i½]
+#                 a_neg_i½ = a[-i½]
+#                 c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+#                 c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
+#             else
+#                 c[i] += ExactReal(2) * cᵢ
+#                 c[-i] += ExactReal(2) * c₋ᵢ
+#             end
+#         end
+#     end
+#     banach_rounding!(c, bound_a², X, rounding_order)
+#     return c
+# end
 
 # Chebyshev
 

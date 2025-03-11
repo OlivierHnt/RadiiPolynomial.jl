@@ -511,7 +511,7 @@ function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b
     ord_a = order_a + 1
     ord_b = order_b + 1
     Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+    @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
         Cᵢ += A[i-j+ord_a] * B[j+ord_b]
     end
     @inbounds C[i+order(space_c)+1] += Cᵢ * α
@@ -523,7 +523,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c::Fourier
     ord_a = order_a + 1
     ord_b = order_b + 1
     @inbounds Cᵢ = selectdim(C, N, i+order(current_space_c)+1)
-    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+    @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
         _add_mul!(Cᵢ,
             selectdim(A, N, i-j+ord_a),
             selectdim(B, N, j+ord_b),
@@ -543,7 +543,7 @@ function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b
         @inbounds C[i+order(space_c)+1] += _to_interval(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+        @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             Cᵢ += A[i-j+ord_a] * B[j+ord_b]
         end
         @inbounds C[i+order(space_c)+1] += Cᵢ * α
@@ -562,7 +562,7 @@ function __convolution!(C, A, B, α, space_c::Fourier, space_a::Fourier, space_b
         @inbounds C[i+order(space_c)+1] += _to_interval(CoefType, sup(α * μⁱ))
     else
         Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-        @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+        @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
             Cᵢ += A[i-j+ord_a] * B[j+ord_b]
         end
         @inbounds C[i+order(space_c)+1] += Cᵢ * α
@@ -577,7 +577,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c::Fourier
     t_ = (i, t...)
     sum_t += abs(i)
     @inbounds Cᵢ = selectdim(C, N, i+order(current_space_c)+1)
-    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+    @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
         _add_mul!(Cᵢ,
             selectdim(A, N, i-j+ord_a),
             selectdim(B, N, j+ord_b),
@@ -587,7 +587,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c::Fourier
 end
 #
 
-_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
 
 _symmetry_action(::Fourier, ::Int, ::Int) = 1
 _symmetry_action(::Fourier, ::Int) = 1

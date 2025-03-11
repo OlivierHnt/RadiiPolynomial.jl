@@ -390,11 +390,11 @@ function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
 end
 
 dimension(s::Fourier) = 2(s.order ÷ s.multiple) + 1
-_firstindex(s::Fourier) = -s.order+(s.order % s.multiple)
-_lastindex(s::Fourier) = s.order-(s.order % s.multiple)
-indices(s::Fourier) = -s.order+(s.order % s.multiple):s.multiple:s.order-(s.order % s.multiple)
+_firstindex(s::Fourier) = -s.order
+_lastindex(s::Fourier) = s.order
+indices(s::Fourier) = -s.order:s.multiple:s.order
 
-__checkbounds_indices(α::Int, s::Fourier) = iszero(α % s.multiple) & (-s.order+(s.order % s.multiple) ≤ α ≤ s.order-(s.order % s.multiple))
+__checkbounds_indices(α::Int, s::Fourier) = iszero(α % s.multiple) & (-s.order ≤ α ≤ s.order)
 
 _compatible_space_with_constant_index(s::Fourier) = s
 _findindex_constant(::Fourier) = 0

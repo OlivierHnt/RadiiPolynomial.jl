@@ -90,13 +90,13 @@ Base.issubset(s₁::CosFourier, s₂::CosFourier) = issubset(desymmetrize(s₁),
 Base.intersect(s₁::CosFourier, s₂::CosFourier) = CosFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
 Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
 
-indices(s::CosFourier) = 0:order(s)
+indices(s::CosFourier) = 0:multiple(s):order(s)
 
 _compatible_space_with_constant_index(s::CosFourier) = s
 _findindex_constant(::CosFourier) = 0
 
-_findposition(i::Int, ::CosFourier) = i + 1
-_findposition(u::AbstractRange{Int}, ::CosFourier) = u .+ 1
+_findposition(i::Int, s::CosFourier) = i ÷ multiple(s) + 1
+_findposition(u::AbstractRange{Int}, s::CosFourier) = u .÷ multiple(s) .+ 1
 _findposition(u::AbstractVector{Int}, s::CosFourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::CosFourier) = c
 
@@ -141,12 +141,12 @@ Base.issubset(s₁::SinFourier, s₂::SinFourier) = issubset(desymmetrize(s₁),
 Base.intersect(s₁::SinFourier, s₂::SinFourier) = SinFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
 Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
 
-indices(s::SinFourier) = 1:order(s)
+indices(s::SinFourier) = multiple(s):multiple(s):order(s)
 
 _compatible_space_with_constant_index(s::SinFourier) = desymmetrize(s)
 
-_findposition(i::Int, ::SinFourier) = i
-_findposition(u::AbstractRange{Int}, ::SinFourier) = u
+_findposition(i::Int, s::SinFourier) = i ÷ multiple(s)
+_findposition(u::AbstractRange{Int}, s::SinFourier) = u .÷ multiple(s)
 _findposition(u::AbstractVector{Int}, s::SinFourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::SinFourier) = c
 
@@ -206,7 +206,7 @@ function __convolution!(C, A, B, α, ::CosFourier, space_a::CosFourier, space_b:
     order_a = order(space_a)
     order_b = order(space_b)
     Cᵢ = zero(promote_type(eltype(A), eltype(B)))
-    @inbounds @simd for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(space_a, space_b, i)
+    @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
         Cᵢ += A[abs(i-j)+1] * B[abs(j)+1]
     end
     @inbounds C[i+1] += Cᵢ * α
@@ -216,7 +216,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, ::CosFourier, current_sp
     order_a = order(current_space_a)
     order_b = order(current_space_b)
     @inbounds Cᵢ = selectdim(C, N, i+1)
-    @inbounds for j ∈ max(i-order_a, -order_b):min(i+order_a, order_b) # _convolution_indices(current_space_a, current_space_b, i)
+    @inbounds for j ∈ _convolution_indices(current_space_a, current_space_b, i)
         _add_mul!(Cᵢ,
             selectdim(A, N, abs(i-j)+1),
             selectdim(B, N, abs(j)+1),
@@ -226,7 +226,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, ::CosFourier, current_sp
 end
 
 _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
 
 _symmetry_action(::CosFourier, ::Int, ::Int) = 1
 _symmetry_action(::CosFourier, ::Int) = 1
@@ -238,7 +238,7 @@ _extract_valid_index(::CosFourier, i::Int) = abs(i)
 
 
 _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂)):min(i+order(s₁), order(s₂))
 
 function _symmetry_action(::SinFourier, i::Int, j::Int)
     x = j-i
@@ -257,9 +257,9 @@ _extract_valid_index(::SinFourier, i::Int) = abs(i)
 
 
 _convolution_indices(s₁::CosFourier, s₂::SinFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂))-1:min(i+order(s₁), order(s₂))
 _convolution_indices(s₁::SinFourier, s₂::CosFourier, i::Int) =
-    max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
+    max(i-order(s₁), -order(s₂)):gcd(multiple(s₁), multiple(s₂))-1:min(i+order(s₁), order(s₂))
 
 # FFT
 
@@ -710,13 +710,13 @@ end
 
 # Multiplication
 
-_mult_domain_indices(s::CosFourier) = -order(s):order(s)
-_isvalid(::CosFourier, s::CosFourier, i::Int, j::Int) = abs(i-j) ≤ order(s)
-_isvalid(::SinFourier, s::CosFourier, i::Int, j::Int) = (0 < abs(j)) & (abs(i-j) ≤ order(s))
+_mult_domain_indices(s::CosFourier) = _mult_domain_indices(desymmetrize(s))
+_isvalid(::CosFourier, s::CosFourier, i::Int, j::Int) = _checkbounds_indices(abs(i-j), s)
+_isvalid(::SinFourier, s::CosFourier, i::Int, j::Int) = (0 < abs(j)) & _checkbounds_indices(abs(i-j), s)
 
-_mult_domain_indices(s::SinFourier) = -order(s):order(s)
-_isvalid(::SinFourier, s::SinFourier, i::Int, j::Int) = (0 < abs(j)) & (0 < abs(i-j) ≤ order(s))
-_isvalid(::CosFourier, s::SinFourier, i::Int, j::Int) = 0 < abs(i-j) ≤ order(s)
+_mult_domain_indices(s::SinFourier) = _mult_domain_indices(desymmetrize(s))
+_isvalid(::SinFourier, s::SinFourier, i::Int, j::Int) = (0 < abs(j)) & _checkbounds_indices(abs(i-j), s)
+_isvalid(::CosFourier, s::SinFourier, i::Int, j::Int) = _checkbounds_indices(abs(i-j), s)
 
 # Norm
 

@@ -851,7 +851,7 @@ IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T} = CartesianP
 IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space), s.n)
 
 IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T} = CartesianProduct(map(sᵢ -> interval(T, sᵢ), s.spaces))
-IntervalArithmetic.interval(s::CartesianProduct) = CartesianPower(map(interval, s.spaces))
+IntervalArithmetic.interval(s::CartesianProduct) = CartesianProduct(map(interval, s.spaces))
 
 # show
 

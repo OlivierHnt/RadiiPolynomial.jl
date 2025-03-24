@@ -137,7 +137,7 @@ for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space))
 
         $g(s::CartesianPower) = CartesianPower($g(space(s)), nspaces(s))
 
-        $g(s::CartesianProduct) = CartesianPower(map($g, spaces(s)))
+        $g(s::CartesianProduct) = CartesianProduct(map($g, spaces(s)))
     end
 end
 

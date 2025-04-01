@@ -2,7 +2,7 @@ _linear_regression_log_abs(x) = log(abs(x))
 _linear_regression_log_abs(x::Interval) = log(mag(x))
 _linear_regression_log_abs(x::Complex{<:Interval}) = log(mag(x))
 
-function _linear_regression(f, A, j)
+function __linear_regression(f, A, j)
     sum_x = t = n = 0
     sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
     mean = sum_log_abs_A/1
@@ -41,6 +41,73 @@ function _linear_regression(f, A, j)
         end
     end
     return β, err
+end
+
+#
+
+function _linear_regression(s::TensorSpace{<:NTuple{N,BaseSpace}}, f, A) where {N}
+    log_abs_A = _linear_regression_log_abs.(filter(!iszero, A))
+    len = length(log_abs_A)
+    len == 0 && return ntuple(_ -> f(one(eltype(log_abs_A))), Val(N)), zero(eltype(log_abs_A)), missing
+    x = ones(Float64, len, N+1)
+    n = 0
+    @inbounds for (i, α) ∈ enumerate(indices(s))
+        if !iszero(mid(A[i]))
+            view(x, i-n, 2:N+1) .= f.(abs.(α) .+ 1)
+        else
+            n += 1
+        end
+    end
+    r = LinearAlgebra.svd(x) \ log_abs_A
+    err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
+    return ntuple(i -> r[i+1], Val(N)), err, missing
+end
+
+# Taylor
+
+function _linear_regression(::Taylor, f, A)
+    j = length(A)
+    β, err = β_, err_ = __linear_regression(f, A, j)
+    while err_ ≤ err && j ≥ 3
+        j -= 1
+        β, err = β_, err_
+        β_, err_ = __linear_regression(f, A, j)
+    end
+    return β, err, j
+end
+
+# Fourier
+
+function _linear_regression(s::Fourier, f, A)
+    j = order(s)+1
+    @inbounds A1 = view(A, j:2*j-1)
+    β1, err1 = __linear_regression(f, A1, j)
+    @inbounds A2 = view(A, j:-1:1)
+    β2, err2 = __linear_regression(f, A2, j)
+    β = β_ = (β1 + β2)/2
+    err = err_ = max(err1, err2)
+    while err_ ≤ err && j ≥ 3
+        j -= 1
+        β, err = β_, err_
+        β1_, err1_ = __linear_regression(f, A1, j)
+        β2_, err2_ = __linear_regression(f, A2, j)
+        β_ = (β1_ + β2_)/2
+        err_ = max(err1_, err2_)
+    end
+    return β, err, j
+end
+
+# Chebyshev
+
+function _linear_regression(::Chebyshev, f, A)
+    j = length(A)
+    β, err = β_, err_ = __linear_regression(f, A, j)
+    while err_ ≤ err && j ≥ 3
+        j -= 1
+        β, err = β_, err_
+        β_, err_ = __linear_regression(f, A, j)
+    end
+    return β, err, j
 end
 
 #
@@ -126,82 +193,25 @@ julia> rate.(geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2
 function geometricweight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
-    rate, _ = _geometric_rate(s, A)
+    rate, _, _ = _geometric_rate(s, A)
     return GeometricWeight.(rate)
 end
 
+function _geometric_rate(s::BaseSpace, A)
+    β, err, j = _linear_regression(s, identity, A)
+    rate = exp(ifelse(isfinite(β) & (β < 0), -β, zero(β)))
+    return rate, err, j
+end
+
 function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    log_abs_A = _linear_regression_log_abs.(filter(!iszero, A))
-    len = length(log_abs_A)
-    len == 0 && return ntuple(_ -> one(eltype(log_abs_A)), Val(N)), zero(eltype(log_abs_A))
-    x = ones(Float64, len, N+1)
-    n = 0
-    @inbounds for (i, α) ∈ enumerate(indices(s))
-        if !iszero(mid(A[i]))
-            view(x, i-n, 2:N+1) .= abs.(α) .+ 1
-        else
-            n += 1
-        end
-    end
-    r = LinearAlgebra.svd(x) \ log_abs_A
+    β, err, j = _linear_regression(s, identity, A)
     trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
     rate = ntuple(Val(N)) do i
-        @inbounds rᵢ₊₁ = r[i+1]
-        v = ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0) & (i ∉ trv_inds), -rᵢ₊₁, zero(rᵢ₊₁))
+        @inbounds βᵢ = β[i]
+        v = ifelse(isfinite(βᵢ) & (βᵢ < 0) & (i ∉ trv_inds), -βᵢ, zero(βᵢ))
         return exp(v)
     end
-    err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
-    return rate, err
-end
-
-# Taylor
-
-function _geometric_rate(::Taylor, A)
-    len = length(A)
-    β, err = _linear_regression(identity, A, len)
-    for j ∈ len-1:-1:2
-        β_, err_ = _linear_regression(identity, A, j)
-        err_ > err && break
-        β = β_
-        err = err_
-    end
-    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
-end
-
-# Fourier
-
-function _geometric_rate(s::Fourier, A)
-    len = order(s)+1
-    @inbounds A1 = view(A, len:2*len-1)
-    β1, err1 = _linear_regression(identity, A1, len)
-    @inbounds A2 = view(A, len:-1:1)
-    β2, err2 = _linear_regression(identity, A2, len)
-    err = max(err1, err2)
-    for j ∈ len-1:-1:2
-        β1_, err1_ = _linear_regression(identity, A1, j)
-        β2_, err2_ = _linear_regression(identity, A2, j)
-        err_ = max(err1_, err2_)
-        err_ > err && break
-        β1 = β1_
-        β2 = β2_
-        err = err_
-    end
-    β = (β1 + β2)/2
-    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
-end
-
-# Chebyshev
-
-function _geometric_rate(::Chebyshev, A)
-    len = length(A)
-    β, err = _linear_regression(identity, A, len)
-    for j ∈ len-1:-1:2
-        β_, err_ = _linear_regression(identity, A, j)
-        err_ > err && break
-        β = β_
-        err = err_
-    end
-    return exp(ifelse(isfinite(β) & (β < 0), -β, zero(β))), err
+    return rate, err, j
 end
 
 """
@@ -266,100 +276,69 @@ julia> rate.(algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((
 function algebraicweight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
-    rate, _ = _algebraic_rate(s, A)
-    return AlgebraicWeight(rate)
-end
-
-function algebraicweight(a::Sequence{<:TensorSpace})
-    s = space(a)
-    A = coefficients(a)
-    rate, _ = _algebraic_rate(s, A)
+    rate, _, _ = _algebraic_rate(s, A)
     return AlgebraicWeight.(rate)
 end
 
+function _algebraic_rate(s::BaseSpace, A)
+    β, err, j = _linear_regression(s, log, A)
+    rate = ifelse(isfinite(β) & (β < 0), -β, zero(β))
+    return rate, err, j
+end
+
 function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    log_abs_A = _linear_regression_log_abs.(filter(!iszero, A))
-    len = length(log_abs_A)
-    len == 0 && return ntuple(_ -> zero(eltype(log_abs_A)), Val(N)), zero(eltype(log_abs_A))
-    x = ones(Float64, len, N+1)
-    n = 0
-    @inbounds for (i, α) ∈ enumerate(indices(s))
-        if !iszero(mid(A[i]))
-            view(x, i-n, 2:N+1) .= log.(abs.(α) .+ 1)
-        else
-            n += 1
-        end
-    end
-    r = LinearAlgebra.svd(x) \ log_abs_A
+    β, err, j = _linear_regression(s, log, A)
     trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
     rate = ntuple(Val(N)) do i
-        @inbounds rᵢ₊₁ = r[i+1]
-        return ifelse(isfinite(rᵢ₊₁) & (rᵢ₊₁ < 0) & (i ∉ trv_inds), -rᵢ₊₁, zero(rᵢ₊₁))
+        @inbounds βᵢ = β[i]
+        v = ifelse(isfinite(βᵢ) & (βᵢ < 0) & (i ∉ trv_inds), -βᵢ, zero(βᵢ))
+        return v
     end
-    err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
-    return rate, err
-end
-
-# Taylor
-
-function _algebraic_rate(::Taylor, A)
-    len = length(A)
-    β, err = _linear_regression(log, A, len)
-    for j ∈ len-1:-1:2
-        β_, err_ = _linear_regression(log, A, j)
-        err_ > err && break
-        β = β_
-        err = err_
-    end
-    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
-end
-
-# Fourier
-
-function _algebraic_rate(s::Fourier, A)
-    len = order(s)+1
-    @inbounds A1 = view(A, len:2*len-1)
-    β1, err1 = _linear_regression(log, A1, len)
-    @inbounds A2 = view(A, len:-1:1)
-    β2, err2 = _linear_regression(log, A2, len)
-    err = max(err1, err2)
-    for j ∈ len-1:-1:2
-        β1_, err1_ = _linear_regression(log, A1, j)
-        β2_, err2_ = _linear_regression(log, A2, j)
-        err_ = max(err1_, err2_)
-        err_ > err && break
-        β1 = β1_
-        β2 = β2_
-        err = err_
-    end
-    β = (β1 + β2)/2
-    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
-end
-
-# Chebyshev
-
-function _algebraic_rate(::Chebyshev, A)
-    len = length(A)
-    β, err = _linear_regression(log, A, len)
-    for j ∈ len-1:-1:2
-        β_, err_ = _linear_regression(log, A, j)
-        err_ > err && break
-        β = β_
-        err = err_
-    end
-    return ifelse(isfinite(β) & (β < 0), -β, zero(β)), err
+    return rate, err, j
 end
 
 # retrieve the optimal weight
 
-function weight(a::Sequence{<:SequenceSpace})
+weight(a::Sequence{<:SequenceSpace}) = _weight(a::Sequence{<:SequenceSpace})[1]
+
+function _weight(a::Sequence{<:SequenceSpace})
     s = space(a)
     A = coefficients(a)
-    geo_rate, geo_err = _geometric_rate(s, A)
-    alg_rate, alg_err = _algebraic_rate(s, A)
-    geo_err ≤ alg_err && return GeometricWeight.(geo_rate)
-    return AlgebraicWeight.(alg_rate)
+    geo_rate, geo_err, j = _geometric_rate(s, A)
+    alg_rate, alg_err, j = _algebraic_rate(s, A)
+    geo_err ≤ alg_err && return GeometricWeight.(geo_rate), j
+    return AlgebraicWeight.(alg_rate), j
 end
+
+#
+
+polish!(a::Sequence{<:ParameterSpace}) = a
+
+polish!(a::Sequence{<:TensorSpace}) = a
+
+function polish!(a::Sequence{<:BaseSpace})
+    w, ord = _weight(a)
+    s = space(a)
+    norm_a = norm(a, 1)
+    for i ∈ indices(s)
+        if abs(i) > ord
+            val = norm_a / _getindex(w, s, i)
+            if abs(a[i]) > val
+                a[i] = 0
+            end
+        end
+    end
+    return a
+end
+
+function polish!(a::Sequence{<:CartesianSpace})
+    for i ∈ 1:nspaces(space(a))
+        polish!(component(a, i))
+    end
+    return a
+end
+
+#
 
 """
     BesselWeight{T<:Real} <: Weight

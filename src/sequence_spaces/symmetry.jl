@@ -701,7 +701,27 @@ _getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = rat
 
 _getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = ExactReal(1 + i) ^ rate(weight)
 
+function _linear_regression(::CosFourier, f, A)
+    j = length(A)
+    β, err = β_, err_ = __linear_regression(f, A, j)
+    while err_ ≤ err && j ≥ 3
+        j -= 1
+        β, err = β_, err_
+        β_, err_ = __linear_regression(f, A, j)
+    end
+    return β, err, j
+end
 
+function _linear_regression(::SinFourier, f, A)
+    j = length(A)
+    β, err = β_, err_ = __linear_regression(f, A, j)
+    while err_ ≤ err && j ≥ 3
+        j -= 1
+        β, err = β_, err_
+        β_, err_ = __linear_regression(f, A, j)
+    end
+    return β, err, j
+end
 
 
 

@@ -12,32 +12,23 @@ _no_alloc_reshape(a, dims) = invoke(Base._reshape, Tuple{AbstractArray,typeof(di
 
 @inline __mul!(C, A, B, α, β) = mul!(C, A, B, α, β)
 
-if pkgversion(IntervalArithmetic) ≤ v"0.22.29"
-    # for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
-    #     @eval __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
-    #         IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
-    # end
+for (T, S) ∈ ((:Interval, :Interval), (:Interval, :Any), (:Any, :Interval))
+    @eval __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
+        IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
+end
 
-    # for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
-    #         (:(Complex{<:Interval}), :Complex), (:Complex, :(Complex{<:Interval})))
-    #     @eval __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
-    #         IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
-    # end
+for (T, S) ∈ ((:(Complex{<:Interval}), :(Complex{<:Interval})),
+        (:(Complex{<:Interval}), :Complex), (:Complex, :(Complex{<:Interval})))
+    @eval __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
+        IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
+end
 
-    # for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :Any), (:Complex, :Interval))
-    #     @eval begin
-    #         __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
-    #             IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
+for (T, S) ∈ ((:(Complex{<:Interval}), :Interval), (:(Complex{<:Interval}), :Any), (:Complex, :Interval))
+    @eval begin
+        __mul!(C, A::AbstractMatrix{<:$T}, B::AbstractVecOrMat{<:$S}, α, β) =
+            IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
 
-    #         __mul!(C, A::AbstractMatrix{<:$S}, B::AbstractVecOrMat{<:$T}, α, β) =
-    #             IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
-    #     end
-    # end
-    function __init__()
-        @eval IntervalArithmetic.matmul_mode() = IntervalArithmetic.MatMulMode{:fast}()
-    end
-else
-    function __init__()
-        IntervalArithmetic.configure(; matmul = :fast)
+        __mul!(C, A::AbstractMatrix{<:$S}, B::AbstractVecOrMat{<:$T}, α, β) =
+            IntervalArithmetic._mul!(IntervalArithmetic.MatMulMode{:fast}(), C, A, B, α, β)
     end
 end

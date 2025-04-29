@@ -358,49 +358,43 @@ julia> frequency(s)
 struct Fourier{T<:Real} <: BaseSpace
     order :: Int
     frequency :: T
-    multiple :: Int
-    function Fourier{T}(order::Int, frequency::T, multiple::Int=1) where {T<:Real}
-        (multiple > 0) & (order ≥ 0) & (inf(frequency) ≥ 0) || return throw(DomainError((order, frequency), "Fourier is only defined for positive orders and frequencies"))
-        return new{T}(order-(order % multiple), frequency, multiple)
+    function Fourier{T}(order::Int, frequency::T) where {T<:Real}
+        (order ≥ 0) & (inf(frequency) ≥ 0) || return throw(DomainError((order, frequency), "Fourier is only defined for positive orders and frequencies"))
+        return new{T}(order, frequency)
     end
 end
 
-Fourier(order::Int, frequency::T, multiple::Int=1) where {T<:Real} = Fourier{T}(order, frequency, multiple)
+Fourier(order::Int, frequency::T) where {T<:Real} = Fourier{T}(order, frequency)
 
 order(s::Fourier) = s.order
 
 frequency(s::Fourier) = s.frequency
 
-multiple(s::Fourier) = s.multiple
-
-Base.:(==)(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order == s₂.order) & (s₁.multiple == s₂.multiple)
-Base.issubset(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order ≤ s₂.order) & iszero(s₁.multiple % s₂.multiple)
+Base.:(==)(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order == s₂.order)
+Base.issubset(s₁::Fourier, s₂::Fourier) = _safe_isequal(s₁.frequency, s₂.frequency) & (s₁.order ≤ s₂.order)
 function Base.intersect(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
     _safe_isequal(s₁.frequency, s₂.frequency) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
-    t = iszero(s₁.multiple % s₂.multiple) | iszero(s₂.multiple % s₁.multiple)
-    ord = ifelse(t, min(s₁.order, s₂.order), 0)
-    mult = ifelse(t, max(s₁.multiple, s₂.multiple), 1)
-    return Fourier(ord, convert(R, s₁.frequency), mult)
+    return Fourier(min(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
     _safe_isequal(s₁.frequency, s₂.frequency) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $(s₁.frequency), s₂ has frequency $(s₂.frequency)"))
     R = promote_type(T, S)
-    return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency), gcd(s₁.multiple, s₂.multiple))
+    return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 
-dimension(s::Fourier) = 2(s.order ÷ s.multiple) + 1
+dimension(s::Fourier) = 2s.order + 1
 _firstindex(s::Fourier) = -s.order
 _lastindex(s::Fourier) = s.order
-indices(s::Fourier) = -s.order:s.multiple:s.order
+indices(s::Fourier) = -s.order:s.order
 
-__checkbounds_indices(α::Int, s::Fourier) = iszero(α % s.multiple) & (-s.order ≤ α ≤ s.order)
+__checkbounds_indices(α::Int, s::Fourier) = -s.order ≤ α ≤ s.order
 
 _compatible_space_with_constant_index(s::Fourier) = s
 _findindex_constant(::Fourier) = 0
 
-_findposition(i::Int, s::Fourier) = (i + s.order) ÷ s.multiple + 1
-_findposition(u::AbstractRange{Int}, s::Fourier) = (u .+ s.order) .÷ s.multiple .+ 1
+_findposition(i::Int, s::Fourier) = i + s.order + 1
+_findposition(u::AbstractRange{Int}, s::Fourier) = u .+ s.order .+ 1
 _findposition(u::AbstractVector{Int}, s::Fourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Fourier) = c
 
@@ -785,7 +779,7 @@ _iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTup
 _iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _iscompatible(s₁[1], s₂[1])
 _iscompatible(::Taylor, ::Taylor) = true
-_iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂)) & (multiple(s₁) == multiple(s₂))
+_iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
 _iscompatible(::Chebyshev, ::Chebyshev) = true
 _iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
     (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))
@@ -845,7 +839,7 @@ IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = TensorSpace(m
 IntervalArithmetic.interval(s::TensorSpace) = TensorSpace(map(interval, s.spaces))
 
 IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T} = Fourier(order(s), interval(T, frequency(s)))
-IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)), multiple(s))
+IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
 
 IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T} = CartesianPower(interval(T, s.space), s.n)
 IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space), s.n)

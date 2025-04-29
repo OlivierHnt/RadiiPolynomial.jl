@@ -81,22 +81,20 @@ struct CosFourier{T<:Real} <: SymBaseSpace
 end
 CosFourier(space::Fourier{T}) where {T<:Real} = CosFourier{T}(space)
 CosFourier{T}(order::Int, frequency::T) where {T<:Real} = CosFourier(Fourier{T}(order, frequency))
-CosFourier(order::Int, frequency::Real, multiple::Int=1) = CosFourier(Fourier(order, frequency, multiple))
-
-multiple(s::CosFourier) = multiple(desymmetrize(s))
+CosFourier(order::Int, frequency::Real) = CosFourier(Fourier(order, frequency))
 
 Base.:(==)(s₁::CosFourier, s₂::CosFourier) = desymmetrize(s₁) == desymmetrize(s₂)
 Base.issubset(s₁::CosFourier, s₂::CosFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
 Base.intersect(s₁::CosFourier, s₂::CosFourier) = CosFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
 Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
 
-indices(s::CosFourier) = 0:multiple(s):order(s)
+indices(s::CosFourier) = 0:order(s)
 
 _compatible_space_with_constant_index(s::CosFourier) = s
 _findindex_constant(::CosFourier) = 0
 
-_findposition(i::Int, s::CosFourier) = i ÷ multiple(s) + 1
-_findposition(u::AbstractRange{Int}, s::CosFourier) = u .÷ multiple(s) .+ 1
+_findposition(i::Int, ::CosFourier) = i + 1
+_findposition(u::AbstractRange{Int}, ::CosFourier) = u .+ 1
 _findposition(u::AbstractVector{Int}, s::CosFourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::CosFourier) = c
 
@@ -132,21 +130,19 @@ struct SinFourier{T<:Real} <: SymBaseSpace
 end
 SinFourier(space::Fourier{T}) where {T<:Real} = SinFourier{T}(space)
 SinFourier{T}(order::Int, frequency::T) where {T<:Real} = SinFourier(Fourier{T}(order, frequency))
-SinFourier(order::Int, frequency::Real, multiple::Int=1) = SinFourier(Fourier(order, frequency, multiple)) # may fail since it can normalize to order 0
-
-multiple(s::SinFourier) = multiple(desymmetrize(s))
+SinFourier(order::Int, frequency::Real) = SinFourier(Fourier(order, frequency)) # may fail since it can normalize to order 0
 
 Base.:(==)(s₁::SinFourier, s₂::SinFourier) = desymmetrize(s₁) == desymmetrize(s₂)
 Base.issubset(s₁::SinFourier, s₂::SinFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
 Base.intersect(s₁::SinFourier, s₂::SinFourier) = SinFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
 Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
 
-indices(s::SinFourier) = multiple(s):multiple(s):order(s)
+indices(s::SinFourier) = 1:order(s)
 
 _compatible_space_with_constant_index(s::SinFourier) = desymmetrize(s)
 
-_findposition(i::Int, s::SinFourier) = i ÷ multiple(s)
-_findposition(u::AbstractRange{Int}, s::SinFourier) = u .÷ multiple(s)
+_findposition(i::Int, ::SinFourier) = i
+_findposition(u::AbstractRange{Int}, ::SinFourier) = u
 _findposition(u::AbstractVector{Int}, s::SinFourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::SinFourier) = c
 

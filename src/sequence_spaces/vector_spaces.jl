@@ -27,6 +27,39 @@ __checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
 
 
 
+"""
+    EmptySpace <: VectorSpace
+
+Corresponds to an empty set for VectorSpace.
+Helpful to define an empty opetator.
+
+# Example
+
+```jldoctest
+julia> EmptySpace()
+∅
+julia> LinearOperator(EmptySpace(),EmptySpace(), [;;])
+LinearOperator : ∅ → ∅ with coefficients Matrix{Any}:
+```
+
+"""
+struct EmptySpace <: VectorSpace end
+
+Base.:(==)(::EmptySpace, ::EmptySpace) = true
+Base.issubset(::EmptySpace, ::EmptySpace) = true
+Base.intersect(::EmptySpace, ::EmptySpace) = EmptySpace()
+Base.union(::EmptySpace, ::EmptySpace) = EmptySpace()
+
+order(::EmptySpace) = -1
+dimension(::EmptySpace) = 0
+indices(::EmptySpace) = []
+_findposition(::Any, ::VectorSpace) = []
+_firstindex(::ParameterSpace) = []
+_lastindex(::ParameterSpace) = []
+_regularstring(::EmptySpace) = "EmptySpace()"
+_prettystring(::EmptySpace) = "∅"
+
+
 
 # Parameter space
 

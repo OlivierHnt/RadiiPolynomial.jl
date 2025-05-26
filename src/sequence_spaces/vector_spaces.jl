@@ -26,6 +26,37 @@ __checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
 
 
 
+"""
+    EmptySpace <: VectorSpace
+
+Empty vector space. Helpful to define an empty opetator.
+
+# Example
+
+```jldoctest
+julia> EmptySpace()
+∅
+
+julia> LinearOperator(EmptySpace(), EmptySpace(), [;;])
+LinearOperator : ∅ → ∅ with coefficients Matrix{Any}:
+```
+"""
+struct EmptySpace <: VectorSpace end
+
+Base.:(==)(::EmptySpace, ::EmptySpace) = true
+Base.issubset(::EmptySpace, ::EmptySpace) = true
+Base.intersect(::EmptySpace, ::EmptySpace) = EmptySpace()
+Base.union(::EmptySpace, ::EmptySpace) = EmptySpace()
+
+dimension(::EmptySpace) = 0
+_firstindex(::EmptySpace) = 1
+_lastindex(::EmptySpace) = 0
+indices(::EmptySpace) = Base.OneTo(0)
+
+_findposition(i, ::EmptySpace) = i
+
+
+
 
 
 # Parameter space
@@ -857,6 +888,7 @@ function Base.show(io::IO, s::VectorSpace)
 end
 
 _regularstring(s::VectorSpace) = _prettystring(s)
+_regularstring(::EmptySpace) = "EmptySpace()"
 _regularstring(::ParameterSpace) = "ParameterSpace()"
 _regularstring(s::CartesianPower) = _regularstring_cartesian(space(s)) * " ^ " * string(nspaces(s))
 _regularstring(s::CartesianProduct) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(Base.tail(s))
@@ -872,6 +904,8 @@ function _prettystring(s::VectorSpace)
     str = mapreduce(f -> string(getproperty(s, f)), (x, y) -> x * ", " * y, b; init = string(getproperty(s, a)))
     return string(T) * "(" * str * ")"
 end
+
+_prettystring(::EmptySpace) = "∅"
 
 _prettystring(::ParameterSpace) = "𝕂"
 

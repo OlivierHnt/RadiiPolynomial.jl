@@ -80,6 +80,9 @@ Base.issubset(::ParameterSpace, ::ParameterSpace) = true
 Base.intersect(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 Base.union(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 
+dimension(::ParameterSpace) = 1
+_firstindex(::ParameterSpace) = 1
+_lastindex(::ParameterSpace) = 1
 indices(::ParameterSpace) = Base.OneTo(1)
 
 __checkbounds_indices(α::Int, ::ParameterSpace) = isone(α)

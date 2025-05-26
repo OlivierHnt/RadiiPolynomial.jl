@@ -18,8 +18,8 @@ include("utilities.jl")
 import LinearAlgebra: ×
 
 include("sequence_spaces/vector_spaces.jl")
-    export VectorSpace, ParameterSpace, SequenceSpace, BaseSpace,
-        TensorSpace, ⊗, TensorIndices, Taylor, Fourier, Chebyshev,
+    export VectorSpace, EmptySpace, ParameterSpace, SequenceSpace,
+        BaseSpace, TensorSpace, ⊗, TensorIndices, Taylor, Fourier, Chebyshev,
         CartesianSpace, CartesianPower, CartesianProduct, ×
 
     export order, frequency, space, spaces, dimension, dimensions, indices,

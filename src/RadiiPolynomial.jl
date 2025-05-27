@@ -68,8 +68,6 @@ include("sequence_spaces/arithmetic/elementary.jl")
 
 # Special operators
 
-include("sequence_spaces/special_operators/projection.jl")
-    export project, project!, tail, tail!
 include("sequence_spaces/special_operators/special_operator.jl")
 include("sequence_spaces/special_operators/multiplication.jl")
     export Multiplication, sequence
@@ -83,6 +81,8 @@ include("sequence_spaces/special_operators/scale.jl")
     export Scale, scale, scale!
 include("sequence_spaces/special_operators/shift.jl")
     export Shift, shift, shift!
+include("sequence_spaces/special_operators/projection.jl")
+    export Projection, project, project!, tail, tail!
 
     export value
 

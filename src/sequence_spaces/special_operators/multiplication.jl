@@ -176,4 +176,3 @@ end
 
 _mult_domain_indices(s::Chebyshev) = -order(s):order(s)
 _isvalid(::Chebyshev, s::Chebyshev, i::Int, j::Int) = _checkbounds_indices(abs(i-j), s)
-

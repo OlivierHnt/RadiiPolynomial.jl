@@ -1,3 +1,52 @@
+struct Projection{T<:VectorSpace} <: SpecialOperator
+    space :: T
+end
+
+Base.:*(𝒫₁::Projection, 𝒫₂::Projection) = Projection(intersect(𝒫₁.space, 𝒫₂.space))
+
+Base.:*(𝒫::Projection, a::Sequence) = project(a, 𝒫.space)
+
+Base.:*(A::LinearOperator, 𝒫::Projection) = project(A, 𝒫.space, codomain(A))
+Base.:*(𝒫::Projection, A::LinearOperator) = project(A, domain(A), 𝒫.space)
+
+Base.:*(S::SpecialOperator, 𝒫::Projection) = project(S, 𝒫.space, image(S, 𝒫.space))
+Base.:*(𝒫::Projection, S::SpecialOperator) = project(S, _infer_domain(S, 𝒫.space), 𝒫.space)
+
+_infer_domain(a, b) = throw(DomainError((a, b), "cannot project into a finite linear operator"))
+
+_infer_domain(ℳ::Multiplication, s::SequenceSpace) = image(ℳ, s)
+
+_infer_domain(𝒟::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(𝒟), spaces(s)))
+_infer_domain(𝒟::Derivative, s::Taylor) = image(Integral(order(𝒟)), s)
+_infer_domain(::Derivative, s::Fourier) = s
+_infer_domain(𝒟::Derivative, s::CosFourier) = image(Derivative(order(𝒟)), s)
+_infer_domain(𝒟::Derivative, s::SinFourier) = image(Derivative(order(𝒟)), s)
+# error for Chebyshev
+
+_infer_domain(ℐ::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(ℐ), spaces(s)))
+_infer_domain(ℐ::Integral, s::Taylor) = image(Derivative(order(ℐ)), s)
+_infer_domain(::Integral, s::Fourier) = s
+_infer_domain(ℐ::Integral, s::CosFourier) = image(Derivative(order(ℐ)), s)
+_infer_domain(ℐ::Integral, s::SinFourier) = image(Derivative(order(ℐ)), s)
+# error for Chebyshev
+
+_infer_domain(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> _infer_domain(Shift(τᵢ), sᵢ), value(𝒮), spaces(s)))
+_infer_domain(::Shift, s::Taylor) = s
+_infer_domain(::Shift, s::Fourier) = s
+_infer_domain(::Shift, s::Chebyshev) = s
+
+_infer_domain(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((γᵢ, sᵢ) -> _infer_domain(Scale(γᵢ), sᵢ), value(𝒮), spaces(s)))
+_infer_domain(::Scale, s::Taylor) = s
+_infer_domain(::Scale, s::Fourier) = s
+_infer_domain(::Scale, s::Chebyshev) = s
+
+_infer_domain(S::SpecialOperator, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
+_infer_domain(S::SpecialOperator, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))
+
 #
 
 """

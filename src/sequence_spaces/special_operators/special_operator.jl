@@ -19,11 +19,8 @@ rsub!(A::LinearOperator, S::SpecialOperator) = rsub!(A, project(S, domain(A), co
 ladd!(S::SpecialOperator, A::LinearOperator) = ladd!(project(S, domain(A), codomain(A), eltype(A)), A)
 lsub!(S::SpecialOperator, A::LinearOperator) = lsub!(project(S, domain(A), codomain(A), eltype(A)), A)
 
-function Base.:*(S::SpecialOperator, A::LinearOperator)
-    codomain_A = codomain(A)
-    image_S = image(S, codomain_A)
-    return project(S, codomain_A, image_S, _coeftype(S, codomain_A, eltype(A))) * A
-end
+Base.:*(S::SpecialOperator, A::LinearOperator) = (S * Projection(codomain(A))) * A
+Base.:*(A::LinearOperator, S::SpecialOperator) = A * (Projection(domain(A)) * S)
 
 function mul!(C::LinearOperator, S₁::SpecialOperator, S₂::SpecialOperator, α::Number, β::Number)
     domain_C = domain(C)

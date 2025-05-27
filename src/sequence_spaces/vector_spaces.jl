@@ -29,7 +29,7 @@ __checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
 """
     EmptySpace <: VectorSpace
 
-Empty vector space. Helpful to define an empty opetator.
+Empty vector space.
 
 # Example
 

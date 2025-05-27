@@ -20,16 +20,12 @@ _infer_domain(𝒟::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpa
     TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(𝒟), spaces(s)))
 _infer_domain(𝒟::Derivative, s::Taylor) = image(Integral(order(𝒟)), s)
 _infer_domain(::Derivative, s::Fourier) = s
-_infer_domain(𝒟::Derivative, s::CosFourier) = image(Derivative(order(𝒟)), s)
-_infer_domain(𝒟::Derivative, s::SinFourier) = image(Derivative(order(𝒟)), s)
 # error for Chebyshev
 
 _infer_domain(ℐ::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(ℐ), spaces(s)))
 _infer_domain(ℐ::Integral, s::Taylor) = image(Derivative(order(ℐ)), s)
 _infer_domain(::Integral, s::Fourier) = s
-_infer_domain(ℐ::Integral, s::CosFourier) = image(Derivative(order(ℐ)), s)
-_infer_domain(ℐ::Integral, s::SinFourier) = image(Derivative(order(ℐ)), s)
 # error for Chebyshev
 
 _infer_domain(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =

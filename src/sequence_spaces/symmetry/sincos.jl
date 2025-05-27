@@ -281,6 +281,11 @@ function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
     return C
 end
 
+# used for Projection
+
+_infer_domain(𝒟::Derivative, s::CosFourier) = image(Derivative(order(𝒟)), s)
+_infer_domain(𝒟::Derivative, s::SinFourier) = image(Derivative(order(𝒟)), s)
+
 # Derivative
 
 image(𝒟::Derivative, s::CosFourier) = iseven(order(𝒟)) ? s : SinFourier(desymmetrize(s))

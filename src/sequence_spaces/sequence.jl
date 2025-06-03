@@ -280,5 +280,5 @@ end
 
 _node(s::TensorSpace, j, N) = map((sᵢ, jᵢ, Nᵢ) -> _node(sᵢ, jᵢ, Nᵢ), spaces(s), Tuple(j), N)
 _node(::Taylor, j, N) = cispi(2j[1]/N)
-_node(::Fourier, j, N) = 2π*j[1]/N
+_node(s::Fourier, j, N) = 2π/frequency(s)*j[1]/N
 _node(::Chebyshev, j, N) = cospi(2*j[1]/N)

@@ -171,6 +171,7 @@ Base.reverse!(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(
 # zero, one
 
 Base.zero(A::LinearOperator) = zeros(eltype(A), domain(A), codomain(A))
+Base.zero(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = zeros(eltype(R), _zero_space(T), _zero_space(S))
 
 function Base.one(A::LinearOperator)
     CoefType = eltype(A)
@@ -180,6 +181,7 @@ function Base.one(A::LinearOperator)
     end
     return C
 end
+Base.one(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = ones(eltype(R), _zero_space(T), _zero_space(S))
 
 # float, complex, real, imag, conj, conj!
 

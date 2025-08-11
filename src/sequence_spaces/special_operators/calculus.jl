@@ -1296,8 +1296,8 @@ end
 
 #
 
-image(::Laplacian, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    image(Derivative(ntuple(i -> 2, Val(N))), s)
+image(::Laplacian, s::TensorSpace) = s
+image(::Laplacian, s::TensorSpace{<:Tuple{BaseSpace}}) = TensorSpace(image(Derivative(2), first(s.spaces)))
 
 image(::Laplacian, s::BaseSpace) = image(Derivative(2), s)
 

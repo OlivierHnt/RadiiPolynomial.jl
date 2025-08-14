@@ -65,6 +65,10 @@ function Base.:-(S::SpecialOperator, A::LinearOperator)
     return C
 end
 
+#
+
+image(::UniformScaling, s::VectorSpace) = s
+
 # infinite banded linear operator
 
 struct BandedLinearOperator{T<:LinearOperator,S} <: SpecialOperator

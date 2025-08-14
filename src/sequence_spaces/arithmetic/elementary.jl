@@ -76,7 +76,7 @@ function Base.:^(a::Sequence{<:SequenceSpace}, p::Real)
     A = fft(a, fft_size(space_c))
     C = A .^ p
     c = _call_ifft!(C, space_c, eltype(a))
-    ν̄ = 0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0
+    ν̄ = _optimize_decay(x -> ^(x, mid(p)), mid.(c), mid.(a))
     _resolve_saturation!(x -> ^(x, p), c, a, ν̄)
     return c
 end
@@ -93,7 +93,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             A = fft(a, fft_size(space_c))
             C = $f.(A)
             c = _call_ifft!(C, space_c, eltype(a))
-            ν̄ = 0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0
+            ν̄ = _optimize_decay($f, mid.(c), mid.(a))
             _resolve_saturation!($f, c, a, ν̄)
             return c
         end
@@ -115,17 +115,79 @@ function _isconstant(a::Sequence)
     return all(k -> ifelse(k == idx, true, iszero(a[k])), indices(s))
 end
 
+# to optmize ν̄
 
+function _optimize_decay(f, c, a)
+    ν̄_max = max(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1])
+    ν = map(_ -> 1.0, ν̄_max)
+    return golden_search(ν, ν̄_max) do μ
+        c_copy = copy(c)
+        _, N_v = _resolve_saturation!(f, c_copy, a, μ)
+        return prod(_error(f, a, c_copy, ν, μ, N_v))
+    end
+end
+
+function _optimize_decay(f, c, a, ν)
+    ν̄_max = max(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1])
+    return golden_search(ν, ν̄_max) do μ
+        c_copy = copy(c)
+        _, N_v = _resolve_saturation!(f, c_copy, a, μ)
+        return prod(_error(f, a, c_copy, ν, μ, N_v))
+    end
+end
+
+function golden_search(f, a, b)
+    ϕ = (sqrt(5) - 1) / 2 # ≈ 0.618
+    c = b - ϕ * (b - a)
+    d = a + ϕ * (b - a)
+    fc = f(c)
+    fd = f(d)
+    iter = 0
+    while abs(b - a) > 1e-2 && iter < 20
+        if fc < fd
+            b = d
+            d = c
+            fd = fc
+            c = b - ϕ * (b - a)
+            fc = f(c)
+        else
+            a = c
+            c = d
+            fc = fd
+            d = a + ϕ * (b - a)
+            fd = f(d)
+        end
+        iter += 1
+    end
+    return (a + b) / 2
+end
+
+function golden_search(f, lower::NTuple{N}, upper::NTuple{N}) where {N}
+    x = ntuple(i -> (lower[i] + upper[i]) / 2, Val(N))
+    n = length(x)
+    for _ ∈ 1:20
+        for i ∈ 1:n
+            a, b = lower[i], upper[i]
+            μᵢ = golden_search(μ -> f(ntuple(j -> ifelse(j == i, μ, x[i]), Val(N))), a, b)
+            x = ntuple(j -> ifelse(j == i, μᵢ, x[i]), Val(N))
+        end
+    end
+    return x
+end
+
+#
 
 function _resolve_saturation!(f, c, a, ν)
     ν⁻¹ = inv(ν)
     C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
-    CoefType = eltype(c)
     min_ord = order(c)
-    for k ∈ indices(space(c))
-        if abs(c[k]) > C / ν ^ abs(k)
-            min_ord = min(min_ord, abs(k))
-            c[k] = zero(CoefType)
+    if isfinite(mag(C))
+        CoefType = eltype(c)
+        for k ∈ indices(space(c))
+            if mag(c[k]) > mag(C / ν ^ abs(k))
+                min_ord = min(min_ord, abs(k))
+                c[k] = zero(CoefType)
+            end
         end
     end
     return c, min_ord
@@ -136,24 +198,26 @@ function _resolve_saturation!(f, c, a, ν::NTuple{N}) where {N}
     _tuple_ = tuple(ν, ν⁻¹)
     _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
     C = maximum(μ -> _contour(f, a, μ), _mix_)
-    CoefType = eltype(c)
     min_ord = order(c)
-    for k ∈ indices(space(c))
-        if abs(c[k]) > C / prod(ν .^ abs.(k))
-            min_ord = min.(min_ord, abs.(k))
-            c[k] = zero(CoefType)
+    if isfinite(mag(C))
+        CoefType = eltype(c)
+        for k ∈ indices(space(c))
+            if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+                min_ord = min.(min_ord, abs.(k))
+                c[k] = zero(CoefType)
+            end
         end
     end
     return c, min_ord
 end
 
-
+#
 
 function _contour(f, a, ν)
     # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(ν < 1, floatmin(ν), floatmax(ν)) ) / log(ν))) # maybe there is a better N_fft value to consider
     N_fft = fft_size(space(a))
 
-    CoefType = complex(IntervalArithmetic.numtype(eltype(a)))
+    CoefType = complex(eltype(a)) # complex(IntervalArithmetic.numtype(eltype(a)))
     grid_a_δ = zeros(CoefType, N_fft)
 
     A = coefficients(a)
@@ -171,7 +235,7 @@ function _contour(f, a, ν::Tuple)
     # N_fft = min.(fft_size(space(a)), prevpow.(2, log.( ifelse.(mid.(ν) .< 1, floatmin.(ν), floatmax.(ν)) ) ./ log.(ν)))
     N_fft = fft_size(space(a))
 
-    CoefType = complex(IntervalArithmetic.numtype(eltype(a)))
+    CoefType = complex(eltype(a)) # complex(IntervalArithmetic.numtype(eltype(a)))
     grid_a_δ = zeros(CoefType, N_fft)
 
     A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
@@ -185,12 +249,12 @@ function _contour(f, a, ν::Tuple)
     return contour_integral / prod(N_fft)
 end
 
+#
 
-
-_apply_boxes!(C::AbstractArray{S,N₁}, ν::NTuple{N₂,Number}) where {S,N₁,N₂} =
+_apply_boxes!(C::AbstractArray{S,N₁}, ν::NTuple{N₂}) where {S,N₁,N₂} =
     @inbounds _boxes!(_apply_boxes!(C, Base.tail(ν)), ν[1], Val(N₁-N₂+1))
 
-_apply_boxes!(C::AbstractArray{S,N}, ν::Tuple{Number}) where {S,N} =
+_apply_boxes!(C::AbstractArray{S,N}, ν::NTuple{1}) where {S,N} =
     @inbounds _boxes!(C, ν[1], Val(N))
 
 function _boxes!(C, ν)

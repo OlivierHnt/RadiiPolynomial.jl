@@ -365,7 +365,6 @@ Base.abs2(a::ValidatedSequence) = a^2
 #
 
 function Base.:^(a::ValidatedSequence, p::Real)
-    @assert isthinzero(sequence_error(a)) # TODO: lift restriction
     seq_a = sequence(a)
     _isconstant(seq_a) && return ValidatedSequence(_at_value(x -> ^(x, p), seq_a), banachspace(a))
     ν_ = rate(banachspace(a))
@@ -376,12 +375,12 @@ function Base.:^(a::ValidatedSequence, p::Real)
     A = fft(seq_a, fft_size(space_c))
     C = A .^ p
     c = _call_ifft!(C, space_c, eltype(a))
-    ν̄_ = interval.(0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0)
-    _resolve_saturation!(x -> ^(x, p), c, a, ν̄_)
+    ν̄_ = interval.(_optimize_decay(x -> ^(x, mid(p)), mid.(c), mid.(seq_a), mid.(ν_)))
+    _, N_v = _resolve_saturation!(x -> ^(x, p), c, a, ν̄_)
 
     #
 
-    error = prod(_error(x -> ^(x, p), seq_a, c, ν_, ν̄_))
+    error = prod(_error(x -> ^(x, p), seq_a, c, ν_, ν̄_, N_v))
 
     #
 
@@ -394,8 +393,8 @@ function Base.:^(a::ValidatedSequence, p::Real)
         _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
 
         r_star = ExactReal(1) + sequence_error(a)
-        θ = interval(IntervalArithmetic.numtype(r_star), -1, 1)
-        W = maximum(μ -> _contour(x -> ^(x, p), seq_a + r_star * cispi(θ), ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
+        circle = r_star * cispi(interval(IntervalArithmetic.numtype(r_star), -1, 1))
+        W = maximum(μ -> _contour(x -> ^(x, p), seq_a + circle, ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
 
         error += W * sequence_error(a)
     end
@@ -426,7 +425,7 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
             A = fft(seq_a, fft_size(space_c))
             C = $f.(A)
             c = _call_ifft!(C, space_c, eltype(a))
-            ν̄_ = interval.(0.5 .* (max.(_geometric_rate(space(a), coefficients(a))[1], _geometric_rate(space(c), coefficients(c))[1]) .- 1.0) .+ 1.0)
+            ν̄_ = interval.(_optimize_decay($f, mid.(c), mid.(seq_a), mid.(ν_)))
             _, N_v = _resolve_saturation!($f, c, a, ν̄_)
 
             #
@@ -444,8 +443,8 @@ for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
                 _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
 
                 r_star = ExactReal(1) + sequence_error(a)
-                θ = interval(IntervalArithmetic.numtype(r_star), -1, 1)
-                W = maximum(μ -> _contour($f, seq_a + r_star * cispi(θ), ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
+                circle = r_star * cispi(interval(IntervalArithmetic.numtype(r_star), -1, 1))
+                W = maximum(μ -> _contour($f, seq_a + circle, ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
 
                 error += W * sequence_error(a)
             end
@@ -459,7 +458,7 @@ end
 
 #
 
-function _error(f, a, approx, ν::Interval, ν̄, N_v)
+function _error(f, a, approx, ν, ν̄, N_v)
     ν̄⁻¹ = inv(ν̄)
 
     C = max(_contour(f, a, ν̄), _contour(f, a, ν̄⁻¹))
@@ -469,10 +468,11 @@ function _error(f, a, approx, ν::Interval, ν̄, N_v)
     return C, q / prod(ν̄ ^ ExactReal( fft_size(space(approx)) ) - ExactReal(1)) + ExactReal(2) * ν̄ / (ν̄ - ν) * (ν * ν̄⁻¹) ^ ExactReal(N_v + 1)
 end
 
-function _error(f, a, approx, ν::NTuple{N,Interval}, ν̄, N_v) where {N}
+function _error(f, a, approx, ν::NTuple{N}, ν̄, N_v) where {N}
     ν̄⁻¹ = inv.(ν̄)
     _tuple_ = tuple(ν̄, ν̄⁻¹)
     _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
+
     C = maximum(μ -> _contour(f, a, μ), _mix_)
 
     q = sum(k -> sum(μ -> prod(μ .^ ExactReal.(k)), _mix_) * prod(ν .^ ExactReal.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
@@ -480,83 +480,83 @@ function _error(f, a, approx, ν::NTuple{N,Interval}, ν̄, N_v) where {N}
     return C, q / prod(ν̄ .^ ExactReal.( fft_size(space(approx)) ) .- ExactReal(1)) + ExactReal(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ ExactReal.(N_v .+ 1))
 end
 
+# function _resolve_saturation!(f, c, a, ν::Interval)
+#     ν⁻¹ = inv(ν)
+#     C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+#     min_ord = order(c)
+#     if isfinite(mag(C))
+#         CoefType = eltype(c)
+#         for k ∈ indices(space(c))
+#             if mag(c[k]) > mag(C / ν ^ abs(k))
+#                 min_ord = min(min_ord, abs(k))
+#                 c[k] = zero(CoefType)
+#             end
+#         end
+#     end
+#     return c, min_ord
+# end
 
+# function _resolve_saturation!(f, c, a, ν::NTuple{N,Interval}) where {N}
+#     ν⁻¹ = inv.(ν)
+#     _tuple_ = tuple(ν, ν⁻¹)
+#     _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
+#     C = maximum(μ -> _contour(f, a, μ), _mix_)
+#     min_ord = order(c)
+#     if isfinite(mag(C))
+#         CoefType = eltype(c)
+#         for k ∈ indices(space(c))
+#             if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
+#                 min_ord = min.(min_ord, abs.(k))
+#                 c[k] = zero(CoefType)
+#             end
+#         end
+#     end
+#     return c, min_ord
+# end
 
-function _resolve_saturation!(f, c, a, ν::Interval)
-    ν⁻¹ = inv(ν)
-    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
-    min_ord = order(c)
-    if isfinite(mag(C))
-        CoefType = eltype(c)
-        for k ∈ indices(space(c))
-            if mag(c[k]) > mag(C / ν ^ abs(k))
-                min_ord = min(min_ord, abs(k))
-                c[k] = zero(CoefType)
-            end
-        end
-    end
-    return c, min_ord
-end
+#
 
-function _resolve_saturation!(f, c, a, ν::NTuple{N,Interval}) where {N}
-    ν⁻¹ = inv.(ν)
-    _tuple_ = tuple(ν, ν⁻¹)
-    _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(N))...)
-    C = maximum(μ -> _contour(f, a, μ), _mix_)
-    min_ord = order(c)
-    if isfinite(mag(C))
-        CoefType = eltype(c)
-        for k ∈ indices(space(c))
-            if mag(c[k]) > mag(C / prod(ν .^ abs.(k)))
-                min_ord = min.(min_ord, abs.(k))
-                c[k] = zero(CoefType)
-            end
-        end
-    end
-    return c, min_ord
-end
+_contour(f, a, ν::NTuple{1}) = _contour(f, a, ν[1])
 
+# function _contour(f, a, ν::Interval)
+#     # mid_ν = mid(ν)
+#     # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(mid_ν < 1, floatmin(mid_ν), floatmax(mid_ν)) ) / log(mid_ν))) # maybe there is a better N_fft value to consider
+#     N_fft = fft_size(space(a))
 
+#     CoefType = complex(eltype(a))
+#     grid_a_δ = zeros(CoefType, N_fft)
 
-function _contour(f, a, ν::Interval)
-    # mid_ν = mid(ν)
-    # N_fft = min(fft_size(space(a)), prevpow(2, log( ifelse(mid_ν < 1, floatmin(mid_ν), floatmax(mid_ν)) ) / log(mid_ν))) # maybe there is a better N_fft value to consider
-    N_fft = fft_size(space(a))
+#     A = coefficients(a)
+#     view(grid_a_δ, eachindex(A)) .= A
+#     _preprocess!(grid_a_δ, space(a))
+#     _boxes!(grid_a_δ, ν)
 
-    CoefType = complex(eltype(a))
-    grid_a_δ = zeros(CoefType, N_fft)
+#     _fft_pow2!(grid_a_δ)
+#     contour_integral = sum(abs ∘ f, grid_a_δ)
 
-    A = coefficients(a)
-    view(grid_a_δ, eachindex(A)) .= A
-    _preprocess!(grid_a_δ, space(a))
-    _boxes!(grid_a_δ, ν)
+#     return contour_integral / ExactReal(N_fft)
+# end
 
-    _fft_pow2!(grid_a_δ)
-    contour_integral = sum(abs ∘ f, grid_a_δ)
+# function _contour(f, a, ν::Tuple{Vararg{Interval}})
+#     # mid_ν = mid.(ν)
+#     # N_fft = min.(fft_size(space(a)), prevpow.(2, log.( ifelse.(mid_ν .< 1, floatmin.(mid_ν), floatmax.(mid_ν)) ) ./ log.(mid_ν)))
+#     N_fft = fft_size(space(a))
 
-    return contour_integral / ExactReal(N_fft)
-end
+#     CoefType = complex(eltype(a))
+#     grid_a_δ = zeros(CoefType, N_fft)
 
-function _contour(f, a, ν::Tuple{Vararg{Interval}})
-    # mid_ν = mid.(ν)
-    # N_fft = min.(fft_size(space(a)), prevpow.(2, log.( ifelse.(mid_ν .< 1, floatmin.(mid_ν), floatmax.(mid_ν)) ) ./ log.(mid_ν)))
-    N_fft = fft_size(space(a))
+#     A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
+#     view(grid_a_δ, axes(A)...) .= A
+#     _apply_preprocess!(grid_a_δ, space(a))
+#     _apply_boxes!(grid_a_δ, ν)
 
-    CoefType = complex(eltype(a))
-    grid_a_δ = zeros(CoefType, N_fft)
+#     _fft_pow2!(grid_a_δ)
+#     contour_integral = sum(abs ∘ f, grid_a_δ)
 
-    A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
-    view(grid_a_δ, axes(A)...) .= A
-    _apply_preprocess!(grid_a_δ, space(a))
-    _apply_boxes!(grid_a_δ, ν)
+#     return contour_integral / ExactReal(prod(N_fft))
+# end
 
-    _fft_pow2!(grid_a_δ)
-    contour_integral = sum(abs ∘ f, grid_a_δ)
-
-    return contour_integral / ExactReal(prod(N_fft))
-end
-
-
+#
 
 function _boxes!(C, μ::Interval)
     len = length(C)

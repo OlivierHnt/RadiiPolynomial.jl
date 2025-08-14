@@ -100,7 +100,7 @@ Base.iterate(A::LinearOperator, i) = iterate(coefficients(A), i)
 Base.eltype(A::LinearOperator) = eltype(coefficients(A))
 Base.eltype(::Type{<:LinearOperator{<:VectorSpace,<:VectorSpace,T}}) where {T<:AbstractMatrix} = eltype(T)
 
-# getindex, view, setindex!
+# getindex, view
 
 Base.@propagate_inbounds function Base.getindex(A::LinearOperator, α, β)
     domain_A = domain(A)
@@ -121,6 +121,31 @@ Base.@propagate_inbounds function Base.view(A::LinearOperator, α, β)
         )
     return view(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A))
 end
+
+Base.getindex(::LinearOperator, ::VectorSpace, β) = error()
+Base.getindex(::LinearOperator, α, ::VectorSpace) = error()
+Base.view(::LinearOperator, ::VectorSpace, β) = error()
+Base.view(::LinearOperator, α, ::VectorSpace) = error()
+Base.@propagate_inbounds function Base.getindex(A::LinearOperator, α::VectorSpace, β::VectorSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    @boundscheck(
+        (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
+        throw(BoundsError((codomain_A, domain_A), (α, β)))
+        )
+    return LinearOperator(β, α, getindex(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A))) # project(A, β, α)
+end
+Base.@propagate_inbounds function Base.view(A::LinearOperator, α::VectorSpace, β::VectorSpace)
+    domain_A = domain(A)
+    codomain_A = codomain(A)
+    @boundscheck(
+        (_checkbounds_indices(α, codomain_A) & _checkbounds_indices(β, domain_A)) ||
+        throw(BoundsError((codomain_A, domain_A), (α, β)))
+        )
+    return LinearOperator(β, α, view(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A)))
+end
+
+# setindex!
 
 Base.@propagate_inbounds function Base.setindex!(A::LinearOperator, x, α, β)
     domain_A = domain(A)

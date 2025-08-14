@@ -878,6 +878,31 @@ IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space
 IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T} = CartesianProduct(map(sᵢ -> interval(T, sᵢ), s.spaces))
 IntervalArithmetic.interval(s::CartesianProduct) = CartesianProduct(map(interval, s.spaces))
 
+#
+
+_checkbounds_indices(α::VectorSpace, space::VectorSpace) = α ⊆ space
+
+_findposition(α::ParameterSpace, space::ParameterSpace) = _findposition(indices(α), space)
+_findposition(α::VectorSpace, space::VectorSpace) = _findposition(indices(α), space)
+function _findposition(α::CartesianSpace, space::CartesianSpace)
+    v = [_findposition(_iterate_space(α, 1), _iterate_space(space, 1));]
+    for i ∈ 2:_deep_nspaces(α)
+        offset = sum(dimension(_iterate_space(space, k)) for k in 1:i-1)
+        append!(v, _findposition(_iterate_space(α, i), _iterate_space(space, i)) .+ offset)
+    end
+    return v
+end
+
+_iterate_space(s::CartesianPower, i) = _iterate_space(space(s), i)
+function _iterate_space(s::CartesianProduct, i)
+    _deep_nspaces(s[1]) ≥ i && return _iterate_space(s[1], i)
+    for j ∈ 2:nspaces(s)-1
+        _deep_nspaces(s[1:j]) ≥ i && return _iterate_space(s[j], i - _deep_nspaces(s[1:j-1]))
+    end
+    return _iterate_space(s[nspaces(s)], i - _deep_nspaces(s[1:nspaces(s)-1]))
+end
+_iterate_space(s, i) = s
+
 # show
 
 Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))

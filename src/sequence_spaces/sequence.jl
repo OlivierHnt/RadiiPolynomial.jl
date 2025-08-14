@@ -160,6 +160,19 @@ Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
 eachcomponent(a::Sequence{<:CartesianSpace}) =
     (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
 
+# getindex, view
+
+Base.@propagate_inbounds function Base.getindex(a::Sequence, α::VectorSpace)
+    space_a = space(a)
+    @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(space_a, α)))
+    return Sequence(α, getindex(coefficients(a), _findposition(α, space_a))) # project(a, α)
+end
+Base.@propagate_inbounds function Base.view(a::Sequence, α::VectorSpace)
+    space_a = space(a)
+    @boundscheck(_checkbounds_indices(α, space_a) || throw(BoundsError(space_a, α)))
+    return Sequence(α, view(coefficients(a), _findposition(α, space_a)))
+end
+
 # setindex!
 
 Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, α)

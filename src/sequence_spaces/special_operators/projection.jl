@@ -322,3 +322,20 @@ function tail!(a::Sequence{<:BaseSpace}, order)
     end
     return a
 end
+
+
+
+# composition of operators
+
+image(A::ComposedFunction, s::VectorSpace) = image(A.outer, image(A.inner, s))
+
+_infer_domain(A::ComposedFunction, s::VectorSpace) = _infer_domain(A.inner, _infer_domain(A.outer, s))
+
+Base.:*(A::ComposedFunction, 𝒫::Projection) = A.outer * (A.inner * 𝒫)
+Base.:*(𝒫::Projection, A::ComposedFunction) = (𝒫 * A.outer) * A.inner
+
+project(A::ComposedFunction, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
+project(A::ComposedFunction, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
+    project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, image(A.inner, dom), T)
+
+project!(A::LinearOperator, B::ComposedFunction) = project!(A, project(B, domain(A), codomain(A)))

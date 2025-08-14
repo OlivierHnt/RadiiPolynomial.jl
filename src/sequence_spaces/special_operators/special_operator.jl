@@ -79,6 +79,7 @@ end
 const BLinearOperator = BandedLinearOperator
 
 Base.:*(S::BandedLinearOperator, a::Sequence) = (S * Projection(space(a))) * a
+(A::BandedLinearOperator)(b::Sequence) = *(A, b)
 
 image(A::BandedLinearOperator, s::VectorSpace) =
     image(A.finite_part, s) ∪ _image(A.banded_part, s)

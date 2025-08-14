@@ -69,6 +69,7 @@ include("sequence_spaces/arithmetic/elementary.jl")
 # Special operators
 
 include("sequence_spaces/special_operators/special_operator.jl")
+    export BandedLinearOperator, BLinearOperator
 include("sequence_spaces/special_operators/multiplication.jl")
     export Multiplication, sequence
 include("sequence_spaces/special_operators/calculus.jl")

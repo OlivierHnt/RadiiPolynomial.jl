@@ -64,3 +64,70 @@ function Base.:-(S::SpecialOperator, A::LinearOperator)
     rsub!(project!(C, S), A)
     return C
 end
+
+# infinite banded linear operator
+
+struct BandedLinearOperator{T<:LinearOperator,S} <: SpecialOperator
+    finite_part :: T
+    banded_part :: S
+end
+
+const BLinearOperator = BandedLinearOperator
+
+Base.:*(S::BandedLinearOperator, a::Sequence) = (S * Projection(space(a))) * a
+
+image(A::BandedLinearOperator, s::VectorSpace) =
+    image(A.finite_part, s) ∪ _image(A.banded_part, s)
+_image(A, s) = image(A, s)
+function _image(A::Union{Vector,Matrix}, s)
+    v = CartesianProduct(ParameterSpace())
+    for i ∈ 1:size(A, 1)
+        w = _image(A[i,1], s[1])
+        for j ∈ 2:size(A, 2)
+            w = w ∪ _image(A[i,j], s[j])
+        end
+        v = CartesianProduct(spaces(v)..., w)
+    end
+    nspaces(v) == 2 && return v[2]
+    return v[2:nspaces(v)]
+end
+function _image(A::Vector, s::ParameterSpace)
+    v = ParameterSpace()
+    for i ∈ 1:length(A)
+        w = _image(A[i], s)
+        v = v × w
+    end
+    nspaces(v) == 2 && return v[2]
+    return v[2:nspaces(v)]
+end
+
+
+function project(A::BandedLinearOperator, dom::VectorSpace, codom::VectorSpace)
+    B = zeros(eltype(A.finite_part), dom, codom)
+    _band_project!(B, A.banded_part)
+    view(B, codom ∩ codomain(A.finite_part), dom ∩ domain(A.finite_part)) .= view(A.finite_part, codom ∩ codomain(A.finite_part), dom ∩ domain(A.finite_part))
+    return B
+end
+
+_infer_domain(A::BandedLinearOperator, s::VectorSpace) = domain(A.finite_part) ∪ _infer_domain(A.banded_part, s)
+
+
+function _band_project!(B::LinearOperator, A::Matrix)
+    for j ∈ axes(A, 2), i ∈ axes(A, 1)
+       _band_project!(component(B, i, j), A[i,j])
+    end
+    return B
+end
+function _band_project!(B::LinearOperator{<:VectorSpace,ParameterSpace}, A::Matrix)
+    for j ∈ axes(A, 2)
+       _band_project!(component(B, j), A[j])
+    end
+    return B
+end
+function _band_project!(B::LinearOperator, A::Vector)
+    for i ∈ axes(A, 1)
+       _band_project!(component(B, i), A[i])
+    end
+    return B
+end
+_band_project!(B::LinearOperator, A::Union{LinearOperator,SpecialOperator,UniformScaling,ComposedFunction}) = project!(B, A)

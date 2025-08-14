@@ -12,9 +12,13 @@ Base.:*(𝒫::Projection, A::LinearOperator) = project(A, domain(A), 𝒫.space)
 Base.:*(S::SpecialOperator, 𝒫::Projection) = project(S, 𝒫.space, image(S, 𝒫.space))
 Base.:*(𝒫::Projection, S::SpecialOperator) = project(S, _infer_domain(S, 𝒫.space), 𝒫.space)
 
-_infer_domain(a, b) = throw(DomainError((a, b), "cannot project into a finite linear operator"))
+_infer_domain(a, b) = throw(DomainError((a, b), "cannot infer a finite dimensional domain"))
 
-_infer_domain(ℳ::Multiplication, s::SequenceSpace) = image(ℳ, s)
+_infer_domain(ℳ::Multiplication, s::SequenceSpace) = _infer_domain(*, space(ℳ.sequence), s)
+_infer_domain(::typeof(*), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((s₁ᵢ, s₂ᵢ) -> _infer_domain(*, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
+_infer_domain(::typeof(*), s₁::BaseSpace, s₂::BaseSpace) = image(*, s₁, s₂)
+_infer_domain(::typeof(*), ::Taylor, s::Taylor) = s
 
 _infer_domain(𝒟::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(𝒟), spaces(s)))
@@ -39,6 +43,9 @@ _infer_domain(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpa
 _infer_domain(::Scale, s::Taylor) = s
 _infer_domain(::Scale, s::Fourier) = s
 _infer_domain(::Scale, s::Chebyshev) = s
+
+_infer_domain(Δ::Laplacian, s::TensorSpace) = TensorSpace(map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s)))
+_infer_domain(::Laplacian, s::BaseSpace) = _infer_domain(Derivative(2), s)
 
 _infer_domain(S::SpecialOperator, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
 _infer_domain(S::SpecialOperator, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))

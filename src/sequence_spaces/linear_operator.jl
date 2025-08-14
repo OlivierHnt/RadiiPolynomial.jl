@@ -68,6 +68,13 @@ order(A::LinearOperator, i::Int, j::Int) = (order(domain(A), j), order(codomain(
 frequency(A::LinearOperator) = (frequency(domain(A)), frequency(codomain(A)))
 frequency(A::LinearOperator, i::Int, j::Int) = (frequency(domain(A), j), frequency(codomain(A), i))
 
+#
+
+function image(A::LinearOperator, s::VectorSpace)
+    _iscompatible(domain(A), s) || return throw(ArgumentError("spaces must be compatible"))
+    return codomain(A)
+end
+
 # utilities
 
 function Base.firstindex(A::LinearOperator, i::Int)

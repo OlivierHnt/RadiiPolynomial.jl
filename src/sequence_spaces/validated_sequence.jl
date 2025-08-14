@@ -13,11 +13,11 @@ function ValidatedSequence(sequence::Sequence{T,S}, sequence_error::R, banachspa
         seq = fill(emptyinterval(eltype(sequence)), space(sequence))
         sequence_norm = emptyinterval(sequence_error)
         return _unsafe_validated_sequence(seq, sequence_norm, sequence_error, banachspace)
-    elseif (inf(sequence_error) ≥ 0) & isbounded(sequence_error)
+    elseif inf(sequence_error) ≥ 0
         sequence_norm = norm(sequence, banachspace)
         return _unsafe_validated_sequence(sequence, sequence_norm, sequence_error, banachspace)
     else
-        return throw(ArgumentError("truncation error must be positive and finite"))
+        return throw(ArgumentError("truncation error must be positive"))
     end
 end
 

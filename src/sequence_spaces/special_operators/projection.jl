@@ -84,6 +84,20 @@ function project!(c::Sequence, a::Sequence)
 end
 
 """
+    project(a::ValidatedSequence, space_dest::VectorSpace, ::Type{T}=eltype(a))
+
+Represent `a` as a [`ValidatedSequence`](@ref) in `space_dest`.
+
+See also: [`project!`](@ref).
+"""
+function project(a::ValidatedSequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T}
+    a_seq = a.sequence
+    c_seq = project(a_seq,space_dest)
+    c_err = norm(a_seq - c_seq, a.banachspace)
+    return ValidatedSequence(c_seq, a.sequence_error + c_err, a.banachspace)
+end
+
+"""
     project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A))
 
 Represent `A` as a [`Sequence`](@ref) in `space_dest`.

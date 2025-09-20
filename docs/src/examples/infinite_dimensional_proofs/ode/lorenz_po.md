@@ -110,9 +110,9 @@ Consider the fixed-point operator ``T : X \to X`` defined by
 T(x) \bydef x - A F(x),
 ```
 
-where ``A : X \to X`` is an injective operator corresponding to an approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X`` of ``F``.
+where ``A : X \to X`` is an injective operator corresponding to an approximation of ``DF(\bx)^{-1}`` for some numerical zero ``\bx = (\bar{\gamma}, \bar{u}_1, \bar{u}_2, \bar{u}_3) \in X`` of ``F``.
 
-Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained by Newton's method:
+Given an initial guess, the numerical zero ``\bx`` of ``F`` may be obtained by Newton's method:
 
 ```@example lorenz_po
 σ, ρ, β = 10.0, 28.0, 8/3
@@ -150,7 +150,7 @@ for i ∈ 1:3
 end
 ```
 
-Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``\|T(\bar{x}) - \bar{x}\|_X``, ``\|DT(\bar{x})\|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))}``.
+Let ``R > 0``. Since ``T \in C^2(X, X)`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``\|T(\bx) - \bx\|_X``, ``\|DT(\bx)\|_{\mathscr{B}(X, X)}`` and ``\sup_{x \in \text{cl}( B_R(\bx) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))}``.
 
 To this end, consider the truncation operator
 
@@ -169,12 +169,12 @@ Thus, denoting ``\bar{u} = (\bar{u}_1, \bar{u}_2, \bar{u}_3)``, we have
 
 ```math
 \begin{aligned}
-\|T(\bar{x}) - \bar{x}\|_X &\le
-\|\Pi_K A \Pi_K F(\bar{x})\|_X + \frac{\bar{\gamma}}{n+1} \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
-\|DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le
-\|\Pi_K A \Pi_K DF(\bar{x}) \Pi_{2K} - \Pi_K\|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \max\Big( \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
+\|T(\bx) - \bx\|_X &\le
+\|\Pi_K A \Pi_K F(\bx)\|_X + \frac{\bar{\gamma}}{n+1} \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
+\|DT(\bx)\|_{\mathscr{B}(X, X)} &\le
+\|\Pi_K A \Pi_K DF(\bx) \Pi_{2K} - \Pi_K\|_{\mathscr{B}(X, X)} + \frac{1}{n+1} \max\Big( \|\Pi_{\infty(K)} f(\bar{u}, \sigma, \rho, \beta)\|_{(\ell^1_{\nu, \mathbb{Z}})^3},\\
 &\qquad \bar{\gamma} \max\left(\sigma + \|\rho-\bar{u}_3\|_{\ell^1_{\nu, \mathbb{Z}}} + \|\bar{u}_2\|_{\ell^1_{\nu, \mathbb{Z}}}, \sigma + 1 + \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}}, \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + \beta\right) \Big),\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))} &\le
+\sup_{x \in \text{cl}( B_R(\bx) )} \|D^2T(x)\|_{\mathscr{B}(X, \mathscr{B}(X, X))} &\le
 \left(\|\Pi_K A \Pi_K\|_{\mathscr{B}(X, X)} + \frac{1}{n+1}\right) \max\Big( 2 (\bar{\gamma} + R),\\
 &\qquad \max\left(\sigma + \|\rho-\bar{u}_3\|_{\ell^1_{\nu, \mathbb{Z}}} + \|\bar{u}_2\|_{\ell^1_{\nu, \mathbb{Z}}} + 2R, \sigma + 1 + \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + R, \|\bar{u}_1\|_{\ell^1_{\nu, \mathbb{Z}}} + R + \beta\right) \Big).
 \end{aligned}

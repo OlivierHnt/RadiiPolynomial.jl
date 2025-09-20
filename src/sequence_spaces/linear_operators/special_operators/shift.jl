@@ -1,5 +1,5 @@
 """
-    Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
+    Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: AbstractLinearOperator
 
 Generic shift operator.
 
@@ -25,7 +25,7 @@ julia> Shift(1.0, 2.0)
 Shift{Tuple{Float64, Float64}}((1.0, 2.0))
 ```
 """
-struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
+struct Shift{T<:Union{Number,Tuple{Vararg{Number}}}} <: AbstractLinearOperator
     value :: T
     Shift{T}(value::T) where {T<:Union{Number,Tuple{Vararg{Number}}}} = new{T}(value)
     Shift{Tuple{}}(::Tuple{}) = throw(ArgumentError("Shift is only defined for at least one Number"))
@@ -36,6 +36,14 @@ Shift(value::T) where {T<:Tuple{Vararg{Number}}} = Shift{T}(value)
 Shift(value::Number...) = Shift(value)
 
 value(𝒮::Shift) = 𝒮.value
+
+_infer_domain(S::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> _infer_domain(Shift(τᵢ), sᵢ), value(S), spaces(s)))
+_infer_domain(::Shift, s::Taylor) = s
+_infer_domain(::Shift, s::Fourier) = s
+_infer_domain(::Shift, s::Chebyshev) = s
+_infer_domain(S::Shift, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
+_infer_domain(S::Shift, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))
 
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(value(𝒮₁) + value(𝒮₂))
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, value(𝒮₁), value(𝒮₂)))
@@ -49,20 +57,9 @@ Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Shift
 
 Shift `a` by `value(𝒮)`; equivalent to `shift(a, value(𝒮))`.
 
-See also: [`(::Shift)(::AbstractSequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
-[`shift!`](@ref).
+See also: [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
 """
 Base.:*(𝒮::Shift, a::AbstractSequence) = shift(a, value(𝒮))
-
-"""
-    (𝒮::Shift)(a::AbstractSequence)
-
-Shift `a` by `value(𝒮)`; equivalent to `shift(a, value(𝒮))`.
-
-See also: [`*(::Shift, ::AbstractSequence)`](@ref), [`Shift`](@ref), [`shift`](@ref) and
-[`shift!`](@ref).
-"""
-(𝒮::Shift)(a::AbstractSequence) = *(𝒮, a)
 
 """
     shift(a::Sequence, τ)
@@ -75,7 +72,7 @@ and [`(::Shift)(::Sequence)`](@ref).
 function shift(a::Sequence, τ)
     𝒮 = Shift(τ)
     space_a = space(a)
-    new_space = image(𝒮, space_a)
+    new_space = codomain(𝒮, space_a)
     CoefType = _coeftype(𝒮, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, 𝒮, a)
@@ -93,27 +90,10 @@ and [`(::Shift)(::Sequence)`](@ref).
 function shift!(c::Sequence, a::Sequence, τ)
     𝒮 = Shift(τ)
     space_c = space(c)
-    new_space = image(𝒮, space(a))
+    new_space = codomain(𝒮, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $𝒮(a) has space $new_space"))
     _apply!(c, 𝒮, a)
     return c
-end
-
-"""
-    project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64))
-
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-See also: [`project!(::LinearOperator, ::Shift)`](@ref) and [`Shift`](@ref).
-"""
-function project(𝒮::Shift, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64)) where {T}
-    image_domain = image(𝒮, domain)
-    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $𝒮 is $image_domain, codomain is $codomain"))
-    ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
-    ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
-    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-    _project!(C, 𝒮)
-    return C
 end
 
 """
@@ -126,7 +106,7 @@ See also: [`project(::Shift, ::VectorSpace, ::VectorSpace)`](@ref) and
 [`Shift`](@ref).
 """
 function project!(C::LinearOperator, 𝒮::Shift)
-    image_domain = image(𝒮, domain(C))
+    image_domain = codomain(𝒮, domain(C))
     codomain_C = codomain(C)
     _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒮 is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
@@ -142,8 +122,8 @@ _findposition_nzind_codomain(𝒮::Shift, domain, codomain) =
 
 # Sequence spaces
 
-image(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((τᵢ, sᵢ) -> image(Shift(τᵢ), sᵢ), value(𝒮), spaces(s)))
+codomain(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> codomain(Shift(τᵢ), sᵢ), value(𝒮), spaces(s)))
 
 _coeftype(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
     @inbounds promote_type(_coeftype(Shift(value(𝒮)[1]), s[1], T), _coeftype(Shift(Base.tail(value(𝒮))), Base.tail(s), T))
@@ -192,7 +172,7 @@ _nzval(𝒮::Shift{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, co
 
 # Taylor
 
-image(::Shift, s::Taylor) = s
+codomain(::Shift, s::Taylor) = s
 
 _coeftype(::Shift{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
@@ -235,7 +215,7 @@ end
 
 # Fourier
 
-image(::Shift, s::Fourier) = s
+codomain(::Shift, s::Fourier) = s
 
 _coeftype(::Shift{T}, s::Fourier, ::Type{S}) where {T,S} =
     promote_type(typeof(cis(frequency(s)*zero(T))), S)
@@ -309,7 +289,7 @@ end
 
 # Chebyshev
 
-image(::Shift, s::Chebyshev) = s
+codomain(::Shift, s::Chebyshev) = s
 
 _coeftype(::Shift{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
@@ -352,11 +332,11 @@ end
 
 # Cartesian spaces
 
-image(𝒮::Shift, s::CartesianPower) =
-    CartesianPower(image(𝒮, space(s)), nspaces(s))
+codomain(𝒮::Shift, s::CartesianPower) =
+    CartesianPower(codomain(𝒮, space(s)), nspaces(s))
 
-image(𝒮::Shift, s::CartesianProduct) =
-    CartesianProduct(map(sᵢ -> image(𝒮, sᵢ), spaces(s)))
+codomain(𝒮::Shift, s::CartesianProduct) =
+    CartesianProduct(map(sᵢ -> codomain(𝒮, sᵢ), spaces(s)))
 
 _coeftype(𝒮::Shift, s::CartesianPower, ::Type{T}) where {T} =
     _coeftype(𝒮, space(s), T)

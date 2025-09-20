@@ -8,39 +8,39 @@ Computer-assisted proofs aim to **validate numerical simulations** and **derive 
 
 ## [Radii polynomial approach](@id radii_polynomial_approach)
 
-Given a problem in dynamical systems (e.g. existence of an invariant set, stability analysis, etc.), one approach of computer-assisted proofs consists in representing the desired solution ``\tilde{x}`` as an isolated fixed-point in a Banach space ``X``. The assistance of the computer is used to verify that the corresponding fixed-point operator ``T`` abides by the [Banach Fixed-Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem) in a vicinity of a numerical approximation ``\bar{x}``. Note that a particular case of this procedure is the well-known [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).
+Given a problem in dynamical systems (e.g. existence of an invariant set, stability analysis, etc.), one approach of computer-assisted proofs consists in representing the desired solution ``\tx`` as an isolated fixed-point in a Banach space ``X``. The assistance of the computer is used to verify that the corresponding fixed-point operator ``T`` abides by the [Banach Fixed-Point Theorem](https://en.wikipedia.org/wiki/Banach_fixed-point_theorem) in a vicinity of a numerical approximation ``\bx``. Note that a particular case of this procedure is the well-known [Newton-Kantorovich Theorem](https://en.wikipedia.org/wiki/Kantorovich_theorem).
 
 We refer to this strategy as the *radii polynomial approach* since, in practice, we prove the contraction of ``T`` in balls whose radii are determined by the roots of a polynomial. For the sake of completeness, we report the fundamental principles in the following theorem.
 
 ```@raw html
 <div class="theorem" text="Radii Polynomial Theorem">
 ```
-Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T \in C^1(U, X)`` an operator, ``\bar{x} \in U`` and ``R > 0`` such that ``\text{cl}( B_R(\bar{x}) ) \subset U``.
+Let ``X`` be a Banach space, ``U`` an open subset of ``X``, ``T \in C^1(U, X)`` an operator, ``\bx \in U`` and ``R > 0`` such that ``\text{cl}( B_R(\bx) ) \subset U``.
 - (First-order) Suppose ``Y, Z_1 \ge 0`` satisfy
 ```math
 \begin{aligned}
-\|T(\bar{x}) - \bar{x}\|_X &\le Y,\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|DT(x)\|_{\mathscr{B}(X, X)} &\le Z_1,
+\|T(\bx) - \bx\|_X &\le Y,\\
+\sup_{x \in \text{cl}( B_R(\bx) )} \|DT(x)\|_{\mathscr{B}(X, X)} &\le Z_1,
 \end{aligned}
 ```
 and define the *radii polynomial* by ``p(r) \bydef Y + (Z_1 - 1) r``.
-If there exists a *radius* ``\bar{r} \in [0, R]`` such that ``p(\bar{r}) \le 0`` and ``Z_1 < 1``, then ``T`` has a unique fixed-point ``\tilde{x} \in \text{cl}( B_{\bar{r}} (\bar{x}) )``.
+If there exists a *radius* ``\bar{r} \in [0, R]`` such that ``p(\bar{r}) \le 0`` and ``Z_1 < 1``, then ``T`` has a unique fixed-point ``\tx \in \text{cl}( B_{\bar{r}} (\bx) )``.
 - (Second-order) Suppose ``Y, Z_1, Z_2 \ge 0`` satisfy
 ```math
 \begin{aligned}
-\|T(\bar{x}) - \bar{x}\|_X &\le Y,\\
-\|DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le Z_1,\\
-\|DT(x) - DT(\bar{x})\|_{\mathscr{B}(X, X)} &\le Z_2 \|x - \bar{x}\|_X, \qquad \text{for all } x \in \text{cl}( B_R(\bar{x}) ),
+\|T(\bx) - \bx\|_X &\le Y,\\
+\|DT(\bx)\|_{\mathscr{B}(X, X)} &\le Z_1,\\
+\|DT(x) - DT(\bx)\|_{\mathscr{B}(X, X)} &\le Z_2 \|x - \bx\|_X, \qquad \text{for all } x \in \text{cl}( B_R(\bx) ),
 \end{aligned}
 ```
 and define the *radii polynomial* by ``p(r) \bydef Y + (Z_1 - 1) r + \frac{Z_2}{2} r^2``.
-If there exists a *radius* ``\bar{r} \in [0, R]`` such that ``p(\bar{r}) \le 0`` and ``Z_1 + Z_2 \bar{r} < 1``, then ``T`` has a unique fixed-point ``\tilde{x} \in \text{cl}( B_{\bar{r}} (\bar{x}) )``.
+If there exists a *radius* ``\bar{r} \in [0, R]`` such that ``p(\bar{r}) \le 0`` and ``Z_1 + Z_2 \bar{r} < 1``, then ``T`` has a unique fixed-point ``\tx \in \text{cl}( B_{\bar{r}} (\bx) )``.
 ```@raw html
 </div>
 <br>
 ```
 
-The set of all possible radii is called the *interval of existence*. Its minimum gives the sharpest computed a posteriori error bound on ``\bar{x}``. On the other hand, its maximum represents the largest computed radius of the ball, centred at ``\bar{x}``, within which the solution is unique.
+The set of all possible radii is called the *interval of existence*. Its minimum gives the sharpest computed a posteriori error bound on ``\bx``. On the other hand, its maximum represents the largest computed radius of the ball, centred at ``\bx``, within which the solution is unique.
 
 ```@docs
 interval_of_existence

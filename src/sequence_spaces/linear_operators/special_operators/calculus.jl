@@ -1,5 +1,5 @@
 """
-    Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
+    Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: AbstractLinearOperator
 
 Generic derivative operator.
 
@@ -25,7 +25,7 @@ julia> Derivative(1, 2)
 Derivative{Tuple{Int64, Int64}}((1, 2))
 ```
 """
-struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
+struct Derivative{T<:Union{Int,Tuple{Vararg{Int}}}} <: AbstractLinearOperator
     order :: T
     function Derivative{T}(order::T) where {T<:Int}
         order < 0 && return throw(DomainError(order, "Derivative is only defined for positive integers"))
@@ -44,8 +44,18 @@ Derivative(order::Int...) = Derivative(order)
 
 order(𝒟::Derivative) = 𝒟.order
 
+_infer_domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(D), spaces(s)))
+_infer_domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
+_infer_domain(::Derivative, s::Fourier) = s
+# error for Chebyshev
+_infer_domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
+_infer_domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
+_infer_domain(D::Derivative, s::CartesianPower) = CartesianPower(_infer_domain(D, space(s)), nspaces(s))
+_infer_domain(D::Derivative, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(D, sᵢ), spaces(s)))
+
 """
-    Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
+    Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: AbstractLinearOperator
 
 Generic integral operator.
 
@@ -71,7 +81,7 @@ julia> Integral(1, 2)
 Integral{Tuple{Int64, Int64}}((1, 2))
 ```
 """
-struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: SpecialOperator
+struct Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: AbstractLinearOperator
     order :: T
     function Integral{T}(order::T) where {T<:Int}
         order < 0 && return throw(DomainError(order, "Integral is only defined for positive integers"))
@@ -90,28 +100,28 @@ Integral(order::Int...) = Integral(order)
 
 order(ℐ::Integral) = ℐ.order
 
+_infer_domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(I), spaces(s)))
+_infer_domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
+_infer_domain(::Integral, s::Fourier) = s
+# error for Chebyshev
+_infer_domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
+_infer_domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
+_infer_domain(I::Integral, s::CartesianPower) = CartesianPower(_infer_domain(I, space(s)), nspaces(s))
+_infer_domain(I::Integral, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(I, sᵢ), spaces(s)))
+
 """
     *(𝒟::Derivative, a::AbstractSequence)
 
 Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
 
-See also: [`(::Derivative)(::AbstractSequence)`](@ref), [`Derivative`](@ref),
-[`differentiate`](@ref) and [`differentiate!`](@ref).
+See also: [`Derivative`](@ref), [`differentiate`](@ref) and
+[`differentiate!`](@ref).
 """
 Base.:*(𝒟::Derivative, a::AbstractSequence) = differentiate(a, order(𝒟))
 
 """
-    (𝒟::Derivative)(a::AbstractSequence)
-
-Compute the `order(𝒟)`-th derivative of `a`; equivalent to `differentiate(a, order(𝒟))`.
-
-See also: [`*(::Derivative, ::AbstractSequence)`](@ref), [`Derivative`](@ref),
-[`differentiate`](@ref) and [`differentiate!`](@ref).
-"""
-(𝒟::Derivative)(a::AbstractSequence) = *(𝒟, a)
-
-"""
-    differentiate(a::Sequence, α=1)
+    differentiate(a::AbstractSequence, α=1)
 
 Compute the `α`-th derivative of `a`.
 
@@ -121,11 +131,52 @@ See also: [`differentiate!`](@ref), [`Derivative`](@ref),
 function differentiate(a::Sequence, α=1)
     𝒟 = Derivative(α)
     space_a = space(a)
-    new_space = image(𝒟, space_a)
+    new_space = codomain(𝒟, space_a)
     CoefType = _coeftype(𝒟, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, 𝒟, a)
     return c
+end
+
+function differentiate(a::InfiniteSequence, α=1)
+    c = differentiate(sequence(a), α)
+    X = banachspace(a)
+    seq_err = sequence_error(a)
+    iszero(seq_err) && return InfiniteSequence(c, X)
+    return InfiniteSequence(c, _derivative_error(X, space(a), space(c), α) * seq_err, X)
+end
+
+_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _derivative_error(X, dom[1], codom[1], α[1]) * _derivative_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
+_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _derivative_error(X, dom[1], codom[1], α[1])
+
+_derivative_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _derivative_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
+_derivative_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
+
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Taylor, n::Int)
+    ν = rate(weight(X))
+    n == 0 && return one(ν)
+    n == 1 && return ν                                                               / (ν - ExactReal(1))^2
+    n == 2 && return ν * (ν + ExactReal(1))                                          / (ν - ExactReal(1))^3
+    n == 3 && return ν * (ν^2 + ExactReal(4)*ν + ExactReal(1))                       / (ν - ExactReal(1))^4
+    n == 4 && return ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
+    return throw(DomainError) # TODO: lift restriction
+end
+function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier, codom::Fourier, n::Int)
+    ν = rate(weight(X))
+    n == 0 && return one(ν)
+    n == 1 && return frequency(codom)   * ExactReal(2) * ν                                                               / (ν - ExactReal(1))^2
+    n == 2 && return frequency(codom)^2 * ExactReal(2) * ν * (ν + ExactReal(1))                                          / (ν - ExactReal(1))^3
+    n == 3 && return frequency(codom)^3 * ExactReal(2) * ν * (ν^2 + ExactReal(4)*ν + ExactReal(1))                       / (ν - ExactReal(1))^4
+    n == 4 && return frequency(codom)^4 * ExactReal(2) * ν * (ν + ExactReal(1)) * (ν^2 + ExactReal(10)*ν + ExactReal(1)) / (ν - ExactReal(1))^5
+    return throw(DomainError) # TODO: lift restriction
+end
+function _derivative_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
+    n == 0 && return interval(1)
+    return throw(DomainError) # TODO: lift restriction
 end
 
 """
@@ -139,45 +190,10 @@ See also: [`differentiate`](@ref), [`Derivative`](@ref),
 function differentiate!(c::Sequence, a::Sequence, α=1)
     𝒟 = Derivative(α)
     space_c = space(c)
-    new_space = image(𝒟, space(a))
+    new_space = codomain(𝒟, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $𝒟(a) has space $new_space"))
     _apply!(c, 𝒟, a)
     return c
-end
-
-"""
-    project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒟, domain, Float64))
-
-Represent `𝒟` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-See also: [`project!(::LinearOperator, ::Derivative)`](@ref) and [`Derivative`](@ref).
-"""
-function project(𝒟::Derivative, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒟, domain, Float64)) where {T}
-    image_domain = image(𝒟, domain)
-    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $𝒟 is $image_domain, codomain is $codomain"))
-    ind_domain = _findposition_nzind_domain(𝒟, domain, codomain)
-    ind_codomain = _findposition_nzind_codomain(𝒟, domain, codomain)
-    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-    _project!(C, 𝒟)
-    return C
-end
-
-"""
-    project!(C::LinearOperator, 𝒟::Derivative)
-
-Represent `𝒟` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Derivative, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Derivative`](@ref).
-"""
-function project!(C::LinearOperator, 𝒟::Derivative)
-    image_domain = image(𝒟, domain(C))
-    codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒟 is $image_domain, C has codomain $codomain_C"))
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, 𝒟)
-    return C
 end
 
 """
@@ -191,17 +207,7 @@ See also: [`(::Integral)(::AbstractSequence)`](@ref), [`Integral`](@ref),
 Base.:*(ℐ::Integral, a::AbstractSequence) = integrate(a, order(ℐ))
 
 """
-    (ℐ::Integral)(a::AbstractSequence)
-
-Compute the `order(ℐ)`-th integral of `a`; equivalent to `integrate(a, order(ℐ))`.
-
-See also: [`*(::Integral, ::AbstractSequence)`](@ref), [`Integral`](@ref),
-[`integrate`](@ref) and [`integrate!`](@ref).
-"""
-(ℐ::Integral)(a::AbstractSequence) = *(ℐ, a)
-
-"""
-    integrate(a::Sequence, α=1)
+    integrate(a::AbstractSequence, α=1)
 
 Compute the `α`-th integral of `a`.
 
@@ -211,12 +217,45 @@ See also: [`integrate!`](@ref), [`Integral`](@ref),
 function integrate(a::Sequence, α=1)
     ℐ = Integral(α)
     space_a = space(a)
-    new_space = image(ℐ, space_a)
+    new_space = codomain(ℐ, space_a)
     CoefType = _coeftype(ℐ, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, ℐ, a)
     return c
 end
+
+function integrate(a::InfiniteSequence, α=1)
+    c = integrate(sequence(a), α)
+    X = banachspace(a)
+    return InfiniteSequence(c, _integral_error(X, space(a), space(c), α) * sequence_error(a), X)
+end
+
+_integral_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _integral_error(X, dom[1], codom[1], α[1]) * _integral_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
+_integral_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _integral_error(X, dom[1], codom[1], α[1])
+
+_integral_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    @inbounds _integral_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _integral_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
+_integral_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+    @inbounds _integral_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
+
+function _integral_error(X::Ell1, dom::Taylor, codom::Taylor, n::Int)
+    v = __getindex(weight(X), codom, n)
+    return v * _nzval(Integral(n), dom, codom, typeof(v), n, 0)
+end
+_integral_error(::Ell1, dom::Fourier{T}, codom::Fourier{S}, n::Int) where {T<:Real,S<:Real} =
+    abs(_nzval(Integral(n), dom, codom, complex(promote_type(T, S)), 1, 1))
+function _integral_error(X::Ell1, ::Chebyshev, codom::Chebyshev, n::Int)
+    v = ExactReal(1) + __getindex(weight(X), codom, n)
+    n == 0 && return one(v)
+    n == 1 && return v
+    return throw(DomainError) # TODO: lift restriction
+end
+
+__getindex(::IdentityWeight, ::BaseSpace, ::Int) = interval(1)
+__getindex(w::Weight, s::BaseSpace, n::Int) = _getindex(w, s, n)
+
 
 """
     integrate!(c::Sequence, a::Sequence, α=1)
@@ -229,45 +268,10 @@ See also: [`integrate`](@ref), [`Integral`](@ref),
 function integrate!(c::Sequence, a::Sequence, α=1)
     ℐ = Integral(α)
     space_c = space(c)
-    new_space = image(ℐ, space(a))
+    new_space = codomain(ℐ, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℐ(a) has space $new_space"))
     _apply!(c, ℐ, a)
     return c
-end
-
-"""
-    project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℐ, domain, Float64))
-
-Represent `ℐ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-See also: [`project!(::LinearOperator, ::Integral)`](@ref) and [`Integral`](@ref).
-"""
-function project(ℐ::Integral, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℐ, domain, Float64)) where {T}
-    image_domain = image(ℐ, domain)
-    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℐ is $image_domain, codomain is $codomain"))
-    ind_domain = _findposition_nzind_domain(ℐ, domain, codomain)
-    ind_codomain = _findposition_nzind_codomain(ℐ, domain, codomain)
-    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-    _project!(C, ℐ)
-    return C
-end
-
-"""
-    project!(C::LinearOperator, ℐ::Integral)
-
-Represent `ℐ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Integral, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Integral`](@ref)
-"""
-function project!(C::LinearOperator, ℐ::Integral)
-    image_domain = image(ℐ, domain(C))
-    codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℐ is $image_domain, C has codomain $codomain_C"))
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, ℐ)
-    return C
 end
 
 for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
@@ -278,12 +282,6 @@ for (F, f) ∈ ((:Derivative, :differentiate), (:Integral, :integrate))
         Base.:^(ℱ::$F{Int}, n::Integer) = $F(order(ℱ) * n)
         Base.:^(ℱ::$F{<:Tuple{Vararg{Int}}}, n::Integer) = $F(map(αᵢ -> *(αᵢ, n), order(ℱ)))
         Base.:^(ℱ::$F{NTuple{N,Int}}, n::NTuple{N,Integer}) where {N} = $F(map(*, order(ℱ), n))
-
-        _findposition_nzind_domain(ℱ::$F, domain, codomain) =
-            _findposition(_nzind_domain(ℱ, domain, codomain), domain)
-
-        _findposition_nzind_codomain(ℱ::$F, domain, codomain) =
-            _findposition(_nzind_codomain(ℱ, domain, codomain), codomain)
     end
 end
 
@@ -291,8 +289,8 @@ end
 
 for F ∈ (:Derivative, :Integral)
     @eval begin
-        image(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-            TensorSpace(map((αᵢ, sᵢ) -> image($F(αᵢ), sᵢ), order(ℱ), spaces(s)))
+        codomain(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+            TensorSpace(map((αᵢ, sᵢ) -> codomain($F(αᵢ), sᵢ), order(ℱ), spaces(s)))
 
         _coeftype(ℱ::$F{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
             @inbounds promote_type(_coeftype($F(order(ℱ)[1]), s[1], T), _coeftype($F(Base.tail(order(ℱ))), Base.tail(s), T))
@@ -353,7 +351,7 @@ end
 
 # Taylor
 
-image(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
+codomain(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
 
 _coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = T
 
@@ -441,7 +439,7 @@ function _nzval(𝒟::Derivative, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     return convert(T, p)
 end
 
-image(ℐ::Integral, s::Taylor) = Taylor(order(s)+order(ℐ))
+codomain(ℐ::Integral, s::Taylor) = Taylor(order(s)+order(ℐ))
 
 _coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = typeof(inv(one(T))*zero(T))
 
@@ -520,7 +518,7 @@ _nzval(ℐ::Integral, s₁::Taylor, s₂::Taylor, ::Type{T}, i, j) where {T} =
 
 # Fourier
 
-image(::Derivative, s::Fourier) = s
+codomain(::Derivative, s::Fourier) = s
 
 _coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(zero(T)*zero(S)))
 
@@ -677,7 +675,7 @@ function _nzval(𝒟::Derivative, domain::Fourier, ::Fourier, ::Type{T}, i, j) w
     end
 end
 
-image(::Integral, s::Fourier) = s
+codomain(::Integral, s::Fourier) = s
 
 _coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(real(S))*one(T))*zero(S)))
 
@@ -843,7 +841,7 @@ end
 
 # Chebyshev
 
-image(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
+codomain(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
 
 _coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = T
 
@@ -966,7 +964,7 @@ function _nzval(𝒟::Derivative, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) whe
     end
 end
 
-image(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
+codomain(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
 
 _coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = T
 
@@ -1193,16 +1191,238 @@ function _nzval(ℐ::Integral, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where 
     end
 end
 
+# CosFourier
+
+codomain(𝒟::Derivative, s::CosFourier) = iseven(order(𝒟)) ? s : SinFourier(desymmetrize(s))
+
+_coeftype(::Derivative, ::CosFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*zero(S))
+
+function _apply!(c::Sequence{<:CosFourier}, 𝒟::Derivative, a)
+    n = order(𝒟)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    else
+        ω = one(real(eltype(a)))*frequency(a)
+        @inbounds c[0] = zero(eltype(c))
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:order(c)
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            c[j] = iⁿωⁿjⁿ_real * a[j]
+        end
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::CosFourier, A) where {T}
+    n = order(𝒟)
+    if n == 0
+        C .= A
+    elseif iseven(n)
+        ord = order(space)
+        ω = one(real(eltype(A)))*frequency(space)
+        @inbounds selectdim(C, 1, 1) .= zero(T)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+        end
+    else
+        ord = order(space)
+        ω = one(real(eltype(A)))*frequency(space)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j+1)
+        end
+    end
+    return C
+end
+
+function _apply(𝒟::Derivative, space::CosFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(𝒟)
+    CoefType = _coeftype(𝒟, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    elseif iseven(n)
+        C = Array{CoefType,N}(undef, size(A))
+        ord = order(space)
+        ω = one(real(T))*frequency(space)
+        @inbounds selectdim(C, D, 1) .= zero(CoefType)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
+        end
+        return C
+    else
+        C = Array{CoefType,N}(undef, ntuple(i -> size(A, i) - ifelse(i == D, 1, 0), Val(N)))
+        ord = order(space)
+        ω = one(real(T))*frequency(space)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j+1)
+        end
+        return C
+    end
+end
+
+function _nzind_domain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return (order(𝒟) > 0):ord
+end
+function _nzind_domain(::Derivative, domain::CosFourier, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzind_codomain(𝒟::Derivative, domain::CosFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return (order(𝒟) > 0):ord
+end
+function _nzind_codomain(::Derivative, domain::SinFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::CosFourier, ::Type{T}, i, j) where {T}
+    n = order(𝒟)
+    if n == 0
+        return one(T)
+    else
+        ωⁿjⁿ = (one(real(T)) * frequency(domain) * ExactReal(j)) ^ ExactReal(n)
+        return convert(T, ifelse(n%4 < 2, ωⁿjⁿ, -ωⁿjⁿ)) # (n%4 == 0) | (n%4 == 1)
+    end
+end
+
+# SinFourier
+
+codomain(𝒟::Derivative, s::SinFourier) = iseven(order(𝒟)) ? s : CosFourier(desymmetrize(s))
+
+_coeftype(::Derivative, ::SinFourier{T}, ::Type{S}) where {T,S} = typeof(zero(T)*zero(S))
+
+function _apply!(c::Sequence{<:SinFourier}, 𝒟::Derivative, a)
+    n = order(𝒟)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    else
+        ω = one(real(eltype(a)))*frequency(a)
+        iⁿ_real = ifelse((n+1)%4 < 2, 1, -1) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+        @inbounds for j ∈ 1:order(c)
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            c[j] = iⁿωⁿjⁿ_real * a[j]
+        end
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::SinFourier, A) where {T}
+    n = order(𝒟)
+    if n == 0
+        C .= A
+    elseif iseven(n)
+        ord = order(space)
+        ω = one(real(eltype(A)))*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, 1, j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
+        end
+    else
+        ord = order(space)
+        ω = one(real(eltype(A)))*frequency(space)
+        @inbounds selectdim(C, 1, 1) .= zero(T)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, 1, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, j)
+        end
+    end
+    return C
+end
+
+function _apply(𝒟::Derivative, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(𝒟)
+    CoefType = _coeftype(𝒟, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    elseif iseven(n)
+        C = Array{CoefType,N}(undef, size(A))
+        ord = order(space)
+        ω = one(real(T))*frequency(space)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, D, j) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
+        end
+        return C
+    else
+        C = Array{CoefType,N}(undef, ntuple(i -> size(A, i) + ifelse(i == D, 1, 0), Val(N)))
+        ord = order(space)
+        ω = one(real(T))*frequency(space)
+        @inbounds selectdim(C, D, 1) .= zero(CoefType)
+        iⁿ_real = ifelse(n%4 < 2, 1, -1) # (n%4 == 0) | (n%4 == 1)
+        @inbounds for j ∈ 1:ord
+            iⁿωⁿjⁿ_real = ExactReal(iⁿ_real) * (ω * ExactReal(j)) ^ ExactReal(n)
+            selectdim(C, D, j+1) .= iⁿωⁿjⁿ_real .* selectdim(A, D, j)
+        end
+        return C
+    end
+end
+
+function _nzind_domain(::Derivative, domain::SinFourier, codomain::Union{CosFourier,SinFourier})
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzind_codomain(::Derivative, domain::Union{CosFourier,SinFourier}, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    _safe_isequal(ω₁, ω₂) || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFourier, ::Type{T}, i, j) where {T}
+    n = order(𝒟)
+    if n == 0
+        return one(T)
+    else
+        ωⁿjⁿ = (one(real(T)) * frequency(domain) * ExactReal(j)) ^ ExactReal(n)
+        return convert(T, ifelse((n+1)%4 < 2, ωⁿjⁿ, -ωⁿjⁿ)) # ((n+1)%4 == 0) | ((n+1)%4 == 1)
+    end
+end
+
 
 
 #
 
 """
-    Laplacian <: SpecialOperator
+    Laplacian <: AbstractLinearOperator
 
 Laplacian operator.
 """
-struct Laplacian <: SpecialOperator end
+struct Laplacian <: AbstractLinearOperator end
+
+_infer_domain(::Laplacian, s::TensorSpace) = s
+_infer_domain(::Laplacian, s::BaseSpace) = _infer_domain(Derivative(2), s)
+_infer_domain(Δ::Laplacian, s::CartesianPower) = CartesianPower(_infer_domain(Δ, space(s)), nspaces(s))
+_infer_domain(Δ::Laplacian, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s)))
 
 """
     *(Δ::Laplacian, a::AbstractSequence)
@@ -1235,7 +1455,7 @@ See also: [`laplacian!`](@ref), [`Laplacian`](@ref),
 function laplacian(a::Sequence)
     Δ = Laplacian()
     space_a = space(a)
-    new_space = image(Δ, space_a)
+    new_space = codomain(Δ, space_a)
     CoefType = _coeftype(Δ, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, Δ, a)
@@ -1253,27 +1473,10 @@ See also: [`laplacian`](@ref), [`Laplacian`](@ref),
 function laplacian!(c::Sequence, a::Sequence)
     Δ = Laplacian()
     space_c = space(c)
-    new_space = image(Δ, space(a))
+    new_space = codomain(Δ, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, Laplacian(a) has space $new_space"))
     _apply!(c, Δ, a)
     return c
-end
-
-"""
-    project(Δ::Laplacian, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(Δ, domain, Float64))
-
-Represent `Δ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-See also: [`project!(::LinearOperator, ::Laplacian)`](@ref) and [`Laplacian`](@ref).
-"""
-function project(Δ::Laplacian, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(Δ, domain, Float64)) where {T}
-    image_domain = image(Δ, domain)
-    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $Δ is $image_domain, codomain is $codomain"))
-    ind_domain = _findposition_nzind_domain(Δ, domain, codomain)
-    ind_codomain = _findposition_nzind_codomain(Δ, domain, codomain)
-    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-    _project!(C, Δ)
-    return C
 end
 
 """
@@ -1286,9 +1489,9 @@ See also: [`project(::Laplacian, ::VectorSpace, ::VectorSpace)`](@ref) and
 [`Laplacian`](@ref)
 """
 function project!(C::LinearOperator, Δ::Laplacian)
-    image_domain = image(Δ, domain(C))
+    image_domain = codomain(Δ, domain(C))
     codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $Δ is $image_domain, C has codomain $codomain_C"))
+    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: codomain of domain(C) under $Δ is $image_domain, C has codomain $codomain_C"))
     coefficients(C) .= zero(eltype(C))
     _project!(C, Δ)
     return C
@@ -1296,10 +1499,10 @@ end
 
 #
 
-image(::Laplacian, s::TensorSpace) = s
-image(::Laplacian, s::TensorSpace{<:Tuple{BaseSpace}}) = TensorSpace(image(Derivative(2), first(s.spaces)))
+codomain(::Laplacian, s::TensorSpace) = s
+codomain(::Laplacian, s::TensorSpace{<:Tuple{BaseSpace}}) = TensorSpace(codomain(Derivative(2), first(s.spaces)))
 
-image(::Laplacian, s::BaseSpace) = image(Derivative(2), s)
+codomain(::Laplacian, s::BaseSpace) = codomain(Derivative(2), s)
 
 
 _coeftype(::Laplacian, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
@@ -1336,13 +1539,6 @@ function _project!(C::LinearOperator{<:TensorSpace{<:NTuple{N,BaseSpace}},<:Tens
 end
 
 
-_findposition_nzind_domain(Δ::Laplacian, domain, codomain) =
-    _findposition(_nzind_domain(Δ, domain, codomain), domain)
-
-_findposition_nzind_codomain(Δ::Laplacian, domain, codomain) =
-    _findposition(_nzind_codomain(Δ, domain, codomain), codomain)
-
-
 _nzind_domain(::Laplacian, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     _nzind_domain(Derivative(ntuple(i -> 2, Val(N))), domain, codomain)
 
@@ -1361,11 +1557,11 @@ _nzind_codomain(::Laplacian, domain::BaseSpace, codomain::BaseSpace) =
 
 for F ∈ (:Derivative, :Integral, :Laplacian)
     @eval begin
-        image(ℱ::$F, s::CartesianPower) =
-            CartesianPower(image(ℱ, space(s)), nspaces(s))
+        codomain(ℱ::$F, s::CartesianPower) =
+            CartesianPower(codomain(ℱ, space(s)), nspaces(s))
 
-        image(ℱ::$F, s::CartesianProduct) =
-            CartesianProduct(map(sᵢ -> image(ℱ, sᵢ), spaces(s)))
+        codomain(ℱ::$F, s::CartesianProduct) =
+            CartesianProduct(map(sᵢ -> codomain(ℱ, sᵢ), spaces(s)))
 
         _coeftype(ℱ::$F, s::CartesianPower, ::Type{T}) where {T} =
             _coeftype(ℱ, space(s), T)
@@ -1389,34 +1585,6 @@ for F ∈ (:Derivative, :Integral, :Laplacian)
         function _apply!(c::Sequence{CartesianProduct{T}}, ℱ::$F, a) where {T<:Tuple{VectorSpace}}
             @inbounds _apply!(component(c, 1), ℱ, component(a, 1))
             return c
-        end
-
-        function _findposition_nzind_domain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
-            u = map((dom, codom) -> _findposition_nzind_domain(ℱ, dom, codom), spaces(domain), spaces(codomain))
-            len = sum(length, u)
-            v = Vector{Int}(undef, len)
-            δ = δδ = 0
-            @inbounds for (i, uᵢ) in enumerate(u)
-                δ_ = δ
-                δ += length(uᵢ)
-                view(v, 1+δ_:δ) .= δδ .+ uᵢ
-                δδ += dimension(domain[i])
-            end
-            return v
-        end
-
-        function _findposition_nzind_codomain(ℱ::$F, domain::CartesianSpace, codomain::CartesianSpace)
-            u = map((dom, codom) -> _findposition_nzind_codomain(ℱ, dom, codom), spaces(domain), spaces(codomain))
-            len = sum(length, u)
-            v = Vector{Int}(undef, len)
-            δ = δδ = 0
-            @inbounds for (i, uᵢ) in enumerate(u)
-                δ_ = δ
-                δ += length(uᵢ)
-                view(v, 1+δ_:δ) .= δδ .+ uᵢ
-                δδ += dimension(codomain[i])
-            end
-            return v
         end
 
         function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ℱ::$F)

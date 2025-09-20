@@ -1,6 +1,8 @@
 _call_ifft!(C, s, ::Type{<:Real}) = rifft!(C, s)
 _call_ifft!(C, s, ::Type) = ifft!(C, s)
 
+
+
 # dimension for DFT and FFT
 
 fft_size(s::TensorSpace) = map(sᵢ -> fft_size(sᵢ), spaces(s))
@@ -12,6 +14,12 @@ _dft_dimension(s::Taylor) = 2order(s)+1
 _dft_dimension(s::Fourier) = dimension(s)
 
 _dft_dimension(s::Chebyshev) = 2order(s)+1
+
+_dft_dimension(s::CosFourier) = 2order(s)+1
+
+_dft_dimension(s::SinFourier) = 2order(s)+1
+
+
 
 # sequence to grid
 
@@ -119,6 +127,33 @@ function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
     return C
 end
+
+# CosFourier
+
+_preprocess!(C::AbstractVector, space::CosFourier) = _preprocess!(C, Chebyshev(order(space)))
+_preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _preprocess!(C, Chebyshev(order(space)), Val(D))
+
+# SinFourier
+
+function _preprocess!(C::AbstractVector, space::SinFourier)
+    len = length(C)
+    ord = order(space)
+    view(C, 2:ord+1) .= view(C, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    C[1] = zero(eltype(C))
+    view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
+    return C
+end
+
+function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
+    len = size(C, D)
+    ord = order(space)
+    selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    selectdim(C, D, 1) .= zero(eltype(C))
+    selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
+    return C
+end
+
+
 
 # grid to sequence
 
@@ -297,6 +332,32 @@ function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     end
     return C
 end
+
+# CosFourier
+
+_ifft_get_index(n, space::CosFourier) = _ifft_get_index(n, Chebyshev(order(space)))
+
+_postprocess!(C::AbstractVector, space::CosFourier) = _postprocess!(C, Chebyshev(order(space)))
+
+_postprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _postprocess!(C, Chebyshev(order(space)), Val(D))
+
+# SinFourier
+
+_ifft_get_index(n, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷2, dimension(space))
+
+function _postprocess!(C::AbstractVector, ::SinFourier)
+    ord = length(C) ÷ 2
+    view(C, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* view(C, 2:ord+1)
+    return C
+end
+
+function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
+    ord = size(C, D) ÷ 2
+    selectdim(C, D, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* selectdim(C, D, 2:ord+1)
+    return C
+end
+
+
 
 # FFT routines
 

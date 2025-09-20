@@ -1,668 +1,3 @@
-_linear_regression_log_abs(x) = log(abs(x))
-_linear_regression_log_abs(x::Interval) = log(mag(x))
-_linear_regression_log_abs(x::Complex{<:Interval}) = log(mag(x))
-
-function __linear_regression(f, A, j)
-    sum_x = t = n = 0
-    sum_log_abs_A = zero(_linear_regression_log_abs(one(eltype(A))))
-    mean = sum_log_abs_A/1
-    u = 0*sum_log_abs_A
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            if i ≤ j
-                f_i = f(i)
-                sum_x += f_i
-                u += f_i*log_abs_Aᵢ
-                t += f_i*f_i
-                sum_log_abs_A += log_abs_Aᵢ
-                n += 1
-            else
-                mean += log_abs_Aᵢ
-            end
-        end
-    end
-    mean /= (length(A) - j)
-    x̄ = sum_x/n
-    val = t - sum_x*x̄
-    β = (u - x̄*sum_log_abs_A)/ifelse(iszero(val), one(val), val)
-    α = sum_log_abs_A/n - β * x̄
-    err = zero(sum_log_abs_A)
-    for (i, _Aᵢ_) ∈ enumerate(A)
-        Aᵢ = mid(_Aᵢ_)
-        if !iszero(Aᵢ)
-            log_abs_Aᵢ = _linear_regression_log_abs(Aᵢ)
-            if i ≤ j
-                err += (log_abs_Aᵢ - α - β * f(i))^2
-            else
-                err += (log_abs_Aᵢ - mean)^2
-            end
-        end
-    end
-    return β, err
-end
-
-#
-
-function _linear_regression(s::TensorSpace{<:NTuple{N,BaseSpace}}, f, A) where {N}
-    log_abs_A = _linear_regression_log_abs.(filter(!iszero, A))
-    len = length(log_abs_A)
-    len == 0 && return ntuple(_ -> f(one(eltype(log_abs_A))), Val(N)), zero(eltype(log_abs_A)), missing
-    x = ones(Float64, len, N+1)
-    n = 0
-    @inbounds for (i, α) ∈ enumerate(indices(s))
-        if !iszero(mid(A[i]))
-            view(x, i-n, 2:N+1) .= f.(abs.(α) .+ 1)
-        else
-            n += 1
-        end
-    end
-    r = LinearAlgebra.svd(x) \ log_abs_A
-    err = norm(mul!(log_abs_A, x, r, 1, -1), 2)
-    return ntuple(i -> r[i+1], Val(N)), err, missing
-end
-
-# Taylor
-
-function _linear_regression(::Taylor, f, A)
-    j = length(A)
-    β, err = β_, err_ = __linear_regression(f, A, j)
-    while err_ ≤ err && j ≥ 3
-        j -= 1
-        β, err = β_, err_
-        β_, err_ = __linear_regression(f, A, j)
-    end
-    return β, err, j
-end
-
-# Fourier
-
-function _linear_regression(s::Fourier, f, A)
-    j = order(s)+1
-    @inbounds A1 = view(A, j:2*j-1)
-    β1, err1 = __linear_regression(f, A1, j)
-    @inbounds A2 = view(A, j:-1:1)
-    β2, err2 = __linear_regression(f, A2, j)
-    β = β_ = (β1 + β2)/2
-    err = err_ = max(err1, err2)
-    while err_ ≤ err && j ≥ 3
-        j -= 1
-        β, err = β_, err_
-        β1_, err1_ = __linear_regression(f, A1, j)
-        β2_, err2_ = __linear_regression(f, A2, j)
-        β_ = (β1_ + β2_)/2
-        err_ = max(err1_, err2_)
-    end
-    return β, err, j
-end
-
-# Chebyshev
-
-function _linear_regression(::Chebyshev, f, A)
-    j = length(A)
-    β, err = β_, err_ = __linear_regression(f, A, j)
-    while err_ ≤ err && j ≥ 3
-        j -= 1
-        β, err = β_, err_
-        β_, err_ = __linear_regression(f, A, j)
-    end
-    return β, err, j
-end
-
-#
-
-"""
-    Weight
-
-Abstract type for all weights.
-"""
-abstract type Weight end
-
-_getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    @inbounds _getindex(weight[1], s[1], α[1]) * _getindex(Base.tail(weight), Base.tail(s), Base.tail(α))
-_getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
-    @inbounds _getindex(weight[1], s[1], α[1])
-
-"""
-    IdentityWeight <: Weight
-
-Identity weight.
-"""
-struct IdentityWeight <: Weight end
-
-"""
-    GeometricWeight{T<:Real} <: Weight
-
-Geometric weight associated with a given `rate` satisfying `isfinite(rate) & (rate ≥ 1)`.
-
-Field:
-- `rate :: T`
-
-See also: [`geometricweight`](@ref), [`IdentityWeight`](@ref),
-[`AlgebraicWeight`](@ref), [`algebraicweight`](@ref) and [`BesselWeight`](@ref).
-
-# Examples
-
-```jldoctest
-julia> w = GeometricWeight(1.0)
-GeometricWeight(1.0)
-
-julia> rate(w)
-1.0
-```
-"""
-struct GeometricWeight{T<:Real} <: Weight
-    rate :: T
-    function GeometricWeight{T}(rate::T) where {T<:Real}
-        isfinite(inf(rate)) & (inf(rate) ≥ 1) || return throw(DomainError(rate, "rate must be finite and greater or equal to one"))
-        return new{T}(rate)
-    end
-end
-
-GeometricWeight(rate::T) where {T<:Real} = GeometricWeight{T}(rate)
-
-rate(weight::GeometricWeight) = weight.rate
-
-_getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ ExactReal(i)
-
-_getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ ExactReal(abs(i))
-
-_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = rate(weight) ^ ExactReal(i)
-
-"""
-    geometricweight(a::Sequence{<:SequenceSpace})
-
-Compute an approximation of the geometric decay rate of `a` by performing the
-ordinary least squares method on the logarithm of the absolute value of the
-coefficients of `a`.
-
-See also: [`GeometricWeight`](@ref), [`IdentityWeight`](@ref),
-[`AlgebraicWeight`](@ref), [`algebraicweight`](@ref) and [`BesselWeight`](@ref).
-
-# Examples
-
-```jldoctest
-julia> rate(geometricweight(Sequence(Taylor(10), [inv(2.0^i) for i in 0:10]))) ≈ 2
-true
-
-julia> rate.(geometricweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv(2.0^i * 3.0^abs(j)) for i in 0:10, j in -3:3])))) .≈ (2, 3)
-(true, true)
-```
-"""
-function geometricweight(a::Sequence{<:SequenceSpace})
-    s = space(a)
-    A = coefficients(a)
-    rate, _, _ = _geometric_rate(s, A)
-    return GeometricWeight.(rate)
-end
-
-function _geometric_rate(s::BaseSpace, A)
-    β, err, j = _linear_regression(s, identity, A)
-    rate = exp(ifelse(isfinite(β) & (β < 0), -β, zero(β)))
-    return rate, err, j
-end
-
-function _geometric_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    β, err, j = _linear_regression(s, identity, A)
-    trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
-    rate = ntuple(Val(N)) do i
-        @inbounds βᵢ = β[i]
-        v = ifelse(isfinite(βᵢ) & (βᵢ < 0) & (i ∉ trv_inds), -βᵢ, zero(βᵢ))
-        return exp(v)
-    end
-    return rate, err, j
-end
-
-"""
-    AlgebraicWeight{T<:Real} <: Weight
-
-Algebraic weight associated with a given `rate` satisfying `isfinite(rate) & (rate ≥ 0)`.
-
-Field:
-- `rate :: T`
-
-See also: [`algebraicweight`](@ref), [`IdentityWeight`](@ref),
-[`GeometricWeight`](@ref), [`geometricweight`](@ref) and [`BesselWeight`](@ref).
-
-# Examples
-
-```jldoctest
-julia> w = AlgebraicWeight(1.0)
-AlgebraicWeight(1.0)
-
-julia> rate(w)
-1.0
-```
-"""
-struct AlgebraicWeight{T<:Real} <: Weight
-    rate :: T
-    function AlgebraicWeight{T}(rate::T) where {T<:Real}
-        isfinite(inf(rate)) & (inf(rate) ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
-        return new{T}(rate)
-    end
-end
-
-AlgebraicWeight(rate::T) where {T<:Real} = AlgebraicWeight{T}(rate)
-
-rate(weight::AlgebraicWeight) = weight.rate
-
-_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = ExactReal(1 + i) ^ rate(weight)
-
-_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = ExactReal(1 + abs(i)) ^ rate(weight)
-
-_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = ExactReal(1 + i) ^ rate(weight)
-
-"""
-    algebraicweight(a::Sequence{<:SequenceSpace})
-
-Compute an approximation of the algebraic decay rate of `a` by performing the
-ordinary least squares method on the logarithm of the absolute value of the
-coefficients of `a`.
-
-See also: [`AlgebraicWeight`](@ref), [`IdentityWeight`](@ref),
-[`GeometricWeight`](@ref), [`geometricweight`](@ref) and [`BesselWeight`](@ref).
-
-# Examples
-
-```jldoctest
-julia> rate(algebraicweight(Sequence(Taylor(10), [inv((1.0 + i)^2) for i in 0:10]))) ≈ 2
-true
-
-julia> rate.(algebraicweight(Sequence(Taylor(10) ⊗ Fourier(3, 1.0), vec([inv((1.0 + i)^2 * (1.0 + abs(j))^3) for i in 0:10, j in -3:3])))) .≈ (2, 3)
-(true, true)
-```
-"""
-function algebraicweight(a::Sequence{<:SequenceSpace})
-    s = space(a)
-    A = coefficients(a)
-    rate, _, _ = _algebraic_rate(s, A)
-    return AlgebraicWeight.(rate)
-end
-
-function _algebraic_rate(s::BaseSpace, A)
-    β, err, j = _linear_regression(s, log, A)
-    rate = ifelse(isfinite(β) & (β < 0), -β, zero(β))
-    return rate, err, j
-end
-
-function _algebraic_rate(s::TensorSpace{<:NTuple{N,BaseSpace}}, A) where {N}
-    β, err, j = _linear_regression(s, log, A)
-    trv_inds = [i for i ∈ 1:N if iszero(order(s[i]))]
-    rate = ntuple(Val(N)) do i
-        @inbounds βᵢ = β[i]
-        v = ifelse(isfinite(βᵢ) & (βᵢ < 0) & (i ∉ trv_inds), -βᵢ, zero(βᵢ))
-        return v
-    end
-    return rate, err, j
-end
-
-# retrieve the optimal weight
-
-weight(a::Sequence{<:SequenceSpace}) = _weight(a::Sequence{<:SequenceSpace})[1]
-
-function _weight(a::Sequence{<:SequenceSpace})
-    s = space(a)
-    A = coefficients(a)
-    geo_rate, geo_err, j = _geometric_rate(s, A)
-    alg_rate, alg_err, j = _algebraic_rate(s, A)
-    geo_err ≤ alg_err && return GeometricWeight.(geo_rate), j
-    return AlgebraicWeight.(alg_rate), j
-end
-
-#
-
-polish!(a::Sequence{<:ParameterSpace}) = a
-
-polish!(a::Sequence{<:TensorSpace}) = a
-
-function polish!(a::Sequence{<:BaseSpace})
-    w, ord = _weight(a)
-    s = space(a)
-    norm_a = norm(a, 1)
-    for i ∈ indices(s)
-        if abs(i) > ord
-            val = norm_a / _getindex(w, s, i)
-            if abs(a[i]) > val
-                a[i] = 0
-            end
-        end
-    end
-    return a
-end
-
-function polish!(a::Sequence{<:CartesianSpace})
-    for i ∈ 1:nspaces(space(a))
-        polish!(component(a, i))
-    end
-    return a
-end
-
-#
-
-"""
-    BesselWeight{T<:Real} <: Weight
-
-Bessel weight associated with a given `rate` satisfying `isfinite(rate) & (rate ≥ 0)`.
-
-Field:
-- `rate :: T`
-
-See also: [`IdentityWeight`](@ref), [`GeometricWeight`](@ref), [`geometricweight`](@ref),
-[`AlgebraicWeight`](@ref) and [`algebraicweight`](@ref).
-
-# Examples
-
-```jldoctest
-julia> w = BesselWeight(1.0)
-BesselWeight(1.0)
-
-julia> rate(w)
-1.0
-```
-"""
-struct BesselWeight{T<:Real} <: Weight
-    rate :: T
-    function BesselWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
-        return new{T}(rate)
-    end
-end
-
-BesselWeight(rate::T) where {T<:Real} = BesselWeight{T}(rate)
-
-rate(weight::BesselWeight) = weight.rate
-
-_getindex(weight::BesselWeight, ::TensorSpace{<:NTuple{N,Fourier}}, α::NTuple{N,Int}) where {N} =
-    (one(rate(weight)) + mapreduce(abs2, +, α)) ^ rate(weight)
-_getindex(weight::BesselWeight{<:Interval}, ::TensorSpace{<:NTuple{N,Fourier}}, α::NTuple{N,Int}) where {N} =
-    (one(rate(weight)) + interval(mapreduce(abs2, +, α))) ^ rate(weight)
-
-_getindex(weight::BesselWeight, ::Fourier, i::Int) = (one(rate(weight)) + i*i) ^ rate(weight)
-_getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = (one(rate(weight)) + interval(i*i)) ^ rate(weight)
-
-# show
-
-Base.show(io::IO, ::MIME"text/plain", weight::Weight) = print(io, _prettystring(weight))
-
-_prettystring(weight::Weight) = string(weight)
-_prettystring(weight::GeometricWeight) = "GeometricWeight(" * string(rate(weight)) * ")"
-_prettystring(weight::AlgebraicWeight) = "AlgebraicWeight(" * string(rate(weight)) * ")"
-_prettystring(weight::BesselWeight) = "BesselWeight(" * string(rate(weight)) * ")"
-
-#
-
-"""
-    BanachSpace
-
-Abstract type for all Banach spaces.
-"""
-abstract type BanachSpace end
-
-"""
-    Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-
-Weighted ``\\ell^1`` space.
-
-Field:
-- `weight :: T`
-
-Constructors:
-- `Ell1(::Weight)`
-- `Ell1(::Tuple{Vararg{Weight}})`
-- `Ell1()`: equivalent to `Ell1(IdentityWeight())`
-- `Ell1(weight::Weight...)`: equivalent to `Ell1(weight)`
-
-Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL
-and in many editors.
-
-See also: [`Ell2`](@ref) and [`EllInf`](@ref).
-
-# Examples
-
-```jldoctest
-julia> Ell1()
-ℓ¹()
-
-julia> Ell1(GeometricWeight(1.0))
-ℓ¹(GeometricWeight(1.0))
-
-julia> Ell1(GeometricWeight(1.0), AlgebraicWeight(2.0))
-ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
-```
-"""
-struct Ell1{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-    weight :: T
-    Ell1{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    Ell1{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell1 is only defined for at least one Weight"))
-end
-
-Ell1(weight::T) where {T<:Weight} = Ell1{T}(weight)
-Ell1(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell1{T}(weight)
-Ell1() = Ell1{IdentityWeight}(IdentityWeight())
-Ell1(weight::Weight...) = Ell1(weight)
-
-weight(X::Ell1) = X.weight
-rate(X::Ell1{<:Weight}) = rate(weight(X))
-rate(X::Ell1{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
-
-"""
-    ℓ¹(::Weight)
-    ℓ¹(::Tuple{Vararg{Weight}})
-    ℓ¹()
-    ℓ¹(::Weight...)
-
-Unicode alias of [`Ell1`](@ref) representing the weighted ``\\ell^1`` space.
-
-# Examples
-
-```jldoctest
-julia> ℓ¹()
-ℓ¹()
-
-julia> ℓ¹(GeometricWeight(1.0))
-ℓ¹(GeometricWeight(1.0))
-
-julia> ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
-ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))
-```
-"""
-const ℓ¹ = Ell1
-
-"""
-    Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-
-Weighted ``\\ell^2`` space.
-
-Field:
-- `weight :: T`
-
-Constructors:
-- `Ell2(::Weight)`
-- `Ell2(::Tuple{Vararg{Weight}})`
-- `Ell2()`: equivalent to `Ell2(IdentityWeight())`
-- `Ell2(weight::Weight...)`: equivalent to `Ell2(weight)`
-
-Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL
-and in many editors.
-
-See also: [`Ell1`](@ref) and [`EllInf`](@ref).
-
-# Examples
-
-```jldoctest
-julia> Ell2()
-ℓ²()
-
-julia> Ell2(BesselWeight(1.0))
-ℓ²(BesselWeight(1.0))
-
-julia> Ell2(BesselWeight(1.0), GeometricWeight(2.0))
-ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
-```
-"""
-struct Ell2{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-    weight :: T
-    Ell2{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    Ell2{Tuple{}}(::Tuple{}) = throw(ArgumentError("Ell2 is only defined for at least one Weight"))
-end
-
-Ell2(weight::T) where {T<:Weight} = Ell2{T}(weight)
-Ell2(weight::T) where {T<:Tuple{Vararg{Weight}}} = Ell2{T}(weight)
-Ell2() = Ell2{IdentityWeight}(IdentityWeight())
-Ell2(weight::Weight...) = Ell2(weight)
-
-weight(X::Ell2) = X.weight
-rate(X::Ell2{<:Weight}) = rate(weight(X))
-rate(X::Ell2{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
-
-"""
-    ℓ²(::Weight)
-    ℓ²(::Tuple{Vararg{Weight}})
-    ℓ²()
-    ℓ²(::Weight...)
-
-Unicode alias of [`Ell2`](@ref) representing the weighted ``\\ell^2`` space.
-
-# Examples
-
-```jldoctest
-julia> ℓ²()
-ℓ²()
-
-julia> ℓ²(BesselWeight(1.0))
-ℓ²(BesselWeight(1.0))
-
-julia> ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
-ℓ²(BesselWeight(1.0), GeometricWeight(2.0))
-```
-"""
-const ℓ² = Ell2
-
-"""
-    EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-
-Weighted ``\\ell^\\infty`` space.
-
-Field:
-- `weight :: T`
-
-Constructors:
-- `EllInf(::Weight)`
-- `EllInf(::Tuple{Vararg{Weight}})`
-- `EllInf()`: equivalent to `EllInf(IdentityWeight())`
-- `EllInf(weight::Weight...)`: equivalent to `EllInf(weight)`
-
-Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL
-and in many editors.
-
-See also: [`Ell1`](@ref) and [`Ell2`](@ref).
-
-# Examples
-
-```jldoctest
-julia> EllInf()
-ℓ∞()
-
-julia> EllInf(GeometricWeight(1.0))
-ℓ∞(GeometricWeight(1.0))
-
-julia> EllInf(GeometricWeight(1.0), AlgebraicWeight(2.0))
-ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
-```
-"""
-struct EllInf{T<:Union{Weight,Tuple{Vararg{Weight}}}} <: BanachSpace
-    weight :: T
-    EllInf{T}(weight::T) where {T<:Union{Weight,Tuple{Vararg{Weight}}}} = new{T}(weight)
-    EllInf{Tuple{}}(::Tuple{}) = throw(ArgumentError("EllInf is only defined for at least one Weight"))
-end
-
-EllInf(weight::T) where {T<:Weight} = EllInf{T}(weight)
-EllInf(weight::T) where {T<:Tuple{Vararg{Weight}}} = EllInf{T}(weight)
-EllInf() = EllInf{IdentityWeight}(IdentityWeight())
-EllInf(weight::Weight...) = EllInf(weight)
-
-weight(X::EllInf) = X.weight
-rate(X::EllInf{<:Weight}) = rate(weight(X))
-rate(X::EllInf{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
-
-"""
-    ℓ∞(::Weight)
-    ℓ∞(::Tuple{Vararg{Weight}})
-    ℓ∞()
-    ℓ∞(::Weight...)
-
-Unicode alias of [`EllInf`](@ref) representing the weighted ``\\ell^\\infty`` space.
-
-# Examples
-
-```jldoctest
-julia> ℓ∞()
-ℓ∞()
-
-julia> ℓ∞(GeometricWeight(1.0))
-ℓ∞(GeometricWeight(1.0))
-
-julia> ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
-ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
-```
-"""
-const ℓ∞ = EllInf
-
-# normed cartesian space
-
-"""
-    NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
-
-Cartesian Banach space.
-
-Fields:
-- `inner :: T`
-- `outer :: S`
-
-See also: [`Ell1`](@ref), [`Ell2`](@ref) and [`EllInf`](@ref).
-
-# Examples
-
-```jldoctest
-julia> NormedCartesianSpace(Ell1(), EllInf())
-NormedCartesianSpace(ℓ¹(), ℓ∞())
-
-julia> NormedCartesianSpace((Ell1(), Ell2()), EllInf())
-NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞())
-```
-"""
-struct NormedCartesianSpace{T<:Union{BanachSpace,Tuple{Vararg{BanachSpace}}},S<:BanachSpace} <: BanachSpace
-    inner :: T
-    outer :: S
-end
-
-# show
-
-Base.show(io::IO, ::MIME"text/plain", X::BanachSpace) = print(io, _prettystring(X))
-
-_prettystring(X::BanachSpace) = string(X)
-
-_prettystring(::Ell1{IdentityWeight}) = "ℓ¹()"
-_prettystring(X::Ell1{<:Weight}) = "ℓ¹(" * _prettystring(weight(X)) * ")"
-_prettystring(X::Ell1{<:Tuple{Vararg{Weight}}}) = "ℓ¹(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, weight(X)) * ")"
-
-_prettystring(::Ell2{IdentityWeight}) = "ℓ²()"
-_prettystring(X::Ell2{<:Weight}) = "ℓ²(" * _prettystring(weight(X)) * ")"
-_prettystring(X::Ell2{<:Tuple{Vararg{Weight}}}) = "ℓ²(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, weight(X)) * ")"
-
-_prettystring(::EllInf{IdentityWeight}) = "ℓ∞()"
-_prettystring(X::EllInf{<:Weight}) = "ℓ∞(" * _prettystring(weight(X)) * ")"
-_prettystring(X::EllInf{<:Tuple{Vararg{Weight}}}) = "ℓ∞(" * mapreduce(_prettystring, (x, y) -> x * ", " * y, weight(X)) * ")"
-
-_prettystring(X::NormedCartesianSpace{<:BanachSpace}) =
-    "NormedCartesianSpace(" * _prettystring(X.inner) * ", " *  _prettystring(X.outer) * ")"
-
-_prettystring(X::NormedCartesianSpace{<:Tuple{Vararg{BanachSpace}}}) =
-    "NormedCartesianSpace((" * mapreduce(_prettystring, (x, y) -> x * ", " * y, X.inner) * "), " *  _prettystring(X.outer) * ")"
-
-#
-
 norm(::LinearOperator, ::Real=Inf) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
 norm(::LinearOperator, ::BanachSpace) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
 norm(::LinearOperator, ::BanachSpace, ::BanachSpace) = throw(ArgumentError("`norm` is only defined for `Sequence`. Use `opnorm` instead"))
@@ -761,6 +96,10 @@ opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
 
 #
 
+opnorm(ℳ::Multiplication, X::BanachSpace) = norm(sequence(ℳ), X)
+
+#
+
 """
     norm(a::Sequence, X::BanachSpace)
 
@@ -769,6 +108,11 @@ Compute the norm of `a` by interpreting `space(a)` as `X`.
 See also: [`norm(::Sequence, ::Real=Inf)`](@ref).
 """
 norm(::Sequence, ::BanachSpace)
+
+function norm(a::InfiniteSequence, X::BanachSpace = banachspace(a))
+    X == banachspace(a) || return throw(ArgumentError("banach spaces must be equal"))
+    return sequence_norm(a) + sequence_error(a)
+end
 
 """
     opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::BanachSpace)
@@ -1532,7 +876,7 @@ end
 function _apply(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractVector)
     ν = rate(weight(X))
     νⁱ2 = ExactReal(2) * one(ν)
-    @inbounds s = abs(A[1]) * one(νⁱ)
+    @inbounds s = abs(A[1]) * one(νⁱ2)
     @inbounds for i ∈ 1:order(space)
         νⁱ2 *= ν
         s = max(s, abs(A[i+1]) * νⁱ2)
@@ -1803,3 +1147,418 @@ _opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSp
     @inbounds opnorm(component(A, 1), X.inner[1]) + _opnorm(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
 _opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},EllInf{IdentityWeight}}) =
     @inbounds opnorm(component(A, 1), X.inner[1])
+
+
+
+
+
+
+
+
+
+
+####
+
+_apply(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds abs(A[1]) + ExactReal(2) * sum(abs, view(A, 2:length(A)))
+function _apply(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .+= abs.(selectdim(A, N, i+1))
+        end
+        @inbounds s .= ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+_apply_dual(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A))) / ExactReal(2))
+function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= max.(s, abs.(selectdim(A, N, i+1)))
+        end
+        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+    end
+    return s
+end
+
+function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
+    ν = rate(weight(X))
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * one(ν)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s = s * ν + abs(A[i+1])
+        end
+        @inbounds s = (ExactReal(2) * ν) * s + abs(A[1])
+    end
+    return s
+end
+function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = rate(weight(X))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= s .* ν .+ abs.(selectdim(A, N, i+1))
+        end
+        @inbounds s .= (ExactReal(2) * ν) .* s .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector{T}) where {T}
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν) / ExactReal(2)
+    @inbounds s = abs(A[1]) * one(νⁱ½)
+    @inbounds for i ∈ 1:order(space)
+        νⁱ½ *= ν
+        s = max(s, abs(A[i+1]) * νⁱ½)
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    νⁱ½ = one(ν) / ExactReal(2)
+    CoefType = typeof(abs(zero(T))*νⁱ½)
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
+    @inbounds for i ∈ 1:order(space)
+        νⁱ½ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i+1)) .* νⁱ½)
+    end
+    return s
+end
+
+function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s += abs(A[i+1]) * _getindex(weight(X), space, i)
+        end
+        @inbounds s = ExactReal(2) * s + abs(A[1])
+    end
+    return s
+end
+function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T))*_getindex(weight(X), space, 0))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ) .* _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .+= abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i)
+        end
+        @inbounds s .=  ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) / _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s = max(s, abs(A[i+1]) / _getindex(weight(X), space, i))
+        end
+        @inbounds s = max(s / ExactReal(2), abs(A[1]))
+    end
+    return s
+end
+function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T))/_getindex(weight(X), space, 0))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ) ./ _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i))
+        end
+        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+    end
+    return s
+end
+
+_apply(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds sqrt(abs2(A[1]) +  ExactReal(2) * sum(abs2, view(A, 2:length(A))))
+function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(ExactReal(2) .* s .+ abs2.(selectdim(A, N, 1)))
+    return s
+end
+_apply_dual(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A))) / ExactReal(2))
+function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(sqrt(abs2(zero(T))))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs2.(Aᵢ)
+    for i ∈ ord-1:-1:1
+        s .+= abs2.(selectdim(A, N, i+1))
+    end
+    @inbounds s .= sqrt.(s ./ ExactReal(2) .+ abs2.(selectdim(A, N, 1)))
+    return s
+end
+
+_apply(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds max(abs(A[1]),  ExactReal(2) * maximum(abs, view(A, 2:length(A))))
+function _apply(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= max.(s, abs.(selectdim(A, N, i+1)))
+        end
+        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+    end
+    return s
+end
+_apply_dual(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
+    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A))) / ExactReal(2)
+function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .+= abs.(selectdim(A, N, i+1))
+        end
+        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+
+function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
+    ν = rate(weight(X))
+    νⁱ2 = ExactReal(2) * one(ν)
+    @inbounds s = abs(A[1]) * one(νⁱ2)
+    @inbounds for i ∈ 1:order(space)
+        νⁱ2 *= ν
+        s = max(s, abs(A[i+1]) * νⁱ2)
+    end
+    return s
+end
+function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = rate(weight(X))
+    νⁱ2 = ExactReal(2) * one(ν)
+    CoefType = typeof(abs(zero(T))*νⁱ2)
+    @inbounds A₀ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₀))
+    s .= abs.(A₀)
+    @inbounds for i ∈ 1:order(space)
+        νⁱ2 *= ν
+        s .= max.(s, abs.(selectdim(A, N, i+1)) .* νⁱ2)
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
+    ν = inv(rate(weight(X)))
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * one(ν)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s = s * ν + abs(A[i+1])
+        end
+        @inbounds s = s * (ν / ExactReal(2)) + abs(A[1])
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = inv(rate(weight(X)))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= s .* ν .+ abs.(selectdim(A, N, i+1))
+        end
+        @inbounds s .= s .* (ν / ExactReal(2)) .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+
+function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) * _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s = max(s, abs(A[i+1]) * _getindex(weight(X), space, i))
+        end
+        @inbounds s = max(ExactReal(2) * s, abs(A[1]))
+    end
+    return s
+end
+function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T))*_getindex(weight(X), space, 0))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ) .* _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i))
+        end
+        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector)
+    ord = order(space)
+    @inbounds s = abs(A[ord+1]) / _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s += abs(A[i+1]) / _getindex(weight(X), space, i)
+        end
+        @inbounds s = s / ExactReal(2) + abs(A[1])
+    end
+    return s
+end
+function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T))/_getindex(weight(X), space, 0))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord+1)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ) ./ _getindex(weight(X), space, ord)
+    if ord > 0
+        @inbounds for i ∈ ord-1:-1:1
+            s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i)
+        end
+        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+    end
+    return s
+end
+
+
+
+
+
+_apply(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = ExactReal(2) * sum(abs, A)
+function _apply(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .+= abs.(selectdim(A, N, i))
+    end
+    s .*= ExactReal(2)
+    return s
+end
+_apply_dual(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = maximum(abs, A) / ExactReal(2)
+function _apply_dual(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= max.(s, abs.(selectdim(A, N, i)))
+    end
+    s ./= ExactReal(2)
+    return s
+end
+
+function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector)
+    ν = rate(weight(X))
+    ord = order(space)
+    @inbounds s = abs(A[ord]) * one(ν)
+    @inbounds for i ∈ ord-1:-1:1
+        s = s * ν + abs(A[i])
+    end
+    s *= ExactReal(2) * ν
+    return s
+end
+function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = rate(weight(X))
+    CoefType = typeof(abs(zero(T))*ν)
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= s .* ν .+ abs.(selectdim(A, N, i))
+    end
+    s .*= ExactReal(2) * ν
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector{T}) where {T}
+    ν = νⁱ = inv(rate(weight(X)))
+    @inbounds s = abs(A[1]) * νⁱ
+    @inbounds for i ∈ 2:order(space)
+        νⁱ *= ν
+        s = max(s, abs(A[i]) * νⁱ)
+    end
+    s /= ExactReal(2)
+    return s
+end
+function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    ν = νⁱ = inv(rate(weight(X)))
+    CoefType = typeof(abs(zero(T))*νⁱ)
+    @inbounds A₁ = selectdim(A, N, 1)
+    s = Array{CoefType,N-1}(undef, size(A₁))
+    s .= abs.(A₁) .* νⁱ
+    @inbounds for i ∈ 2:order(space)
+        νⁱ *= ν
+        s .= max.(s, abs.(selectdim(A, N, i)) .* νⁱ)
+    end
+    s ./= ExactReal(2)
+    return s
+end
+
+_apply(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = ExactReal(2) * maximum(abs, A)
+function _apply(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .= max.(s, abs.(selectdim(A, N, i)))
+    end
+    s .*= ExactReal(2)
+    return s
+end
+_apply_dual(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = sum(abs, A) / ExactReal(2)
+function _apply_dual(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
+    CoefType = typeof(abs(zero(T)))
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, N, ord)
+    s = Array{CoefType,N-1}(undef, size(Aᵢ))
+    s .= abs.(Aᵢ)
+    @inbounds for i ∈ ord-1:-1:1
+        s .+= abs.(selectdim(A, N, i))
+    end
+    s ./= ExactReal(2)
+    return s
+end

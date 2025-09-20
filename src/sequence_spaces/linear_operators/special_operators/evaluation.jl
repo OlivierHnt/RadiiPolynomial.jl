@@ -1,5 +1,5 @@
 """
-    Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: SpecialOperator
+    Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: AbstractLinearOperator
 
 Generic evaluation operator. A value of `nothing` indicates that no evaluation
 should be performed.
@@ -26,7 +26,7 @@ julia> Evaluation(1.0, nothing, 2.0)
 Evaluation{Tuple{Float64, Nothing, Float64}}((1.0, nothing, 2.0))
 ```
 """
-struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: SpecialOperator
+struct Evaluation{T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} <: AbstractLinearOperator
     value :: T
     Evaluation{T}(value::T) where {T<:Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}} = new{T}(value)
     Evaluation{Tuple{}}(::Tuple{}) = throw(ArgumentError("Evaluation is only defined for at least one Number or Nothing"))
@@ -43,20 +43,10 @@ value(ℰ::Evaluation) = ℰ.value
 
 Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
 
-See also: [`(::Evaluation)(::AbstractSequence)`](@ref), [`Evaluation`](@ref),
-[`(::AbstractSequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
+See also: [`Evaluation`](@ref), [`(::AbstractSequence)(::Any, ::Vararg)`](@ref),
+[`evaluate`](@ref) and [`evaluate!`](@ref).
 """
 Base.:*(ℰ::Evaluation, a::AbstractSequence) = evaluate(a, value(ℰ))
-
-"""
-    (ℰ::Evaluation)(a::AbstractSequence)
-
-Evaluate `a` at `value(ℰ)`; equivalent to `evaluate(a, value(ℰ))`.
-
-See also: [`*(::Evaluation, ::AbstractSequence)`](@ref), [`Evaluation`](@ref),
-[`(::AbstractSequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref) and [`evaluate!`](@ref).
-"""
-(ℰ::Evaluation)(a::AbstractSequence) = *(ℰ, a)
 
 """
     (a::AbstractSequence)(x, y...)
@@ -81,7 +71,7 @@ See also: [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate!`](@ref), [`Evalua
 function evaluate(a::Sequence, x)
     ℰ = Evaluation(x)
     space_a = space(a)
-    new_space = image(ℰ, space_a)
+    new_space = codomain(ℰ, space_a)
     CoefType = _coeftype(ℰ, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, ℰ, a)
@@ -91,6 +81,11 @@ end
 _return_evaluate(a::Sequence, ::Any) = a
 _return_evaluate(a::Sequence{<:SequenceSpace}, ::Union{Number,Tuple{Vararg{Number}}}) = coefficients(a)[1]
 _return_evaluate(a::Sequence{<:CartesianSpace}, ::Union{Number,Tuple{Vararg{Number}}}) = coefficients(a)
+
+evaluate(a::InfiniteSequence, x) = _return_evaluate(evaluate(sequence(a), x), a)
+
+_return_evaluate(c, a::InfiniteSequence) = interval(c, sequence_error(a); format = :midpoint)
+_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(interval.(c, sequence_error(a); format = :midpoint), sequence_error(a), banachspace(a))
 
 """
     evaluate!(c::Union{AbstractVector,Sequence}, a::Sequence, x)
@@ -103,50 +98,35 @@ See also: [`(::Sequence)(::Any, ::Vararg)`](@ref), [`evaluate`](@ref), [`Evaluat
 function evaluate!(c::Sequence, a::Sequence, x)
     ℰ = Evaluation(x)
     space_c = space(c)
-    new_space = image(ℰ, space(a))
+    new_space = codomain(ℰ, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $ℰ(a) has space $new_space"))
     _apply!(c, ℰ, a)
     return c
 end
 function evaluate!(c::AbstractVector, a::Sequence, x)
-    evaluate!(Sequence(image(Evaluation(x), space(a)), c), a, x)
+    evaluate!(Sequence(codomain(Evaluation(x), space(a)), c), a, x)
     return c
 end
 
-"""
-    project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, Float64))
+# """
+#     project!(C::LinearOperator, ℰ::Evaluation)
 
-Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+# Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
+# The result is stored in `C` by overwriting it.
 
-See also: [`project!(::LinearOperator, ::Evaluation)`](@ref) and [`Evaluation`](@ref).
-"""
-function project(ℰ::Evaluation, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(ℰ, domain, Float64)) where {T}
-    image_domain = image(ℰ, domain)
-    _iscompatible(ℰ, image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℰ is $image_domain, codomain is $codomain"))
-    C = LinearOperator(domain, codomain, zeros(T, dimension(codomain), dimension(domain)))
-    _project!(C, ℰ, _memo(domain, T))
-    return C
-end
-
-"""
-    project!(C::LinearOperator, ℰ::Evaluation)
-
-Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Evaluation`](@ref).
-"""
-function project!(C::LinearOperator, ℰ::Evaluation)
-    domain_C = domain(C)
-    image_domain = image(ℰ, domain_C)
-    codomain_C = codomain(C)
-    _iscompatible(ℰ, image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℰ is $image_domain, C has codomain $codomain_C"))
-    CoefType = eltype(C)
-    coefficients(C) .= zero(CoefType)
-    _project!(C, ℰ, _memo(domain_C, CoefType))
-    return C
-end
+# See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
+# [`Evaluation`](@ref).
+# """
+# function project!(C::LinearOperator, ℰ::Evaluation)
+#     domain_C = domain(C)
+#     image_domain = codomain(ℰ, domain_C)
+#     codomain_C = codomain(C)
+#     _iscompatible(ℰ, image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℰ is $image_domain, C has codomain $codomain_C"))
+#     CoefType = eltype(C)
+#     coefficients(C) .= zero(CoefType)
+#     _project!(C, ℰ, _memo(domain_C, CoefType))
+#     return C
+# end
 
 _iscompatible(::Evaluation, ::VectorSpace, ::VectorSpace) = false
 _iscompatible(::Evaluation, s₁::SequenceSpace, s₂::SequenceSpace) = _iscompatible(s₁, s₂)
@@ -167,8 +147,8 @@ _iscompatible(ℰ::Evaluation, s₁::CartesianProduct, s₂::CartesianPower) =
 
 _memo(s::TensorSpace, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(s))
 
-image(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((xᵢ, sᵢ) -> image(Evaluation(xᵢ), sᵢ), value(ℰ), spaces(s)))
+codomain(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((xᵢ, sᵢ) -> codomain(Evaluation(xᵢ), sᵢ), value(ℰ), spaces(s)))
 
 _coeftype(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
     @inbounds promote_type(_coeftype(Evaluation(value(ℰ)[1]), s[1], T), _coeftype(Evaluation(Base.tail(value(ℰ))), Base.tail(s), T))
@@ -203,6 +183,7 @@ _apply(ℰ::Evaluation, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::Abstrac
 _apply(ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
     @inbounds _apply(Evaluation(value(ℰ)[1]), space[1], Val(N), A)
 
+_project!(C::LinearOperator, ℰ::Evaluation) = _project!(C, ℰ, _memo(domain(C), eltype(C)))
 function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Evaluation, memo)
     domain_C = domain(C)
     codomain_C = codomain(C)
@@ -217,7 +198,7 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℰ::Eval
     codomain_C = codomain(C)
     CoefType = eltype(C)
     α = _findindex_constant(codomain_C)
-    image_ℰ = image(ℰ, domain_C)
+    image_ℰ = codomain(ℰ, domain_C)
     α′ = _findindex_constant(image_ℰ)
     @inbounds for β ∈ indices(domain_C)
         C[α,β] = _getindex(ℰ, domain_C, image_ℰ, CoefType, α′, β, memo)
@@ -227,7 +208,7 @@ end
 function _project!(C::LinearOperator{<:SequenceSpace,ParameterSpace}, ℰ::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, memo)
     domain_C = domain(C)
     CoefType = eltype(C)
-    image_ℰ = image(ℰ, domain_C)
+    image_ℰ = codomain(ℰ, domain_C)
     α′ = _findindex_constant(image_ℰ)
     @inbounds for β ∈ indices(domain_C)
         C[1,β] = _getindex(ℰ, domain_C, image_ℰ, CoefType, α′, β, memo)
@@ -244,8 +225,8 @@ _getindex(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, domain::TensorSpace{<
 
 _memo(::Taylor, ::Type) = nothing
 
-image(::Evaluation{Nothing}, s::Taylor) = s
-image(::Evaluation, ::Taylor) = Taylor(0)
+codomain(::Evaluation{Nothing}, s::Taylor) = s
+codomain(::Evaluation, ::Taylor) = Taylor(0)
 
 _coeftype(::Evaluation{Nothing}, ::Taylor, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
@@ -325,8 +306,8 @@ end
 
 _memo(::Fourier, ::Type) = nothing
 
-image(::Evaluation{Nothing}, s::Fourier) = s
-image(::Evaluation, s::Fourier) = Fourier(0, frequency(s))
+codomain(::Evaluation{Nothing}, s::Fourier) = s
+codomain(::Evaluation, s::Fourier) = Fourier(0, frequency(s))
 
 _coeftype(::Evaluation{Nothing}, ::Fourier, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, s::Fourier, ::Type{S}) where {T,S} =
@@ -417,8 +398,8 @@ end
 
 _memo(::Chebyshev, ::Type{T}) where {T} = Dict{Int,T}()
 
-image(::Evaluation{Nothing}, s::Chebyshev) = s
-image(::Evaluation, ::Chebyshev) = Chebyshev(0)
+codomain(::Evaluation{Nothing}, s::Chebyshev) = s
+codomain(::Evaluation, ::Chebyshev) = Chebyshev(0)
 
 _coeftype(::Evaluation{Nothing}, ::Chebyshev, ::Type{T}) where {T} = T
 _coeftype(::Evaluation{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
@@ -603,17 +584,200 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
     end
 end
 
+# CosFourier
+
+_memo(::CosFourier, ::Type) = nothing
+
+codomain(::Evaluation{Nothing}, s::CosFourier) = s
+codomain(::Evaluation, s::CosFourier) = CosFourier(0, frequency(s))
+
+_coeftype(::Evaluation{Nothing}, ::CosFourier, ::Type{T}) where {T} = T
+_coeftype(::Evaluation{T}, s::CosFourier, ::Type{S}) where {T,S} =
+    promote_type(typeof(cos(frequency(s)*zero(T))), S)
+
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:CosFourier})
+    coefficients(c) .= coefficients(a)
+    return c
+end
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:CosFourier})
+    x = value(ℰ)
+    ord = order(a)
+    @inbounds c[0] = a[ord]
+    if ord > 0
+        if iszero(x)
+            @inbounds for j ∈ ord-1:-1:1
+                c[0] += a[j]
+            end
+        else
+            ωx = frequency(a)*x
+            @inbounds c[0] *= cos(ωx * ExactReal(ord))
+            @inbounds for j ∈ ord-1:-1:1
+                c[0] += a[j] * cos(ωx * ExactReal(j))
+            end
+        end
+        @inbounds c[0] = ExactReal(2) * c[0] + a[0]
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::CosFourier, A)
+    C .= A
+    return C
+end
+function _apply!(C::AbstractArray, ℰ::Evaluation, space::CosFourier, A)
+    x = value(ℰ)
+    ord = order(space)
+    @inbounds C .= selectdim(A, 1, ord+1)
+    if ord > 0
+        if iszero(x)
+            @inbounds for j ∈ ord-1:-1:1
+                C .+= selectdim(A, 1, j+1)
+            end
+        else
+            ωx = frequency(space)*x
+            C .*= cos(ωx * ExactReal(ord))
+            @inbounds for j ∈ ord-1:-1:1
+                C .+= selectdim(A, 1, j+1) .* cos(ωx * ExactReal(j))
+            end
+        end
+        @inbounds C .= ExactReal(2) .* C .+ selectdim(A, 1, 1)
+    end
+    return C
+end
+
+_apply(::Evaluation{Nothing}, ::CosFourier, ::Val, A::AbstractArray) = A
+function _apply(ℰ::Evaluation, space::CosFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    x = value(ℰ)
+    CoefType = _coeftype(ℰ, space, T)
+    ord = order(space)
+    @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
+    if ord > 0
+        if iszero(x)
+            @inbounds for j ∈ ord-1:-1:1
+                C .+= selectdim(A, D, j+1)
+            end
+        else
+            ωx = frequency(space)*x
+            C .*= cos(ωx * ExactReal(ord))
+            @inbounds for j ∈ ord-1:-1:1
+                C .+= selectdim(A, D, j+1) .* cos(ωx * ExactReal(j))
+            end
+        end
+        @inbounds C .= ExactReal(2) .* C .+ selectdim(A, D, 1)
+    end
+    return C
+end
+
+_getindex(::Evaluation{Nothing}, ::CosFourier, ::CosFourier, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
+function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T}, i, j, memo) where {T}
+    if i == 0
+        x = value(ℰ)
+        if j == 0
+            return one(T)
+        elseif iszero(x)
+            return convert(T, ExactReal(2))
+        else
+            return convert(T, ExactReal(2) * cos(frequency(domain) * x * ExactReal(j)))
+        end
+    else
+        return zero(T)
+    end
+end
+
+# SinFourier
+
+_memo(::SinFourier, ::Type) = nothing
+
+codomain(::Evaluation{Nothing}, s::SinFourier) = s
+codomain(::Evaluation, s::SinFourier) = Fourier(0, frequency(s))
+
+_coeftype(::Evaluation{Nothing}, ::SinFourier, ::Type{T}) where {T} = T
+_coeftype(::Evaluation{T}, s::SinFourier, ::Type{S}) where {T,S} =
+    promote_type(typeof(sin(frequency(s)*zero(T))), S)
+
+function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:SinFourier})
+    coefficients(c) .= coefficients(a)
+    return c
+end
+function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
+    x = value(ℰ)
+    if iszero(x)
+        @inbounds c[0] = zero(eltype(c))
+    else
+        ord = order(a)
+        ωx = frequency(a)*x
+        @inbounds c[0] = a[ord] * sin(ωx * ExactReal(ord))
+        @inbounds for j ∈ ord-1:-1:1
+            c[0] += a[j] * sin(ωx * ExactReal(j))
+        end
+        @inbounds c[0] *= ExactReal(2)
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
+    C .= A
+    return C
+end
+function _apply!(C::AbstractArray, ℰ::Evaluation, space::SinFourier, A)
+    x = value(ℰ)
+    if iszero(x)
+        C .= zero(eltype(C))
+    else
+        ord = order(space)
+        ωx = frequency(space)*x
+        @inbounds C .= selectdim(A, 1, ord) .* sin(ωx * ExactReal(ord))
+        @inbounds for j ∈ ord-1:-1:1
+            C .+= selectdim(A, 1, j) .* sin(ωx * ExactReal(j))
+        end
+        C .*= ExactReal(2)
+    end
+    return C
+end
+
+_apply(::Evaluation{Nothing}, ::SinFourier, ::Val, A::AbstractArray) = A
+function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    x = value(ℰ)
+    CoefType = _coeftype(ℰ, space, T)
+    ord = order(space)
+    @inbounds Aᵢ = selectdim(A, D, ord)
+    C = Array{CoefType,N-1}(undef, size(Aᵢ))
+    if iszero(x)
+        C .= zero(CoefType)
+    else
+        ωx = frequency(space)*x
+        @inbounds C .= Aᵢ .* sin(ωx * ExactReal(ord))
+        @inbounds for j ∈ ord-1:-1:1
+            C .+= selectdim(A, D, j) .* sin(ωx * ExactReal(j))
+        end
+        C .*= ExactReal(2)
+    end
+    return C
+end
+
+_getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, memo) where {T} =
+    ifelse(i == j, one(T), zero(T))
+function _getindex(ℰ::Evaluation, domain::SinFourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
+    x = value(ℰ)
+    if i == 0 && !iszero(x)
+        return convert(T, ExactReal(2) * sin(frequency(domain) * x * ExactReal(j)))
+    else
+        return zero(T)
+    end
+end
+
 # Cartesian spaces
 
 _memo(s::CartesianPower, ::Type{T}) where {T} = _memo(space(s), T)
 
-image(ℰ::Evaluation, s::CartesianPower) = CartesianPower(image(ℰ, space(s)), nspaces(s))
+codomain(ℰ::Evaluation, s::CartesianPower) = CartesianPower(codomain(ℰ, space(s)), nspaces(s))
 
 _coeftype(ℰ::Evaluation, s::CartesianPower, ::Type{T}) where {T} = _coeftype(ℰ, space(s), T)
 
 _memo(s::CartesianProduct, ::Type{T}) where {T} = map(sᵢ -> _memo(sᵢ, T), spaces(s))
 
-image(ℰ::Evaluation, s::CartesianProduct) = CartesianProduct(map(sᵢ -> image(ℰ, sᵢ), spaces(s)))
+codomain(ℰ::Evaluation, s::CartesianProduct) = CartesianProduct(map(sᵢ -> codomain(ℰ, sᵢ), spaces(s)))
 
 _coeftype(ℰ::Evaluation, s::CartesianProduct, ::Type{T}) where {T} =
     @inbounds promote_type(_coeftype(ℰ, s[1], T), _coeftype(ℰ, Base.tail(s), T))

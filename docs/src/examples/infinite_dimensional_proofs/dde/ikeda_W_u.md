@@ -88,19 +88,19 @@ The Banach space ``X`` is a suitable space to represent a parameterization of th
 In terms of the Taylor coefficients, the previous equalities yield
 
 ```math
-[P(\sigma)](s) = \sum_{\alpha_1 + \ldots + \alpha_d \ge 0} \tilde{x}_\alpha e^{s (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} \sigma^\alpha
+[P(\sigma)](s) = \sum_{\alpha_1 + \ldots + \alpha_d \ge 0} \tx_\alpha e^{s (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} \sigma^\alpha
 ```
 
-where ``\tilde{x} \in X`` is given component-wise by
+where ``\tx \in X`` is given component-wise by
 
 ```math
-\tilde{x}_\alpha \bydef
+\tx_\alpha \bydef
 \begin{cases}
 c, & \alpha_1 = \ldots = \alpha_d = 0,\\
 \xi_1, & \alpha_1 = 1, \alpha_2 = \ldots = \alpha_d = 0,\\
 \vdots\\
 \xi_d, & \alpha_d = 1, \alpha_1 = \ldots = \alpha_{d-1} = 0,\\
-\Psi(\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)^{-1} \left(-e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} [\tilde{x} * \tilde{x} * \tilde{x}]_{\tilde{x}_\alpha = 0}\right)_\alpha, & \alpha_1 + \ldots + \alpha_d \ge 2.
+\Psi(\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)^{-1} \left(-e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} [\tx * \tx * \tx]_{\tx_\alpha = 0}\right)_\alpha, & \alpha_1 + \ldots + \alpha_d \ge 2.
 \end{cases}
 ```
 
@@ -150,13 +150,13 @@ Consider the truncation operator
 
 as well as the complementary operator ``\Pi_{\infty(n)} \bydef I - \Pi_n``.
 
-Given that ``\Pi_n \tilde{x}`` is a finite sequence of known Taylor coefficients, it follows that the remaining coefficients are a fixed-point of the mapping ``T : \Pi_{\infty(n)} X \to \Pi_{\infty(n)} X`` given component-wise by
+Given that ``\Pi_n \tx`` is a finite sequence of known Taylor coefficients, it follows that the remaining coefficients are a fixed-point of the mapping ``T : \Pi_{\infty(n)} X \to \Pi_{\infty(n)} X`` given component-wise by
 
 ```math
 ( T(h) )_\alpha \bydef
 \begin{cases}
 0, & \alpha_1 + \ldots + \alpha_d \le n,\\
-\Psi(\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)^{-1} \left( -e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} [(\Pi_n \tilde{x} +h)*(\Pi_n \tilde{x} +h)*(\Pi_n \tilde{x} +h)]_{h_\alpha = 0} \right)_\alpha, & \alpha_1 + \ldots + \alpha_d > n.
+\Psi(\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)^{-1} \left( -e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} [(\Pi_n \tx +h)*(\Pi_n \tx +h)*(\Pi_n \tx +h)]_{h_\alpha = 0} \right)_\alpha, & \alpha_1 + \ldots + \alpha_d > n.
 \end{cases}
 ```
 
@@ -169,7 +169,7 @@ Let ``R > 0``. Since ``T \in C^1(\Pi_{\infty(n)} X, \Pi_{\infty(n)} X)`` we may 
 \end{aligned}
 ```
 
-where ``\tilde{y} \bydef \left\{ \tilde{x}_\alpha e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} \right\}_{\alpha_1 + \ldots + \alpha_d \ge 0}``.
+where ``\tilde{y} \bydef \left\{ \tx_\alpha e^{-\tau (\alpha_1 \lambda_1 + \ldots + \alpha_d \lambda_d)} \right\}_{\alpha_1 + \ldots + \alpha_d \ge 0}``.
 
 The computer-assisted proof for the ``1``-dimensional unstable manifold of ``c = 0`` may be implemented as follows:
 

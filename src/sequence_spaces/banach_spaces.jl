@@ -61,13 +61,13 @@ rate(weight::GeometricWeight) = weight.rate
 Base.:(==)(w₁::GeometricWeight, w₂::GeometricWeight) = _safe_isequal(rate(w₁), rate(w₂))
 Base.min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(rate(w₁), rate(w₂)))
 
-_getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ ExactReal(i)
+_getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ exact(i)
 
-_getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ ExactReal(abs(i))
+_getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ exact(abs(i))
 
-_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = rate(weight) ^ ExactReal(i)
+_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = rate(weight) ^ exact(i)
 
-_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ ExactReal(i)
+_getindex(weight::GeometricWeight, ::Union{CosFourier,SinFourier}, i::Int) = rate(weight) ^ exact(i)
 
 IntervalArithmetic.interval(::Type{T}, weight::GeometricWeight) where {T} = GeometricWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::GeometricWeight) = GeometricWeight(interval(rate(weight)))
@@ -108,13 +108,13 @@ rate(weight::AlgebraicWeight) = weight.rate
 Base.:(==)(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = _safe_isequal(rate(w₁), rate(w₂))
 Base.min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(rate(w₁), rate(w₂)))
 
-_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = ExactReal(1 + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = exact(1 + i) ^ rate(weight)
 
-_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = ExactReal(1 + abs(i)) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = exact(1 + abs(i)) ^ rate(weight)
 
-_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = ExactReal(1 + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = exact(1 + i) ^ rate(weight)
 
-_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = ExactReal(1 + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Union{CosFourier,SinFourier}, i::Int) = exact(1 + i) ^ rate(weight)
 
 IntervalArithmetic.interval(::Type{T}, weight::AlgebraicWeight) where {T} = AlgebraicWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::AlgebraicWeight) = AlgebraicWeight(interval(rate(weight)))

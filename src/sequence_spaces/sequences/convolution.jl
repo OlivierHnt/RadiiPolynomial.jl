@@ -27,7 +27,7 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
         _enforce_zeros!(c, a, b)
     else # CONV_ALGORITHM[] === :sum
         c = Sequence(space_c, zeros(CoefType, dimension(space_c)))
-        _add_mul!(c, a, b, convert(real(CoefType), ExactReal(true)))
+        _add_mul!(c, a, b, convert(real(CoefType), exact(true)))
     end
     return c
 end
@@ -44,7 +44,7 @@ function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
         _enforce_zeros!(c, a, b)
     else # CONV_ALGORITHM[] === :sum
         c = Sequence(space_c, zeros(CoefType, dimension(space_c)))
-        _add_mul!(c, a, b, convert(real(CoefType), ExactReal(true)))
+        _add_mul!(c, a, b, convert(real(CoefType), exact(true)))
     end
     return c
 end
@@ -201,7 +201,7 @@ function _convolution!(C::AbstractArray{T,N}, A, B, α, current_space_c, current
             _add_mul!(Cᵢ,
                 selectdim(A, N, _findposition(_extract_valid_index(current_space_a, i, j), current_space_a)),
                 selectdim(B, N, _findposition(_extract_valid_index(current_space_b, j), current_space_b)),
-                ExactReal(x) * α, remaining_space_c, remaining_space_a, remaining_space_b)
+                exact(x) * α, remaining_space_c, remaining_space_a, remaining_space_b)
         end
     end
     return C
@@ -212,7 +212,7 @@ function __convolution!(C, A, B, α, space_c, space_a, space_b, i)
     @inbounds @simd for j ∈ _convolution_indices(space_a, space_b, i)
         x = _inverse_symmetry_action(space_c, i) * _symmetry_action(space_a, i, j) * _symmetry_action(space_b, j)
         if !iszero(x)
-            Cᵢ += ExactReal(x) * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
+            Cᵢ += exact(x) * A[_findposition(_extract_valid_index(space_a, i, j), space_a)] * B[_findposition(_extract_valid_index(space_b, j), space_b)]
         end
     end
     @inbounds C[_findposition(i, space_c)] += Cᵢ * α
@@ -436,7 +436,7 @@ function _sqr_bar(a::Sequence{<:SequenceSpace})
     return c
 end
 
-_add_sqr!(c::Sequence, a) = _add_mul!(c, a, a, convert(real(eltype(c)), ExactReal(true)))
+_add_sqr!(c::Sequence, a) = _add_mul!(c, a, a, convert(real(eltype(c)), exact(true)))
 
 #
 
@@ -460,7 +460,7 @@ end
 function _add_sqr!(c::Sequence{Taylor}, a)
     order_a = order(space(a))
     @inbounds a₀ = a[0]
-    @inbounds c[0] += a₀ ^ ExactReal(2)
+    @inbounds c[0] += a₀ ^ exact(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = zero(eltype(a))
         i_odd = i%2
@@ -470,9 +470,9 @@ function _add_sqr!(c::Sequence{Taylor}, a)
         end
         if iszero(i_odd)
             a_i½ = a[i÷2]
-            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+            c[i] += exact(2) * cᵢ + a_i½ ^ exact(2)
         else
-            c[i] += ExactReal(2) * cᵢ
+            c[i] += exact(2) * cᵢ
         end
     end
     return c
@@ -498,7 +498,7 @@ function _add_sqr!(c::Sequence{<:Fourier}, a)
         c₀ += a[j] * a[-j]
     end
     @inbounds a₀ = a[0]
-    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
+    @inbounds c[0] += exact(2) * c₀ + a₀ ^ exact(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = c₋ᵢ = zero(eltype(a))
         i½, i_odd = divrem(i, 2)
@@ -509,11 +509,11 @@ function _add_sqr!(c::Sequence{<:Fourier}, a)
         if iszero(i_odd)
             a_i½ = a[i½]
             a_neg_i½ = a[-i½]
-            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
-            c[-i] += ExactReal(2) * c₋ᵢ + a_neg_i½ ^ ExactReal(2)
+            c[i] += exact(2) * cᵢ + a_i½ ^ exact(2)
+            c[-i] += exact(2) * c₋ᵢ + a_neg_i½ ^ exact(2)
         else
-            c[i] += ExactReal(2) * cᵢ
-            c[-i] += ExactReal(2) * c₋ᵢ
+            c[i] += exact(2) * cᵢ
+            c[-i] += exact(2) * c₋ᵢ
         end
     end
     return c
@@ -537,10 +537,10 @@ function _add_sqr!(c::Sequence{Chebyshev}, a)
     c₀ = zero(eltype(a))
     @inbounds for j ∈ 1:order_a
         aⱼ = a[j]
-        c₀ += aⱼ ^ ExactReal(2)
+        c₀ += aⱼ ^ exact(2)
     end
     @inbounds a₀ = a[0]
-    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
+    @inbounds c[0] += exact(2) * c₀ + a₀ ^ exact(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = zero(eltype(a))
         i½, i_odd = divrem(i, 2)
@@ -549,9 +549,9 @@ function _add_sqr!(c::Sequence{Chebyshev}, a)
         end
         if iszero(i_odd)
             a_i½ = a[i½]
-            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+            c[i] += exact(2) * cᵢ + a_i½ ^ exact(2)
         else
-            c[i] += ExactReal(2) * cᵢ
+            c[i] += exact(2) * cᵢ
         end
     end
     return c
@@ -586,10 +586,10 @@ function _add_sqr!(c::Sequence{<:CosFourier}, a::Sequence{<:CosFourier})
     c₀ = zero(eltype(a))
     @inbounds for j ∈ 1:order_a
         aⱼ = a[j]
-        c₀ += aⱼ ^ ExactReal(2)
+        c₀ += aⱼ ^ exact(2)
     end
     @inbounds a₀ = a[0]
-    @inbounds c[0] += ExactReal(2) * c₀ + a₀ ^ ExactReal(2)
+    @inbounds c[0] += exact(2) * c₀ + a₀ ^ exact(2)
     @inbounds for i ∈ 1:order(space(c))
         cᵢ = zero(eltype(a))
         i½, i_odd = divrem(i, 2)
@@ -598,9 +598,9 @@ function _add_sqr!(c::Sequence{<:CosFourier}, a::Sequence{<:CosFourier})
         end
         if iszero(i_odd)
             a_i½ = a[i½]
-            c[i] += ExactReal(2) * cᵢ + a_i½ ^ ExactReal(2)
+            c[i] += exact(2) * cᵢ + a_i½ ^ exact(2)
         else
-            c[i] += ExactReal(2) * cᵢ
+            c[i] += exact(2) * cᵢ
         end
     end
     return c
@@ -609,7 +609,7 @@ end
 function _add_sqr!(c::Sequence{CosFourier}, a::Sequence{SinFourier})
     N_a = order(space(a))
 
-    @inbounds c[0] += sum(a[j]^ExactReal(2) for j in 1:N_a)
+    @inbounds c[0] += sum(a[j]^exact(2) for j in 1:N_a)
 
     N_c = order(space(c))
     @inbounds for i in 1:N_c
@@ -624,7 +624,7 @@ function _add_sqr!(c::Sequence{CosFourier}, a::Sequence{SinFourier})
                 end
             end
         end
-        c[i] += ExactReal(1) * s
+        c[i] += exact(1) * s
     end
 
     return c

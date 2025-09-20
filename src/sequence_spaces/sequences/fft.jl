@@ -138,7 +138,7 @@ _preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _preproc
 function _preprocess!(C::AbstractVector, space::SinFourier)
     len = length(C)
     ord = order(space)
-    view(C, 2:ord+1) .= view(C, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    view(C, 2:ord+1) .= view(C, 1:ord) .* complex(exact(false), exact(true))
     C[1] = zero(eltype(C))
     view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
     return C
@@ -147,7 +147,7 @@ end
 function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
-    selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(ExactReal(false), ExactReal(true))
+    selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(exact(false), exact(true))
     selectdim(C, D, 1) .= zero(eltype(C))
     selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
     return C
@@ -320,7 +320,7 @@ _ifft_get_index(n, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n�
 function _postprocess!(C::AbstractVector, ::Chebyshev)
     len = length(C)
     if len != 1
-        C[len÷2+1] /= ExactReal(2)
+        C[len÷2+1] /= exact(2)
     end
     return C
 end
@@ -328,7 +328,7 @@ end
 function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     if len != 1
-        selectdim(C, D, len÷2+1) ./= ExactReal(2)
+        selectdim(C, D, len÷2+1) ./= exact(2)
     end
     return C
 end
@@ -347,13 +347,13 @@ _ifft_get_index(n, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷
 
 function _postprocess!(C::AbstractVector, ::SinFourier)
     ord = length(C) ÷ 2
-    view(C, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* view(C, 2:ord+1)
+    view(C, 1:ord) .= -complex(exact(false), exact(true)) .* view(C, 2:ord+1)
     return C
 end
 
 function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
     ord = size(C, D) ÷ 2
-    selectdim(C, D, 1:ord) .= -complex(ExactReal(false), ExactReal(true)) .* selectdim(C, D, 2:ord+1)
+    selectdim(C, D, 1:ord) .= -complex(exact(false), exact(true)) .* selectdim(C, D, 2:ord+1)
     return C
 end
 
@@ -404,7 +404,7 @@ end
 
 function _ifft_pow2!(a::AbstractVector{<:Complex})
     conj!(_fft_pow2!(conj!(a)))
-    a ./= ExactReal(length(a))
+    a ./= exact(length(a))
     return a
 end
 
@@ -423,7 +423,7 @@ end
 
 function _ifft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
     conj!(_fft_pow2!(conj!(a)))
-    a ./= ExactReal(length(a))
+    a ./= exact(length(a))
     return a
 end
 
@@ -444,7 +444,7 @@ _ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _ifft_pow2!(a, Vector{elt
 
 function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
     conj!(_fft_pow2!(conj!(a), Ω))
-    a ./= ExactReal(length(a))
+    a ./= exact(length(a))
     return a
 end
 

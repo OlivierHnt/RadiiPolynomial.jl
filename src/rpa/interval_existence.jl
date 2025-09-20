@@ -43,7 +43,7 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
     isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose = verbose)
 
     b = Z₁ - one(Z₁)
-    Δ = b^2 - ExactReal(2)*Z₂*Y
+    Δ = b^2 - exact(2)*Z₂*Y
     sqrtΔ = sqrt(Δ)
     r₁ = (-b - sqrtΔ)/Z₂
     r₂ = (-b + sqrtΔ)/Z₂

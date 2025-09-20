@@ -677,7 +677,7 @@ end
 # Chebyshev
 
 _apply(::Ell1{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds abs(A[1]) + ExactReal(2) * sum(abs, view(A, 2:length(A)))
+    @inbounds abs(A[1]) + exact(2) * sum(abs, view(A, 2:length(A)))
 function _apply(::Ell1{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -688,12 +688,12 @@ function _apply(::Ell1{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N})
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= exact(2) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 _apply_dual(::Ell1{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A))) / ExactReal(2))
+    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A))) / exact(2))
 function _apply_dual(::Ell1{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -704,7 +704,7 @@ function _apply_dual(::Ell1{IdentityWeight}, space::Chebyshev, A::AbstractArray{
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(s ./ exact(2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
@@ -717,7 +717,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractVector)
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = (ExactReal(2) * ν) * s + abs(A[1])
+        @inbounds s = (exact(2) * ν) * s + abs(A[1])
     end
     return s
 end
@@ -732,13 +732,13 @@ function _apply(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= (ExactReal(2) * ν) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= (exact(2) * ν) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractVector{T}) where {T}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν) / ExactReal(2)
+    νⁱ½ = one(ν) / exact(2)
     @inbounds s = abs(A[1]) * one(νⁱ½)
     @inbounds for i ∈ 1:order(space)
         νⁱ½ *= ν
@@ -748,7 +748,7 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractVe
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν) / ExactReal(2)
+    νⁱ½ = one(ν) / exact(2)
     CoefType = typeof(abs(zero(T))*νⁱ½)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -767,7 +767,7 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractVector)
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) * _getindex(weight(X), space, i)
         end
-        @inbounds s = ExactReal(2) * s + abs(A[1])
+        @inbounds s = exact(2) * s + abs(A[1])
     end
     return s
 end
@@ -781,7 +781,7 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractArray{T
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i)
         end
-        @inbounds s .= ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= exact(2) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -792,7 +792,7 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractVe
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) / _getindex(weight(X), space, i))
         end
-        @inbounds s = max(s / ExactReal(2), abs(A[1]))
+        @inbounds s = max(s / exact(2), abs(A[1]))
     end
     return s
 end
@@ -806,13 +806,13 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::Chebyshev, A::AbstractAr
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(s ./ exact(2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
 
 _apply(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + ExactReal(2) * sum(abs2, view(A, 2:length(A))))
+    @inbounds sqrt(abs2(A[1]) + exact(2) * sum(abs2, view(A, 2:length(A))))
 function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
@@ -822,11 +822,11 @@ function _apply(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N})
     @inbounds for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(ExactReal(2) .* s .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(exact(2) .* s .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 _apply_dual(::Ell2{IdentityWeight}, ::Chebyshev, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A))) / ExactReal(2))
+    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A))) / exact(2))
 function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
@@ -836,12 +836,12 @@ function _apply_dual(::Ell2{IdentityWeight}, space::Chebyshev, A::AbstractArray{
     @inbounds for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(s ./ ExactReal(2) .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(s ./ exact(2) .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 
 _apply(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractVector) =
-    @inbounds max(abs(A[1]), ExactReal(2) * maximum(abs, view(A, 2:length(A))))
+    @inbounds max(abs(A[1]), exact(2) * maximum(abs, view(A, 2:length(A))))
 function _apply(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -852,12 +852,12 @@ function _apply(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(exact(2) .* s, abs.(selectdim(A, N, 1)))
     end
     return s
 end
 _apply_dual(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractVector) =
-    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A))) / ExactReal(2)
+    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A))) / exact(2)
 function _apply_dual(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -868,14 +868,14 @@ function _apply_dual(::EllInf{IdentityWeight}, space::Chebyshev, A::AbstractArra
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s ./ exact(2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 
 function _apply(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractVector)
     ν = rate(weight(X))
-    νⁱ2 = ExactReal(2) * one(ν)
+    νⁱ2 = exact(2) * one(ν)
     @inbounds s = abs(A[1]) * one(νⁱ2)
     @inbounds for i ∈ 1:order(space)
         νⁱ2 *= ν
@@ -885,7 +885,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractVecto
 end
 function _apply(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::AbstractArray{T,N}) where {T,N}
     ν = rate(weight(X))
-    νⁱ2 = ExactReal(2) * one(ν)
+    νⁱ2 = exact(2) * one(ν)
     CoefType = typeof(abs(zero(T))*νⁱ2)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -904,7 +904,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::Abstract
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = s * (ν / ExactReal(2)) + abs(A[1])
+        @inbounds s = s * (ν / exact(2)) + abs(A[1])
     end
     return s
 end
@@ -919,7 +919,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::Chebyshev, A::Abstract
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= s .* (ν / ExactReal(2)) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s .* (ν / exact(2)) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -931,7 +931,7 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::Chebyshev, A::AbstractVecto
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) * _getindex(weight(X), space, i))
         end
-        @inbounds s = max(ExactReal(2) * s, abs(A[1]))
+        @inbounds s = max(exact(2) * s, abs(A[1]))
     end
     return s
 end
@@ -945,7 +945,7 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::Chebyshev, A::AbstractArray
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(exact(2) .* s, abs.(selectdim(A, N, 1)))
     end
     return s
 end
@@ -956,7 +956,7 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::Chebyshev, A::Abstract
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) / _getindex(weight(X), space, i)
         end
-        @inbounds s = s / ExactReal(2) + abs(A[1])
+        @inbounds s = s / exact(2) + abs(A[1])
     end
     return s
 end
@@ -970,7 +970,7 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::Chebyshev, A::Abstract
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i)
         end
-        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s ./ exact(2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -1160,7 +1160,7 @@ _opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSp
 ####
 
 _apply(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds abs(A[1]) + ExactReal(2) * sum(abs, view(A, 2:length(A)))
+    @inbounds abs(A[1]) + exact(2) * sum(abs, view(A, 2:length(A)))
 function _apply(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1171,12 +1171,12 @@ function _apply(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= exact(2) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 _apply_dual(::Ell1{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A))) / ExactReal(2))
+    @inbounds max(abs(A[1]), maximum(abs, view(A, 2:length(A))) / exact(2))
 function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1187,7 +1187,7 @@ function _apply_dual(::Ell1{IdentityWeight}, space::CosFourier, A::AbstractArray
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(s ./ exact(2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
@@ -1200,7 +1200,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = (ExactReal(2) * ν) * s + abs(A[1])
+        @inbounds s = (exact(2) * ν) * s + abs(A[1])
     end
     return s
 end
@@ -1215,13 +1215,13 @@ function _apply(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= (ExactReal(2) * ν) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= (exact(2) * ν) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractVector{T}) where {T}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν) / ExactReal(2)
+    νⁱ½ = one(ν) / exact(2)
     @inbounds s = abs(A[1]) * one(νⁱ½)
     @inbounds for i ∈ 1:order(space)
         νⁱ½ *= ν
@@ -1231,7 +1231,7 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractV
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = inv(rate(weight(X)))
-    νⁱ½ = one(ν) / ExactReal(2)
+    νⁱ½ = one(ν) / exact(2)
     CoefType = typeof(abs(zero(T))*νⁱ½)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -1250,7 +1250,7 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractVector
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) * _getindex(weight(X), space, i)
         end
-        @inbounds s = ExactReal(2) * s + abs(A[1])
+        @inbounds s = exact(2) * s + abs(A[1])
     end
     return s
 end
@@ -1264,7 +1264,7 @@ function _apply(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractArray{
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i)
         end
-        @inbounds s .=  ExactReal(2) .* s .+ abs.(selectdim(A, N, 1))
+        @inbounds s .=  exact(2) .* s .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -1275,7 +1275,7 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractV
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) / _getindex(weight(X), space, i))
         end
-        @inbounds s = max(s / ExactReal(2), abs(A[1]))
+        @inbounds s = max(s / exact(2), abs(A[1]))
     end
     return s
 end
@@ -1289,13 +1289,13 @@ function _apply_dual(X::Ell1{<:AlgebraicWeight}, space::CosFourier, A::AbstractA
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(s ./ ExactReal(2), abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(s ./ exact(2), abs.(selectdim(A, N, 1)))
     end
     return s
 end
 
 _apply(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) +  ExactReal(2) * sum(abs2, view(A, 2:length(A))))
+    @inbounds sqrt(abs2(A[1]) +  exact(2) * sum(abs2, view(A, 2:length(A))))
 function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
@@ -1305,11 +1305,11 @@ function _apply(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(ExactReal(2) .* s .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(exact(2) .* s .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 _apply_dual(::Ell2{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A))) / ExactReal(2))
+    @inbounds sqrt(abs2(A[1]) + sum(abs2, view(A, 2:length(A))) / exact(2))
 function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(sqrt(abs2(zero(T))))
     ord = order(space)
@@ -1319,12 +1319,12 @@ function _apply_dual(::Ell2{IdentityWeight}, space::CosFourier, A::AbstractArray
     for i ∈ ord-1:-1:1
         s .+= abs2.(selectdim(A, N, i+1))
     end
-    @inbounds s .= sqrt.(s ./ ExactReal(2) .+ abs2.(selectdim(A, N, 1)))
+    @inbounds s .= sqrt.(s ./ exact(2) .+ abs2.(selectdim(A, N, 1)))
     return s
 end
 
 _apply(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds max(abs(A[1]),  ExactReal(2) * maximum(abs, view(A, 2:length(A))))
+    @inbounds max(abs(A[1]),  exact(2) * maximum(abs, view(A, 2:length(A))))
 function _apply(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1335,12 +1335,12 @@ function _apply(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)))
         end
-        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(exact(2) .* s, abs.(selectdim(A, N, 1)))
     end
     return s
 end
 _apply_dual(::EllInf{IdentityWeight}, ::CosFourier, A::AbstractVector) =
-    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A))) / ExactReal(2)
+    @inbounds abs(A[1]) + sum(abs, view(A, 2:length(A))) / exact(2)
 function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1351,14 +1351,14 @@ function _apply_dual(::EllInf{IdentityWeight}, space::CosFourier, A::AbstractArr
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s ./ exact(2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
 
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVector)
     ν = rate(weight(X))
-    νⁱ2 = ExactReal(2) * one(ν)
+    νⁱ2 = exact(2) * one(ν)
     @inbounds s = abs(A[1]) * one(νⁱ2)
     @inbounds for i ∈ 1:order(space)
         νⁱ2 *= ν
@@ -1368,7 +1368,7 @@ function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractVect
 end
 function _apply(X::EllInf{<:GeometricWeight}, space::CosFourier, A::AbstractArray{T,N}) where {T,N}
     ν = rate(weight(X))
-    νⁱ2 = ExactReal(2) * one(ν)
+    νⁱ2 = exact(2) * one(ν)
     CoefType = typeof(abs(zero(T))*νⁱ2)
     @inbounds A₀ = selectdim(A, N, 1)
     s = Array{CoefType,N-1}(undef, size(A₀))
@@ -1387,7 +1387,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s = s * ν + abs(A[i+1])
         end
-        @inbounds s = s * (ν / ExactReal(2)) + abs(A[1])
+        @inbounds s = s * (ν / exact(2)) + abs(A[1])
     end
     return s
 end
@@ -1402,7 +1402,7 @@ function _apply_dual(X::EllInf{<:GeometricWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s .= s .* ν .+ abs.(selectdim(A, N, i+1))
         end
-        @inbounds s .= s .* (ν / ExactReal(2)) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s .* (ν / exact(2)) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -1414,7 +1414,7 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractVect
         @inbounds for i ∈ ord-1:-1:1
             s = max(s, abs(A[i+1]) * _getindex(weight(X), space, i))
         end
-        @inbounds s = max(ExactReal(2) * s, abs(A[1]))
+        @inbounds s = max(exact(2) * s, abs(A[1]))
     end
     return s
 end
@@ -1428,7 +1428,7 @@ function _apply(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::AbstractArra
         @inbounds for i ∈ ord-1:-1:1
             s .= max.(s, abs.(selectdim(A, N, i+1)) .* _getindex(weight(X), space, i))
         end
-        @inbounds s .= max.(ExactReal(2) .* s, abs.(selectdim(A, N, 1)))
+        @inbounds s .= max.(exact(2) .* s, abs.(selectdim(A, N, 1)))
     end
     return s
 end
@@ -1439,7 +1439,7 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s += abs(A[i+1]) / _getindex(weight(X), space, i)
         end
-        @inbounds s = s / ExactReal(2) + abs(A[1])
+        @inbounds s = s / exact(2) + abs(A[1])
     end
     return s
 end
@@ -1453,7 +1453,7 @@ function _apply_dual(X::EllInf{<:AlgebraicWeight}, space::CosFourier, A::Abstrac
         @inbounds for i ∈ ord-1:-1:1
             s .+= abs.(selectdim(A, N, i+1)) ./ _getindex(weight(X), space, i)
         end
-        @inbounds s .= s ./ ExactReal(2) .+ abs.(selectdim(A, N, 1))
+        @inbounds s .= s ./ exact(2) .+ abs.(selectdim(A, N, 1))
     end
     return s
 end
@@ -1462,7 +1462,7 @@ end
 
 
 
-_apply(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = ExactReal(2) * sum(abs, A)
+_apply(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = exact(2) * sum(abs, A)
 function _apply(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1472,10 +1472,10 @@ function _apply(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}
     @inbounds for i ∈ ord-1:-1:1
         s .+= abs.(selectdim(A, N, i))
     end
-    s .*= ExactReal(2)
+    s .*= exact(2)
     return s
 end
-_apply_dual(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = maximum(abs, A) / ExactReal(2)
+_apply_dual(::Ell1{IdentityWeight}, ::SinFourier, A::AbstractVector) = maximum(abs, A) / exact(2)
 function _apply_dual(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1485,7 +1485,7 @@ function _apply_dual(::Ell1{IdentityWeight}, space::SinFourier, A::AbstractArray
     @inbounds for i ∈ ord-1:-1:1
         s .= max.(s, abs.(selectdim(A, N, i)))
     end
-    s ./= ExactReal(2)
+    s ./= exact(2)
     return s
 end
 
@@ -1496,7 +1496,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector
     @inbounds for i ∈ ord-1:-1:1
         s = s * ν + abs(A[i])
     end
-    s *= ExactReal(2) * ν
+    s *= exact(2) * ν
     return s
 end
 function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
@@ -1509,7 +1509,7 @@ function _apply(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{
     @inbounds for i ∈ ord-1:-1:1
         s .= s .* ν .+ abs.(selectdim(A, N, i))
     end
-    s .*= ExactReal(2) * ν
+    s .*= exact(2) * ν
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractVector{T}) where {T}
@@ -1519,7 +1519,7 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractV
         νⁱ *= ν
         s = max(s, abs(A[i]) * νⁱ)
     end
-    s /= ExactReal(2)
+    s /= exact(2)
     return s
 end
 function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
@@ -1532,11 +1532,11 @@ function _apply_dual(X::Ell1{<:GeometricWeight}, space::SinFourier, A::AbstractA
         νⁱ *= ν
         s .= max.(s, abs.(selectdim(A, N, i)) .* νⁱ)
     end
-    s ./= ExactReal(2)
+    s ./= exact(2)
     return s
 end
 
-_apply(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = ExactReal(2) * maximum(abs, A)
+_apply(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = exact(2) * maximum(abs, A)
 function _apply(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1546,10 +1546,10 @@ function _apply(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,
     @inbounds for i ∈ ord-1:-1:1
         s .= max.(s, abs.(selectdim(A, N, i)))
     end
-    s .*= ExactReal(2)
+    s .*= exact(2)
     return s
 end
-_apply_dual(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = sum(abs, A) / ExactReal(2)
+_apply_dual(::EllInf{IdentityWeight}, ::SinFourier, A::AbstractVector) = sum(abs, A) / exact(2)
 function _apply_dual(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArray{T,N}) where {T,N}
     CoefType = typeof(abs(zero(T)))
     ord = order(space)
@@ -1559,6 +1559,6 @@ function _apply_dual(::EllInf{IdentityWeight}, space::SinFourier, A::AbstractArr
     @inbounds for i ∈ ord-1:-1:1
         s .+= abs.(selectdim(A, N, i))
     end
-    s ./= ExactReal(2)
+    s ./= exact(2)
     return s
 end

@@ -28,7 +28,7 @@ function Base.inv(a::InfiniteSequence)
     X = banachspace(a)
     approx_a⁻¹ = InfiniteSequence(eltype(a) <: RealOrComplexI ? interval.(seq_approx_a⁻¹) : seq_approx_a⁻¹, X)
 
-    f = approx_a⁻¹ * a - ExactReal(1)
+    f = approx_a⁻¹ * a - exact(1)
     Y = norm(approx_a⁻¹ * f)
     Z₁ = norm(f)
     r, _ = interval_of_existence(Y, Z₁, Inf; verbose = false)
@@ -78,7 +78,7 @@ function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
     approx_b⁻¹ = InfiniteSequence(eltype(b) <: RealOrComplexI ? interval.(seq_approx_b⁻¹) : seq_approx_b⁻¹, X)
 
     Y = norm(approx_b⁻¹ * (approx_ab⁻¹ * b - a))
-    Z₁ = norm(approx_b⁻¹ * b - ExactReal(1))
+    Z₁ = norm(approx_b⁻¹ * b - exact(1))
     r, _ = interval_of_existence(Y, Z₁, Inf; verbose = false)
 
     return InfiniteSequence(sequence(approx_ab⁻¹), eltype(a) <: RealOrComplexI ? interval(inf(r)) : inf(r), X)
@@ -140,8 +140,8 @@ function Base.sqrt(a::InfiniteSequence)
     approx_sqrta = InfiniteSequence(eltype(a) <: RealOrComplexI ? interval.(seq_approx_sqrta) : seq_approx_sqrta, X)
     approx_sqrta⁻¹ = InfiniteSequence(eltype(a) <: RealOrComplexI ? interval.(seq_approx_sqrta⁻¹) : seq_approx_sqrta⁻¹, X)
 
-    Y = norm(approx_sqrta⁻¹ * (approx_sqrta ^ 2 - a)) / ExactReal(2)
-    Z₁ = norm(approx_sqrta⁻¹ * approx_sqrta - ExactReal(1))
+    Y = norm(approx_sqrta⁻¹ * (approx_sqrta ^ 2 - a)) / exact(2)
+    Z₁ = norm(approx_sqrta⁻¹ * approx_sqrta - exact(1))
     Z₂ = norm(approx_sqrta⁻¹)
     r, _ = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = false)
 
@@ -186,12 +186,12 @@ function Base.cbrt(a::InfiniteSequence)
     approx_cbrta⁻² = InfiniteSequence(eltype(a) <: RealOrComplexI ? interval.(seq_approx_cbrta⁻²) : seq_approx_cbrta⁻², X)
 
     approx_cbrta² = approx_cbrta ^ 2
-    Y = norm(approx_cbrta⁻² * (approx_cbrta² * approx_cbrta - a)) / ExactReal(3)
-    Z₁ = norm(approx_cbrta⁻² * approx_cbrta² - ExactReal(1))
+    Y = norm(approx_cbrta⁻² * (approx_cbrta² * approx_cbrta - a)) / exact(3)
+    Z₁ = norm(approx_cbrta⁻² * approx_cbrta² - exact(1))
     v = 2mid(norm(approx_cbrta⁻²)) * mid(norm(approx_cbrta))
     w = 2mid(norm(approx_cbrta⁻²))
     R = max(2sup(Y), (-v + sqrt(v^2 - 2w*(mid(Z₁) - 1))) / w) # could use: 0.1sup( (1-Z₁)^2/(4Y * norm(approx_cbrta⁻²)) - norm(approx_cbrta) )
-    Z₂ = ExactReal(2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + ExactReal(R))
+    Z₂ = exact(2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + exact(R))
     r, _ = interval_of_existence(Y, Z₁, Z₂, R; verbose = false)
 
     return InfiniteSequence(sequence(approx_cbrta), eltype(a) <: RealOrComplexI ? interval(inf(r)) : inf(r), X)
@@ -414,14 +414,14 @@ function _contour(f, a, ν)
     grid_a_δ = zeros(CoefType, N_fft)
 
     A = coefficients(a)
-    @inbounds view(grid_a_δ, eachindex(A)) .= A # ExactReal.(mid.(A))
+    @inbounds view(grid_a_δ, eachindex(A)) .= A # exact.(mid.(A))
     _preprocess!(grid_a_δ, space(a))
     _boxes!(grid_a_δ, ν)
 
     _fft_pow2!(grid_a_δ)
     contour_integral = sum(abs ∘ f, grid_a_δ)
 
-    return contour_integral / ExactReal(N_fft)
+    return contour_integral / exact(N_fft)
 end
 
 _contour(f, a, ν::NTuple{1}) = _contour(f, a, ν[1])
@@ -433,14 +433,14 @@ function _contour(f, a, ν::Tuple)
     grid_a_δ = zeros(CoefType, N_fft)
 
     A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
-    @inbounds view(grid_a_δ, axes(A)...) .= A # ExactReal.(mid.(A))
+    @inbounds view(grid_a_δ, axes(A)...) .= A # exact.(mid.(A))
     _apply_preprocess!(grid_a_δ, space(a))
     _apply_boxes!(grid_a_δ, ν)
 
     _fft_pow2!(grid_a_δ)
     contour_integral = sum(abs ∘ f, grid_a_δ)
 
-    return contour_integral / ExactReal(prod(N_fft))
+    return contour_integral / exact(prod(N_fft))
 end
 
 _apply_boxes!(C::AbstractArray{S,N₁}, ν::NTuple{N₂}) where {S,N₁,N₂} =
@@ -454,16 +454,16 @@ function _boxes!(C, μ::Interval)
     val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
     δ = interval(-val, val)
     @inbounds for k ∈ 1:len÷2-1
-        C[k+1]     *= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
-        C[len+1-k] *= μ ^ ExactReal( k) * cispi(ExactReal( k) * δ)
+        C[k+1]     *= μ ^ exact(-k) * cispi(exact(-k) * δ)
+        C[len+1-k] *= μ ^ exact( k) * cispi(exact( k) * δ)
     end
     return C
 end
 function _boxes!(C, ν)
     len = length(C)
     @inbounds for k ∈ 1:len÷2-1
-        C[k+1]     *= ν ^ ExactReal(-k)
-        C[len+1-k] *= ν ^ ExactReal( k)
+        C[k+1]     *= ν ^ exact(-k)
+        C[len+1-k] *= ν ^ exact( k)
     end
     return C
 end
@@ -473,16 +473,16 @@ function _boxes!(C, μ::Interval, ::Val{D}) where {D}
     val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
     δ = interval(-val, val)
     @inbounds for k ∈ 1:len÷2-1
-        selectdim(C, D, k+1)     .*= μ ^ ExactReal(-k) * cispi(ExactReal(-k) * δ)
-        selectdim(C, D, len+1-k) .*= μ ^ ExactReal( k) * cispi(ExactReal( k) * δ)
+        selectdim(C, D, k+1)     .*= μ ^ exact(-k) * cispi(exact(-k) * δ)
+        selectdim(C, D, len+1-k) .*= μ ^ exact( k) * cispi(exact( k) * δ)
     end
     return C
 end
 function _boxes!(C, ν, ::Val{D}) where {D}
     len = size(C, D)
     @inbounds for k ∈ 1:len÷2-1
-        selectdim(C, D, k+1)     .*= ν ^ ExactReal(-k)
-        selectdim(C, D, len+1-k) .*= ν ^ ExactReal( k)
+        selectdim(C, D, k+1)     .*= ν ^ exact(-k)
+        selectdim(C, D, len+1-k) .*= ν ^ exact( k)
     end
     return C
 end
@@ -496,9 +496,9 @@ function _error(f, a, approx, ν, ν̄, N_v)
 
     C = max(_contour(f, a, ν̄), _contour(f, a, ν̄⁻¹))
 
-    q = sum(k -> (ν̄ ^ ExactReal(k) + ν̄⁻¹ ^ ExactReal(k)) * ν ^ ExactReal(abs(k)), -N_v:N_v)
+    q = sum(k -> (ν̄ ^ exact(k) + ν̄⁻¹ ^ exact(k)) * ν ^ exact(abs(k)), -N_v:N_v)
 
-    return C, q / prod(ν̄ ^ ExactReal( fft_size(space(approx)) ) - ExactReal(1)) + ExactReal(2) * ν̄ / (ν̄ - ν) * (ν * ν̄⁻¹) ^ ExactReal(N_v + 1)
+    return C, q / prod(ν̄ ^ exact( fft_size(space(approx)) ) - exact(1)) + exact(2) * ν̄ / (ν̄ - ν) * (ν * ν̄⁻¹) ^ exact(N_v + 1)
 end
 
 function _error(f, a, approx, ν::NTuple{N}, ν̄, N_v) where {N}
@@ -508,9 +508,9 @@ function _error(f, a, approx, ν::NTuple{N}, ν̄, N_v) where {N}
 
     C = maximum(μ -> _contour(f, a, μ), _mix_)
 
-    q = sum(k -> sum(μ -> prod(μ .^ ExactReal.(k)), _mix_) * prod(ν .^ ExactReal.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
+    q = sum(k -> sum(μ -> prod(μ .^ exact.(k)), _mix_) * prod(ν .^ exact.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
 
-    return C, q / prod(ν̄ .^ ExactReal.( fft_size(space(approx)) ) .- ExactReal(1)) + ExactReal(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ ExactReal.(N_v .+ 1))
+    return C, q / prod(ν̄ .^ exact.( fft_size(space(approx)) ) .- exact(1)) + exact(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ exact.(N_v .+ 1))
 end
 
 
@@ -572,7 +572,7 @@ function nonlinearity(g::Function, a::InfiniteSequence;
         _tuple_ = tuple(ν̄, ν̄⁻¹)
         _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
 
-        r_star = ExactReal(1) + sequence_error(a)
+        r_star = exact(1) + sequence_error(a)
         circle = r_star * cispi(interval(IntervalArithmetic.numtype(r_star), -1, 1))
 
         # Contour estimate

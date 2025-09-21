@@ -59,7 +59,9 @@ $(document).ready(function() {
     }
   ],
   "macros": {
-    "\\bydef": "\\stackrel{\\tiny\\text{def}}{=}"
+    "\\bx": "\\bar{x}",
+    "\\bydef": "\\stackrel{\\tiny\\text{def}}{=}",
+    "\\tx": "x^\\star"
   }
 }
 

@@ -25,7 +25,7 @@ Sequence in Taylor(2) with coefficients Vector{Float64}:
  1.0
 Norm of the truncated sequence: 4.0
 Sequence error: 0.1
-Banach space: Ell1(IdentityWeight())
+Banach space: ℓ¹()
 ```
 """
 struct InfiniteSequence{T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} <: AbstractSequence

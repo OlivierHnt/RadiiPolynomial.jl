@@ -42,7 +42,7 @@ R = 1e-14
 
 Y = abs(Ψ(interval(λ̄₀), interval(0), τ))
 Z₁ = abs(1 - interval(DΨ(λ̄₀, 0, mid(τ))) \ DΨ(interval(λ̄₀, R; format = :midpoint), interval(0), τ))
-ϵ₀ = inf(interval_of_existence(Y, Z₁, R))
+ϵ₀ = inf(interval_of_existence(Y, Z₁, R)[1])
 λ₀ = interval(λ̄₀, ϵ₀; format = :midpoint)
 
 setdisplay(:full)
@@ -57,7 +57,7 @@ Similarly, for the equilibria ``c = 1`` and ``c = -1``, we may use the same stra
 
 Y = abs(Ψ(interval(λ̄₁), interval(1), τ))
 Z₁ = abs(1 - interval(DΨ(λ̄₁, 1, τ)) \ DΨ(interval(λ̄₁, R; format = :midpoint), interval(1), τ))
-ϵ₁ = inf(interval_of_existence(Y, Z₁, R))
+ϵ₁ = inf(interval_of_existence(Y, Z₁, R)[1])
 λ₁ = interval(λ̄₁, ϵ₁; format = :midpoint)
 
 setdisplay(:full)

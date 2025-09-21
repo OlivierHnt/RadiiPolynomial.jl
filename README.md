@@ -14,7 +14,7 @@ The official documentation is available online: https://OlivierHnt.github.io/Rad
 
 ### 🛠️ Installation
 
-The RadiiPolynomial.jl package requires to [install Julia](https://julialang.org/downloads/) (v1.9 or above).
+The RadiiPolynomial.jl package requires to [install Julia](https://julialang.org/downloads/) (v1.10 or above).
 
 Then, start Julia and execute the following command in the REPL:
 

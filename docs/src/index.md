@@ -14,7 +14,7 @@ Julia colors:
     <h3 style="text-align: center; color: #CA3C32;">Installation</h3>
 ```
 ```julia-repl
-julia> using Pkg # Julia v1.9 or above
+julia> using Pkg # Julia v1.10 or above
 
 julia> Pkg.add("RadiiPolynomial")
 ```

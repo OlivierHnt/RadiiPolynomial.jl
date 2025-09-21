@@ -5,16 +5,15 @@
         c = Sequence(ParameterSpace() × (Taylor(0) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
         d = Sequence(ParameterSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
 
-        @test +(4.0\(8.0*a*3.0))/3.0 == a + a == a - (-a) == add_bar(a, a) == sub_bar(a, -a)
+        @test +(4.0\(8.0*a*3.0))/3.0 == a + a == a - (-a)
 
         @test a + b == a - (-b) == ladd!(a, copy(b)) == lsub!(a, -b)
-        @test add_bar(a, b) == sub_bar(a, -b) == radd!(copy(a), b) == rsub!(copy(a), -b)
+        @test radd!(copy(a), b) == rsub!(copy(a), -b)
 
         @test a + c == a - (-c) == radd!(copy(a), c) == rsub!(copy(a), -c)
-        @test add_bar(a, c) == sub_bar(a, -c) == ladd!(a, copy(c)) == lsub!(a, -c)
+        @test ladd!(a, copy(c)) == lsub!(a, -c)
 
         @test a + d == a - (-d)
-        @test add_bar(a, d) == sub_bar(a, -d)
     end
 
     @testset "LinearOperator" begin
@@ -28,17 +27,16 @@
         C = LinearOperator(𝒮₃, 𝒮₁, [i+j for i ∈ indices(𝒮₁), j ∈ indices(𝒮₃)])
         D = LinearOperator(𝒮₄, 𝒮₁, [i+j for i ∈ indices(𝒮₁), j ∈ indices(𝒮₄)])
 
-        @test +(4.0\(8.0*A*3.0))/3.0 == A + A == A - (-A) == add_bar(A, A) == sub_bar(A, -A)
+        @test +(4.0\(8.0*A*3.0))/3.0 == A + A == A - (-A)
         @test A == (A - I) + I == -(I - (I + A)) == radd!(rsub!(copy(A), I), I) == -lsub!(I, ladd!(I, copy(A)))
 
         @test A + B == A - (-B) == ladd!(A, copy(B)) == lsub!(A, -B)
-        @test add_bar(A, B) == sub_bar(A, -B) == radd!(copy(A), B) == rsub!(copy(A), -B)
+        @test radd!(copy(A), B) == rsub!(copy(A), -B)
 
         @test A + C == A - (-C) == radd!(copy(A), C) == rsub!(copy(A), -C)
-        @test add_bar(A, C) == sub_bar(A, -C) == ladd!(A, copy(C)) == lsub!(A, -C)
+        @test ladd!(A, copy(C)) == lsub!(A, -C)
 
         @test A + D == A - (-D)
-        @test add_bar(A, D) == sub_bar(A, -D)
 
         @test A*A == A^2
         @test A * B == mul!(similar(B), A, B, true, false)
@@ -51,7 +49,7 @@
 
     @testset "Convolution" begin
         function conv(a, b)
-            space_c = image(*, space(a), space(b))
+            space_c = codomain(*, space(a), space(b))
             c = Sequence(space_c, Vector{Float64}(undef, dimension(space_c)))
             n = fft_size(space_c)
             rifft!(c, fft(a, n) .* fft(b, n))
@@ -61,30 +59,22 @@
         a = Sequence(Taylor(1), [1.0, 2.0])
         b = Sequence(Taylor(2), [1.0, 2.0, 3.0])
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
-        @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
-        @test add_bar(3a * b, 4b) == mul!(2b, a, b, 3, 2)
+        @test conv(a, b) ≈ a * b
 
         a = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0])
         b = Sequence(Fourier(2, 1.0), [1.0, 2.0, 3.0, 4.0, 5.0])
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
-        @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
-        @test add_bar(3a * b, 4b) == mul!(2b, a, b, 3, 2)
+        @test conv(a, b) ≈ a * b
 
         a = Sequence(Chebyshev(1), [1.0, 2.0])
         b = Sequence(Chebyshev(2), [1.0, 2.0, 3.0])
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
-        @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
-        @test add_bar(3a * b, 4b) == mul!(2b, a, b, 3, 2)
+        @test conv(a, b) ≈ a * b
 
         a = Sequence(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), collect(1.0:12.0))
         b = Sequence(Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1), collect(1.0:6.0))
         @test conv(a, a) ≈ a * a == a ^ 2
-        @test conv(a, b) ≈ a * b == mul!(a * b, a, b)
-        @test mul_bar(a, a) == pow_bar(a, 2) == mul!(zero(mul_bar(a, a)), a, a)
-        @test add_bar(3a * b, 4b) == mul!(2b, a, b, 3, 2)
+        @test conv(a, b) ≈ a * b
 
         # symmetry
 

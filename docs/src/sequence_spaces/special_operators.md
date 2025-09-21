@@ -48,7 +48,7 @@ a * b
 A finite dimensional truncation of [`Multiplication`](@ref) may be obtained via [`project`](@ref project(::Multiplication, ::SequenceSpace, ::SequenceSpace)) or [`project!`](@ref project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)).
 
 ```@repl special_operators
-project(ℳ, Taylor(2), image(*, Taylor(1), Taylor(2)))
+project(ℳ, Taylor(2), codomain(*, Taylor(1), Taylor(2)))
 ```
 
 ## Derivation and integration
@@ -65,8 +65,8 @@ differentiate(a)
 A finite dimensional truncation of [`Derivative`](@ref) and [`Integral`](@ref) may be obtained via [`project`](@ref) or [`project!`](@ref):
 
 ```@repl special_operators
-project(Derivative(1), Taylor(2), image(Derivative(1), Taylor(2)), Float64)
-project(Integral(1), Taylor(2), image(Integral(1), Taylor(2)), Float64)
+project(Derivative(1), Taylor(2), codomain(Derivative(1), Taylor(2)), Float64)
+project(Integral(1), Taylor(2), codomain(Integral(1), Taylor(2)), Float64)
 ```
 
 ## Evaluation
@@ -92,7 +92,7 @@ evaluate(c, 0.1) # Evaluation(0.1) * c
 A finite dimensional truncation of [`Evaluation`](@ref) may be obtained via [`project`](@ref project(::Evaluation, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Evaluation)):
 
 ```@repl special_operators
-project(Evaluation(0.1), Taylor(2), image(Evaluation(0.1), Taylor(2)), Float64)
+project(Evaluation(0.1), Taylor(2), codomain(Evaluation(0.1), Taylor(2)), Float64)
 ```
 
 Furthermore, in the context of [`Evaluation`](@ref), the concept of compatibility between two [`VectorSpace`](@ref) is more permissive to allow manipulating [`Evaluation`](@ref) more like a functional:
@@ -118,7 +118,7 @@ scale(a, 2)
 A finite dimensional truncation of [`Scale`](@ref) may be obtained via [`project`](@ref project(::Scale, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Scale)):
 
 ```@repl special_operators
-project(Scale(2), Taylor(2), image(Scale(2), Taylor(2)), Float64)
+project(Scale(2), Taylor(2), codomain(Scale(2), Taylor(2)), Float64)
 ```
 
 ## Shift
@@ -138,7 +138,7 @@ shift(a, π)
 A finite dimensional truncation of [`Shift`](@ref) may be obtained via [`project`](@ref project(::Shift, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Shift)):
 
 ```@repl special_operators
-project(Shift(π), Fourier(1, 1.0), image(Shift(π), Fourier(1, 1.0)), Complex{Float64})
+project(Shift(π), Fourier(1, 1.0), codomain(Shift(π), Fourier(1, 1.0)), Complex{Float64})
 ```
 
 ## API

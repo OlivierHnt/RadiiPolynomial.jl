@@ -71,9 +71,9 @@ Consider the fixed-point operator ``T : \ell^1_{\nu, \mathbb{N}} \to \ell^1_{\nu
 T(x) \bydef x - A F(x),
 ```
 
-where ``A : \ell^1_{\nu, \mathbb{N}} \to \ell^1_{\nu, \mathbb{N}}`` is an injective operator corresponding to an approximation of ``DF(\bar{x})^{-1}`` for some numerical zero ``\bar{x} \in \ell^1_{\nu, \mathbb{N}}`` of ``F``.
+where ``A : \ell^1_{\nu, \mathbb{N}} \to \ell^1_{\nu, \mathbb{N}}`` is an injective operator corresponding to an approximation of ``DF(\bx)^{-1}`` for some numerical zero ``\bx \in \ell^1_{\nu, \mathbb{N}}`` of ``F``.
 
-Given an initial guess, the numerical zero ``\bar{x}`` of ``F`` may be obtained by Newton's method:
+Given an initial guess, the numerical zero ``\bx`` of ``F`` may be obtained by Newton's method:
 
 ```@example logistic_ivp
 n = 27
@@ -84,7 +84,7 @@ x̄, success = newton!((F, DF, x) -> (F!(F, x), DF!(DF, x)), x̄)
 nothing # hide
 ```
 
-Let ``R > 0``. Since ``T \in C^2(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``\|T(\bar{x}) - \bar{x}\|_{\ell^1_{\nu, \mathbb{N}}}``, ``\|DT(\bar{x})\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})}`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}}))}``.
+Let ``R > 0``. Since ``T \in C^2(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})`` we may use the [second-order Radii Polynomial Theorem](@ref second_order_RPT) such that we need to estimate ``\|T(\bx) - \bx\|_{\ell^1_{\nu, \mathbb{N}}}``, ``\|DT(\bx)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})}`` and ``\sup_{x \in \text{cl}( B_R(\bx) )} \|D^2T(x)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}}))}``.
 
 To this end, consider the truncation operator
 
@@ -101,9 +101,9 @@ Thus, we have
 
 ```math
 \begin{aligned}
-\|T(\bar{x}) - \bar{x}\|_{\ell^1_{\nu, \mathbb{N}}} &\le \|\Pi_n A \Pi_n F(\bar{x})\|_{\ell^1_{\nu, \mathbb{N}}} + \frac{1}{n+1} \|\Pi_{\infty(n)} F(\bar{x})\|_{\ell^1_{\nu, \mathbb{N}}},\\
-\|DT(\bar{x})\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})} &\le \max\left(\|\Pi_n A \Pi_n DF(\bar{x}) \Pi_n - \Pi_n\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})}, \frac{\nu}{n+1} \|2\bar{x} - 1\|_{\ell^1_{\nu, \mathbb{N}}}\right),\\
-\sup_{x \in \text{cl}( B_R(\bar{x}) )} \|D^2T(x)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}}))} &\le 2 \nu \left( \|\Pi_n A \Pi_n\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})} + \frac{1}{n+1} \right).
+\|T(\bx) - \bx\|_{\ell^1_{\nu, \mathbb{N}}} &\le \|\Pi_n A \Pi_n F(\bx)\|_{\ell^1_{\nu, \mathbb{N}}} + \frac{1}{n+1} \|\Pi_{\infty(n)} F(\bx)\|_{\ell^1_{\nu, \mathbb{N}}},\\
+\|DT(\bx)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})} &\le \max\left(\|\Pi_n A \Pi_n DF(\bx) \Pi_n - \Pi_n\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})}, \frac{\nu}{n+1} \|2\bx - 1\|_{\ell^1_{\nu, \mathbb{N}}}\right),\\
+\sup_{x \in \text{cl}( B_R(\bx) )} \|D^2T(x)\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}}))} &\le 2 \nu \left( \|\Pi_n A \Pi_n\|_{\mathscr{B}(\ell^1_{\nu, \mathbb{N}}, \ell^1_{\nu, \mathbb{N}})} + \frac{1}{n+1} \right).
 \end{aligned}
 ```
 

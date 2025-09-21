@@ -1,3 +1,64 @@
+add!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator) = add!(C, project(S₁, domain(C), codomain(C), eltype(C)), S₂)
+add!(C::LinearOperator, S::AbstractLinearOperator, A::LinearOperator) = add!(C, project(S, domain(C), codomain(C), eltype(C)), A)
+add!(C::LinearOperator, A::LinearOperator, S::AbstractLinearOperator) = add!(C, A, project(S, domain(C), codomain(C), eltype(C)))
+
+sub!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator) = sub!(C, project(S₁, domain(C), codomain(C), eltype(C)), S₂)
+sub!(C::LinearOperator, S::AbstractLinearOperator, A::LinearOperator) = sub!(C, project(S, domain(C), codomain(C), eltype(C)), A)
+sub!(C::LinearOperator, A::LinearOperator, S::AbstractLinearOperator) = sub!(C, A, project(S, domain(C), codomain(C), eltype(C)))
+
+radd!(A::LinearOperator, S::AbstractLinearOperator) = radd!(A, project(S, domain(A), codomain(A), eltype(A)))
+rsub!(A::LinearOperator, S::AbstractLinearOperator) = rsub!(A, project(S, domain(A), codomain(A), eltype(A)))
+
+ladd!(S::AbstractLinearOperator, A::LinearOperator) = ladd!(project(S, domain(A), codomain(A), eltype(A)), A)
+lsub!(S::AbstractLinearOperator, A::LinearOperator) = lsub!(project(S, domain(A), codomain(A), eltype(A)), A)
+
+Base.:*(S::AbstractLinearOperator, A::LinearOperator) = project(S, codomain(A), codomain(S, codomain(A)), _coeftype(S, codomain(A), eltype(A))) * A
+Base.:*(A::LinearOperator, S::AbstractLinearOperator) = A * project(S, _infer_domain(S, domain(A)), domain(A), _coeftype(S, _infer_domain(S, domain(A)), eltype(A)))
+
+function mul!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator, α::Number, β::Number)
+    domain_C = domain(C)
+    return mul!(C, S₁, project(S₂, domain_C, codomain(S₂, domain_C), eltype(C)), α, β)
+end
+mul!(C::LinearOperator, S::AbstractLinearOperator, A::LinearOperator, α::Number, β::Number) =
+    mul!(C, project(S, codomain(A), codomain(C), eltype(C)), A, α, β)
+mul!(C::LinearOperator, A::LinearOperator, S::AbstractLinearOperator, α::Number, β::Number) =
+    mul!(C, A, project(S, domain(C), domain(A), eltype(C)), α, β)
+
+#
+
+function Base.:+(A::LinearOperator, S::AbstractLinearOperator)
+    domain_A = domain(A)
+    new_codomain = codomain(+, codomain(A), codomain(S, domain_A))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    ladd!(A, project!(C, S))
+    return C
+end
+function Base.:+(S::AbstractLinearOperator, A::LinearOperator)
+    domain_A = domain(A)
+    new_codomain = codomain(+, codomain(S, domain_A), codomain(A))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    radd!(project!(C, S), A)
+    return C
+end
+function Base.:-(A::LinearOperator, S::AbstractLinearOperator)
+    domain_A = domain(A)
+    new_codomain = codomain(-, codomain(A), codomain(S, domain_A))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    lsub!(A, project!(C, S))
+    return C
+end
+function Base.:-(S::AbstractLinearOperator, A::LinearOperator)
+    domain_A = domain(A)
+    new_codomain = codomain(-, codomain(S, domain_A), codomain(A))
+    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
+    rsub!(project!(C, S), A)
+    return C
+end
+
+
+
+
+
 # fallback methods
 
 Base.:+(A::LinearOperator) = LinearOperator(domain(A), codomain(A), +(coefficients(A)))
@@ -21,7 +82,7 @@ function Base.:*(A::LinearOperator, B::LinearOperator)
     _iscompatible(domain_A, codomain_B) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, B has codomain $codomain_B"))
     CoefType = promote_type(eltype(A), eltype(B))
     C = LinearOperator(domain_B, codomain_A, Matrix{CoefType}(undef, dimension(codomain_A), dimension(domain_B)))
-    _mul!(C, A, B, convert(real(CoefType), ExactReal(true)), convert(real(CoefType), ExactReal(false)))
+    _mul!(C, A, B, convert(real(CoefType), exact(true)), convert(real(CoefType), exact(false)))
     return C
 end
 
@@ -37,7 +98,7 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B
         if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+            mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
             if iszero(β)
                 coefficients(C) .= zero(eltype(C))
@@ -46,12 +107,12 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, convert(real(eltype(C)), ExactReal(true)))
+            @inbounds mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, convert(real(eltype(C)), exact(true)))
         end
     else
         inds_mult = indices(domain_A ∩ codomain_B)
         if domain_B == domain_C && codomain_A == codomain_C
-            @inbounds __mul!(coefficients(C), view(A, :, inds_mult), view(B, inds_mult, :), α, β)
+            @inbounds mul!(coefficients(C), view(A, :, inds_mult), view(B, inds_mult, :), α, β)
         else
             if iszero(β)
                 coefficients(C) .= zero(eltype(C))
@@ -60,7 +121,7 @@ function _mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numb
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, inds_mult), view(B, inds_mult, inds_domain), α, convert(real(eltype(C)), ExactReal(true)))
+            @inbounds mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, inds_mult), view(B, inds_mult, inds_domain), α, convert(real(eltype(C)), exact(true)))
         end
     end
     return C
@@ -134,7 +195,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $f(A::LinearOperator, B::LinearOperator)
             domain_A, codomain_A = domain(A), codomain(A)
             domain_B, codomain_B = domain(B), codomain(B)
-            new_domain, new_codomain = image($f, domain_A, domain_B), image($f, codomain_A, codomain_B)
+            new_domain, new_codomain = codomain($f, domain_A, domain_B), codomain($f, codomain_A, codomain_B)
             CoefType = promote_type(eltype(A), eltype(B))
             C = LinearOperator(new_domain, new_codomain, Matrix{CoefType}(undef, dimension(new_codomain), dimension(new_domain)))
             $_f!(C, A, B)
@@ -142,7 +203,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         end
 
         function $f!(C::LinearOperator, A::LinearOperator, B::LinearOperator)
-            _iscompatible(domain(C), image($f, domain(A), domain(B))) & _iscompatible(codomain(C), image($f, codomain(A), codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
+            _iscompatible(domain(C), codomain($f, domain(A), domain(B))) & _iscompatible(codomain(C), codomain($f, codomain(A), codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
             $_f!(C, A, B)
             return C
         end
@@ -150,7 +211,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $rf!(A::LinearOperator, B::LinearOperator)
             domain_A = domain(A)
             codomain_A = codomain(A)
-            _iscompatible(domain_A, image($f, domain_A, domain(B))) & _iscompatible(codomain_A, image($f, codomain_A, codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
+            _iscompatible(domain_A, codomain($f, domain_A, domain(B))) & _iscompatible(codomain_A, codomain($f, codomain_A, codomain(B))) || return throw(ArgumentError("spaces must be compatible"))
             $_rf!(A, B)
             return A
         end
@@ -158,22 +219,10 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $lf!(A::LinearOperator, B::LinearOperator)
             domain_B = domain(B)
             codomain_B = codomain(B)
-            _iscompatible(domain_B, image($f, domain(A), domain_B)) & _iscompatible(codomain_B, image($f, codomain(A), codomain_B)) || return throw(ArgumentError("spaces must be compatible"))
+            _iscompatible(domain_B, codomain($f, domain(A), domain_B)) & _iscompatible(codomain_B, codomain($f, codomain(A), codomain_B)) || return throw(ArgumentError("spaces must be compatible"))
             $_lf!(A, B)
             return B
         end
-    end
-end
-
-for (f, _f!) ∈ ((:add_bar, :_add!), (:sub_bar, :_sub!))
-    @eval function $f(A::LinearOperator, B::LinearOperator)
-        domain_A, codomain_A = domain(A), codomain(A)
-        domain_B, codomain_B = domain(B), codomain(B)
-        new_domain, new_codomain = image($f, domain_A, domain_B), image($f, codomain_A, codomain_B)
-        CoefType = promote_type(eltype(A), eltype(B))
-        C = LinearOperator(new_domain, new_codomain, Matrix{CoefType}(undef, dimension(new_codomain), dimension(new_domain)))
-        $_f!(C, A, B)
-        return C
     end
 end
 
@@ -352,7 +401,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
@@ -366,7 +415,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
             @inbounds for k ∈ 1:l
                 Bₖⱼ = component(B, k, j)
                 @inbounds for i ∈ 1:n
-                    _mul!(component(C, i, j), component(A, i, k), Bₖⱼ, α, convert(real(eltype(C)), ExactReal(true)))
+                    _mul!(component(C, i, j), component(A, i, k), Bₖⱼ, α, convert(real(eltype(C)), exact(true)))
                 end
             end
         end
@@ -379,7 +428,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         n = nspaces(codomain(A))
         m = nspaces(domain(B))
@@ -398,7 +447,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nspaces(domain_A)
         m = nspaces(domain_B)
@@ -410,7 +459,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
         @inbounds for j ∈ 1:m
             Cⱼ = component(C, j)
             @inbounds for k ∈ 1:l
-                _mul!(Cⱼ, component(A, k), component(B, k, j), α, convert(real(eltype(C)), ExactReal(true)))
+                _mul!(Cⱼ, component(A, k), component(B, k, j), α, convert(real(eltype(C)), exact(true)))
             end
         end
     end
@@ -422,7 +471,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for j ∈ 1:nspaces(domain_B)
             _mul!(component(C, j), A, component(B, j), α, β)
@@ -436,7 +485,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         l = nspaces(domain_A)
         n = nspaces(codomain_A)
@@ -448,7 +497,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
         @inbounds for k ∈ 1:l
             Bₖ = component(B, k)
             @inbounds for i ∈ 1:n
-                _mul!(component(C, i), component(A, i, k), Bₖ, α, convert(real(eltype(C)), ExactReal(true)))
+                _mul!(component(C, i), component(A, i, k), Bₖ, α, convert(real(eltype(C)), exact(true)))
             end
         end
     end
@@ -460,7 +509,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
     domain_B, codomain_B = domain(B), codomain(B)
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B && domain_B == domain_C && codomain_A == codomain_C
-        __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+        mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for i ∈ 1:nspaces(codomain_A)
             _mul!(component(C, i), component(A, i), B, α, β)
@@ -475,7 +524,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
     domain_C, codomain_C = domain(C), codomain(C)
     if domain_A == codomain_B
         if domain_B == domain_C && codomain_A == codomain_C
-            __mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
+            mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
         else
             if iszero(β)
                 coefficients(C) .= zero(eltype(C))
@@ -484,7 +533,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
             end
             inds_domain = indices(domain_B ∩ domain_C)
             inds_codomain = indices(codomain_A ∩ codomain_C)
-            @inbounds __mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, convert(real(eltype(C)), ExactReal(true)))
+            @inbounds mul!(view(C, inds_codomain, inds_domain), view(A, inds_codomain, :), view(B, :, inds_domain), α, convert(real(eltype(C)), exact(true)))
         end
     else
         if iszero(β)
@@ -493,7 +542,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:nspaces(domain_A)
-            _mul!(C, component(A, k), component(B, k), α, convert(real(eltype(C)), ExactReal(true)))
+            _mul!(C, component(A, k), component(B, k), α, convert(real(eltype(C)), exact(true)))
         end
     end
     return C

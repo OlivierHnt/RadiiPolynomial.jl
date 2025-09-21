@@ -14,17 +14,21 @@ dimension(s::VectorSpace) = length(indices(s))
 _firstindex(s::VectorSpace) = first(indices(s))
 _lastindex(s::VectorSpace) = last(indices(s))
 
+_checkbounds_indices(α, s::VectorSpace) = α ∈ indices(s)
+_checkbounds_indices(α::Union{AbstractRange,AbstractVector}, s::VectorSpace) = all(∈(indices(s)), α)
 _checkbounds_indices(::Colon, ::VectorSpace) = true
-_checkbounds_indices(α, s::VectorSpace) = __checkbounds_indices(α, s)
-_checkbounds_indices(u::AbstractRange, s::VectorSpace) =
-    __checkbounds_indices(first(u), s) & __checkbounds_indices(last(u), s)
-_checkbounds_indices(u::AbstractVector, s::VectorSpace) =
-    all(uᵢ -> __checkbounds_indices(uᵢ, s), u)
+_checkbounds_indices(α::VectorSpace, space::VectorSpace) = issubset(α, space)
 
-__checkbounds_indices(::Colon, ::VectorSpace) = true
-__checkbounds_indices(α::Int, s::VectorSpace) = α ∈ indices(s)
+_iscompatible(::VectorSpace, ::VectorSpace) = false
 
+function _prettystring(s::VectorSpace, ::Bool)
+    T = typeof(s)
+    a, b... = fieldnames(T)
+    str = mapreduce(f -> string(getproperty(s, f)), (x, y) -> x * ", " * y, b; init = string(getproperty(s, a)))
+    return string(T) * "(" * str * ")"
+end
 
+#
 
 """
     EmptySpace <: VectorSpace
@@ -48,18 +52,14 @@ Base.issubset(::EmptySpace, ::EmptySpace) = true
 Base.intersect(::EmptySpace, ::EmptySpace) = EmptySpace()
 Base.union(::EmptySpace, ::EmptySpace) = EmptySpace()
 
-dimension(::EmptySpace) = 0
-_firstindex(::EmptySpace) = 1
-_lastindex(::EmptySpace) = 0
 indices(::EmptySpace) = Base.OneTo(0)
 
 _findposition(i, ::EmptySpace) = i
+_findposition(α::EmptySpace, s::EmptySpace) = _findposition(indices(α), s)
 
+_prettystring(::EmptySpace, iscompact::Bool) = ifelse(iscompact, "∅", "EmptySpace()")
 
-
-
-
-# Parameter space
+#
 
 """
     ParameterSpace <: VectorSpace
@@ -80,20 +80,21 @@ Base.issubset(::ParameterSpace, ::ParameterSpace) = true
 Base.intersect(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 Base.union(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 
-dimension(::ParameterSpace) = 1
-_firstindex(::ParameterSpace) = 1
-_lastindex(::ParameterSpace) = 1
+desymmetrize(s::ParameterSpace) = s
+
 indices(::ParameterSpace) = Base.OneTo(1)
 
-__checkbounds_indices(α::Int, ::ParameterSpace) = isone(α)
-
 _findposition(i, ::ParameterSpace) = i
+_findposition(α::ParameterSpace, s::ParameterSpace) = _findposition(indices(α), s)
 
+_iscompatible(::ParameterSpace, ::ParameterSpace) = true
 
+IntervalArithmetic.interval(::Type{T}, s::ParameterSpace) where {T} = s
+IntervalArithmetic.interval(s::ParameterSpace) = s
 
+_prettystring(::ParameterSpace, iscompact::Bool) = ifelse(iscompact, "𝕂", "ParameterSpace()")
 
-
-# Sequence spaces
+#
 
 """
     SequenceSpace <: VectorSpace
@@ -111,16 +112,33 @@ can be interlaced to form one.
 abstract type BaseSpace <: SequenceSpace end
 
 """
+    SymBaseSpace <: BaseSpace
+
+Abstract type for all symmetric sequence spaces that are not a
+[`TensorSpace`](@ref) but can be interlaced to form one.
+"""
+abstract type SymBaseSpace <: BaseSpace end
+
+order(s::SymBaseSpace) = order(desymmetrize(s))
+frequency(s::SymBaseSpace) = frequency(desymmetrize(s))
+
+Base.issubset(s₁::SymBaseSpace, s₂::SymBaseSpace) = false
+Base.issubset(s₁::SymBaseSpace, s₂::BaseSpace) = issubset(desymmetrize(s₁), s₂)
+Base.union(s₁::SymBaseSpace, s₂::SymBaseSpace) = union(desymmetrize(s₁), desymmetrize(s₂))
+Base.union(s₁::SymBaseSpace, s₂::BaseSpace) = union(desymmetrize(s₁), s₂)
+Base.union(s₁::BaseSpace, s₂::SymBaseSpace) = union(s₁, desymmetrize(s₂))
+
+"""
     TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
 
-Tensor space resulting from the tensor product of some [`BaseSpace`](@ref).
+Sequence space resulting from the tensor product of some [`BaseSpace`](@ref).
 
 Field:
 - `spaces :: T`
 
 Constructors:
-- `TensorSpace(::Tuple{Vararg{BaseSpace}})`
-- `TensorSpace(spaces::BaseSpace...)`: equivalent to `TensorSpace(spaces)`
+- `TensorSpace(spaces::Tuple{Vararg{BaseSpace}})`
+- `TensorSpace(spaces::BaseSpace...)`
 - `⊗(s₁::BaseSpace, s₂::BaseSpace)`: equivalent to `TensorSpace((s₁, s₂))`
 - `⊗(s₁::TensorSpace, s₂::TensorSpace)`: equivalent to `TensorSpace((s₁.spaces..., s₂.spaces...))`
 - `⊗(s₁::TensorSpace, s₂::BaseSpace)`: equivalent to `TensorSpace((s₁.spaces..., s₂))`
@@ -209,11 +227,18 @@ Base.intersect(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTu
 Base.union(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map(union, s₁.spaces, s₂.spaces))
 
-dimension(s::TensorSpace) = mapreduce(dimension, *, s.spaces)
 dimension(s::TensorSpace, i::Int) = dimension(s.spaces[i])
 dimensions(s::TensorSpace) = map(dimension, s.spaces)
 _firstindex(s::TensorSpace) = map(_firstindex, s.spaces)
 _lastindex(s::TensorSpace) = map(_lastindex, s.spaces)
+
+order(s::TensorSpace) = map(order, s.spaces)
+order(s::TensorSpace, i::Int) = order(s.spaces[i])
+
+frequency(s::TensorSpace) = map(frequency, s.spaces)
+frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
+
+desymmetrize(s::TensorSpace) = TensorSpace(map(desymmetrize, spaces(s)))
 
 """
     TensorIndices{<:Tuple}
@@ -285,14 +310,19 @@ _findposition(u::AbstractVector{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSp
     map(α -> _findposition(α, s), u)
 _findposition(::NTuple{N,Colon}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = Colon()
 _findposition(c::Colon, ::TensorSpace) = c
+_findposition(α::TensorSpace{<:NTuple{N,BaseSpace}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = _findposition(indices(α), s)
 
-# order, frequency
+_iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
+_iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
+    @inbounds _iscompatible(s₁[1], s₂[1])
 
-order(s::TensorSpace) = map(order, s.spaces)
-order(s::TensorSpace, i::Int) = order(s.spaces[i])
+IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = TensorSpace(map(sᵢ -> interval(T, sᵢ), s.spaces))
+IntervalArithmetic.interval(s::TensorSpace) = TensorSpace(map(interval, s.spaces))
 
-frequency(s::TensorSpace) = map(frequency, s.spaces)
-frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
+_prettystring(s::TensorSpace, iscompact::Bool) = _prettystring(s[1], iscompact) * " ⊗ " * _prettystring(Base.tail(s), iscompact)
+_prettystring(s::TensorSpace{<:NTuple{2,BaseSpace}}, iscompact::Bool) = _prettystring(s[1], iscompact) * " ⊗ " * _prettystring(s[2], iscompact)
+_prettystring(s::TensorSpace{<:Tuple{BaseSpace}}, iscompact::Bool) = "TensorSpace(" * _prettystring(s[1], iscompact) * ")"
 
 # promotion
 
@@ -307,13 +337,13 @@ Base.promote_rule(::Type{TensorSpace{T}}, ::Type{TensorSpace{S}}) where {T,S} =
 """
     Taylor <: BaseSpace
 
-Taylor sequence space whose elements are Taylor sequences of a prescribed order.
+Sequence space whose elements are Taylor sequences of a prescribed order.
 
 Field:
 - `order :: Int`
 
 Constructor:
-- `Taylor(::Int)`
+- `Taylor(order::Int)`
 
 See also: [`Fourier`](@ref) and [`Chebyshev`](@ref).
 
@@ -342,12 +372,9 @@ Base.issubset(s₁::Taylor, s₂::Taylor) = s₁.order ≤ s₂.order
 Base.intersect(s₁::Taylor, s₂::Taylor) = Taylor(min(s₁.order, s₂.order))
 Base.union(s₁::Taylor, s₂::Taylor) = Taylor(max(s₁.order, s₂.order))
 
-dimension(s::Taylor) = s.order + 1
-_firstindex(::Taylor) = 0
-_lastindex(s::Taylor) = s.order
-indices(s::Taylor) = 0:s.order
+desymmetrize(s::Taylor) = s
 
-__checkbounds_indices(α::Int, s::Taylor) = 0 ≤ α ≤ order(s)
+indices(s::Taylor) = 0:s.order
 
 _compatible_space_with_constant_index(s::Taylor) = s
 _findindex_constant(::Taylor) = 0
@@ -356,20 +383,28 @@ _findposition(i::Int, ::Taylor) = i + 1
 _findposition(u::AbstractRange{Int}, ::Taylor) = u .+ 1
 _findposition(u::AbstractVector{Int}, s::Taylor) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Taylor) = c
+_findposition(α::Taylor, s::Taylor) = _findposition(indices(α), s)
+
+_iscompatible(::Taylor, ::Taylor) = true
+
+IntervalArithmetic.interval(::Type{T}, s::Taylor) where {T} = s
+IntervalArithmetic.interval(s::Taylor) = s
+
+_prettystring(s::Taylor, ::Bool) = "Taylor(" * string(order(s)) * ")"
 
 #
 
 """
     Fourier{T<:Real} <: BaseSpace
 
-Fourier sequence space whose elements are Fourier sequences of a prescribed order and frequency.
+Sequence space whose elements are Fourier sequences of a prescribed order and frequency.
 
 Fields:
 - `order :: Int`
 - `frequency :: T`
 
 Constructor:
-- `Fourier(::Int, ::Real)`
+- `Fourier(order::Int, frequency::Real)`
 
 See also: [`Taylor`](@ref) and [`Chebyshev`](@ref).
 
@@ -414,12 +449,9 @@ function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
     return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 
-dimension(s::Fourier) = 2s.order + 1
-_firstindex(s::Fourier) = -s.order
-_lastindex(s::Fourier) = s.order
-indices(s::Fourier) = -s.order:s.order
+desymmetrize(s::Fourier) = s
 
-__checkbounds_indices(α::Int, s::Fourier) = -s.order ≤ α ≤ s.order
+indices(s::Fourier) = -s.order:s.order
 
 _compatible_space_with_constant_index(s::Fourier) = s
 _findindex_constant(::Fourier) = 0
@@ -428,6 +460,14 @@ _findposition(i::Int, s::Fourier) = i + s.order + 1
 _findposition(u::AbstractRange{Int}, s::Fourier) = u .+ s.order .+ 1
 _findposition(u::AbstractVector{Int}, s::Fourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Fourier) = c
+_findposition(α::Fourier, s::Fourier) = _findposition(indices(α), s)
+
+_iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
+
+IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T} = Fourier(order(s), interval(T, frequency(s)))
+IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
+
+_prettystring(s::Fourier, ::Bool) = "Fourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
 
 # promotion
 
@@ -442,13 +482,13 @@ Base.promote_rule(::Type{Fourier{T}}, ::Type{Fourier{S}}) where {T<:Real,S<:Real
 """
     Chebyshev <: BaseSpace
 
-Chebyshev sequence space whose elements are Chebyshev sequences of a prescribed order.
+Sequence space whose elements are Chebyshev sequences of a prescribed order.
 
 Field:
 - `order :: Int`
 
 Constructor:
-- `Chebyshev(::Int)`
+- `Chebyshev(order::Int)`
 
 See also: [`Taylor`](@ref) and [`Fourier`](@ref).
 
@@ -477,12 +517,9 @@ Base.issubset(s₁::Chebyshev, s₂::Chebyshev) = s₁.order ≤ s₂.order
 Base.intersect(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(min(s₁.order, s₂.order))
 Base.union(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(max(s₁.order, s₂.order))
 
-dimension(s::Chebyshev) = s.order + 1
-_firstindex(::Chebyshev) = 0
-_lastindex(s::Chebyshev) = s.order
-indices(s::Chebyshev) = 0:s.order
+desymmetrize(s::Chebyshev) = s
 
-__checkbounds_indices(α::Int, s::Chebyshev) = 0 ≤ α ≤ order(s)
+indices(s::Chebyshev) = 0:s.order
 
 _compatible_space_with_constant_index(s::Chebyshev) = s
 _findindex_constant(::Chebyshev) = 0
@@ -491,6 +528,154 @@ _findposition(i::Int, ::Chebyshev) = i + 1
 _findposition(u::AbstractRange{Int}, ::Chebyshev) = u .+ 1
 _findposition(u::AbstractVector{Int}, s::Chebyshev) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Chebyshev) = c
+_findposition(α::Chebyshev, s::Chebyshev) = _findposition(indices(α), s)
+
+_iscompatible(::Chebyshev, ::Chebyshev) = true
+
+IntervalArithmetic.interval(::Type{T}, s::Chebyshev) where {T} = s
+IntervalArithmetic.interval(s::Chebyshev) = s
+
+_prettystring(s::Chebyshev, ::Bool) = "Chebyshev(" * string(order(s)) * ")"
+
+#
+
+"""
+    CosFourier{T<:Real} <: SymBaseSpace
+
+Sequence space whose elements are cosine sequences of a prescribed order and frequency.
+
+Field:
+- `space :: Fourier{T}`
+
+Constructors:
+- `CosFourier(space::Fourier)`
+- `CosFourier(order::Int, frequency::Real)`
+
+# Example
+
+```jldoctest
+julia> s = CosFourier(2, 1.0)
+CosFourier(2, 1.0)
+
+julia> order(s)
+2
+
+julia> frequency(s)
+1.0
+```
+"""
+struct CosFourier{T<:Real} <: SymBaseSpace
+    space :: Fourier{T}
+    CosFourier{T}(space::Fourier{T}) where {T<:Real} = new{T}(space)
+end
+
+CosFourier(space::Fourier{T}) where {T<:Real} = CosFourier{T}(space)
+CosFourier{T}(order::Int, frequency::T) where {T<:Real} = CosFourier(Fourier{T}(order, frequency))
+CosFourier(order::Int, frequency::Real) = CosFourier(Fourier(order, frequency))
+
+desymmetrize(s::CosFourier) = s.space
+
+Base.:(==)(s₁::CosFourier, s₂::CosFourier) = desymmetrize(s₁) == desymmetrize(s₂)
+Base.issubset(s₁::CosFourier, s₂::CosFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
+Base.intersect(s₁::CosFourier, s₂::CosFourier) = CosFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
+Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
+
+indices(s::CosFourier) = 0:order(s)
+
+_compatible_space_with_constant_index(s::CosFourier) = s
+_findindex_constant(::CosFourier) = 0
+
+_findposition(i::Int, ::CosFourier) = i + 1
+_findposition(u::AbstractRange{Int}, ::CosFourier) = u .+ 1
+_findposition(u::AbstractVector{Int}, s::CosFourier) = map(i -> _findposition(i, s), u)
+_findposition(c::Colon, ::CosFourier) = c
+_findposition(α::CosFourier, s::CosFourier) = _findposition(indices(α), s)
+
+_iscompatible(s₁::CosFourier, s₂::CosFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
+
+IntervalArithmetic.interval(::Type{T}, s::CosFourier) where {T} = CosFourier(interval(T, desymmetrize(s)))
+IntervalArithmetic.interval(s::CosFourier) = CosFourier(interval(desymmetrize(s)))
+
+_prettystring(s::CosFourier, ::Bool) = "CosFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+
+# promotion
+
+Base.convert(::Type{CosFourier{T}}, s::CosFourier) where {T<:Real} =
+    CosFourier{T}(order(s), convert(T, frequency(s)))
+
+Base.promote_rule(::Type{CosFourier{T}}, ::Type{CosFourier{S}}) where {T<:Real,S<:Real} =
+    CosFourier{promote_type(T, S)}
+
+#
+
+"""
+    SinFourier{T<:Real} <: SymBaseSpace
+
+Sequence space whose elements are sine sequences of a prescribed order and frequency.
+
+Field:
+- `space :: Fourier{T}`
+
+Constructors:
+- `SinFourier(space::Fourier)`
+- `SinFourier(order::Int, frequency::Real)`
+
+# Example
+
+```jldoctest
+julia> s = SinFourier(2, 1.0)
+SinFourier(2, 1.0)
+
+julia> order(s)
+2
+
+julia> frequency(s)
+1.0
+```
+"""
+struct SinFourier{T<:Real} <: SymBaseSpace
+    space :: Fourier{T}
+    function SinFourier{T}(space::Fourier{T}) where {T<:Real}
+        order(space) < 1 && return throw(DomainError(order, "SinFourier is only defined for orders greater or equal to 1"))
+        return new{T}(space)
+    end
+end
+
+SinFourier(space::Fourier{T}) where {T<:Real} = SinFourier{T}(space)
+SinFourier{T}(order::Int, frequency::T) where {T<:Real} = SinFourier(Fourier{T}(order, frequency))
+SinFourier(order::Int, frequency::Real) = SinFourier(Fourier(order, frequency)) # may fail since it can normalize to order 0
+
+desymmetrize(s::SinFourier) = s.space
+
+Base.:(==)(s₁::SinFourier, s₂::SinFourier) = desymmetrize(s₁) == desymmetrize(s₂)
+Base.issubset(s₁::SinFourier, s₂::SinFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
+Base.intersect(s₁::SinFourier, s₂::SinFourier) = SinFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
+Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
+
+indices(s::SinFourier) = 1:order(s)
+
+_compatible_space_with_constant_index(s::SinFourier) = desymmetrize(s)
+
+_findposition(i::Int, ::SinFourier) = i
+_findposition(u::AbstractRange{Int}, ::SinFourier) = u
+_findposition(u::AbstractVector{Int}, s::SinFourier) = map(i -> _findposition(i, s), u)
+_findposition(c::Colon, ::SinFourier) = c
+_findposition(α::SinFourier, s::SinFourier) = _findposition(indices(α), s)
+
+_iscompatible(s₁::SinFourier, s₂::SinFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
+
+IntervalArithmetic.interval(::Type{T}, s::SinFourier) where {T} = SinFourier(interval(T, desymmetrize(s)))
+IntervalArithmetic.interval(s::SinFourier) = SinFourier(interval(desymmetrize(s)))
+
+_prettystring(s::SinFourier, ::Bool) = "SinFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
+
+# promotion
+
+Base.convert(::Type{SinFourier{T}}, s::SinFourier) where {T<:Real} =
+    SinFourier{T}(order(s), convert(T, frequency(s)))
+
+Base.promote_rule(::Type{SinFourier{T}}, ::Type{SinFourier{S}}) where {T<:Real,S<:Real} =
+    SinFourier{promote_type(T, S)}
 
 
 
@@ -505,11 +690,7 @@ Abstract type for all cartesian spaces.
 """
 abstract type CartesianSpace <: VectorSpace end
 
-_firstindex(::CartesianSpace) = 1
-_lastindex(s::CartesianSpace) = dimension(s)
-indices(s::CartesianSpace) = Base.OneTo(dimension(s))
-
-_findposition(i, ::CartesianSpace) = i
+_findposition(i::Union{Int,AbstractRange{Int},AbstractVector{Int},Colon}, ::CartesianSpace) = i
 
 _component_findposition(u::AbstractRange{Int}, s::CartesianSpace) =
     mapreduce(i -> _component_findposition(i, s), union, u)
@@ -611,14 +792,13 @@ function Base.union(s₁::CartesianPower, s₂::CartesianPower)
     return CartesianPower(union(s₁.space, s₂.space), s₁.n)
 end
 
-dimension(s::CartesianPower) = dimension(s.space)*s.n
+indices(s::CartesianPower) = Base.OneTo(dimension(s.space)*s.n)
+
 function dimension(s::CartesianPower, i::Int)
     (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
     return dimension(s.space)
 end
 dimensions(s::CartesianPower) = fill(dimension(s.space), s.n)
-
-# order, frequency
 
 order(s::CartesianPower) = fill(order(s.space), s.n)
 function order(s::CartesianPower, i::Int)
@@ -632,7 +812,7 @@ function frequency(s::CartesianPower, i::Int)
     return frequency(s.space)
 end
 
-#
+desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces(s))
 
 function _component_findposition(i::Int, s::CartesianPower)
     dim = dimension(s.space)
@@ -644,6 +824,16 @@ function _component_findposition(u::UnitRange{Int}, s::CartesianPower)
     x = (first(u)-1)*dim
     return 1+x:dim*length(u)+x
 end
+
+_iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
+    (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))
+
+IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T} = CartesianPower(interval(T, s.space), s.n)
+IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space), s.n)
+
+_prettystring(s::CartesianPower, iscompact::Bool) = _prettystring(space(s), iscompact) * _supscript(nspaces(s))
+_prettystring(s::CartesianPower{<:TensorSpace}, iscompact::Bool) = "(" * _prettystring(space(s), iscompact) * ")" * _supscript(nspaces(s))
+_prettystring(s::CartesianPower{<:CartesianSpace}, iscompact::Bool) = "(" * _prettystring(space(s), iscompact) * ")" * _supscript(nspaces(s))
 
 # promotion
 
@@ -758,13 +948,10 @@ Base.intersect(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianP
 Base.union(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
     CartesianProduct(map(union, s₁.spaces, s₂.spaces))
 
-dimension(s::CartesianProduct{<:Tuple{VectorSpace,Vararg{VectorSpace}}}) = @inbounds dimension(s.spaces[1]) + dimension(Base.tail(s))
-dimension(s::CartesianProduct{<:Tuple{VectorSpace}}) = @inbounds dimension(s.spaces[1])
-dimension(s::CartesianProduct{<:Tuple{CartesianProduct}}) = @inbounds dimension(s.spaces[1])
+indices(s::CartesianProduct) = Base.OneTo(mapreduce(dimension, +, s.spaces))
+
 dimension(s::CartesianProduct, i::Int) = dimension(s.spaces[i])
 dimensions(s::CartesianProduct) = map(dimension, s.spaces)
-
-# order, frequency
 
 order(s::CartesianProduct) = map(order, s.spaces)
 order(s::CartesianProduct, i::Int) = order(s.spaces[i])
@@ -772,7 +959,7 @@ order(s::CartesianProduct, i::Int) = order(s.spaces[i])
 frequency(s::CartesianProduct) = map(frequency, s.spaces)
 frequency(s::CartesianProduct, i::Int) = frequency(s.spaces[i])
 
-#
+desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 function _component_findposition(i::Int, s::CartesianProduct)
     dims = dimensions(s)
@@ -787,6 +974,21 @@ function _component_findposition(u::UnitRange{Int}, s::CartesianProduct)
     return 1+x:dim+x
 end
 
+_iscompatible(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
+    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
+_iscompatible(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
+    @inbounds _iscompatible(s₁[1], s₂[1])
+
+IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T} = CartesianProduct(map(sᵢ -> interval(T, sᵢ), s.spaces))
+IntervalArithmetic.interval(s::CartesianProduct) = CartesianProduct(map(interval, s.spaces))
+
+_prettystring(s::CartesianProduct, iscompact::Bool) = _prettystring_cartesian(s[1], iscompact) * " × " * _prettystring(Base.tail(s), iscompact)
+_prettystring(s::CartesianProduct{<:NTuple{2,VectorSpace}}, iscompact::Bool) = _prettystring_cartesian(s[1], iscompact) * " × " * _prettystring_cartesian(s[2], iscompact)
+_prettystring(s::CartesianProduct{<:Tuple{VectorSpace}}, iscompact::Bool) = "CartesianProduct(" * _prettystring(s[1], iscompact) * ")"
+_prettystring_cartesian(s::VectorSpace, iscompact::Bool) = _prettystring(s, iscompact)
+_prettystring_cartesian(s::TensorSpace, iscompact::Bool) = "(" * _prettystring(s, iscompact) * ")"
+_prettystring_cartesian(s::CartesianProduct, iscompact::Bool) = "(" * _prettystring(s, iscompact) * ")"
+
 # promotion
 
 Base.convert(::Type{CartesianProduct{T}}, s::CartesianProduct) where {T} =
@@ -795,35 +997,12 @@ Base.convert(::Type{CartesianProduct{T}}, s::CartesianProduct) where {T} =
 Base.promote_rule(::Type{CartesianProduct{T}}, ::Type{CartesianProduct{S}}) where {T,S} =
     CartesianProduct{promote_type(T, S)}
 
-#
+# mix
 
-_deep_nspaces(::VectorSpace) = 1
-_deep_nspaces(s::CartesianPower) = s.n * _deep_nspaces(s.space)
-_deep_nspaces(s::CartesianProduct) = sum(_deep_nspaces, s.spaces)
-
-#
-
-_iscompatible(::VectorSpace, ::VectorSpace) = false
-_iscompatible(::ParameterSpace, ::ParameterSpace) = true
-_iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
-_iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
-    @inbounds _iscompatible(s₁[1], s₂[1])
-_iscompatible(::Taylor, ::Taylor) = true
-_iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
-_iscompatible(::Chebyshev, ::Chebyshev) = true
-_iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
-    (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))
-_iscompatible(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}) where {N} =
-    @inbounds _iscompatible(s₁[1], s₂[1]) & _iscompatible(Base.tail(s₁), Base.tail(s₂))
-_iscompatible(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
-    @inbounds _iscompatible(s₁[1], s₂[1])
 _iscompatible(s₁::CartesianPower, s₂::CartesianProduct) =
     (nspaces(s₁) == nspaces(s₂)) & all(s₂ᵢ -> _iscompatible(space(s₁), s₂ᵢ), spaces(s₂))
 _iscompatible(s₁::CartesianProduct, s₂::CartesianPower) =
     (nspaces(s₁) == nspaces(s₂)) & all(s₁ᵢ -> _iscompatible(s₁ᵢ, space(s₂)), spaces(s₁))
-
-#
 
 for f ∈ (:(==), :issubset)
     @eval begin
@@ -861,34 +1040,13 @@ for f ∈ (:intersect, :union)
     end
 end
 
-# interval
+# additional methods
 
-IntervalArithmetic.interval(::Type, s::VectorSpace) = s
-IntervalArithmetic.interval(s::VectorSpace) = s
-
-IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T} = TensorSpace(map(sᵢ -> interval(T, sᵢ), s.spaces))
-IntervalArithmetic.interval(s::TensorSpace) = TensorSpace(map(interval, s.spaces))
-
-IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T} = Fourier(order(s), interval(T, frequency(s)))
-IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
-
-IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T} = CartesianPower(interval(T, s.space), s.n)
-IntervalArithmetic.interval(s::CartesianPower) = CartesianPower(interval(s.space), s.n)
-
-IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T} = CartesianProduct(map(sᵢ -> interval(T, sᵢ), s.spaces))
-IntervalArithmetic.interval(s::CartesianProduct) = CartesianProduct(map(interval, s.spaces))
-
-#
-
-_checkbounds_indices(α::VectorSpace, space::VectorSpace) = α ⊆ space
-
-_findposition(α::ParameterSpace, space::ParameterSpace) = _findposition(indices(α), space)
-_findposition(α::VectorSpace, space::VectorSpace) = _findposition(indices(α), space)
-function _findposition(α::CartesianSpace, space::CartesianSpace)
-    v = [_findposition(_iterate_space(α, 1), _iterate_space(space, 1));]
+function _findposition(α::CartesianSpace, s::CartesianSpace)
+    v = [_findposition(_iterate_space(α, 1), _iterate_space(s, 1));]
     for i ∈ 2:_deep_nspaces(α)
-        offset = sum(dimension(_iterate_space(space, k)) for k in 1:i-1)
-        append!(v, _findposition(_iterate_space(α, i), _iterate_space(space, i)) .+ offset)
+        offset = sum(dimension(_iterate_space(s, k)) for k in 1:i-1)
+        append!(v, _findposition(_iterate_space(α, i), _iterate_space(s, i)) .+ offset)
     end
     return v
 end
@@ -903,55 +1061,19 @@ function _iterate_space(s::CartesianProduct, i)
 end
 _iterate_space(s, i) = s
 
+_deep_nspaces(::VectorSpace) = 1
+_deep_nspaces(s::CartesianPower) = s.n * _deep_nspaces(s.space)
+_deep_nspaces(s::CartesianProduct) = sum(_deep_nspaces, s.spaces)
+
+
+
+
+
 # show
 
-Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s))
+Base.show(io::IO, ::MIME"text/plain", s::VectorSpace) = print(io, _prettystring(s, true))
 
-function Base.show(io::IO, s::VectorSpace)
-    get(io, :compact, false) && return print(io, _prettystring(s))
-    return print(io, _regularstring(s))
-end
-
-_regularstring(s::VectorSpace) = _prettystring(s)
-_regularstring(::EmptySpace) = "EmptySpace()"
-_regularstring(::ParameterSpace) = "ParameterSpace()"
-_regularstring(s::CartesianPower) = _regularstring_cartesian(space(s)) * " ^ " * string(nspaces(s))
-_regularstring(s::CartesianProduct) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(Base.tail(s))
-_regularstring(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = _regularstring_cartesian(s[1]) * " × " * _regularstring_cartesian(s[2])
-_regularstring(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * _regularstring(s[1]) * ")"
-_regularstring_cartesian(s::VectorSpace) = _regularstring(s)
-_regularstring_cartesian(s::TensorSpace) = "(" * _regularstring(s) * ")"
-_regularstring_cartesian(s::CartesianProduct) = "(" * _regularstring(s) * ")"
-
-function _prettystring(s::VectorSpace)
-    T = typeof(s)
-    a, b... = fieldnames(T)
-    str = mapreduce(f -> string(getproperty(s, f)), (x, y) -> x * ", " * y, b; init = string(getproperty(s, a)))
-    return string(T) * "(" * str * ")"
-end
-
-_prettystring(::EmptySpace) = "∅"
-
-_prettystring(::ParameterSpace) = "𝕂"
-
-_prettystring(s::TensorSpace) = _prettystring(s[1]) * " ⊗ " * _prettystring(Base.tail(s))
-_prettystring(s::TensorSpace{<:NTuple{2,BaseSpace}}) = _prettystring(s[1]) * " ⊗ " * _prettystring(s[2])
-_prettystring(s::TensorSpace{<:Tuple{BaseSpace}}) = "TensorSpace(" * _prettystring(s[1]) * ")"
-
-_prettystring(s::Taylor) = "Taylor(" * string(order(s)) * ")"
-_prettystring(s::Fourier) = "Fourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
-_prettystring(s::Chebyshev) = "Chebyshev(" * string(order(s)) * ")"
-
-_prettystring(s::CartesianPower) = _prettystring(space(s)) * _supscript(nspaces(s))
-_prettystring(s::CartesianPower{<:TensorSpace}) = "(" * _prettystring(space(s)) * ")" * _supscript(nspaces(s))
-_prettystring(s::CartesianPower{<:CartesianSpace}) = "(" * _prettystring(space(s)) * ")" * _supscript(nspaces(s))
-
-_prettystring(s::CartesianProduct) = _prettystring_cartesian(s[1]) * " × " * _prettystring(Base.tail(s))
-_prettystring(s::CartesianProduct{<:NTuple{2,VectorSpace}}) = _prettystring_cartesian(s[1]) * " × " * _prettystring_cartesian(s[2])
-_prettystring(s::CartesianProduct{<:Tuple{VectorSpace}}) = "CartesianProduct(" * _prettystring(s[1]) * ")"
-_prettystring_cartesian(s::VectorSpace) = _prettystring(s)
-_prettystring_cartesian(s::TensorSpace) = "(" * _prettystring(s) * ")"
-_prettystring_cartesian(s::CartesianProduct) = "(" * _prettystring(s) * ")"
+Base.show(io::IO, s::VectorSpace) = print(io, _prettystring(s, get(io, :compact, false)))
 
 function _supscript(n::Integer)
     if 0 ≤ n ≤ 9

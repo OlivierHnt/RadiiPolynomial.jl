@@ -6,22 +6,30 @@ RadiiPolynomial
 [![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions/workflows/ci.yml)
 </h1>
 
-RadiiPolynomial.jl is a Julia package for computer-assisted proofs in dynamical systems.
+**RadiiPolynomial.jl** is a Julia package for computer-assisted proofs in dynamical systems.
 
-### 📚 Documentation
+→ [📖 Documentation](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable)
 
-The official documentation is available online: https://OlivierHnt.github.io/RadiiPolynomial.jl/stable.
+RadiiPolynomial provides high-level tools and abstractions for sequences and operators, fully integrated with [IntervalArithmetic](https://github.com/JuliaIntervals/IntervalArithmetic.jl), enabling rigorous exploration of nonlinear dynamical systems.
 
-### 🛠️ Installation
+⚡ Validate the existence of fixed-points, steady-states, and periodic orbits
 
-The RadiiPolynomial.jl package requires to [install Julia](https://julialang.org/downloads/) (v1.10 or above).
+⚡ Compute invariant manifolds and rigorously track connecting orbits
 
-Then, start Julia and execute the following command in the REPL:
+⚡ Generate rigorous bifurcation diagrams
+
+### 📦 Installation
+
+→ Go to [julialang.org/downloads](https://julialang.org/downloads) and install Julia (v1.10 or above).
+
+→ Start Julia and execute the following command:
 
 ```julia
-using Pkg; Pkg.add("RadiiPolynomial")
+julia> using Pkg
+
+julia> Pkg.add("RadiiPolynomial")
 ```
 
-### 🎓 Citation
+### 📚 Citation
 
 If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib) ([more information](https://doi.org/10.5281/zenodo.5705258)).

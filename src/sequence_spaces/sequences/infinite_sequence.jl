@@ -19,7 +19,7 @@ Constructors:
 
 ```jldoctest
 julia> InfiniteSequence(Sequence(Taylor(2), [1.0, 2.0, 1.0]), 0.1, Ell1())
-InfiniteSequence in Taylor(2) with coefficients Vector{Float64}:
+Sequence in Taylor(2) with coefficients Vector{Float64}:
  1.0
  2.0
  1.0

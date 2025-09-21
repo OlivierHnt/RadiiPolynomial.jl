@@ -13,8 +13,6 @@ import LinearAlgebra, SparseArrays
 
 
 
-include("utilities.jl")
-
 
 
 # Sequence spaces
@@ -83,6 +81,8 @@ include("sequence_spaces/norm.jl")
 include("sequence_spaces/broadcast.jl")
 
 
+
+include("utilities.jl")
 
 # Radii polynomial approach
 

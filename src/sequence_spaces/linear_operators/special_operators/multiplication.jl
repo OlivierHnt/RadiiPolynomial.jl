@@ -73,40 +73,6 @@ codomain(ℳ::Multiplication, s::SequenceSpace) = codomain(*, space(sequence(ℳ
 _coeftype(ℳ::Multiplication, ::SequenceSpace, ::Type{T}) where {T} =
     promote_type(eltype(sequence(ℳ)), T)
 
-# """
-#     project(ℳ::Multiplication, domain::SequenceSpace, codomain::SequenceSpace, ::Type{T}=eltype(sequence(ℳ)))
-
-# Represent `ℳ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-# See also: [`project!(::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ::Multiplication)`](@ref)
-# and [`Multiplication`](@ref).
-# """
-# function project(ℳ::Multiplication, dom::SequenceSpace, codom::SequenceSpace, ::Type{T}=eltype(sequence(ℳ))) where {T}
-#     image_domain = codomain(ℳ, dom)
-#     _iscompatible(image_domain, codom) || return throw(ArgumentError("spaces must be compatible: image of domain under $ℳ is $image_domain, codomain is $codomain"))
-#     C = LinearOperator(dom, codom, zeros(T, dimension(codom), dimension(dom)))
-#     _project!(C, ℳ)
-#     return C
-# end
-
-# """
-#     project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
-
-# Represent `ℳ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-# The result is stored in `C` by overwriting it.
-
-# See also: [`project(::Multiplication, ::SequenceSpace, ::SequenceSpace)`](@ref)
-# and [`Multiplication`](@ref).
-# """
-# function project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
-#     image_domain = codomain(ℳ, domain(C))
-#     codomain_C = codomain(C)
-#     _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℳ is $image_domain, C has codomain $codomain_C"))
-#     coefficients(C) .= zero(eltype(C))
-#     _project!(C, ℳ)
-#     return C
-# end
-
 #
 
 function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)

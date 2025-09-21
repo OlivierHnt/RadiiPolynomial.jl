@@ -96,30 +96,6 @@ function scale!(c::Sequence, a::Sequence, γ)
     return c
 end
 
-"""
-    project!(C::LinearOperator, 𝒮::Scale)
-
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Scale, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Scale`](@ref)
-"""
-function project!(C::LinearOperator, 𝒮::Scale)
-    image_domain = codomain(𝒮, domain(C))
-    codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒮 is $image_domain, C has codomain $codomain_C"))
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, 𝒮)
-    return C
-end
-
-_findposition_nzind_domain(𝒮::Scale, domain, codomain) =
-    _findposition(_nzind_domain(𝒮, domain, codomain), domain)
-
-_findposition_nzind_codomain(𝒮::Scale, domain, codomain) =
-    _findposition(_nzind_codomain(𝒮, domain, codomain), codomain)
-
 # Sequence spaces
 
 codomain(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
@@ -330,34 +306,6 @@ end
 function _apply!(c::Sequence{CartesianProduct{T}}, 𝒮::Scale, a) where {T<:Tuple{VectorSpace}}
     @inbounds _apply!(component(c, 1), 𝒮, component(a, 1))
     return c
-end
-
-function _findposition_nzind_domain(𝒮::Scale, domain::CartesianSpace, codomain::CartesianSpace)
-    u = map((dom, codom) -> _findposition_nzind_domain(𝒮, dom, codom), spaces(domain), spaces(codomain))
-    len = sum(length, u)
-    v = Vector{Int}(undef, len)
-    δ = δδ = 0
-    @inbounds for (i, uᵢ) in enumerate(u)
-        δ_ = δ
-        δ += length(uᵢ)
-        view(v, 1+δ_:δ) .= δδ .+ uᵢ
-        δδ += dimension(domain[i])
-    end
-    return v
-end
-
-function _findposition_nzind_codomain(𝒮::Scale, domain::CartesianSpace, codomain::CartesianSpace)
-    u = map((dom, codom) -> _findposition_nzind_codomain(𝒮, dom, codom), spaces(domain), spaces(codomain))
-    len = sum(length, u)
-    v = Vector{Int}(undef, len)
-    δ = δδ = 0
-    @inbounds for (i, uᵢ) in enumerate(u)
-        δ_ = δ
-        δ += length(uᵢ)
-        view(v, 1+δ_:δ) .= δδ .+ uᵢ
-        δδ += dimension(codomain[i])
-    end
-    return v
 end
 
 function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, 𝒮::Scale)

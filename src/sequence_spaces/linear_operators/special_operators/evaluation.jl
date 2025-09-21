@@ -108,26 +108,6 @@ function evaluate!(c::AbstractVector, a::Sequence, x)
     return c
 end
 
-# """
-#     project!(C::LinearOperator, ℰ::Evaluation)
-
-# Represent `ℰ` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-# The result is stored in `C` by overwriting it.
-
-# See also: [`project(::Evaluation, ::VectorSpace, ::VectorSpace)`](@ref) and
-# [`Evaluation`](@ref).
-# """
-# function project!(C::LinearOperator, ℰ::Evaluation)
-#     domain_C = domain(C)
-#     image_domain = codomain(ℰ, domain_C)
-#     codomain_C = codomain(C)
-#     _iscompatible(ℰ, image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $ℰ is $image_domain, C has codomain $codomain_C"))
-#     CoefType = eltype(C)
-#     coefficients(C) .= zero(CoefType)
-#     _project!(C, ℰ, _memo(domain_C, CoefType))
-#     return C
-# end
-
 _iscompatible(::Evaluation, ::VectorSpace, ::VectorSpace) = false
 _iscompatible(::Evaluation, s₁::SequenceSpace, s₂::SequenceSpace) = _iscompatible(s₁, s₂)
 _iscompatible(::Evaluation{<:Union{Number,Tuple{Vararg{Number}}}}, ::SequenceSpace, ::ParameterSpace) = true
@@ -237,7 +217,7 @@ function _apply!(c, ::Evaluation{Nothing}, a::Sequence{Taylor})
 end
 function _apply!(c, ℰ::Evaluation, a::Sequence{Taylor})
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds c[0] = a[0]
     else
         ord = order(a)
@@ -255,7 +235,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Taylor, A)
 end
 function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Taylor, A) where {T}
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds C .= selectdim(A, 1, 1)
     else
         ord = order(space)
@@ -271,7 +251,7 @@ _apply(::Evaluation{Nothing}, ::Taylor, ::Val, A::AbstractArray) = A
 function _apply(ℰ::Evaluation, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
     x = value(ℰ)
     CoefType = _coeftype(ℰ, space, T)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
     else
         ord = order(space)
@@ -291,7 +271,7 @@ function _getindex(ℰ::Evaluation, ::Taylor, ::Taylor, ::Type{T}, i, j, memo) w
         if j == 0
             return one(T)
         else
-            if iszero(x)
+            if _safe_iszero(x)
                 return zero(T)
             else
                 return convert(T, x ^ exact(j))
@@ -322,7 +302,7 @@ function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
     x = value(ℰ)
     ord = order(a)
     @inbounds c[0] = a[0]
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds for j ∈ 1:ord
             c[0] += a[j] + a[-j]
         end
@@ -345,7 +325,7 @@ function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
     x = value(ℰ)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds for j ∈ 1:ord
             C .+= selectdim(A, 1, ord+1+j) .+ selectdim(A, 1, ord+1-j)
         end
@@ -365,7 +345,7 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     x = value(ℰ)
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds for j ∈ 1:ord
             C .+= selectdim(A, D, ord+1+j) .+ selectdim(A, D, ord+1-j)
         end
@@ -384,7 +364,7 @@ _getindex(::Evaluation{Nothing}, ::Fourier, ::Fourier, ::Type{T}, i, j, memo) wh
 function _getindex(ℰ::Evaluation, domain::Fourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
     if i == 0
         x = value(ℰ)
-        if j == 0 || iszero(x)
+        if j == 0 || _safe_iszero(x)
             return one(T)
         else
             return convert(T, cis(frequency(domain) * x * exact(j)))
@@ -411,17 +391,17 @@ end
 function _apply!(c, ℰ::Evaluation, a::Sequence{Chebyshev})
     x = value(ℰ)
     ord = order(a)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 2:2:ord
             c[0] += exact(ifelse(i%4 == 0, 2, -2)) * a[i]
         end
-    elseif isone(-x)
+    elseif _safe_isone(-x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
             c[0] += exact(ifelse(isodd(i), -2, 2)) * a[i]
         end
-    elseif isone(x)
+    elseif _safe_isone(x)
         @inbounds c[0] = a[0]
         @inbounds for i ∈ 1:ord
             c[0] += exact(2) * a[i]
@@ -455,17 +435,17 @@ end
 function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, A) where {T}
     x = value(ℰ)
     ord = order(space)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 2:2:ord
             C .+= exact(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, 1, i+1)
         end
-    elseif isone(-x)
+    elseif _safe_isone(-x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 1:ord
             C .+= exact(ifelse(isodd(i), -2, 2)) .* selectdim(A, 1, i+1)
         end
-    elseif isone(x)
+    elseif _safe_isone(x)
         @inbounds C .= selectdim(A, 1, 1)
         @inbounds for i ∈ 1:ord
             C .+= exact(2) .* selectdim(A, 1, i+1)
@@ -498,19 +478,19 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     x = value(ℰ)
     CoefType = _coeftype(ℰ, space, T)
     ord = order(space)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 2:2:ord
             C .+= exact(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, D, i+1)
         end
         return C
-    elseif isone(-x)
+    elseif _safe_isone(-x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
             C .+= exact(ifelse(isodd(i), -2, 2)) .* selectdim(A, D, i+1)
         end
         return C
-    elseif isone(x)
+    elseif _safe_isone(x)
         @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
         @inbounds for i ∈ 1:ord
             C .+= exact(2) .* selectdim(A, D, i+1)
@@ -548,7 +528,7 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
             return one(T)
         else
             x = value(ℰ)
-            if iszero(x)
+            if _safe_iszero(x)
                 if isodd(j)
                     return zero(T)
                 elseif j%4 == 0
@@ -556,13 +536,13 @@ function _getindex(ℰ::Evaluation, domain::Chebyshev, codomain::Chebyshev, ::Ty
                 else
                     return convert(T, exact(-2))
                 end
-            elseif isone(-x)
+            elseif _safe_isone(-x)
                 if isodd(j)
                     return convert(T, exact(-2))
                 else
                     return convert(T, exact(2))
                 end
-            elseif isone(x)
+            elseif _safe_isone(x)
                 return convert(T, exact(2))
             else
                 x2 = convert(T, exact(2) * x)
@@ -604,7 +584,7 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{<:CosFourier})
     ord = order(a)
     @inbounds c[0] = a[ord]
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 c[0] += a[j]
             end
@@ -629,7 +609,7 @@ function _apply!(C::AbstractArray, ℰ::Evaluation, space::CosFourier, A)
     ord = order(space)
     @inbounds C .= selectdim(A, 1, ord+1)
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, 1, j+1)
             end
@@ -652,7 +632,7 @@ function _apply(ℰ::Evaluation, space::CosFourier, ::Val{D}, A::AbstractArray{T
     ord = order(space)
     @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
     if ord > 0
-        if iszero(x)
+        if _safe_iszero(x)
             @inbounds for j ∈ ord-1:-1:1
                 C .+= selectdim(A, D, j+1)
             end
@@ -675,7 +655,7 @@ function _getindex(ℰ::Evaluation, domain::CosFourier, ::CosFourier, ::Type{T},
         x = value(ℰ)
         if j == 0
             return one(T)
-        elseif iszero(x)
+        elseif _safe_iszero(x)
             return convert(T, exact(2))
         else
             return convert(T, exact(2) * cos(frequency(domain) * x * exact(j)))
@@ -702,7 +682,7 @@ function _apply!(c, ::Evaluation{Nothing}, a::Sequence{<:SinFourier})
 end
 function _apply!(c, ℰ::Evaluation, a::Sequence{<:SinFourier})
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         @inbounds c[0] = zero(eltype(c))
     else
         ord = order(a)
@@ -722,7 +702,7 @@ function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::SinFourier, A)
 end
 function _apply!(C::AbstractArray, ℰ::Evaluation, space::SinFourier, A)
     x = value(ℰ)
-    if iszero(x)
+    if _safe_iszero(x)
         C .= zero(eltype(C))
     else
         ord = order(space)
@@ -743,7 +723,7 @@ function _apply(ℰ::Evaluation, space::SinFourier, ::Val{D}, A::AbstractArray{T
     ord = order(space)
     @inbounds Aᵢ = selectdim(A, D, ord)
     C = Array{CoefType,N-1}(undef, size(Aᵢ))
-    if iszero(x)
+    if _safe_iszero(x)
         C .= zero(CoefType)
     else
         ωx = frequency(space)*x
@@ -760,7 +740,7 @@ _getindex(::Evaluation{Nothing}, ::SinFourier, ::SinFourier, ::Type{T}, i, j, me
     ifelse(i == j, one(T), zero(T))
 function _getindex(ℰ::Evaluation, domain::SinFourier, ::Fourier, ::Type{T}, i, j, memo) where {T}
     x = value(ℰ)
-    if i == 0 && !iszero(x)
+    if i == 0 && !_safe_iszero(x)
         return convert(T, exact(2) * sin(frequency(domain) * x * exact(j)))
     else
         return zero(T)

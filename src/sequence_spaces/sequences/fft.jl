@@ -1,6 +1,12 @@
 _call_ifft!(C, s, ::Type{<:Real}) = rifft!(C, s)
 _call_ifft!(C, s, ::Type) = ifft!(C, s)
 
+_apply!(f!, C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
+    @inbounds f!(_apply!(f!, C, Base.tail(space)), space[1], Val(N₁-N₂+1))
+_apply!(f!, C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}) where {T,N} =
+    @inbounds f!(C, space[1], Val(N))
+_apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
+
 
 
 # dimension for DFT and FFT
@@ -23,91 +29,58 @@ _dft_dimension(s::SinFourier) = 2order(s)+1
 
 # sequence to grid
 
-function fft(a::Sequence{<:BaseSpace}, n::Integer)
-    space_a = space(a)
-    _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
-    CoefType = complex(float(eltype(a)))
-    C = zeros(CoefType, n)
-    A = coefficients(a)
-    @inbounds view(C, eachindex(A)) .= A
-    _preprocess!(C, space_a)
-    return _fft_pow2!(C)
-end
+fft(a::Sequence{<:BaseSpace}, n::Integer) =
+    fft!(zeros(complex(float(eltype(a))), n), a)
+fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}) where {N,T<:NTuple{N,BaseSpace}} =
+    fft!(zeros(complex(float(eltype(a))), n), a)
 
-function fft!(C::AbstractVector, a::Sequence{<:BaseSpace})
-    l = length(C)
-    Base.OneTo(l) == eachindex(C) || return throw(ArgumentError("offset vectors are not supported"))
-    space_a = space(a)
-    _is_fft_size_compatible(l, space_a) || return throw(DimensionMismatch)
-    C .= zero(eltype(C))
-    A = coefficients(a)
-    @inbounds view(C, eachindex(A)) .= A
-    _preprocess!(C, space_a)
-    return _fft_pow2!(C)
-end
-
-function fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}) where {N,T<:NTuple{N,BaseSpace}}
-    space_a = space(a)
-    _is_fft_size_compatible(n, space_a) || return throw(DimensionMismatch)
-    CoefType = complex(float(eltype(a)))
-    C = zeros(CoefType, n)
-    A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
-    @inbounds view(C, axes(A)...) .= A
-    _apply_preprocess!(C, space_a)
-    return _fft_pow2!(C)
-end
-
-function fft!(C::AbstractArray{T,N}, a::Sequence{TensorSpace{S}}) where {T,N,S<:NTuple{N,BaseSpace}}
+function fft!(C::AbstractArray, a::Sequence{<:SequenceSpace})
     sz = size(C)
     Base.OneTo.(sz) == axes(C) || return throw(ArgumentError("offset arrays are not supported"))
     space_a = space(a)
     _is_fft_size_compatible(sz, space_a) || return throw(DimensionMismatch)
-    C .= zero(T)
-    A = _no_alloc_reshape(coefficients(a), dimensions(space_a))
+    C .= zero(eltype(C))
+    A = _no_alloc_reshape(a)
     @inbounds view(C, axes(A)...) .= A
-    _apply_preprocess!(C, space_a)
+    _apply!(_preprocess!, C, space_a)
     return _fft_pow2!(C)
 end
 
-_is_fft_size_compatible(n, s) = ispow2(n) & (_dft_dimension(s) ≤ n)
-_is_fft_size_compatible(n::Tuple, s) = @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
-_is_fft_size_compatible(n::Tuple{Integer}, s) = @inbounds _is_fft_size_compatible(n[1], s[1])
-
-_apply_preprocess!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
-    @inbounds _preprocess!(_apply_preprocess!(C, Base.tail(space)), space[1], Val(N₁-N₂+1))
-
-_apply_preprocess!(C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}) where {T,N} =
-    @inbounds _preprocess!(C, space[1], Val(N))
+_is_fft_size_compatible(n::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
+_is_fft_size_compatible(n::Tuple{Integer}, s::TensorSpace{<:Tuple{BaseSpace}}) = @inbounds _is_fft_size_compatible(n[1], s[1])
+_is_fft_size_compatible(n::Tuple{Integer}, s::BaseSpace) = @inbounds _is_fft_size_compatible(n[1], s)
+_is_fft_size_compatible(n::Integer, s::BaseSpace) = ispow2(n) & (_dft_dimension(s) ≤ n)
 
 # Taylor
 
 function _preprocess!(C::AbstractVector, space::Taylor)
     len = length(C)
     ord = order(space)
-    view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
-    view(C, 2:ord+1) .= zero(eltype(C))
+    @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
+    @inbounds view(C, 2:ord+1) .= zero(eltype(C))
     return C
 end
 
 function _preprocess!(C::AbstractArray, space::Taylor, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
-    selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
-    selectdim(C, D, 2:ord+1) .= zero(eltype(C))
+    @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
+    @inbounds selectdim(C, D, 2:ord+1) .= zero(eltype(C))
     return C
 end
 
 # Fourier
 
 function _preprocess!(C::AbstractVector, space::Fourier)
-    reverse!(view(C, 1:dimension(space)))
+    @inbounds reverse!(view(C, 1:dimension(space)))
     circshift!(C, copy(C), -order(space))
     return C
 end
 
 function _preprocess!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
     ord = order(space)
-    reverse!(selectdim(C, D, 1:dimension(space)); dims = D)
+    @inbounds reverse!(selectdim(C, D, 1:dimension(space)); dims = D)
     circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -ord, 0), Val(N)))
     return C
 end
@@ -117,14 +90,14 @@ end
 function _preprocess!(C::AbstractVector, space::Chebyshev)
     len = length(C)
     ord = order(space)
-    view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
+    @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
     return C
 end
 
 function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
-    selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
+    @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
     return C
 end
 
@@ -138,18 +111,18 @@ _preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _preproc
 function _preprocess!(C::AbstractVector, space::SinFourier)
     len = length(C)
     ord = order(space)
-    view(C, 2:ord+1) .= view(C, 1:ord) .* complex(exact(false), exact(true))
-    C[1] = zero(eltype(C))
-    view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
+    @inbounds view(C, 2:ord+1) .= view(C, 1:ord) .* complex(exact(false), exact(true))
+    @inbounds C[1] = zero(eltype(C))
+    @inbounds view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
     return C
 end
 
 function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
-    selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(exact(false), exact(true))
-    selectdim(C, D, 1) .= zero(eltype(C))
-    selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
+    @inbounds selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(exact(false), exact(true))
+    @inbounds selectdim(C, D, 1) .= zero(eltype(C))
+    @inbounds selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
     return C
 end
 
@@ -160,122 +133,34 @@ end
 ifft(A::AbstractArray, space::SequenceSpace) = ifft!(copy(A), space)
 rifft(A::AbstractArray, space::SequenceSpace) = rifft!(copy(A), space)
 
-function ifft!(A::AbstractVector{T}, space::BaseSpace) where {T}
-    l = length(A)
-    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
-    ispow2(l) || return throw(ArgumentError("length must be a power of 2"))
-    _ifft_pow2!(A)
-    _postprocess!(A, space)
-    c = Sequence(space, zeros(complex(float(T)), dimension(space)))
-    C = coefficients(c)
-    inds_C, inds_A = _ifft_get_index(l, space)
-    view(C, inds_C) .= view(A, inds_A)
-    return c
-end
+ifft!(A::AbstractArray, space::SequenceSpace) = ifft!(zeros(complex(float(eltype(A))), space), A)
+rifft!(A::AbstractArray, space::SequenceSpace) = rifft!(zeros(real(float(eltype(A))), space), A)
 
-function rifft!(A::AbstractVector{T}, space::BaseSpace) where {T}
-    l = length(A)
-    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
-    ispow2(l) || return throw(ArgumentError("length must be a power of 2"))
-    _ifft_pow2!(A)
-    _postprocess!(A, space)
-    c = Sequence(space, zeros(real(float(T)), dimension(space)))
-    C = coefficients(c)
-    inds_C, inds_A = _ifft_get_index(l, space)
-    view(C, inds_C) .= real.(view(A, inds_A))
-    return c
-end
+ifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray) = _ifft!(c, A, identity)
+rifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray) = _ifft!(c, A, real)
 
-function ifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
-    l = length(A)
-    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
-    ispow2(l) || return throw(ArgumentError("length must be a power of 2"))
+function _ifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray, f::Union{typeof(identity),typeof(real)})
+    sz = size(A)
+    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
+    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
     _ifft_pow2!(A)
-    _postprocess!(A, space(c))
-    C = coefficients(c)
+    _apply!(_postprocess!, A, space(c))
+    C = _no_alloc_reshape(c)
     C .= zero(eltype(c))
-    inds_C, inds_A = _ifft_get_index(l, space(c))
-    view(C, inds_C) .= view(A, inds_A)
-    return c
-end
-
-function rifft!(c::Sequence{<:BaseSpace}, A::AbstractVector)
-    l = length(A)
-    Base.OneTo(l) == eachindex(A) || return throw(ArgumentError("offset vectors are not supported"))
-    ispow2(l) || return throw(ArgumentError("length must be a power of 2"))
-    _ifft_pow2!(A)
-    _postprocess!(A, space(c))
-    C = coefficients(c)
-    C .= zero(eltype(c))
-    inds_C, inds_A = _ifft_get_index(l, space(c))
-    view(C, inds_C) .= real.(view(A, inds_A))
-    return c
-end
-
-function ifft!(A::AbstractArray{T,N}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {T,N}
-    sz = size(A)
-    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
-    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _ifft_pow2!(A)
-    _apply_postprocess!(A, space)
-    c = Sequence(space, zeros(complex(float(T)), dimension(space)))
-    C = _no_alloc_reshape(coefficients(c), dimensions(space))
-    inds_C, inds_A = _ifft_get_index(sz, space)
-    view(C, inds_C...) .= view(A, inds_A...)
-    return c
-end
-
-function rifft!(A::AbstractArray{T,N}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {T,N}
-    sz = size(A)
-    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
-    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _ifft_pow2!(A)
-    _apply_postprocess!(A, space)
-    c = Sequence(space, zeros(real(float(T)), dimension(space)))
-    C = _no_alloc_reshape(coefficients(c), dimensions(space))
-    inds_C, inds_A = _ifft_get_index(sz, space)
-    view(C, inds_C...) .= real.(view(A, inds_A...))
-    return c
-end
-
-function ifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
-    sz = size(A)
-    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
-    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _ifft_pow2!(A)
-    _apply_postprocess!(A, space(c))
-    C = _no_alloc_reshape(coefficients(c), dimensions(space(c)))
     inds_C, inds_A = _ifft_get_index(sz, space(c))
-    view(C, inds_C...) .= view(A, inds_A...)
+    view(C, inds_C...) .= f.(view(A, inds_A...))
     return c
 end
 
-function rifft!(c::Sequence{TensorSpace{T}}, A::AbstractArray{S,N}) where {N,T<:NTuple{N,BaseSpace},S}
-    sz = size(A)
-    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
-    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _ifft_pow2!(A)
-    _apply_postprocess!(A, space(c))
-    C = _no_alloc_reshape(coefficients(c), dimensions(space(c)))
-    inds_C, inds_A = _ifft_get_index(sz, space(c))
-    view(C, inds_C...) .= real.(view(A, inds_A...))
-    return c
-end
-
-_apply_postprocess!(C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
-    @inbounds _postprocess!(_apply_postprocess!(C, Base.tail(space)), space[1], Val(N₁-N₂+1))
-
-_apply_postprocess!(C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}) where {T,N} =
-    @inbounds _postprocess!(C, space[1], Val(N))
-
-function _ifft_get_index(n, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+function _ifft_get_index(n::NTuple{N,Integer}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
     v = map(_ifft_get_index, n, spaces(space))
     return ntuple(i -> v[i][1], Val(N)), ntuple(i -> v[i][2], Val(N))
 end
+_ifft_get_index(n::Tuple{Integer}, space::BaseSpace) = @inbounds map(tuple, _ifft_get_index(n[1], space))
 
 # Taylor
 
-_ifft_get_index(n, space::Taylor) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
+_ifft_get_index(n::Integer, space::Taylor) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
 
 function _postprocess!(C::AbstractVector, ::Taylor)
     circshift!(C, copy(C), -1)
@@ -291,7 +176,7 @@ end
 
 # Fourier
 
-function _ifft_get_index(n, space::Fourier)
+function _ifft_get_index(n::Integer, space::Fourier)
     ord_C = order(space)
     ord_A = n÷2
     ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+1+ord_A, 1:n
@@ -315,7 +200,7 @@ end
 
 # Chebyshev
 
-_ifft_get_index(n, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
+_ifft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
 
 function _postprocess!(C::AbstractVector, ::Chebyshev)
     len = length(C)
@@ -335,7 +220,7 @@ end
 
 # CosFourier
 
-_ifft_get_index(n, space::CosFourier) = _ifft_get_index(n, Chebyshev(order(space)))
+_ifft_get_index(n::Integer, space::CosFourier) = _ifft_get_index(n, Chebyshev(order(space)))
 
 _postprocess!(C::AbstractVector, space::CosFourier) = _postprocess!(C, Chebyshev(order(space)))
 
@@ -343,7 +228,7 @@ _postprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _postpr
 
 # SinFourier
 
-_ifft_get_index(n, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷2, dimension(space))
+_ifft_get_index(n::Integer, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷2, dimension(space))
 
 function _postprocess!(C::AbstractVector, ::SinFourier)
     ord = length(C) ÷ 2
@@ -382,23 +267,15 @@ end
 const roots_of_unity = Dict{Tuple{Int,Int},Complex{Interval{Float64}}}()
 
 N_fft = 2^16
-if VERSION ≥ v"1.10"
-    for k ∈ 0:N_fft-1
-        rat = -k//N_fft
-        ω = setprecision(256) do
+for k ∈ 0:N_fft-1
+    rat = -k//N_fft
+    get!(roots_of_unity, (numerator(rat), denominator(rat))) do
+        return setprecision(256) do
             return cispi(interval(BigFloat, rat))
         end
-        roots_of_unity[(numerator(rat),denominator(rat))] = ω
-    end
-else
-    for k ∈ 0:N_fft-1
-        rat = -k//N_fft
-        ω = setprecision(256) do
-            return cis(interval(BigFloat, rat) * convert(Interval{BigFloat}, π))
-        end
-        roots_of_unity[(numerator(rat),denominator(rat))] = ω
     end
 end
+
 
 #
 
@@ -517,7 +394,7 @@ function _fft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
             @inbounds for j ∈ k:k+N½-1
                 j′ = j + N½
                 rat = (k-j)//N½
-                ω = get!(roots_of_unity, (numerator(rat),denominator(rat))) do
+                ω = get!(roots_of_unity, (numerator(rat), denominator(rat))) do
                     return setprecision(256) do
                         return cispi(interval(BigFloat, rat))
                     end

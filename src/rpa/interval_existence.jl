@@ -79,15 +79,18 @@ function _check_inputs(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
 end
 
 """
-    interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real})
+    interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real}; verbose::Bool = false)
 
-Return an array of intervals of existence ``I \\subset [0, R]ᵐ`` such that ``Y + ∑ Z_1 r + ∑∑ Z_2 r^2 / 2 - rᵐ \\le 0`` and ``∑ Z_1 η + ∑ ∑ Z_2 η r < 1`` for all ``r \\in I``.
+Return an interval and a boolean value with the following meaning:
+    - `true`: the interval corresponds to ``I \\subset [0, R]ᵐ`` such that ``Y + ∑ Z_1 r + ∑∑ Z_2 r^2 / 2 - rᵐ \\le 0`` and ``∑ Z_1 η + ∑ ∑ Z_2 η r < 1`` for all ``r \\in I``.
+    - `false`: otherwise, and the interval is empty.
 """
 function _rpa_failure(msg::AbstractString, verbose::Bool)
-    return verbose && @info "failure: $msg"
+    verbose && @info "failure: $msg"
+    return Interval[], Interval[], false
 end
 
-function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real}; verbose::Bool=true)
+function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real}; verbose::Bool=false)
     isvalid, msg = _check_inputs(Y, Z₁, Z₂, R)
     isvalid || return _rpa_failure(msg, verbose)
 
@@ -118,7 +121,7 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
     # Matrix function (interval/dense)
     Mat = r -> Z₁ .+ WW(r)
 
-    # --- Newton iteration to find approximate zero ---
+    # Newton iteration to find approximate zero
     r0 = zeros(M)
     newtoncounter = 0
     maxnewtoniterates = 15
@@ -140,17 +143,17 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
     end
 
     if !(all(>(0), r0)) || maximum(abs.(dr0)) > convergencetolerance || nanflag
-        println("No good set of radii found for inclusion")
+        println("no good set of radii found for inclusion")
     end
 
     r0 = max.(r0, floatmin(Float64))
 
-    # --- Determine search direction ---
+    # Determine search direction
     direction = -(DPf(r0) \ r0)
     direction = direction ./ r0     # Normalize the direction
     direction = direction ./ maximum(direction)
 
-    # --- Search for negative point of radii polynomials ---
+    # Search for negative point of radii polynomials
     success = false
     partialsuccess = false
     rmin = NaN
@@ -181,25 +184,56 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
             if dominant - 1 < 0
                 success = true
             else
-                println("Inclusion found, but no contraction.")
+                println("inclusion found, but no contraction.")
             end
         end
     end
 
     if !success
         if M == 1
-            println("Radii polynomial not negative")
+            println("radii polynomial not negative")
         else
-            println("Radii polynomials not negative simultaneously")
+            println("radii polynomials not negative simultaneously")
         end
         rmin = NaN
         eta = NaN
     end
 
-    return rmin, eta
+    verbose && @info "success: $msg\nr = $(rmin)\nη = $(eta)"
+    return rmin, eta, success
 end
 
-interval_of_existence(Y::AbstractArray{<:Number}, Z₁::AbstractArray{<:Number}, Z₂::AbstractArray{<:Number}, R::AbstractArray{<:Real}; verbose::Bool=true) = interval_of_existence(interval.(Y), interval.(Z₁), interval.(Z₂), R; verbose=verbose)
+function CollatzWielandt(A)
+    # Compute upper bound on spectral radius (Perron-Frobenius) of nonnegative matrix A
+    # Returns: PFupperbound, testvector
+
+    # midpoint for numerical eigenvalue computation
+    Aeps = max.(mid.(A), 10 * eps(Float64))
+
+    # eigen decomposition
+    F = eigen(Aeps)
+    eigenvectors = F.vectors
+    eigenvalues = F.values
+
+    # dominant eigenvector (corresponding to largest eigenvalue in magnitude)
+    m = argmax(abs.(eigenvalues))
+    y = abs.(eigenvectors[:, m])
+
+    # testvector for Collatz-Wielandt bound
+    testvector = max.(y, eps(Float64))   # avoid division by 0
+
+    # PF upper bound
+    PFupperbound = maximum((A * testvector) ./ testvector)
+
+    # if A is interval-valued, take supremum
+    if eltype(A) <: Interval
+        PFupperbound = sup(PFupperbound)
+    end
+
+    return PFupperbound, testvector
+end
+
+interval_of_existence(Y::AbstractArray{<:Number}, Z₁::AbstractArray{<:Number}, Z₂::AbstractArray{<:Number}, R::AbstractArray{<:Real}; verbose::Bool=false) = interval_of_existence(interval.(Y), interval.(Z₁), interval.(Z₂), R; verbose=verbose)
 
 function _check_inputs(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real})
     # Check R for negatives or NaNs

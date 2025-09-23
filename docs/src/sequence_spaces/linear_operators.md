@@ -49,15 +49,13 @@ Similarly, the function `eachcomponent` returns a `Generator` whose iterates yie
 
 ## Arithmetic
 
-The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `add_bar` (unicode alias `+\bar<tab>`) and `sub_bar` (unicode alias `-\bar<tab>`) give the result projected in the smallest compatible domain and codomain between the operands.
+The addition and subtraction operations are implemented as the `+` and `-` functions respectively.
 
 ```@repl linear_operators
 C = LinearOperator(Taylor(1), Taylor(1), [1 2 ; 3 4])
 D = LinearOperator(Taylor(1), Taylor(2), [1 2 ; 3 4 ; 5 6])
 C + D
 C - D
-add_bar(C, D) # project(C + D, Taylor(1), Taylor(1))
-sub_bar(C, D) # project(C - D, Taylor(1), Taylor(1))
 C + I
 C - I
 ```

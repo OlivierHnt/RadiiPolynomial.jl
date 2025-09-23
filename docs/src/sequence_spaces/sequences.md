@@ -48,15 +48,13 @@ Similarly, the function `eachcomponent` returns a `Generator` whose iterates yie
 
 ## Arithmetic
 
-The addition and subtraction operations are implemented as the `+` and `-` functions respectively. Their *bar* counterparts `add_bar` (unicode alias `+\bar<tab>`) and `sub_bar` (unicode alias `-\bar<tab>`) give the result projected in the smallest compatible space between the operands.
+The addition and subtraction operations are implemented as the `+` and `-` functions respectively.
 
 ```@repl sequences
 c = Sequence(Taylor(1), [0, 1])
 d = Sequence(Taylor(2), [1, 2, 1])
 c + d
 c - d
-add_bar(c, d) # project(c + d, Taylor(1))
-sub_bar(c, d) # project(c - d, Taylor(1))
 ```
 
 The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref) and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref) functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.

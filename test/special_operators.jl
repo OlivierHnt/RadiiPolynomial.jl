@@ -89,8 +89,8 @@
             mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∫², a_ℱ) == -a_ℱ
         #
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
-        @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ==
-            mul!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), ∫¹, a_𝒞) ≈
+        @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ≈
+            mul!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), ∫¹, a_𝒞) ==
             ∫¹(a_𝒞) == integrate!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), a_𝒞)
         #
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:6.0+3.0+3.0))

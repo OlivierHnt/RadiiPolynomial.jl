@@ -12,7 +12,9 @@ makedocs(;
         canonical = "https://olivierhnt.github.io/RadiiPolynomial.jl",
         mathengine = KaTeX(Dict(
             :macros => Dict(
-                "\\bydef" => "\\stackrel{\\tiny\\text{def}}{=}"
+                "\\bydef" => "\\stackrel{\\tiny\\text{def}}{=}",
+                "\\bx" => "\\bar{x}",
+                "\\tx" => "x^\\star"
             )
         ))
     ),

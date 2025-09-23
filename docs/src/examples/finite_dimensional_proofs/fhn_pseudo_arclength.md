@@ -88,7 +88,7 @@ nothing # hide
 Whenever Newton's method is successful, we proceed to the next iteration of the pseudo-arclength continuation by repeating the above strategy. Performing this sufficiently many times, we can construct an order ``N`` polynomial approximation of the curve of zeros:
 
 ```math
-\bar{x}(s) \bydef \bar{x}_0 + 2 \sum_{n = 1}^N \bar{x}_n \phi_n (s), \qquad \text{for all } s \in [-1,1],
+\bx(s) \bydef \bx_0 + 2 \sum_{n = 1}^N \bx_n \phi_n (s), \qquad \text{for all } s \in [-1,1],
 ```
 
 where ``\phi_n`` are the [Chebyshev polynomials of the first kind](https://en.wikipedia.org/wiki/Chebyshev_polynomials).
@@ -99,7 +99,7 @@ Define the mapping ``F : \mathbb{R}^3 \times [-1,1] \to \mathbb{R}^3`` by
 F(x, s) \bydef
 \begin{pmatrix}
 f(x) \\
-(x - \bar{x}(s)) \cdot \bar{v}(s)
+(x - \bx(s)) \cdot \bar{v}(s)
 \end{pmatrix},
 ```
 
@@ -109,12 +109,12 @@ and the fixed-point operator ``T : \mathbb{R}^3 \times [-1,1] \to \mathbb{R}^3``
 T(x, s) \bydef x - A(s) F(x, s),
 ```
 
-where ``A(s) : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``D_x F(\bar{x}(s), s)^{-1}`` for all ``s \in [-1, 1]``.
+where ``A(s) : \mathbb{R}^3 \to \mathbb{R}^3`` is the injective operator corresponding to a numerical approximation of ``D_x F(\bx(s), s)^{-1}`` for all ``s \in [-1, 1]``.
 
-Let ``R > 0``. We use a uniform version of the second-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)) such that we need to estimate ``\|T(\bar{x}(s), s) - \bar{x}(s)\|_1``, ``\|D_x T(\bar{x}(s), s)\|_1`` and ``\sup_{x \in \text{cl}( B_R(\bar{x}(s)) )} \|D_x^2 T(x, s)\|_1`` for all ``s \in [-1,1]``. In particular, we have
+Let ``R > 0``. We use a uniform version of the second-order Radii Polynomial Theorem (cf. Section [Radii polynomial approach](@ref radii_polynomial_approach)) such that we need to estimate ``\|T(\bx(s), s) - \bx(s)\|_1``, ``\|D_x T(\bx(s), s)\|_1`` and ``\sup_{x \in \text{cl}( B_R(\bx(s)) )} \|D_x^2 T(x, s)\|_1`` for all ``s \in [-1,1]``. In particular, we have
 
 ```math
-\|T(\bar{x}(s), s) - \bar{x}(s)\|_1 = \left\|A(s) \begin{pmatrix} f(\bar{x}(s)) \\ 0 \end{pmatrix} \right\|_1, \qquad \text{for all } s \in [-1,1].
+\|T(\bx(s), s) - \bx(s)\|_1 = \left\|A(s) \begin{pmatrix} f(\bx(s)) \\ 0 \end{pmatrix} \right\|_1, \qquad \text{for all } s \in [-1,1].
 ```
 
 The computer-assisted proof may be implemented as follows:

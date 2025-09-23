@@ -1,10 +1,17 @@
 """
-    interval_of_existence(Y::Interval, Z₁::Interval, R::Real)
+    interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool = false)
 
-Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` for all ``r \\in I`` and ``Z_1 < 1``.
+Return an interval and a boolean value with the following meaning:
+    - `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` for all ``r \\in I`` and ``Z_1 < 1``.
+    - `false`: otherwise, and the interval is empty.
 """
+<<<<<<< HEAD
 function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=true)
     r = Y / (one(Z₁) - Z₁)
+=======
+function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool = false)
+    r = Y/(one(Z₁) - Z₁)
+>>>>>>> upstream/main
 
     isvalid, msg = _check_inputs(Y, Z₁, R)
     isvalid || return _rpa_failure(msg, r, verbose)
@@ -13,10 +20,14 @@ function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bo
     0 ≤ r_sup ≤ R || return _rpa_failure("root not in [0, R]", r, verbose)
 
     verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nR = $R"
-    return interval(IntervalArithmetic.numtype(r), r_sup, R)
+    return interval(IntervalArithmetic.numtype(r), r_sup, R), true
 end
 
+<<<<<<< HEAD
 interval_of_existence(Y, Z₁, R; verbose::Bool=true) = interval_of_existence(interval(Y), interval(Z₁), R; verbose=verbose)
+=======
+interval_of_existence(Y, Z₁, R; verbose::Bool = false) = interval_of_existence(interval(Y), interval(Z₁), R; verbose = verbose)
+>>>>>>> upstream/main
 
 function _check_inputs(Y::Interval, Z₁::Interval, R::Real)
     R < 0 || isnan(R) && return false, "invalid threshold R"
@@ -27,19 +38,29 @@ end
 
 function _rpa_failure(msg::AbstractString, r::Interval, verbose::Bool)
     verbose && @info "failure: $msg"
-    return emptyinterval(r)
+    return emptyinterval(r), false
 end
 
 """
-    interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
+    interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool = false)
 
-Return an interval of existence ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
+Return an interval and a boolean value with the following meaning:
+    - `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
+    - `false`: otherwise, and the interval is empty.
 """
+<<<<<<< HEAD
 function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=true)
     isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose=verbose)
 
     b = Z₁ - one(Z₁)
     Δ = b^2 - ExactReal(2) * Z₂ * Y
+=======
+function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool = false)
+    isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose = verbose)
+
+    b = Z₁ - one(Z₁)
+    Δ = b^2 - exact(2)*Z₂*Y
+>>>>>>> upstream/main
     sqrtΔ = sqrt(Δ)
     r₁ = (-b - sqrtΔ) / Z₂
     r₂ = (-b + sqrtΔ) / Z₂
@@ -71,10 +92,14 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
         end
     end
     verbose && @info "success: $msg\nY = $Y\nZ₁ = $Z₁\nR = $R\nΔ = $Δ\nroots = ($r₁, $r₂)"
-    return ie
+    return ie, true
 end
 
+<<<<<<< HEAD
 interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool=true) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose=verbose)
+=======
+interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool = false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose = verbose)
+>>>>>>> upstream/main
 
 function _check_inputs(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
     R < 0 || isnan(R) && return false, "invalid threshold R"

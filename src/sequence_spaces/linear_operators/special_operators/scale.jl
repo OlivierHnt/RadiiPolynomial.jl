@@ -1,5 +1,5 @@
 """
-    Scale{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
+    Scale{T<:Union{Number,Tuple{Vararg{Number}}}} <: AbstractLinearOperator
 
 Generic scale operator.
 
@@ -25,7 +25,7 @@ julia> Scale(1.0, 2.0)
 Scale{Tuple{Float64, Float64}}((1.0, 2.0))
 ```
 """
-struct Scale{T<:Union{Number,Tuple{Vararg{Number}}}} <: SpecialOperator
+struct Scale{T<:Union{Number,Tuple{Vararg{Number}}}} <: AbstractLinearOperator
     value :: T
     Scale{T}(value::T) where {T<:Union{Number,Tuple{Vararg{Number}}}} = new{T}(value)
     Scale{Tuple{}}(::Tuple{}) = throw(ArgumentError("Scale is only defined for at least one Number"))
@@ -37,32 +37,29 @@ Scale(value::Number...) = Scale(value)
 
 value(𝒮::Scale) = 𝒮.value
 
+_infer_domain(S::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((γᵢ, sᵢ) -> _infer_domain(Scale(γᵢ), sᵢ), value(S), spaces(s)))
+_infer_domain(::Scale, s::Taylor) = s
+_infer_domain(S::Scale, s::Fourier) = Fourier(order(s), frequency(s)/value(S))
+_infer_domain(::Scale, s::Chebyshev) = s
+_infer_domain(S::Scale, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
+_infer_domain(S::Scale, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))
+
 Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
 Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))
 
-Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(value(𝒮) ^ ExactReal(n))
-Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> γᵢ ^ ExactReal(n), value(𝒮)))
-Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map((γᵢ, nᵢ) -> γᵢ ^ ExactReal(nᵢ), value(𝒮), n))
+Base.:^(𝒮::Scale{<:Number}, n::Integer) = Scale(value(𝒮) ^ exact(n))
+Base.:^(𝒮::Scale{<:Tuple{Vararg{Number}}}, n::Integer) = Scale(map(γᵢ -> γᵢ ^ exact(n), value(𝒮)))
+Base.:^(𝒮::Scale{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Scale(map((γᵢ, nᵢ) -> γᵢ ^ exact(nᵢ), value(𝒮), n))
 
 """
     *(𝒮::Scale, a::AbstractSequence)
 
 Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
 
-See also: [`(::Scale)(::AbstractSequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
-[`scale!`](@ref).
+See also: [`Scale`](@ref), [`scale`](@ref) and [`scale!`](@ref).
 """
 Base.:*(𝒮::Scale, a::AbstractSequence) = scale(a, value(𝒮))
-
-"""
-    (𝒮::Scale)(a::AbstractSequence)
-
-Scale `a` by a factor `value(𝒮)`; equivalent to `scale(a, value(𝒮))`.
-
-See also: [`*(::Scale, ::AbstractSequence)`](@ref), [`Scale`](@ref), [`scale`](@ref) and
-[`scale!`](@ref).
-"""
-(𝒮::Scale)(a::AbstractSequence) = *(𝒮, a)
 
 """
     scale(a::Sequence, γ)
@@ -75,7 +72,7 @@ and [`(::Scale)(::Sequence)`](@ref).
 function scale(a::Sequence, γ)
     𝒮 = Scale(γ)
     space_a = space(a)
-    new_space = image(𝒮, space_a)
+    new_space = codomain(𝒮, space_a)
     CoefType = _coeftype(𝒮, space_a, eltype(a))
     c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
     _apply!(c, 𝒮, a)
@@ -93,57 +90,16 @@ and [`(::Scale)(::Sequence)`](@ref).
 function scale!(c::Sequence, a::Sequence, γ)
     𝒮 = Scale(γ)
     space_c = space(c)
-    new_space = image(𝒮, space(a))
+    new_space = codomain(𝒮, space(a))
     space_c == new_space || return throw(ArgumentError("spaces must be equal: c has space $space_c, $𝒮(a) has space $new_space"))
     _apply!(c, 𝒮, a)
     return c
 end
 
-"""
-    project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64))
-
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain` to `codomain`.
-
-See also: [`project!(::LinearOperator, ::Scale)`](@ref) and [`Scale`](@ref)
-"""
-function project(𝒮::Scale, domain::VectorSpace, codomain::VectorSpace, ::Type{T}=_coeftype(𝒮, domain, Float64)) where {T}
-    image_domain = image(𝒮, domain)
-    _iscompatible(image_domain, codomain) || return throw(ArgumentError("spaces must be compatible: image of domain under $𝒮 is $image_domain, codomain is $codomain"))
-    ind_domain = _findposition_nzind_domain(𝒮, domain, codomain)
-    ind_codomain = _findposition_nzind_codomain(𝒮, domain, codomain)
-    C = LinearOperator(domain, codomain, SparseArrays.sparse(ind_codomain, ind_domain, zeros(T, length(ind_domain)), dimension(codomain), dimension(domain)))
-    _project!(C, 𝒮)
-    return C
-end
-
-"""
-    project!(C::LinearOperator, 𝒮::Scale)
-
-Represent `𝒮` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Scale, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Scale`](@ref)
-"""
-function project!(C::LinearOperator, 𝒮::Scale)
-    image_domain = image(𝒮, domain(C))
-    codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: image of domain(C) under $𝒮 is $image_domain, C has codomain $codomain_C"))
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, 𝒮)
-    return C
-end
-
-_findposition_nzind_domain(𝒮::Scale, domain, codomain) =
-    _findposition(_nzind_domain(𝒮, domain, codomain), domain)
-
-_findposition_nzind_codomain(𝒮::Scale, domain, codomain) =
-    _findposition(_nzind_codomain(𝒮, domain, codomain), codomain)
-
 # Sequence spaces
 
-image(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((γᵢ, sᵢ) -> image(Scale(γᵢ), sᵢ), value(𝒮), spaces(s)))
+codomain(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((γᵢ, sᵢ) -> codomain(Scale(γᵢ), sᵢ), value(𝒮), spaces(s)))
 
 _coeftype(𝒮::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
     @inbounds promote_type(_coeftype(Scale(value(𝒮)[1]), s[1], T), _coeftype(Scale(Base.tail(value(𝒮))), Base.tail(s), T))
@@ -192,7 +148,7 @@ _nzval(𝒮::Scale{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, co
 
 # Taylor
 
-image(::Scale, s::Taylor) = s
+codomain(::Scale, s::Taylor) = s
 
 _coeftype(::Scale{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
@@ -245,13 +201,13 @@ function _nzval(𝒮::Scale, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
     if isone(γ)
         return one(T)
     else
-        return convert(T, γ ^ ExactReal(i))
+        return convert(T, γ ^ exact(i))
     end
 end
 
 # Fourier
 
-image(𝒮::Scale, s::Fourier) = Fourier(order(s), frequency(s)*value(𝒮))
+codomain(𝒮::Scale, s::Fourier) = Fourier(order(s), frequency(s)*value(𝒮))
 
 _coeftype(::Scale, ::Fourier, ::Type{T}) where {T} = T
 
@@ -279,7 +235,7 @@ _nzval(::Scale, ::Fourier, ::Fourier, ::Type{T}, i, j) where {T} = one(T)
 
 # Chebyshev
 
-image(::Scale, s::Chebyshev) = s
+codomain(::Scale, s::Chebyshev) = s
 
 _coeftype(::Scale{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
@@ -322,11 +278,11 @@ end
 
 # Cartesian spaces
 
-image(𝒮::Scale, s::CartesianPower) =
-    CartesianPower(image(𝒮, space(s)), nspaces(s))
+codomain(𝒮::Scale, s::CartesianPower) =
+    CartesianPower(codomain(𝒮, space(s)), nspaces(s))
 
-image(𝒮::Scale, s::CartesianProduct) =
-    CartesianProduct(map(sᵢ -> image(𝒮, sᵢ), spaces(s)))
+codomain(𝒮::Scale, s::CartesianProduct) =
+    CartesianProduct(map(sᵢ -> codomain(𝒮, sᵢ), spaces(s)))
 
 _coeftype(𝒮::Scale, s::CartesianPower, ::Type{T}) where {T} =
     _coeftype(𝒮, space(s), T)
@@ -350,34 +306,6 @@ end
 function _apply!(c::Sequence{CartesianProduct{T}}, 𝒮::Scale, a) where {T<:Tuple{VectorSpace}}
     @inbounds _apply!(component(c, 1), 𝒮, component(a, 1))
     return c
-end
-
-function _findposition_nzind_domain(𝒮::Scale, domain::CartesianSpace, codomain::CartesianSpace)
-    u = map((dom, codom) -> _findposition_nzind_domain(𝒮, dom, codom), spaces(domain), spaces(codomain))
-    len = sum(length, u)
-    v = Vector{Int}(undef, len)
-    δ = δδ = 0
-    @inbounds for (i, uᵢ) in enumerate(u)
-        δ_ = δ
-        δ += length(uᵢ)
-        view(v, 1+δ_:δ) .= δδ .+ uᵢ
-        δδ += dimension(domain[i])
-    end
-    return v
-end
-
-function _findposition_nzind_codomain(𝒮::Scale, domain::CartesianSpace, codomain::CartesianSpace)
-    u = map((dom, codom) -> _findposition_nzind_codomain(𝒮, dom, codom), spaces(domain), spaces(codomain))
-    len = sum(length, u)
-    v = Vector{Int}(undef, len)
-    δ = δδ = 0
-    @inbounds for (i, uᵢ) in enumerate(u)
-        δ_ = δ
-        δ += length(uᵢ)
-        view(v, 1+δ_:δ) .= δδ .+ uᵢ
-        δδ += dimension(codomain[i])
-    end
-    return v
 end
 
 function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, 𝒮::Scale)

@@ -133,6 +133,16 @@ function project!(c::Sequence, a::AbstractSequence)
 end
 
 """
+    project(a::Sequence, ::ParameterSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(a))
+
+Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain_dest`.
+
+See also: [`project!`](@ref).
+"""
+project(a::Sequence, domain_dest::ParameterSpace, codomain_dest::VectorSpace, ::Type{T}=eltype(a)) where {T} =
+    project!(zeros(T, domain_dest, codomain_dest), a)
+
+"""
     project!(C::LinearOperator{ParameterSpace,<:VectorSpace}, a::Sequence)
 
 Represent `a` as a [`LinearOperator`](@ref) from `ParameterSpace` to `codomain(C)`.
@@ -185,7 +195,7 @@ See also: [`project!`](@ref).
 """
 function project(A::AbstractLinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=_coeftype(A, domain_dest, Float64)) where {T}
     _iscompatible(A, codomain(A, domain_dest), codomain_dest) || return throw(ArgumentError("spaces must be compatible"))
-    C = LinearOperator(domain_dest, codomain_dest, zeros(T, dimension(codomain_dest), dimension(domain_dest)))
+    C = zeros(T, domain_dest, codomain_dest)
     _project!(C, A)
     return C
 end
@@ -209,6 +219,16 @@ function project!(C::LinearOperator, A::AbstractLinearOperator)
     _project!(C, A)
     return C
 end
+
+"""
+    project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A))
+
+Represent `A` as a [`Sequence`](@ref) in `space_dest`.
+
+See also: [`project!`](@ref).
+"""
+project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A)) where {T} =
+    project!(zeros(T, space_dest), A)
 
 """
     project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})

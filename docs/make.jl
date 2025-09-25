@@ -22,11 +22,11 @@ makedocs(;
         "Home" => "index.md",
         "State of the art" => "radii_polynomial_approach.md",
         "Sequence spaces" => [
-            "sequence_spaces/vector_spaces.md",
-            "sequence_spaces/sequences.md",
-            "sequence_spaces/linear_operators.md",
-            "sequence_spaces/norms.md",
-            "sequence_spaces/special_operators.md"
+            "manual/vector_spaces.md",
+            "manual/sequences.md",
+            "manual/linear_operators.md",
+            "manual/norms.md",
+            "manual/special_operators.md"
         ],
         "Examples" => [
             "Finite-dimensional proofs" => [

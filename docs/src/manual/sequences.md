@@ -66,23 +66,16 @@ mul_bar(c, d) # project(c * d, Taylor(1))
 pow_bar(c, 3) # project(c ^ 3, Taylor(1))
 ```
 
-To improve performance, the FFT algorithm may be used to compute discrete convolutions via the [Convolution Theorem](https://en.wikipedia.org/wiki/Convolution_theorem). However, the performance gain is tempered with the loss of accuracy which may stop the decay of the coefficients.
-
-```@repl sequences
-x = Sequence(Taylor(3), interval.([inv(10_000.0 ^ i) for i ∈ 0:3]))
-x³ = x ^ 3
-x³_fft = rifft!(zero(x³), fft(x, fft_size(space(x³))) .^ 3)
-```
-
-To circumvent machine precision limitations, the `banach_rounding!` method enclose rigorously each term of the convolution beyond a prescribed order.[^1]
+To improve performance, the FFT algorithm may be used to compute discrete convolutions via the [Convolution Theorem](https://en.wikipedia.org/wiki/Convolution_theorem). However, the performance gain is tempered with the loss of accuracy which may stop the decay of the coefficients. To circumvent machine precision limitations, the `banach_rounding!` method enclose rigorously each term of the convolution beyond a prescribed order.[^1]
 
 [^1]: J.-P. Lessard, [Computing discrete convolutions with verified accuracy via Banach algebras and the FFT](https://doi.org/10.21136/AM.2018.0082-18), *Applications of Mathematics*, **63** (2018), 219-235.
 
-The rounding strategy for [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref), [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref), `mul_bar` and `pow_bar` is integrated in the functions [`banach_rounding_mul`](@ref), [`banach_rounding_mul!`](@ref), [`banach_rounding_pow`](@ref), `banach_rounding_mul_bar` and `banach_rounding_pow_bar` respectively.
-
 ```@repl sequences
-X = ℓ¹(GeometricWeight(interval(10_000.0)))
-banach_rounding!(x³_fft, norm(x, X) ^ 3, X, 5)
+x = Sequence(Taylor(3), interval.([inv(10_000.0 ^ i) for i ∈ 0:3]))
+RadiiPolynomial.set_conv_algorithm(:fft)
+x³ = x ^ 3
+RadiiPolynomial.set_conv_algorithm(:sum) # default algorithm
+x³ = x ^ 3 # only rounding error
 ```
 
 ## API

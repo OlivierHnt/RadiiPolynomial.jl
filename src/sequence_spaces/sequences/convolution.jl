@@ -25,6 +25,24 @@ function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
         C = A .* B
         c = _call_ifft!(C, space_c, CoefType)
         _enforce_zeros!(c, a, b)
+        banach_rounding!(c, a, b)
+    else # CONV_ALGORITHM[] === :sum
+        c = Sequence(space_c, zeros(CoefType, dimension(space_c)))
+        _add_mul!(c, a, b, convert(real(CoefType), exact(true)))
+    end
+    return c
+end
+
+function mul(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace}, X)
+    space_c = codomain(*, space(a), space(b))
+    CoefType = promote_type(eltype(a), eltype(b))
+    if CONV_ALGORITHM[] === :fft
+        A = fft(a, fft_size(space_c))
+        B = fft(b, fft_size(space_c))
+        C = A .* B
+        c = _call_ifft!(C, space_c, CoefType)
+        _enforce_zeros!(c, a, b)
+        banach_rounding!(c, a, b, X)
     else # CONV_ALGORITHM[] === :sum
         c = Sequence(space_c, zeros(CoefType, dimension(space_c)))
         _add_mul!(c, a, b, convert(real(CoefType), exact(true)))
@@ -42,6 +60,7 @@ function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
         C = A .* B
         c = _call_ifft!(C, space_c, CoefType)
         _enforce_zeros!(c, a, b)
+        banach_rounding!(c, a, b)
     else # CONV_ALGORITHM[] === :sum
         c = Sequence(space_c, zeros(CoefType, dimension(space_c)))
         _add_mul!(c, a, b, convert(real(CoefType), exact(true)))
@@ -51,7 +70,7 @@ end
 
 function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     X = banachspace(a) ∩ banachspace(b)
-    full_c = sequence(a) * sequence(b)
+    full_c = mul(sequence(a), sequence(b), X)
     c = project(full_c, space(a) ∩ space(b))
     @inbounds view(full_c, indices(space(c))) .= zero(eltype(c))
     return InfiniteSequence(c, norm(full_c, X) +
@@ -63,6 +82,155 @@ end
 
 Base.:*(a::InfiniteSequence, b::Sequence) = a * InfiniteSequence(b, banachspace(a))
 Base.:*(a::Sequence, b::InfiniteSequence) = InfiniteSequence(a, banachspace(b)) * b
+
+#-
+_to_interval(::Type{T}, x) where {T<:Union{Interval,Complex{<:Interval}}} = interval(zero(T), x; format = :midpoint)
+
+_to_interval(::Type{T}, _) where {T} = zero(T)
+
+function banach_rounding_order(bound::T, X::Ell1{GeometricWeight{T}}) where {T<:AbstractFloat}
+    (rate(weight(X)) ≤ 1) | isinf(bound) && return typemax(Int)
+    v = bound/eps(T)
+    v ≤ 1 && return 0
+    order = log(v)/log(rate(weight(X)))
+    isinf(order) && return typemax(Int)
+    return ceil(Int, order)
+end
+
+function banach_rounding_order(bound::T,  X::Ell1{AlgebraicWeight{T}}) where {T<:AbstractFloat}
+    (rate(weight(X)) == 0) | isinf(bound) && return typemax(Int)
+    v = bound/eps(T)
+    v ≤ 1 && return 0
+    order = exp(log(v)/rate(weight(X)))-1
+    isinf(order) && return typemax(Int)
+    return ceil(Int, order)
+end
+
+for T ∈ (:GeometricWeight, :AlgebraicWeight)
+    @eval begin
+        function banach_rounding_order(bound_::Real, X::Ell1{<:$T})
+            bound, r = promote(float(sup(bound_)), float(sup(rate(weight(X)))))
+            return banach_rounding_order(bound, Ell1($T(r)))
+        end
+    end
+end
+
+function banach_rounding_order(bound_::Real, X::Ell1{<:Tuple})
+    bound = sup(bound_)
+    return map(wᵢ -> banach_rounding_order(bound, Ell1(wᵢ)), weight(X))
+end
+
+#
+
+function banach_rounding!(c::Sequence, a::Sequence, b::Sequence)
+    X = Ell1(weight(a)) ∩ Ell1(weight(b))
+    bound = norm(a, X) * norm(b, X)
+    return banach_rounding!(c, bound, X, banach_rounding_order(bound, X))
+end
+
+function banach_rounding!(c::Sequence, a::Sequence, n::Integer)
+    X = Ell1(weight(a))
+    bound = norm(a, X)^n
+    return banach_rounding!(c, bound, X, banach_rounding_order(bound, X))
+end
+
+function banach_rounding!(c::Sequence, a::Sequence, b::Sequence, X::Ell1)
+    bound = norm(a, X) * norm(b, X)
+    return banach_rounding!(c, bound, X, banach_rounding_order(bound, X))
+end
+
+function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound::Real, X::Ell1, rounding_order::NTuple{N,Int}) where {N,T<:NTuple{N,BaseSpace},S}
+    (inf(bound) ≥ 0) & all(≥(0), rounding_order) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    space_a = space(a)
+    M = typemax(Int)
+    @inbounds for α ∈ indices(space_a)
+        if mapreduce((i, ord) -> ifelse(ord == M, 0//1, ifelse(ord == 0, 1//1, abs(i) // max(1, ord))), +, α, rounding_order) ≥ 1
+            μᵅ = bound / _getindex(weight(X), space_a, α)
+            a[α] = _to_interval(S, sup(μᵅ))
+        end
+    end
+    return a
+end
+
+# Taylor
+
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    if rounding_order ≤ order(a)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
+        @inbounds for i ∈ rounding_order:order(a)
+            a[i] = _to_interval(T, sup(μⁱ))
+            μⁱ *= ν⁻¹
+        end
+    end
+    return a
+end
+
+function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
+        a[i] = _to_interval(T, sup(μⁱ))
+    end
+    return a
+end
+
+# Fourier
+
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    if rounding_order ≤ order(a)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
+        @inbounds for i ∈ rounding_order:order(a)
+            x = _to_interval(T, sup(μⁱ))
+            a[i] = x
+            a[-i] = x
+            μⁱ *= ν⁻¹
+        end
+    end
+    return a
+end
+
+function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
+        x = _to_interval(T, sup(μⁱ))
+        a[i] = x
+        a[-i] = x
+    end
+    return a
+end
+
+# Chebyshev
+
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    if rounding_order ≤ order(a)
+        ν⁻¹ = inv(rate(weight(X)))
+        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
+        @inbounds for i ∈ rounding_order:order(a)
+            a[i] = _to_interval(T, sup(μⁱ))
+            μⁱ *= ν⁻¹
+        end
+    end
+    return a
+end
+
+function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
+    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
+    space_a = space(a)
+    @inbounds for i ∈ rounding_order:order(a)
+        μⁱ = bound / _getindex(weight(X), space_a, i)
+        a[i] = _to_interval(T, sup(μⁱ))
+    end
+    return a
+end
+#-
 
 #-
 _enforce_zeros!(c::Sequence{<:BaseSpace}, a, b) =
@@ -301,6 +469,7 @@ function Base.:^(a::Sequence{<:SequenceSpace}, n::Integer)
         C = A .^ n
         c = _call_ifft!(C, space_c, eltype(a))
         _enforce_zeros!(c, a, n)
+        banach_rounding!(c, a, n)
     else # CONV_ALGORITHM[] === :sum
         n == 2 && return _sqr(a)
         # power by squaring

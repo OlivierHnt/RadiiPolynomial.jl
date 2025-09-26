@@ -52,30 +52,18 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
     isvalid || return _rpa_failure(msg, r₁, verbose)
 
     r₁_sup = sup(r₁)
-    r₂_inf = inf(r₂)
 
     inf(Δ) < 0                                && return _rpa_failure("discriminant negative → complex roots", r₁, verbose)
-    r₁_sup > r₂_inf                           && return _rpa_failure("root enclosures overlap", r₁, verbose)
+    r₁_sup > inf(r₂)                          && return _rpa_failure("root enclosures overlap", r₁, verbose)
     0 ≤ r₁_sup ≤ R && sup(Z₁ + Z₂*r₁_sup) < 1 || return _rpa_failure("roots not in [0, R] or contraction fails", r₁, verbose)
 
-    if 0 ≤ r₂_inf ≤ R && sup(Z₁ + Z₂*r₂_inf) < 1
-        ie, msg = interval(IntervalArithmetic.numtype(r₁), r₁_sup, r₂_inf), "both roots delimit the interval"
-    elseif isfinite(R) && sup(Z₁ + Z₂*R) < 1
-        ie, msg = interval(IntervalArithmetic.numtype(r₁), r₁_sup, R), "smallest root and R delimit interval"
-    else
-        z = inf(-b/Z₂)
-        x = float(z)
-        while x > z
-            x = prevfloat(x)
-        end
-        if r₁_sup ≤ x ≤ min(r₂_inf, R)
-            ie, msg = interval(IntervalArithmetic.numtype(r₁), r₁_sup, x), "smallest root and a smaller float than (1-Z₁)/Z₂ delimit the interval"
-        else
-            ie, msg = interval(IntervalArithmetic.numtype(r₁), r₁_sup, r₁_sup), "singleton interval at the smallest root"
-        end
+    verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nR = $R\nΔ = $Δ\nroots = ($r₁, $r₂)"
+    z = inf(-b/Z₂)
+    x = float(z)
+    while x > z
+        x = prevfloat(x)
     end
-    verbose && @info "success: $msg\nY = $Y\nZ₁ = $Z₁\nR = $R\nΔ = $Δ\nroots = ($r₁, $r₂)"
-    return ie, true
+    return interval(IntervalArithmetic.numtype(r₁), r₁_sup, min(R, x)), true
 end
 
 interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool = false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose = verbose)

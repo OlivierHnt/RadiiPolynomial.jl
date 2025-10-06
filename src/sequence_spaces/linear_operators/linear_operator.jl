@@ -13,6 +13,8 @@ order(A::AbstractLinearOperator, i::Int, j::Int) = (order(domain(A), j), order(c
 frequency(A::AbstractLinearOperator) = (frequency(domain(A)), frequency(codomain(A)))
 frequency(A::AbstractLinearOperator, i::Int, j::Int) = (frequency(domain(A), j), frequency(codomain(A), i))
 
+Base.:*(A::AbstractLinearOperator, B::AbstractLinearOperator) = A ∘ B
+
 # utilities
 
 function Base.firstindex(A::AbstractLinearOperator, i::Int)
@@ -292,3 +294,59 @@ function Base.show(io::IO, A::LinearOperator)
     get(io, :compact, false) && return show(io, coefficients(A))
     return print(io, "LinearOperator(", domain(A), ", ", codomain(A), ", ", coefficients(A), ")")
 end
+
+
+
+
+
+#
+
+struct Add{T<:AbstractLinearOperator,S<:AbstractLinearOperator} <: AbstractLinearOperator
+    A :: T
+    B :: S
+end
+
+struct Negate{T<:AbstractLinearOperator} <: AbstractLinearOperator
+    A :: T
+end
+
+Base.:+(A::AbstractLinearOperator, B::AbstractLinearOperator) = Add(A, B)
+Base.:-(A::AbstractLinearOperator) = Negate(A)
+Base.:-(A::AbstractLinearOperator, B::AbstractLinearOperator) = A + (-B)
+
+Base.:-(A::Negate) = A.A
+Base.:-(A::Add) = -A.A + (-A.B)
+
+codomain(S::Add, s::VectorSpace) = codomain(S.A, s) ∪ codomain(S.B, s)
+codomain(S::Negate, s::VectorSpace) = codomain(S.A, s)
+
+Base.show(io::IO, ::MIME"text/plain", S::Add) = print(io, S.A, " + ", S.B)
+Base.show(io::IO, ::MIME"text/plain", S::Add{<:AbstractLinearOperator,<:Negate}) = print(io, S.A, " - ", S.B.A)
+Base.show(io::IO, ::MIME"text/plain", S::Negate) = print(io, "-", S.A)
+
+#
+
+struct UniformScalingOperator{T<:UniformScaling} <: AbstractLinearOperator
+    J :: T
+end
+
+UniformScalingOperator(λ::Number) = UniformScalingOperator(UniformScaling(λ))
+
+codomain(::UniformScalingOperator, s::VectorSpace) = s
+
+Base.eltype(J::UniformScalingOperator) = eltype(J.J)
+Base.eltype(::Type{UniformScalingOperator{T}}) where {T<:UniformScaling} = eltype(T)
+
+Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.J))
+Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(zero(eltype(T)))
+Base.one(J::UniformScalingOperator) = UniformScalingOperator(one(J.J))
+Base.one(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(one(eltype(T)))
+
+Base.:-(J::UniformScalingOperator) = UniformScalingOperator(-J.J)
+
+Base.:+(A::AbstractLinearOperator, J::UniformScaling) = A + UniformScalingOperator(J)
+Base.:+(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) + A
+Base.:-(A::AbstractLinearOperator, J::UniformScaling) = A - UniformScalingOperator(J)
+Base.:-(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) - A
+Base.:*(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) * A
+Base.:*(A::AbstractLinearOperator, J::UniformScaling) = A * UniformScalingOperator(J)

@@ -31,7 +31,7 @@ include("sequence_spaces/banach_spaces.jl")
 
 
 include("sequence_spaces/sequences/sequence.jl")
-    export Sequence, coefficients, eachcomponent, component,
+    export AbstractSequence, Sequence, coefficients, eachcomponent, component,
         conjugacy_symmetry!, geometricweight, algebraicweight, polish!
 include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, sequence_error, banachspace
@@ -50,7 +50,7 @@ include("sequence_spaces/sequences/elementary.jl")
 
 import LinearAlgebra: UniformScaling, I
 include("sequence_spaces/linear_operators/linear_operator.jl")
-    export LinearOperator, domain, eachcol, eachrow, transpose, adjoint,
+    export AbstractLinearOperator, LinearOperator, domain, eachcol, eachrow, transpose, adjoint,
         Add, Negate, UniformScalingOperator
 include("sequence_spaces/linear_operators/banded_linear_operator.jl")
     export BandedLinearOperator, UniformScaling, I

@@ -663,11 +663,11 @@ function _radd!(A::LinearOperator{<:SequenceSpace,<:SequenceSpace}, J::UniformSc
     if domain_A == codomain_A
         A_ = coefficients(A)
         @inbounds for i ∈ axes(A_, 1)
-            A_[i,i] += J.λ
+            A_[i,i] += J.J.λ
         end
     else
         @inbounds for α ∈ indices(domain_A ∩ codomain_A)
-            A[α,α] += J.λ
+            A[α,α] += J.J.λ
         end
     end
     return A

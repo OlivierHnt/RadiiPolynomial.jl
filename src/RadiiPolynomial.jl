@@ -48,9 +48,10 @@ include("sequence_spaces/sequences/elementary.jl")
 
 
 
-include("sequence_spaces/linear_operators/linear_operator.jl")
-    export LinearOperator, domain, eachcol, eachrow, transpose, adjoint
 import LinearAlgebra: UniformScaling, I
+include("sequence_spaces/linear_operators/linear_operator.jl")
+    export LinearOperator, domain, eachcol, eachrow, transpose, adjoint,
+        Add, Negate, UniformScalingOperator
 include("sequence_spaces/linear_operators/banded_linear_operator.jl")
     export BandedLinearOperator, UniformScaling, I
 include("sequence_spaces/linear_operators/projection.jl")

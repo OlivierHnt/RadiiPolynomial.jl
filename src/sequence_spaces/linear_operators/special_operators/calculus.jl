@@ -1307,6 +1307,8 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::CosFou
     end
 end
 
+codomain(ℐ::Integral, s::CosFourier) = iseven(order(ℐ)) ? s : SinFourier(desymmetrize(s))
+
 # SinFourier
 
 codomain(𝒟::Derivative, s::SinFourier) = iseven(order(𝒟)) ? s : CosFourier(desymmetrize(s))
@@ -1408,7 +1410,7 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFou
     end
 end
 
-
+codomain(ℐ::Integral, s::SinFourier) = iseven(order(ℐ)) ? s : CosFourier(desymmetrize(s))
 
 #
 

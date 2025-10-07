@@ -15,7 +15,9 @@ function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bo
     0 ≤ r_sup ≤ R || return _rpa_failure("root not in [0, R]", r, verbose)
 
     verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nR = $R"
-    return interval(IntervalArithmetic.numtype(r), r_sup, R, min(decoration(Y), decoration(Z₁))), true
+
+    t = isguaranteed(Y) & isguaranteed(Z₁)
+    return _setguarantee(interval(IntervalArithmetic.numtype(r), r_sup, R, min(decoration(Y), decoration(Z₁))), t), true
 end
 
 interval_of_existence(Y, Z₁, R; verbose::Bool = false) = interval_of_existence(interval(Y), interval(Z₁), R; verbose = verbose)
@@ -62,7 +64,9 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
     while x > z
         x = prevfloat(x)
     end
-    return interval(IntervalArithmetic.numtype(r₁), r₁_sup, min(R, x), min(decoration(Y), decoration(Z₁), decoration(Z₂))), true
+
+    t = isguaranteed(Y) & isguaranteed(Z₁) & isguaranteed(Z₂)
+    return _setguarantee(interval(IntervalArithmetic.numtype(r₁), r₁_sup, min(R, x), min(decoration(Y), decoration(Z₁), decoration(Z₂))), t), true
 end
 
 interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool = false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose = verbose)

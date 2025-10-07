@@ -10,6 +10,10 @@ _safe_isequal(x, y) = x == y
 _safe_isequal(x::Union{Interval,Complex{<:Interval}}, y::Union{Interval,Complex{<:Interval}}) =
     isequal_interval(x, y)
 
+#
+
+_setguarantee(a::Interval, t::Bool) = IntervalArithmetic._unsafe_interval(bareinterval(a), decoration(a), t)
+
 # allocation free reshaping (cf. Issue #36313)
 
 _no_alloc_reshape(a::Sequence{<:BaseSpace}) = coefficients(a)

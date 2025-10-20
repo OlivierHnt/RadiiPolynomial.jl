@@ -122,36 +122,18 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
     Mat = r -> Z₁ .+ WW(r)
 
     # Newton iteration to find approximate zero
-    r0 = zeros(M)
-    newtoncounter = 0
-    maxnewtoniterates = 15
-    newtontolerance = 1e-15
-    convergencetolerance = 1e-13
-    dr0 = ones(M)       # start with nonzero step
-    nanflag = false
-
-    while newtoncounter <= maxnewtoniterates && maximum(abs.(dr0)) > newtontolerance
-        dr0 = -(DPf(r0) \ Pf(r0))
-        if any(isnan, dr0)
-            dr0 = map(x -> isnan(x) ? 0.0 : x, dr0)
-            nanflag = true
-        else
-            nanflag = false
-        end
-        r0 .= r0 .+ dr0
-        newtoncounter += 1
-    end
-
-    if !(all(>(0), r0)) || maximum(abs.(dr0)) > convergencetolerance || nanflag
+    r0 = Yf
+    r0, newton_success = newton(r -> (Pf(r), DPf(r)), r0)
+    if !(all(>(0), r0)) || !newton_success
         println("no good set of radii found for inclusion")
     end
 
     r0 = max.(r0, floatmin(Float64))
 
     # Determine search direction
-    direction = -(DPf(r0) \ r0)
-    direction = direction ./ r0     # Normalize the direction
-    direction = direction ./ maximum(direction)
+    direction = DPf(r0) \ r0
+    direction ./= .-r0     # Normalize the direction
+    direction ./= maximum(direction)
 
     # Search for negative point of radii polynomials
     success = false
@@ -180,7 +162,7 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
                 eta = 1
             end
         else
-            dominant, eta = CollatzWielandt(Mat(rmin))
+            dominant, eta = _collatz_wielandt(Mat(rmin))
             if dominant - 1 < 0
                 success = true
             else
@@ -203,7 +185,7 @@ function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray
     return rmin, eta, success
 end
 
-function CollatzWielandt(A)
+function _collatz_wielandt(A)
     # Compute upper bound on spectral radius (Perron-Frobenius) of nonnegative matrix A
     # Returns: PFupperbound, testvector
 

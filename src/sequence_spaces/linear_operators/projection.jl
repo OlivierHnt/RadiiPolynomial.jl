@@ -1,14 +1,14 @@
 # composition of operators
 
-codomain(A::ComposedFunction, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
+codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
 
-_infer_domain(A::ComposedFunction, s::VectorSpace) = _infer_domain(A.inner, _infer_domain(A.outer, s))
+_infer_domain(A::ComposedOperator, s::VectorSpace) = _infer_domain(A.inner, _infer_domain(A.outer, s))
 
-project(A::ComposedFunction, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
-project(A::ComposedFunction, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
+project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
+project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
     project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
 
-project!(A::AbstractLinearOperator, B::ComposedFunction) = project!(A, project(B, domain(A), codomain(A)))
+project!(A::AbstractLinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
 
 #
 
@@ -49,8 +49,8 @@ Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space) # nee
 Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
 Base.:*(P::Projection, A::AbstractLinearOperator) = project(A, _infer_domain(A, P.space), P.space, _coeftype(A, _infer_domain(A, P.space), eltype(P)))
 
-Base.:*(A::ComposedFunction, P::Projection) = A.outer * (A.inner * P)
-Base.:*(P::Projection, A::ComposedFunction) = (P * A.outer) * A.inner
+Base.:*(A::ComposedOperator, P::Projection) = A.outer * (A.inner * P)
+Base.:*(P::Projection, A::ComposedOperator) = (P * A.outer) * A.inner
 
 Base.:*(P::Add{<:Projection,<:Projection}, A::AbstractLinearOperator) = P.A * A + P.B * A
 Base.:*(A::AbstractLinearOperator, P::Add{<:Projection,<:Projection}) = A * P.A + A * P.B

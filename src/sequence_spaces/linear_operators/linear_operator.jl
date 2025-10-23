@@ -350,3 +350,14 @@ Base.:-(A::AbstractLinearOperator, J::UniformScaling) = A - UniformScalingOperat
 Base.:-(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) - A
 Base.:*(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) * A
 Base.:*(A::AbstractLinearOperator, J::UniformScaling) = A * UniformScalingOperator(J)
+
+#
+
+struct ComposedOperator{T<:AbstractLinearOperator,S<:AbstractLinearOperator} <: AbstractLinearOperator
+    outer :: T
+    inner :: S
+end
+
+Base.:∘(A::AbstractLinearOperator, B::AbstractLinearOperator) = ComposedOperator(A, B)
+Base.:∘(A::AbstractLinearOperator, J::UniformScaling) = ComposedOperator(A, UniformScalingOperator(J))
+Base.:∘(J::UniformScaling, A::AbstractLinearOperator) = ComposedOperator(UniformScalingOperator(J), A)

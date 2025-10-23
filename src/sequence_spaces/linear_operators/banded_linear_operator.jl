@@ -81,4 +81,4 @@ function _band_project!(C::LinearOperator, A::Vector)
     end
     return C
 end
-_band_project!(C::LinearOperator, A::Union{AbstractLinearOperator,UniformScaling,ComposedFunction}) = project!(C, A)
+_band_project!(C::LinearOperator, A::Union{AbstractLinearOperator,UniformScaling}) = project!(C, A)

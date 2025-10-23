@@ -51,7 +51,7 @@ include("sequence_spaces/sequences/elementary.jl")
 import LinearAlgebra: UniformScaling, I
 include("sequence_spaces/linear_operators/linear_operator.jl")
     export AbstractLinearOperator, LinearOperator, domain, eachcol, eachrow, transpose, adjoint,
-        Add, Negate, UniformScalingOperator
+        Add, Negate, ComposedOperator, UniformScalingOperator
 include("sequence_spaces/linear_operators/banded_linear_operator.jl")
     export BandedLinearOperator, UniformScaling, I
 include("sequence_spaces/linear_operators/projection.jl")

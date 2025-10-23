@@ -298,7 +298,7 @@ end
 
 _project!(A::LinearOperator, B::Add) = add!(A, B.A, B.B)
 _project!(A::LinearOperator, B::Negate) = rsub!(A, B.A)
-_project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J.J)
+_project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J)
 
 
 

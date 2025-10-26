@@ -12,18 +12,11 @@ _apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
 # dimension for DFT and FFT
 
 fft_size(s::TensorSpace) = map(sᵢ -> fft_size(sᵢ), spaces(s))
-
 fft_size(s::BaseSpace) = nextpow(2, _dft_dimension(s))
 
-_dft_dimension(s::Taylor) = 2order(s)+1
-
-_dft_dimension(s::Fourier) = dimension(s)
-
-_dft_dimension(s::Chebyshev) = 2order(s)+1
-
-_dft_dimension(s::CosFourier) = 2order(s)+1
-
-_dft_dimension(s::SinFourier) = 2order(s)+1
+_dft_dimension(s::BaseSpace) = 2order(s)+1
+_dft_dimension(s::Chebyshev) = 2order(s)+!ispow2(order(s))
+_dft_dimension(s::CosFourier) = 2order(s)+!ispow2(order(s))
 
 
 
@@ -91,6 +84,9 @@ function _preprocess!(C::AbstractVector, space::Chebyshev)
     len = length(C)
     ord = order(space)
     @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
+    if len != 1
+        @inbounds C[len÷2+1] *= exact(2)
+    end
     return C
 end
 
@@ -98,6 +94,9 @@ function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
     @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
+    if len != 1
+        @inbounds selectdim(C, D, len÷2+1) .*= exact(2)
+    end
     return C
 end
 
@@ -148,7 +147,7 @@ function _ifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray, f::Union{typeof(
     C = _no_alloc_reshape(c)
     C .= zero(eltype(c))
     inds_C, inds_A = _ifft_get_index(sz, space(c))
-    view(C, inds_C...) .= f.(view(A, inds_A...))
+    @inbounds view(C, inds_C...) .= f.(view(A, inds_A...))
     return c
 end
 
@@ -205,7 +204,7 @@ _ifft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)),
 function _postprocess!(C::AbstractVector, ::Chebyshev)
     len = length(C)
     if len != 1
-        C[len÷2+1] /= exact(2)
+        @inbounds C[len÷2+1] /= exact(2)
     end
     return C
 end
@@ -213,7 +212,7 @@ end
 function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     if len != 1
-        selectdim(C, D, len÷2+1) ./= exact(2)
+        @inbounds selectdim(C, D, len÷2+1) ./= exact(2)
     end
     return C
 end
@@ -232,13 +231,13 @@ _ifft_get_index(n::Integer, space::SinFourier) = 1:min(n÷2, dimension(space)), 
 
 function _postprocess!(C::AbstractVector, ::SinFourier)
     ord = length(C) ÷ 2
-    view(C, 1:ord) .= -complex(exact(false), exact(true)) .* view(C, 2:ord+1)
+    @inbounds view(C, 1:ord) .= -complex(exact(false), exact(true)) .* view(C, 2:ord+1)
     return C
 end
 
 function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
     ord = size(C, D) ÷ 2
-    selectdim(C, D, 1:ord) .= -complex(exact(false), exact(true)) .* selectdim(C, D, 2:ord+1)
+    @inbounds selectdim(C, D, 1:ord) .= -complex(exact(false), exact(true)) .* selectdim(C, D, 2:ord+1)
     return C
 end
 

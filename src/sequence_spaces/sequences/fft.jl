@@ -178,7 +178,7 @@ end
 function _ifft_get_index(n::Integer, space::Fourier)
     ord_C = order(space)
     ord_A = n÷2
-    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+1+ord_A, 1:n
+    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+ord_A, 1:n # accomodate for the Nquilst frequency
     return 1:2ord_C+1, ord_A+1-ord_C:ord_A+1+ord_C
 end
 
@@ -204,7 +204,7 @@ _ifft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)),
 function _postprocess!(C::AbstractVector, ::Chebyshev)
     len = length(C)
     if len != 1
-        @inbounds C[len÷2+1] /= exact(2)
+        @inbounds C[len÷2+1] /= exact(2) # Nquilst frequency
     end
     return C
 end
@@ -212,7 +212,7 @@ end
 function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     if len != 1
-        @inbounds selectdim(C, D, len÷2+1) ./= exact(2)
+        @inbounds selectdim(C, D, len÷2+1) ./= exact(2) # Nquilst frequency
     end
     return C
 end

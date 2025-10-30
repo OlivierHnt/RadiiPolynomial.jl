@@ -13,9 +13,9 @@ project!(A::AbstractLinearOperator, B::ComposedOperator) = project!(A, project(B
 #
 
 """
-    Projection{T<:VectorSpace} <: AbstractLinearOperator
+    Projection{T<:VectorSpace,S<:Number} <: AbstractLinearOperator
 
-Projection operator onto `space`.
+Projection operator onto a `space::T` whose entries are of type `S`.
 
 Field:
 - `space :: T`
@@ -47,7 +47,9 @@ Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space)
 Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A)) # needed to resolve method ambiguity
 Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space) # needed to resolve method ambiguity
 Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
-Base.:*(P::Projection, A::AbstractLinearOperator) = project(A, _infer_domain(A, P.space), P.space, _coeftype(A, _infer_domain(A, P.space), eltype(P)))
+Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, _infer_domain(A, P.space), P)
+_lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
+_lproj(A::AbstractLinearOperator, ::EmptySpace, P::Projection) = ComposedOperator(P, A)
 
 Base.:*(A::ComposedOperator, P::Projection) = A.outer * (A.inner * P)
 Base.:*(P::Projection, A::ComposedOperator) = (P * A.outer) * A.inner

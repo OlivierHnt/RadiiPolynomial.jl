@@ -48,7 +48,7 @@ _infer_domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}
     TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(D), spaces(s)))
 _infer_domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
 _infer_domain(::Derivative, s::Fourier) = s
-# error for Chebyshev
+_infer_domain(::Derivative, ::Chebyshev) = EmptySpace() # flags an error
 _infer_domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
 _infer_domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
 _infer_domain(D::Derivative, s::CartesianPower) = CartesianPower(_infer_domain(D, space(s)), nspaces(s))
@@ -104,7 +104,7 @@ _infer_domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}})
     TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(I), spaces(s)))
 _infer_domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
 _infer_domain(::Integral, s::Fourier) = s
-# error for Chebyshev
+_infer_domain(::Integral, ::Chebyshev) = EmptySpace() # flags an error
 _infer_domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
 _infer_domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
 _infer_domain(I::Integral, s::CartesianPower) = CartesianPower(_infer_domain(I, space(s)), nspaces(s))

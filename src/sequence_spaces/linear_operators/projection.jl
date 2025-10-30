@@ -15,7 +15,9 @@ project!(A::AbstractLinearOperator, B::ComposedOperator) = project!(A, project(B
 """
     Projection{T<:VectorSpace,S<:Number} <: AbstractLinearOperator
 
-Projection operator onto a `space::T` whose entries are of type `S`.
+Projection operator onto `space::T`. This is used to resize a sequence, a
+linear operator, or materialize a finite projection of an abstract operator. The
+type of the ouput entries is determined by promoting against `S`.
 
 Field:
 - `space :: T`
@@ -42,10 +44,11 @@ Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S
 
 Base.:*(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
 
-Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space)
+Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space, promote_type(eltype(P), eltype(a)))
 
-Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A)) # needed to resolve method ambiguity
-Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space) # needed to resolve method ambiguity
+Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
+Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
+
 Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
 Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, _infer_domain(A, P.space), P)
 _lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))

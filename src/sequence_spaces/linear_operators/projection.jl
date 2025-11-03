@@ -203,6 +203,7 @@ _coeftype(S::Negate, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.A, s, T)
 
 _coeftype(P::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(P), T)
 _coeftype(J::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(J), T)
+_coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.outer, codomain(S.inner, s), _coeftype(S.inner, s, T))
 
 """
     project!(C::LinearOperator, A::AbstractLinearOperator)

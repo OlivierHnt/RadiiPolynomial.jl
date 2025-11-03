@@ -6,7 +6,7 @@ _infer_domain(A::ComposedOperator, s::VectorSpace) = _infer_domain(A.inner, _inf
 
 project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
 project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
-    project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
+    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
 
 project!(A::AbstractLinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
 

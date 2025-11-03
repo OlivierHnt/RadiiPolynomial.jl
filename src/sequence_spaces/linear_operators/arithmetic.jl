@@ -12,6 +12,12 @@ rsub!(A::LinearOperator, S::AbstractLinearOperator) = rsub!(A, project(S, domain
 ladd!(S::AbstractLinearOperator, A::LinearOperator) = ladd!(project(S, domain(A), codomain(A), eltype(A)), A)
 lsub!(S::AbstractLinearOperator, A::LinearOperator) = lsub!(project(S, domain(A), codomain(A), eltype(A)), A)
 
+function Base.:*(A::LinearOperator, S::AbstractLinearOperator)
+    _infer_domain(S, domain(A)) isa EmptySpace && return ComposedOperator(A, S)
+    return A * (Projection(domain(A)) * S)
+end
+Base.:*(S::AbstractLinearOperator, A::LinearOperator) = (S * Projection(codomain(A))) * A
+
 function mul!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator, α::Number, β::Number)
     domain_C = domain(C)
     return mul!(C, S₁, project(S₂, domain_C, codomain(S₂, domain_C), eltype(C)), α, β)
@@ -29,35 +35,6 @@ mul!(C::LinearOperator, A::LinearOperator, S::AbstractLinearOperator, α::Number
 
 Base.:+(A::LinearOperator) = LinearOperator(domain(A), codomain(A), +(coefficients(A)))
 Base.:-(A::LinearOperator) = LinearOperator(domain(A), codomain(A), -(coefficients(A)))
-
-function Base.:+(A::LinearOperator, S::LinearOperator)
-    domain_A = domain(A)
-    new_codomain = codomain(+, codomain(A), codomain(S, domain_A))
-    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
-    ladd!(A, project!(C, S))
-    return C
-end
-function Base.:+(S::LinearOperator, A::LinearOperator)
-    domain_A = domain(A)
-    new_codomain = codomain(+, codomain(S, domain_A), codomain(A))
-    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
-    radd!(project!(C, S), A)
-    return C
-end
-function Base.:-(A::LinearOperator, S::LinearOperator)
-    domain_A = domain(A)
-    new_codomain = codomain(-, codomain(A), codomain(S, domain_A))
-    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
-    lsub!(A, project!(C, S))
-    return C
-end
-function Base.:-(S::LinearOperator, A::LinearOperator)
-    domain_A = domain(A)
-    new_codomain = codomain(-, codomain(S, domain_A), codomain(A))
-    C = zeros(_coeftype(S, domain_A, eltype(A)), domain_A, new_codomain)
-    rsub!(project!(C, S), A)
-    return C
-end
 
 Base.:*(A::LinearOperator, b::Number) = LinearOperator(domain(A), codomain(A), *(coefficients(A), b))
 Base.:*(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), *(b, coefficients(A)))

@@ -43,9 +43,9 @@ Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
 Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S
 
 Base.:+(P::Projection, A::LinearOperator) = project(P, P.space, P.space) + A
-Base.:+(P::Projection, A::LinearOperator) = A + project(P, P.space, P.space)
+Base.:+(A::LinearOperator, P::Projection) = A + project(P, P.space, P.space)
 Base.:-(P::Projection, A::LinearOperator) = project(P, P.space, P.space) - A
-Base.:-(P::Projection, A::LinearOperator) = A - project(P, P.space, P.space)
+Base.:-(A::LinearOperator, P::Projection) = A - project(P, P.space, P.space)
 
 Base.:*(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
 

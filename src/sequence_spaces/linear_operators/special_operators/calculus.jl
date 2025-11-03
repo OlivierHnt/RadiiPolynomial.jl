@@ -54,8 +54,16 @@ _infer_domain(::Derivative, s::Fourier) = s
 _infer_domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : EmptySpace() # flags an error
 _infer_domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
 _infer_domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
-_infer_domain(D::Derivative, s::CartesianPower) = CartesianPower(_infer_domain(D, space(s)), nspaces(s))
-_infer_domain(D::Derivative, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(D, sᵢ), spaces(s)))
+function _infer_domain(D::Derivative, s::CartesianPower)
+    s_out = _infer_domain(D, space(s))
+    s_out isa EmptySpace && return EmptySpace()
+    return CartesianPower(s_out, nspaces(s))
+end
+function _infer_domain(D::Derivative, s::CartesianSpace)
+    s_out = map(sᵢ -> _infer_domain(D, sᵢ), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return CartesianProduct(s_out)
+end
 
 """
     Integral{T<:Union{Int,Tuple{Vararg{Int}}}} <: AbstractLinearOperator
@@ -113,8 +121,16 @@ _infer_domain(::Integral, s::Fourier) = s
 _infer_domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : EmptySpace() # flags an error
 _infer_domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
 _infer_domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
-_infer_domain(I::Integral, s::CartesianPower) = CartesianPower(_infer_domain(I, space(s)), nspaces(s))
-_infer_domain(I::Integral, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(I, sᵢ), spaces(s)))
+function _infer_domain(I::Integral, s::CartesianPower)
+    s_out = _infer_domain(I, space(s))
+    s_out isa EmptySpace && return EmptySpace()
+    return CartesianPower(s_out, nspaces(s))
+end
+function _infer_domain(I::Integral, s::CartesianSpace)
+    s_out = map(sᵢ -> _infer_domain(I, sᵢ), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return CartesianProduct(s_out)
+end
 
 """
     *(𝒟::Derivative, a::AbstractSequence)
@@ -1427,10 +1443,22 @@ Laplacian operator.
 """
 struct Laplacian <: AbstractLinearOperator end
 
-_infer_domain(::Laplacian, s::TensorSpace) = s
+function _infer_domain(Δ::Laplacian, s::TensorSpace)
+    s_out = map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return TensorSpace(map((s1, s2) -> codomain(+, s1, s2), spaces(s), s_out))
+end
 _infer_domain(::Laplacian, s::BaseSpace) = _infer_domain(Derivative(2), s)
-_infer_domain(Δ::Laplacian, s::CartesianPower) = CartesianPower(_infer_domain(Δ, space(s)), nspaces(s))
-_infer_domain(Δ::Laplacian, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s)))
+function _infer_domain(Δ::Laplacian, s::CartesianPower)
+    s_out = _infer_domain(Δ, space(s))
+    s_out isa EmptySpace && return EmptySpace()
+    return CartesianPower(s_out, nspaces(s))
+end
+function _infer_domain(Δ::Laplacian, s::CartesianSpace)
+    s_out = map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return CartesianProduct(s_out)
+end
 
 """
     *(Δ::Laplacian, a::AbstractSequence)

@@ -13,7 +13,11 @@ ladd!(S::AbstractLinearOperator, A::LinearOperator) = ladd!(project(S, domain(A)
 lsub!(S::AbstractLinearOperator, A::LinearOperator) = lsub!(project(S, domain(A), codomain(A), eltype(A)), A)
 
 Base.:*(S::AbstractLinearOperator, A::LinearOperator) = (S * Projection(codomain(A), eltype(A))) * A
-Base.:*(A::LinearOperator, S::AbstractLinearOperator) = A * (Projection(domain(A), eltype(A)) * S)
+function Base.:*(A::LinearOperator, S::AbstractLinearOperator)
+    dom = _infer_domain(S, domain(A))
+    dom isa EmptySpace && return ComposedOperator(A, S)
+    return A * (S * Projection(dom))
+end
 
 function mul!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator, α::Number, β::Number)
     domain_C = domain(C)

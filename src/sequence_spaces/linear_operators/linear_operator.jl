@@ -15,6 +15,8 @@ frequency(A::AbstractLinearOperator, i::Int, j::Int) = (frequency(domain(A), j),
 
 Base.:*(A::AbstractLinearOperator, B::AbstractLinearOperator) = A ∘ B
 
+Base.:+(A::AbstractLinearOperator) = A
+
 # utilities
 
 function Base.firstindex(A::AbstractLinearOperator, i::Int)

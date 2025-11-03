@@ -27,6 +27,9 @@ mul!(C::LinearOperator, S::AbstractLinearOperator, A::LinearOperator, α::Number
 mul!(C::LinearOperator, A::LinearOperator, S::AbstractLinearOperator, α::Number, β::Number) =
     mul!(C, A, project(S, domain(C), domain(A), eltype(C)), α, β)
 
+Base.:*(S::AbstractLinearOperator, a::Number) = S * UniformScalingOperator(a)
+Base.:*(a::Number, S::AbstractLinearOperator) = UniformScalingOperator(a) * S
+
 
 
 

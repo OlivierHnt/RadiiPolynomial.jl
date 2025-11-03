@@ -46,9 +46,6 @@ Base.:*(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P
 
 Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space, promote_type(eltype(P), eltype(a)))
 
-Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
-Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
-
 Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
 Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, _infer_domain(A, P.space), P)
 _lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))

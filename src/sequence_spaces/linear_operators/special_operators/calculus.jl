@@ -44,11 +44,14 @@ Derivative(order::Int...) = Derivative(order)
 
 order(𝒟::Derivative) = 𝒟.order
 
-_infer_domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(D), spaces(s)))
+function _infer_domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    s_out = map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(D), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return TensorSpace(s_out)
+end
 _infer_domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
 _infer_domain(::Derivative, s::Fourier) = s
-_infer_domain(::Derivative, ::Chebyshev) = EmptySpace() # flags an error
+_infer_domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : EmptySpace() # flags an error
 _infer_domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
 _infer_domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
 _infer_domain(D::Derivative, s::CartesianPower) = CartesianPower(_infer_domain(D, space(s)), nspaces(s))
@@ -100,11 +103,14 @@ Integral(order::Int...) = Integral(order)
 
 order(ℐ::Integral) = ℐ.order
 
-_infer_domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(I), spaces(s)))
+function _infer_domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    s_out = map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(I), spaces(s))
+    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    return TensorSpace(s_out)
+end
 _infer_domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
 _infer_domain(::Integral, s::Fourier) = s
-_infer_domain(::Integral, ::Chebyshev) = EmptySpace() # flags an error
+_infer_domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : EmptySpace() # flags an error
 _infer_domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
 _infer_domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
 _infer_domain(I::Integral, s::CartesianPower) = CartesianPower(_infer_domain(I, space(s)), nspaces(s))

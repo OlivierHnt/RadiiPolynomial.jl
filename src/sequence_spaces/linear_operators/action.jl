@@ -1,19 +1,8 @@
-# fallback methods
+(S::AbstractLinearOperator)(b::AbstractSequence) = *(S, b)
 
-(A::AbstractLinearOperator)(b::AbstractSequence) = *(A, b)
+Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b
 
-function Base.:*(A::LinearOperator, b::AbstractSequence)
-    domain_A, codomain_A = domain(A), codomain(A)
-    space_b = space(b)
-    _iscompatible(domain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, b has space $space_b"))
-    CoefType = promote_type(eltype(A), eltype(b))
-    c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
-    _mul!(c, A, b, convert(real(CoefType), exact(true)), convert(real(CoefType), exact(false)))
-    return c
-end
-
-mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number) =
-    mul!(c, A, b, α, β)
+Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b)
 
 function mul!(c::Sequence, S::AbstractLinearOperator, a::Sequence, α::Number, β::Number)
     c .= α .* (S * a) .+ β .* c
@@ -28,6 +17,25 @@ end
 
 _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number) =
     _mul!(c, A, project(b, domain(A)), α, β)
+
+
+
+
+
+# fallback methods
+
+function Base.:*(A::LinearOperator, b::Sequence)
+    domain_A, codomain_A = domain(A), codomain(A)
+    space_b = space(b)
+    _iscompatible(domain_A, space_b) || return throw(ArgumentError("spaces must be compatible: A has domain $domain_A, b has space $space_b"))
+    CoefType = promote_type(eltype(A), eltype(b))
+    c = Sequence(codomain_A, Vector{CoefType}(undef, dimension(codomain_A)))
+    _mul!(c, A, b, convert(real(CoefType), exact(true)), convert(real(CoefType), exact(false)))
+    return c
+end
+
+mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number) =
+    mul!(c, A, b, α, β)
 
 function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)

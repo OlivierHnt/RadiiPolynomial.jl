@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spiderweb central configurations · RadiiPolynomial.jl</title><meta name="title" content="Spiderweb central configurations · RadiiPolynomial.jl"/><meta property="og:title" content="Spiderweb central configurations · RadiiPolynomial.jl"/><meta property="twitter:title" content="Spiderweb central configurations · RadiiPolynomial.jl"/><meta name="description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:description" content="Documentation for RadiiPolynomial.jl."/><meta property="twitter:description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/spiderweb/"/><meta property="twitter:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/spiderweb/"/><link rel="canonical" href="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/finite_dimensional_proofs/spiderweb/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/radiipolynomial.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img src="../../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">RadiiPolynomial.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../radii_polynomial_approach/">State of the art</a></li><li><span class="tocitem">Sequence spaces</span><ul><li><a class="tocitem" href="../../../manual/vector_spaces/">Vector spaces</a></li><li><a class="tocitem" href="../../../manual/sequences/">Sequences</a></li><li><a class="tocitem" href="../../../manual/linear_operators/">Linear operators</a></li><li><a class="tocitem" href="../../../manual/norms/">Norms</a></li><li><a class="tocitem" href="../../../manual/special_operators/">Special operators</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox" checked/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Finite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Spiderweb central configurations</a></li><li><a class="tocitem" href="../fhn_pseudo_arclength/">Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Infinite-dimensional proofs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-2-1" type="checkbox"/><label class="tocitem" for="menuitem-4-2-1"><span class="docs-label">Ordinary differential equations (ODE)</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../infinite_dimensional_proofs/ode/logistic_ivp/">Initial value problem of the logistic equation</a></li><li><a class="tocitem" href="../../infinite_dimensional_proofs/ode/lorenz_po/">Periodic orbit of the Lorenz system</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2-2"><span class="docs-label">Delay differential equations (DDE)</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../infinite_dimensional_proofs/dde/ikeda_W_u/">Unstable manifolds of equilibria of the cubic Ikeda equation</a></li></ul></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Finite-dimensional proofs</a></li><li class="is-active"><a href>Spiderweb central configurations</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spiderweb central configurations</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/docs/src/examples/finite_dimensional_proofs/spiderweb.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Spiderweb-central-configurations"><a class="docs-heading-anchor" href="#Spiderweb-central-configurations">Spiderweb central configurations</a><a id="Spiderweb-central-configurations-1"></a><a class="docs-heading-anchor-permalink" href="#Spiderweb-central-configurations" title="Permalink"></a></h1><p>In this example, we will prove the existence and local uniqueness of a <a href="https://en.wikipedia.org/wiki/Central_configuration">central configuration</a> in the <span>$N$</span>-body problem.</p><p>More precisely, we will look at configurations given by <span>$N = n \times \ell+1$</span> masses located at the intersection points of <span>$\ell$</span> concurrent equidistributed half-lines with <span>$n$</span> circles and a central mass <span>$m_0$</span>. The <span>$\ell$</span> masses on the <span>$i$</span>-th circle are equal to a positive constant <span>$m_i$</span> and we allow the particular case <span>$m_0 = 0$</span>. These central configurations are called <em>spiderweb central configurations</em>.<sup class="footnote-reference"><a id="citeref-1" href="#footnote-1">[1]</a></sup></p><p>The <span>$N$</span>-body problem consists in describing the positions <span>$\mathbf{r}_1(t),\dots,\mathbf{r}_N(t)$</span> of <span>$N$</span> masses <span>$m_1,\dots,m_N$</span> interacting through Newton&#39;s gravitational law:</p><p class="math-container">\[m_i \frac{d^2}{dt^2} \mathbf{r}_i
+=
+-\sum_{j\neq i} \frac{G m_i m_j(\mathbf{r}_i - \mathbf{r}_j)}{| \mathbf{r}_i - \mathbf{r}_j |^3}
+=
+-\frac{\partial}{\partial \mathbf{r}_i} U (\mathbf{r}),
+\qquad
+U (\mathbf{r})
+\bydef
+-\sum_{i&lt;j} \frac{G m_i m_j}{|\mathbf{r}_i - \mathbf{r}_j|},\]</p><p>for <span>$i = 1,\dots,N$</span>, with <span>$\mathbf{r} \in \{ (\mathbf{r}_1,\dots,\mathbf{r}_N) \in \mathbb{R}^{3N} \, : \, \mathbf{r}_i \neq \mathbf{r}_j , \, i \neq j\}$</span>, where <span>$G$</span> denotes the gravitational constant.</p><p>In the following, we fix the centre of mass at the origin and scale <span>$G = 1$</span>. Moreover, due to the symmetries of a spiderweb central configuration, it is sufficient to consider the accelerations of the <span>$n$</span> bodies on the positive horizontal axis, and the numbers <span>$r_1, \dots, r_n$</span> also denote the positions of the masses on this semi-axis.</p><p>The configuration of <span>$N$</span> bodies is <em>central</em> at some time <span>$t^*$</span> if <span>$\frac{d^2}{dt^2}\mathbf{r}(t^*) = \lambda \mathbf{r}(t^*)$</span> for some common <span>$\lambda$</span>. It is easy to see that <span>$\lambda$</span> is a strictly negative value given by <span>$\lambda = U(\mathbf{r})/I(\mathbf{r}) &lt; 0$</span> where <span>$I \bydef \sum_{i = 1}^N m_i |\mathbf{r}_i(\mathbf{r})|^2$</span> is the moment of inertia. Essentially, the value of <span>$\lambda$</span> scales the system and can be chosen arbitrarily.</p><p>Then, the original system of ODEs reduces to the following system of equations in <span>$\mathbb{R}^n$</span>:</p><p class="math-container">\[\lambda r_i
+=
+-\sum_{k=1}^{\ell-1} \frac{m_i}{2^{3/2}r_i^2(1 - \cos(\theta_k))^{1/2}} -\frac{m_0}{r_i^2} - \sum_{\begin{smallmatrix}j=1\\j\neq i \end{smallmatrix}}^n \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}},\]</p><p>for <span>$i = 1, \dots, n$</span>, with <span>$\theta_k \bydef \frac{2\pi k}{\ell}$</span> and <span>$r = (r_1,\dots,r_n) \in \mathbb{R}^n$</span>.</p><p>Thus, a spiderweb central configuration is a zero of the mapping <span>$F \bydef (F_1, \dots, F_n) : \mathbb{R}^n \to \mathbb{R}^n$</span> given by</p><p class="math-container">\[F_i(r) \bydef
+\lambda r_i + \frac{m_0}{r_i^2} + \frac{m_i}{2^{3/2}r_i^2}\zeta_{\ell} + \sum_{\begin{smallmatrix}j = 1 \\ j \neq i \end{smallmatrix}}^{n} \sum_{k=0}^{\ell-1} \frac{m_j(r_i - r_j \cos(\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{3/2}} , \qquad i = 1,\, \dots,\, n,\]</p><p>where <span>$\zeta_{\ell} \bydef \sum_{k=1}^{\ell-1} (1 - \cos(\theta_k))^{-1/2}$</span>.</p><p>The Jacobian matrix is given by</p><p class="math-container">\[\frac{\partial}{\partial r_j} F_i(r) =
+\begin{cases}
+\displaystyle \lambda - \frac{2m_0}{r_i^3} - \frac{m_i}{r_i^3\sqrt{2}}\zeta_{\ell}
+-\sum_{\begin{smallmatrix}j&#39; = 1 \\ j&#39; \neq i\end{smallmatrix}}^{n} \frac{m_{j&#39;}}{2}\sum_{k=0}^{\ell-1}
+\frac{4r_i^2 + r_{j&#39;}^2 - 8 r_i r_{j&#39;} \cos(\theta_k) + 3 r_{j&#39;}^2 \cos(2\theta_k)}{(r_i^2 + r_{j&#39;}^2 - 2 r_i r_{j&#39;} \cos(\theta_k))^{5/2}}, &amp; j = i,\\
+\displaystyle -\frac{m_j}{2} \sum_{k=0}^{\ell-1}
+\frac{-4(r_i^2 + r_j^2) \cos(\theta_k) + r_i r_j (7 + \cos(2\theta_k))}{(r_i^2 + r_j^2 - 2 r_i r_j \cos(\theta_k))^{5/2}}, &amp; j \neq i.
+\end{cases}\]</p><p>The mapping <span>$F$</span> and its Jacobian, denoted <span>$DF$</span>, may be implemented as follows:</p><pre><code class="language-julia hljs">function F(x, m₀, m, λ, l)
+    T = eltype(x)
+    n = length(x)
+    π2l⁻¹ = 2convert(T, π)/l
+    F_ = Vector{T}(undef, n)
+    for i ∈ 1:n
+        F_[i] = λ*x[i] + m₀/x[i]^2
+        for k ∈ 1:l-1
+            θₖ = k*π2l⁻¹
+            F_[i] += m[i]/(2x[i]^2 * sqrt(2 - 2cos(θₖ)))
+        end
+        for j ∈ 1:n
+            if i ≠ j
+                for k ∈ 0:l-1
+                    θₖ = k*π2l⁻¹
+                    F_[i] += m[j]*(x[i] - x[j]*cos(θₖ))/sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^3
+                end
+            end
+        end
+    end
+    return F_
+end
+
+function DF(x, m₀, m, λ, l)
+    T = eltype(x)
+    n = length(x)
+    π2l⁻¹ = 2convert(T, π)/l
+    DF_ = zeros(T, n, n)
+    for j ∈ 1:n, i ∈ 1:n
+        if i == j
+            DF_[i,i] += λ - 2m₀/x[i]^3
+            for k ∈ 1:l-1
+                θₖ = k*π2l⁻¹
+                DF_[i,i] -= m[i]/(x[i]^3 * sqrt(2 - 2cos(θₖ)))
+            end
+        else
+            for k ∈ 0:l-1
+                θₖ = k*π2l⁻¹
+                DF_[i,i] -= m[j]*(4x[i]^2 + x[j]^2 - 8x[i]*x[j]*cos(θₖ) + 3x[j]^2*cos(2θₖ))/(2sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^5)
+                DF_[i,j] -= m[j]*(-4(x[i]^2 + x[j]^2)*cos(θₖ) + x[i]*x[j]*(7 + cos(2θₖ)))/(2sqrt(x[i]^2 + x[j]^2 - 2x[i]*x[j]*cos(θₖ))^5)
+            end
+        end
+    end
+    return DF_
+end</code></pre><p>Consider the fixed-point operator <span>$T : \mathbb{R}^n \to \mathbb{R}^n$</span> defined by</p><p class="math-container">\[T(x) \bydef x - A F(x),\]</p><p>where <span>$A : \mathbb{R}^n \to \mathbb{R}^n$</span> is the injective operator corresponding to a numerical approximation of <span>$DF(x_0)^{-1}$</span> for some numerical zero <span>$x_0 \in \mathbb{R}^n$</span> of <span>$F$</span>.</p><p>Given an initial guess, the numerical zero <span>$x_0$</span> of <span>$F$</span> may be obtained by Newton&#39;s method:</p><pre><code class="language-julia hljs">using RadiiPolynomial
+
+n = 18 # number of circles
+l = 100 # number of masses per circle
+
+m₀ = 0.0 # central mass
+m = fill(1/l, n) # vector of masses
+λ = -1.0
+
+x₀ = collect(range(1.0; stop = 3.0, length = n))
+
+x₀, success = newton(x -&gt; (F(x, m₀, m, λ, l), DF(x, m₀, m, λ, l)), x₀)</code></pre><p>Let <span>$R &gt; 0$</span>. According to the first-order Radii Polynomial Theorem (cf. Section <a href="../../../radii_polynomial_approach/#radii_polynomial_approach">Radii polynomial approach</a>), we need to estimate <span>$\|T(x_0) - x_0\|_\infty$</span> and <span>$\sup_{x \in \text{cl}( B_R(x_0) )} \|DT(x)\|_\infty$</span> which can be readily computed with interval arithmetic.</p><p>The computer-assisted proof may be implemented as follows:</p><pre><code class="language-julia hljs">R = 1e-12
+
+m₀_interval = interval(0.0)
+m_interval = fill(inv(interval(l)), n)
+λ_interval = interval(-1.0)
+
+x₀_interval = interval.(x₀)
+x₀R_interval = interval.(x₀_interval, R; format = :midpoint)
+
+F_interval = F(x₀_interval, m₀_interval, m_interval, λ_interval, l)
+DF_interval = DF(x₀R_interval, m₀_interval, m_interval, λ_interval, l)
+
+A = inv(mid.(DF_interval))
+
+Y = norm(Sequence(A * F_interval), Inf)
+
+Z₁ = opnorm(LinearOperator(A * DF_interval - I), Inf)
+
+setdisplay(:full)
+
+interval_of_existence(Y, Z₁, R)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(Interval{Float64}(2.450052469045783e-13, 1.0e-12, com, false), true)</code></pre><p>The following animation<sup class="footnote-reference"><a id="citeref-2" href="#footnote-2">[2]</a></sup> shows the numerical approximation of the proven spiderweb central configuration for some given initial velocity.</p><video width="800" height="400" controls autoplay loop>
+  <source src="../spiderweb.mp4" type="video/mp4">
+</video><section class="footnotes is-size-7"><ul><li class="footnote" id="footnote-1"><a class="tag is-link" href="#citeref-1">1</a>O. Hénot and C. Rousseau, <a href="https://doi.org/10.1007/s12346-019-00330-y">Spiderweb central configurations</a>, <em>Qualitative Theory of Dynamical Systems</em>, <strong>18</strong> (2019), 1135–1160.</li><li class="footnote" id="footnote-2"><a class="tag is-link" href="#citeref-2">2</a>S. Danisch and J. Krumbiegel, <a href="https://doi.org/10.21105/joss.03349">Makie.jl: Flexible high-performance data visualization for Julia</a>, <em>Journal of Open Source Software</em>, <strong>6</strong> (2021), 3349.</li></ul></section></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../manual/special_operators/">« Special operators</a><a class="docs-footer-nextpage" href="../fhn_pseudo_arclength/">Pseudo-arclength continuation of equilibria of the FitzHugh-Nagumo model »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Tuesday 4 November 2025 04:09">Tuesday 4 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

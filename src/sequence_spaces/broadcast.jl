@@ -1,4 +1,8 @@
+Base.broadcastable(s::VectorSpace) = Ref(s)
+
 # Extend broadcasting for Sequence
+
+# Base.broadcastable(a::AbstractSequence) = Ref(a)
 
 struct SequenceStyle <: Base.Broadcast.BroadcastStyle end
 
@@ -45,6 +49,8 @@ Base.@propagate_inbounds Base.Broadcast._broadcast_getindex(a::Sequence, I::Cart
 Base.@propagate_inbounds Base.Broadcast.dotview(a::Sequence, α) = view(a, α)
 
 # Extend broadcasting for LinearOperator
+
+Base.broadcastable(A::AbstractLinearOperator) = Ref(A)
 
 struct LinearOperatorStyle <: Base.Broadcast.BroadcastStyle end
 

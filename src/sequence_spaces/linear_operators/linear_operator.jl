@@ -112,6 +112,7 @@ end
 LinearOperator(domain::T, codomain::S, coefficients::R) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} =
     LinearOperator{T,S,R}(domain, codomain, coefficients)
 
+LinearOperator(coefficient::Number) = LinearOperator(ParameterSpace(), ParameterSpace(), [coefficient;;])
 LinearOperator(coefficients::AbstractMatrix) =
     LinearOperator(ParameterSpace()^size(coefficients, 2), ParameterSpace()^size(coefficients, 1), coefficients)
 

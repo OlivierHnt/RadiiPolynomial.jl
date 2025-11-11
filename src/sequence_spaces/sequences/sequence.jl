@@ -102,6 +102,7 @@ end
 Sequence(space::T, coefficients::S) where {T<:VectorSpace,S<:AbstractVector} =
     Sequence{T,S}(space, coefficients)
 
+Sequence(coefficient::Number) = Sequence(ParameterSpace(), [coefficient])
 Sequence(coefficients::AbstractVector) =
     Sequence(ParameterSpace()^length(coefficients), coefficients)
 

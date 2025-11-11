@@ -37,7 +37,7 @@ include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, sequence_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
-    export fft_size, fft, fft!, ifft!, rifft!
+    export fft_size, fft, fft!, ifft, rifft, ifft!, rifft!
 import LinearAlgebra: rmul!, lmul!, rdiv!, ldiv!
 include("sequence_spaces/sequences/arithmetic.jl")
     export codomain, add!, radd!, ladd!, sub!, rsub!, lsub!, rmul!, lmul!,

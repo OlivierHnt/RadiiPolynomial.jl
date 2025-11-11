@@ -22,9 +22,9 @@ _dft_dimension(s::CosFourier) = 2order(s)+!ispow2(order(s))
 
 # sequence to grid
 
-fft(a::Sequence{<:BaseSpace}, n::Integer) =
+fft(a::Sequence{<:BaseSpace}, n::Integer=fft_size(space(a))) =
     fft!(zeros(complex(float(eltype(a))), n), a)
-fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}) where {N,T<:NTuple{N,BaseSpace}} =
+fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}=fft_size(space(a))) where {N,T<:NTuple{N,BaseSpace}} =
     fft!(zeros(complex(float(eltype(a))), n), a)
 
 function fft!(C::AbstractArray, a::Sequence{<:SequenceSpace})
@@ -129,8 +129,8 @@ end
 
 # grid to sequence
 
-ifft(A::AbstractArray, space::SequenceSpace) = ifft!(copy(A), space)
-rifft(A::AbstractArray, space::SequenceSpace) = rifft!(copy(A), space)
+ifft(A::AbstractArray, space::SequenceSpace) = ifft!(complex.(A), space) # complex copy
+rifft(A::AbstractArray, space::SequenceSpace) = rifft!(complex.(A), space) # complex copy
 
 ifft!(A::AbstractArray, space::SequenceSpace) = ifft!(zeros(complex(float(eltype(A))), space), A)
 rifft!(A::AbstractArray, space::SequenceSpace) = rifft!(zeros(real(float(eltype(A))), space), A)

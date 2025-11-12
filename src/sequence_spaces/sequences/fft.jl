@@ -372,7 +372,7 @@ end
 
 
 
-function _fft_pow2!(a::AbstractArray{Complex{Interval{Float64}}})
+function _fft_pow2!(a::AbstractArray{Complex{Interval{T}}}) where {T<:Union{Float16,Float32,Float64}}
     @inbounds for i ∈ axes(a, 1)
         _fft_pow2!(selectdim(a, 1, i))
     end
@@ -383,7 +383,7 @@ function _fft_pow2!(a::AbstractArray{Complex{Interval{Float64}}})
     return a
 end
 
-function _fft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
+function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}) where {T<:Union{Float16,Float32,Float64}}
     _bitreverse!(a)
     n = length(a)
     N = 2
@@ -410,9 +410,8 @@ end
 
 
 
-_fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
-
-function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
+function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}})
+    Ω = Vector{eltype(a)}(undef, maximum(size(a))÷2)
     @inbounds for i ∈ axes(a, 1)
         _fft_pow2!(selectdim(a, 1, i), Ω)
     end
@@ -422,6 +421,8 @@ function _fft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
     end
     return a
 end
+
+_fft_pow2!(a::AbstractVector{<:Complex{<:Interval}}) = _fft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
 
 function _fft_pow2!(a::AbstractVector{Complex{Interval{T}}}, Ω) where {T}
     _bitreverse!(a)

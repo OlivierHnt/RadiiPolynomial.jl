@@ -333,9 +333,12 @@ struct UniformScalingOperator{T<:UniformScaling} <: AbstractLinearOperator
     J :: T
 end
 
-UniformScalingOperator(λ::Number) = UniformScalingOperator(UniformScaling(λ))
+UniformScalingOperator(λ::Number=true) = UniformScalingOperator(UniformScaling(λ))
+
+Base.:*(J::UniformScalingOperator, b::AbstractSequence) = J.J.λ * b
 
 codomain(::UniformScalingOperator, s::VectorSpace) = s
+codomain(J::UniformScaling, s::VectorSpace) = codomain(UniformScalingOperator(J), s)
 
 Base.eltype(J::UniformScalingOperator) = eltype(J.J)
 Base.eltype(::Type{UniformScalingOperator{T}}) where {T<:UniformScaling} = eltype(T)

@@ -4,6 +4,8 @@
 
 Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b)
 
+Base.:*(J::UniformScaling, b::AbstractSequence) = UniformScalingOperator(J) * b
+
 function mul!(c::Sequence, S::AbstractLinearOperator, a::Sequence, α::Number, β::Number)
     c .= α .* (S * a) .+ β .* c
     return c

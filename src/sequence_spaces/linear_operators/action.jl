@@ -1,6 +1,6 @@
 (S::AbstractLinearOperator)(b::AbstractSequence) = *(S, b)
 
-# Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b # each operator should provides their own method
+# Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b # each operator should provide their own method
 
 Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b)
 

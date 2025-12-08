@@ -81,12 +81,18 @@ function _infer_domain(A::LinearOperator, s::VectorSpace)
     return domain(A)
 end
 
-_infer_domain(A::BandedLinearOperator, s::VectorSpace) = _infer_domain(linear_operator(A)) ∪ _infer_domain(banded_operator(A), s)
+_infer_domain(A::BandedLinearOperator, s::VectorSpace) = _union(_infer_domain(finite_operator(A), s), _infer_domain(banded_operator(A), s))
 
-_infer_domain(S::Add, s::VectorSpace) = _infer_domain(S.A, s) ∪ _infer_domain(S.B, s)
+_infer_domain(S::Add, s::VectorSpace) = _union(_infer_domain(S.A, s), _infer_domain(S.B, s))
 _infer_domain(S::Negate, s::VectorSpace) = _infer_domain(S.A, s)
 
 _infer_domain(::UniformScalingOperator, s::VectorSpace) = s
+
+_infer_domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
+
+_union(::EmptySpace, ::VectorSpace) = EmptySpace()
+_union(::VectorSpace, ::EmptySpace) = EmptySpace()
+_union(s₁::VectorSpace, s₂::VectorSpace) = s₁ ∪ s₂
 
 #
 

@@ -58,7 +58,7 @@ function DF!(DF, x)
 
     DF[0,0] = 1
 
-    DF[1:end,:] .= Derivative(1) - project(Multiplication(1 - 2x), domain(DF), Taylor(order(codomain(DF))-1))
+    DF[1:end,:] .= project(Derivative(1) - Multiplication(1 - 2x), domain(DF), Taylor(order(codomain(DF))-1))
 
     return DF
 end

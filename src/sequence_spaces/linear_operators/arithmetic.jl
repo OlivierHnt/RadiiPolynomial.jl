@@ -628,7 +628,7 @@ function lsub!(J::UniformScalingOperator, A::LinearOperator)
 end
 
 function _radd!(A::LinearOperator{ParameterSpace,ParameterSpace}, J::UniformScalingOperator)
-    @inbounds A[1,1] += J.J.λ
+    @inbounds A[1,1] += J.λ
     return A
 end
 
@@ -638,11 +638,11 @@ function _radd!(A::LinearOperator{<:SequenceSpace,<:SequenceSpace}, J::UniformSc
     if domain_A == codomain_A
         A_ = coefficients(A)
         @inbounds for i ∈ axes(A_, 1)
-            A_[i,i] += J.J.λ
+            A_[i,i] += J.λ
         end
     else
         @inbounds for α ∈ indices(domain_A ∩ codomain_A)
-            A[α,α] += J.J.λ
+            A[α,α] += J.λ
         end
     end
     return A
@@ -653,7 +653,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Uniform
     if domain_A == codomain(A)
         A_ = coefficients(A)
         @inbounds for i ∈ axes(A_, 1)
-            A_[i,i] += J.J.λ
+            A_[i,i] += J.λ
         end
     else
         @inbounds for i ∈ 1:nspaces(domain_A)

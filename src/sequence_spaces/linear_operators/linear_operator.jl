@@ -332,26 +332,27 @@ Base.show(io::IO, ::MIME"text/plain", S::Negate) = print(io, "-", S.A)
 
 #
 
-struct UniformScalingOperator{T<:UniformScaling} <: AbstractLinearOperator
-    J :: T
+struct UniformScalingOperator{T<:Number} <: AbstractLinearOperator
+    λ :: T
 end
 
-UniformScalingOperator(λ::Number=true) = UniformScalingOperator(UniformScaling(λ))
+UniformScalingOperator() = UniformScalingOperator(true)
+UniformScalingOperator(J::UniformScaling) = UniformScalingOperator(J.λ)
 
-Base.:*(J::UniformScalingOperator, b::AbstractSequence) = J.J.λ * b
+Base.:*(J::UniformScalingOperator, b::AbstractSequence) = J.λ * b
 
 codomain(::UniformScalingOperator, s::VectorSpace) = s
 codomain(J::UniformScaling, s::VectorSpace) = codomain(UniformScalingOperator(J), s)
 
-Base.eltype(J::UniformScalingOperator) = eltype(J.J)
-Base.eltype(::Type{UniformScalingOperator{T}}) where {T<:UniformScaling} = eltype(T)
+Base.eltype(::UniformScalingOperator{T}) where {T<:Number} = T
+Base.eltype(::Type{UniformScalingOperator{T}}) where {T<:Number} = T
 
-Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.J))
+Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.λ))
 Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(zero(eltype(T)))
-Base.one(J::UniformScalingOperator) = UniformScalingOperator(one(J.J))
+Base.one(J::UniformScalingOperator) = UniformScalingOperator(one(J.λ))
 Base.one(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(one(eltype(T)))
 
-Base.:-(J::UniformScalingOperator) = UniformScalingOperator(-J.J)
+Base.:-(J::UniformScalingOperator) = UniformScalingOperator(-J.λ)
 
 Base.:+(A::AbstractLinearOperator, J::UniformScaling) = A + UniformScalingOperator(J)
 Base.:+(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) + A

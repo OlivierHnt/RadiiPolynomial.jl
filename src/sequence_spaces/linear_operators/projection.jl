@@ -8,7 +8,7 @@ project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(
 project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
     Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
 
-project!(A::AbstractLinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
+project!(A::LinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
 
 #
 

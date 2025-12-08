@@ -30,7 +30,7 @@ Base.eltype(::Type{<:BandedLinearOperator{<:VectorSpace,<:VectorSpace,T}}) where
 
 #
 
-Base.:*(A::BandedLinearOperator, b::AbstractSequence) = (A * Projection(space(b))) * b
+Base.:*(A::BandedLinearOperator, b::Sequence) = (A * Projection(space(b))) * b
 
 codomain(A::BandedLinearOperator, s::VectorSpace) = codomain(finite_operator(A), s) ∪ _codomain(banded_operator(A), s)
 _codomain(A, s) = codomain(A, s)

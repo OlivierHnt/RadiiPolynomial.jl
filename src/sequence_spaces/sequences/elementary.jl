@@ -307,7 +307,7 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
 
     ν̄_ = interval.(_optimize_decay(nl.f, mid.(c), mid.(seq_a), mid.(ν_), a, nl.poles, nl.branch_cut))
 
-    _, N_v = _resolve_saturation!(nl.f, c, a, ν̄_)
+    _, N_v = _resolve_saturation!(nl.f, c, seq_a, ν̄_)
 
     error = prod(_error(nl.f, seq_a, c, ν_, ν̄_, N_v))
 
@@ -443,7 +443,7 @@ end
 
 function _resolve_saturation!(f, c, a, ν)
     ν⁻¹ = inv(ν)
-    C = max(_contour(f, a, ν), _contour(f, a, ν⁻¹))
+    C = max(_contour(f, a, (ν,)), _contour(f, a, (ν⁻¹,)))
     min_ord = order(c)
     if isfinite(mag(C))
         CoefType = eltype(c)
@@ -500,7 +500,7 @@ _apply_boxes!(C::AbstractArray{T,N₁}, ν::NTuple{N₂}) where {T,N₁,N₂} =
     @inbounds _boxes!(_apply_boxes!(C, Base.tail(ν)), ν[1], Val(N₁-N₂+1))
 _apply_boxes!(C::AbstractArray{T,N}, ν::NTuple{1}) where {T,N} =
     @inbounds _boxes!(C, ν[1], Val(N))
-_apply_boxes!(C::AbstractVector, ν) = _boxes!(C, ν)
+_apply_boxes!(C::AbstractVector, ν::NTuple{1}) = @inbounds _boxes!(C, ν[1])
 
 function _boxes!(C, μ::Interval)
     len = length(C)
@@ -547,7 +547,7 @@ end
 function _error(f, a, approx, ν, ν̄, N_v)
     ν̄⁻¹ = inv(ν̄)
 
-    C = max(_contour(f, a, ν̄), _contour(f, a, ν̄⁻¹))
+    C = max(_contour(f, a, (ν̄,)), _contour(f, a, (ν̄⁻¹,)))
 
     q = sum(k -> (ν̄ ^ exact(k) + ν̄⁻¹ ^ exact(k)) * ν ^ exact(abs(k)), -N_v:N_v)
 

@@ -307,7 +307,7 @@ end
 #
 
 function _project!(A::LinearOperator, P::Projection)
-    @inbounds for α ∈ indices(P.space)
+    @inbounds for α ∈ indices(domain(A) ∩ codomain(A) ∩ P.space)
         A[α,α] = one(eltype(A))
     end
     return A

@@ -249,9 +249,11 @@ function integrate(a::Sequence, α=1)
 end
 
 function integrate(a::InfiniteSequence, α=1)
-    c = integrate(sequence(a), α)
+    full_c = integrate(sequence(a), α)
+    c = project(full_c, space(a))
+    @inbounds view(full_c, indices(space(c))) .= zero(eltype(c))
     X = banachspace(a)
-    return InfiniteSequence(c, _integral_error(X, space(a), space(c), α) * sequence_error(a), X)
+    return InfiniteSequence(c, norm(full_c, X) + _integral_error(X, space(a), space(c), α) * sequence_error(a), X)
 end
 
 _integral_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =

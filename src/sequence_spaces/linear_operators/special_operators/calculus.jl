@@ -161,45 +161,47 @@ function differentiate(a::Sequence, α=1)
 end
 
 function differentiate(a::InfiniteSequence, α=1)
-    c = differentiate(sequence(a), α)
+    full_c = differentiate(sequence(a), α)
+    c = project(full_c, space(a))
     X = banachspace(a)
     seq_err = sequence_error(a)
-    iszero(seq_err) && return InfiniteSequence(c, X)
-    return InfiniteSequence(c, _derivative_error(X, space(a), space(c), α) * seq_err, X)
+    _safe_iszero(seq_err) | all(iszero, α) && return InfiniteSequence(c, X)
+    return throw(ArgumentError("derivative operator is unbounded"))
+    # return InfiniteSequence(c, _derivative_error(X, space(a), space(c), α) * seq_err, X)
 end
 
-_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    @inbounds _derivative_error(X, dom[1], codom[1], α[1]) * _derivative_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
-_derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
-    @inbounds _derivative_error(X, dom[1], codom[1], α[1])
+# _derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+#     @inbounds _derivative_error(X, dom[1], codom[1], α[1]) * _derivative_error(X, Base.tail(dom), Base.tail(codom), Base.tail(α))
+# _derivative_error(X::Ell1{IdentityWeight}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+#     @inbounds _derivative_error(X, dom[1], codom[1], α[1])
 
-_derivative_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _derivative_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
-_derivative_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
-    @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
+# _derivative_error(X::Ell1{<:NTuple{N,Weight}}, dom::TensorSpace{<:NTuple{N,BaseSpace}}, codom::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+#     @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1]) * _derivative_error(Ell1(Base.tail(weight(X))), Base.tail(dom), Base.tail(codom), Base.tail(α))
+# _derivative_error(X::Ell1{<:Tuple{Weight}}, dom::TensorSpace{<:Tuple{BaseSpace}}, codom::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
+#     @inbounds _derivative_error(Ell1(weight(X)[1]), dom[1], codom[1], α[1])
 
-function _derivative_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Taylor, n::Int)
-    ν = rate(weight(X))
-    n == 0 && return one(ν)
-    n == 1 && return ν                                                   / (ν - exact(1))^2
-    n == 2 && return ν * (ν + exact(1))                                  / (ν - exact(1))^3
-    n == 3 && return ν * (ν^2 + exact(4)*ν + exact(1))                   / (ν - exact(1))^4
-    n == 4 && return ν * (ν + exact(1)) * (ν^2 + exact(10)*ν + exact(1)) / (ν - exact(1))^5
-    return throw(DomainError) # TODO: lift restriction
-end
-function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier, codom::Fourier, n::Int)
-    ν = rate(weight(X))
-    n == 0 && return one(ν)
-    n == 1 && return frequency(codom)   * exact(2) * ν                                                               / (ν - exact(1))^2
-    n == 2 && return frequency(codom)^2 * exact(2) * ν * (ν + exact(1))                                          / (ν - exact(1))^3
-    n == 3 && return frequency(codom)^3 * exact(2) * ν * (ν^2 + exact(4)*ν + exact(1))                       / (ν - exact(1))^4
-    n == 4 && return frequency(codom)^4 * exact(2) * ν * (ν + exact(1)) * (ν^2 + exact(10)*ν + exact(1)) / (ν - exact(1))^5
-    return throw(DomainError) # TODO: lift restriction
-end
-function _derivative_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
-    n == 0 && return interval(1)
-    return throw(DomainError) # TODO: lift restriction
-end
+# function _derivative_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Taylor, n::Int)
+#     ν = rate(weight(X))
+#     n == 0 && return one(ν)
+#     n == 1 && return ν                                                   / (ν - exact(1))^2
+#     n == 2 && return ν * (ν + exact(1))                                  / (ν - exact(1))^3
+#     n == 3 && return ν * (ν^2 + exact(4)*ν + exact(1))                   / (ν - exact(1))^4
+#     n == 4 && return ν * (ν + exact(1)) * (ν^2 + exact(10)*ν + exact(1)) / (ν - exact(1))^5
+#     return throw(DomainError) # TODO: lift restriction
+# end
+# function _derivative_error(X::Ell1{<:GeometricWeight}, ::Fourier, codom::Fourier, n::Int)
+#     ν = rate(weight(X))
+#     n == 0 && return one(ν)
+#     n == 1 && return frequency(codom)   * exact(2) * ν                                                   / (ν - exact(1))^2
+#     n == 2 && return frequency(codom)^2 * exact(2) * ν * (ν + exact(1))                                  / (ν - exact(1))^3
+#     n == 3 && return frequency(codom)^3 * exact(2) * ν * (ν^2 + exact(4)*ν + exact(1))                   / (ν - exact(1))^4
+#     n == 4 && return frequency(codom)^4 * exact(2) * ν * (ν + exact(1)) * (ν^2 + exact(10)*ν + exact(1)) / (ν - exact(1))^5
+#     return throw(DomainError) # TODO: lift restriction
+# end
+# function _derivative_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Chebyshev, n::Int)
+#     n == 0 && return interval(1)
+#     return throw(DomainError) # TODO: lift restriction
+# end
 
 """
     differentiate!(c::Sequence, a::Sequence, α=1)

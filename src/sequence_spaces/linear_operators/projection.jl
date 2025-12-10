@@ -81,12 +81,18 @@ function _infer_domain(A::LinearOperator, s::VectorSpace)
     return domain(A)
 end
 
+function _infer_domain(P::Projection, s::VectorSpace)
+    _iscompatible(codomain(P), s) || return throw(ArgumentError("spaces must be compatible"))
+    return domain(P)
+end
+
 _infer_domain(A::BandedLinearOperator, s::VectorSpace) = _union(_infer_domain(finite_operator(A), s), _infer_domain(banded_operator(A), s))
 
 _infer_domain(S::Add, s::VectorSpace) = _union(_infer_domain(S.A, s), _infer_domain(S.B, s))
 _infer_domain(S::Negate, s::VectorSpace) = _infer_domain(S.A, s)
 
 _infer_domain(::UniformScalingOperator, s::VectorSpace) = s
+_infer_domain(J::UniformScaling, s::VectorSpace) = _infer_domain(UniformScalingOperator(J), s)
 
 _infer_domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
 
@@ -209,6 +215,7 @@ _coeftype(S::Negate, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.A, s, T)
 
 _coeftype(P::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(P), T)
 _coeftype(J::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(J), T)
+_coeftype(J::UniformScaling, s::VectorSpace, ::Type{T}) where {T} = _coeftype(UniformScalingOperator(J), s, T)
 _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.outer, codomain(S.inner, s), _coeftype(S.inner, s, T))
 
 """

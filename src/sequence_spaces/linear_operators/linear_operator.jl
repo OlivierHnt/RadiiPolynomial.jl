@@ -352,6 +352,11 @@ Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(
 Base.one(J::UniformScalingOperator) = UniformScalingOperator(one(J.λ))
 Base.one(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(one(eltype(T)))
 
+Base.zero(::AbstractLinearOperator) = UniformScalingOperator(false)
+Base.zero(::Type{<:AbstractLinearOperator}) = UniformScalingOperator(false)
+Base.one(::AbstractLinearOperator) = UniformScalingOperator(true)
+Base.one(::Type{<:AbstractLinearOperator}) = UniformScalingOperator(true)
+
 Base.:-(J::UniformScalingOperator) = UniformScalingOperator(-J.λ)
 
 Base.:+(A::AbstractLinearOperator, J::UniformScaling) = A + UniformScalingOperator(J)

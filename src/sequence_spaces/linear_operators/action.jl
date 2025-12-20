@@ -2,7 +2,7 @@
 
 # Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b # each operator should provide their own method
 
-Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b)
+Base.:*(A::ComposedOperator, b::AbstractSequence) = A.outer * (A.inner * b)
 
 Base.:*(J::UniformScaling, b::AbstractSequence) = UniformScalingOperator(J) * b
 
@@ -25,6 +25,8 @@ _mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Numbe
 
 
 # fallback methods
+
+Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b)
 
 function Base.:*(A::LinearOperator, b::Sequence)
     domain_A, codomain_A = domain(A), codomain(A)

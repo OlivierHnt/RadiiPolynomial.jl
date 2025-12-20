@@ -1335,6 +1335,77 @@ end
 
 codomain(ℐ::Integral, s::CosFourier) = iseven(order(ℐ)) ? s : SinFourier(desymmetrize(s))
 
+_coeftype(::Integral, ::CosFourier{T}, ::Type{S}) where {T,S} = typeof(inv(one(real(S))*one(T))*zero(S))
+
+function _apply!(c::Sequence{<:CosFourier}, ℐ::Integral, a)
+    n = order(ℐ)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, ℐ::Integral, space::CosFourier, A) where {T}
+    n = order(ℐ)
+    if n == 0
+        C .= A
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return C
+end
+
+function _apply(ℐ::Integral, space::CosFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(ℐ)
+    CoefType = _coeftype(ℐ, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+function _nzind_domain(ℐ::Integral, domain::CosFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return (order(ℐ) > 0):ord
+end
+function _nzind_domain(::Integral, domain::CosFourier, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzind_codomain(ℐ::Integral, domain::CosFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return (order(ℐ) > 0):ord
+end
+function _nzind_codomain(::Integral, domain::SinFourier, codomain::CosFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzval(ℐ::Integral, domain::Union{CosFourier,SinFourier}, ::CosFourier, ::Type{T}, i, j) where {T}
+    n = order(ℐ)
+    if n == 0
+        return one(T)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
 # SinFourier
 
 codomain(𝒟::Derivative, s::SinFourier) = iseven(order(𝒟)) ? s : CosFourier(desymmetrize(s))
@@ -1437,6 +1508,63 @@ function _nzval(𝒟::Derivative, domain::Union{CosFourier,SinFourier}, ::SinFou
 end
 
 codomain(ℐ::Integral, s::SinFourier) = iseven(order(ℐ)) ? s : CosFourier(desymmetrize(s))
+
+_coeftype(::Integral, ::SinFourier{T}, ::Type{S}) where {T,S} = typeof(inv(one(real(S))*one(T))*zero(S))
+
+function _apply!(c::Sequence{<:SinFourier}, ℐ::Integral, a)
+    n = order(ℐ)
+    if n == 0
+        coefficients(c) .= coefficients(a)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return c
+end
+
+function _apply!(C::AbstractArray{T}, ℐ::Integral, space::SinFourier, A) where {T}
+    n = order(ℐ)
+    if n == 0
+        C .= A
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+    return C
+end
+
+function _apply(ℐ::Integral, space::SinFourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    n = order(ℐ)
+    CoefType = _coeftype(ℐ, space, T)
+    if n == 0
+        return convert(Array{CoefType,N}, A)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+function _nzind_domain(::Integral, domain::SinFourier, codomain::Union{CosFourier,SinFourier})
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzind_codomain(::Integral, domain::Union{CosFourier,SinFourier}, codomain::SinFourier)
+    ω₁ = frequency(domain)
+    ω₂ = frequency(codomain)
+    ω₁ == ω₂ || return throw(ArgumentError("frequencies must be equal: s₁ has frequency $ω₁, s₂ has frequency $ω₂"))
+    ord = min(order(domain), order(codomain))
+    return 1:ord
+end
+
+function _nzval(ℐ::Integral, domain::Union{CosFourier,SinFourier}, ::SinFourier, ::Type{T}, i, j) where {T}
+    n = order(ℐ)
+    if n == 0
+        return one(T)
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
 
 #
 

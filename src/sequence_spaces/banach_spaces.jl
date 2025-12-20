@@ -166,6 +166,11 @@ _getindex(weight::BesselWeight{<:Interval}, ::Fourier, i::Int) = (one(rate(weigh
 IntervalArithmetic.interval(::Type{T}, weight::BesselWeight) where {T} = BesselWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::BesselWeight) = BesselWeight(interval(rate(weight)))
 
+#
+
+Base.min(w₁::AlgebraicWeight, w₂::GeometricWeight) = AlgebraicWeight(ifelse(isone(rate(w₂)), zero(rate(w₁)), rate(w₁)))
+Base.min(w₁::GeometricWeight, w₂::AlgebraicWeight) = AlgebraicWeight(ifelse(isone(rate(w₁)), zero(rate(w₂)), rate(w₂)))
+
 # show
 
 Base.show(io::IO, ::MIME"text/plain", weight::Weight) = print(io, _prettystring(weight))

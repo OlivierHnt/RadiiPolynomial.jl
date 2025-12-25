@@ -172,6 +172,8 @@ function _findindex_constant(s::SymmetricSpace)
     return nothing
 end
 
+_findposition(k, s::SymmetricSpace) = findfirst(==(k), indices(s))
+
 _iscompatible(s₁::SymmetricSpace, s₂::SymmetricSpace) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂)) & (symmetry(s₁) == symmetry(s₂))
 
 IntervalArithmetic.interval(::Type{T}, s::SymmetricSpace) where {T} = SymmetricSpace(interval(T, desymmetrize(s)), symmetry(s))

@@ -141,7 +141,8 @@ desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces
 desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 symmetry(s::SymmetricSpace) = s.symmetry
-symmetry(s::NoSymSpace) = Group(GroupElement(LinearIdx(I(nspaces(s))), PhaseVal(true, fill(false, nspaces(s)), false))) # identity
+symmetry(::BaseSpace) = Group(GroupElement(LinearIdx([true;;]), PhaseVal(true, [false], false))) # identity
+symmetry(s::TensorSpace) = Group(GroupElement(LinearIdx(I(nspaces(s))), PhaseVal(true, fill(false, nspaces(s)), false))) # identity
 
 SymmetricSpace(space::SequenceSpace) = SymmetricSpace(space, symmetry(space))
 

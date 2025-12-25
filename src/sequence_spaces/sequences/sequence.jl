@@ -49,6 +49,21 @@ end
 
 #
 
+function getcoefficient(a::AbstractSequence, α)
+    space_a = space(a)
+    @boundscheck(_checkbounds_indices(α, desymmetrize(space_a)) || throw(BoundsError(indices(desymmetrize(space_a)), α)))
+    p, factor = _findposition_factor(α, space_a)
+    p === nothing && return zero(eltype(a))
+    return factor * coefficients(a)[p]
+end
+
+function _findposition_factor(k, s::SequenceSpace)
+    rep, factor = _get_representative_and_action(symmetry(s), k)
+    p = findfirst(==(rep), indices(s))
+    p === nothing && return nothing, zero(ComplexF64)
+    return p, factor
+end
+
 """
     Sequence{T<:VectorSpace,S<:AbstractVector} <: AbstractSequence
 

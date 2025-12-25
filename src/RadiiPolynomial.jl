@@ -33,7 +33,7 @@ include("sequence_spaces/banach_spaces.jl")
 
 
 include("sequence_spaces/sequences/sequence.jl")
-    export AbstractSequence, Sequence, coefficients, eachcomponent, component,
+    export AbstractSequence, Sequence, coefficients, getcoefficient, eachcomponent, component,
         conjugacy_symmetry!, geometricweight, algebraicweight, polish!
 include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, sequence_error, banachspace

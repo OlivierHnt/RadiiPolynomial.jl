@@ -25,7 +25,7 @@ include("sequence_spaces/vector_spaces.jl")
         order, frequency, space, spaces, dimension, dimensions,
         indices, nspaces
 include("sequence_spaces/symmetry.jl")
-    export LinearIdx, PhaseVal, GroupElement, Group, SymmetricSpace, symmetry, desymmetrize
+    export LinearIdx, PhaseVal, GroupElement, Group, SymmetricSpace, symmetry, desymmetrize, evensym, oddsym
 include("sequence_spaces/banach_spaces.jl")
     export Weight, IdentityWeight, GeometricWeight, AlgebraicWeight, BesselWeight, rate,
         BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace, weight

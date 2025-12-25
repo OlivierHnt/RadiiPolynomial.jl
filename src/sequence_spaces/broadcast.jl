@@ -2,7 +2,7 @@ Base.broadcastable(s::VectorSpace) = Ref(s)
 
 # Extend broadcasting for Sequence
 
-# Base.broadcastable(a::AbstractSequence) = Ref(a)
+Base.broadcastable(a::AbstractSequence) = Ref(a)
 
 struct SequenceStyle <: Base.Broadcast.BroadcastStyle end
 

@@ -95,6 +95,11 @@ _infer_domain(::UniformScalingOperator, s::VectorSpace) = s
 _infer_domain(J::UniformScaling, s::VectorSpace) = _infer_domain(UniformScalingOperator(J), s)
 
 _infer_domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
+# needed to resolve method ambiguity
+_infer_domain(::Add, ::EmptySpace) = EmptySpace()
+_infer_domain(::Negate, ::EmptySpace) = EmptySpace()
+_infer_domain(::UniformScalingOperator, ::EmptySpace) = EmptySpace()
+_infer_domain(::BandedLinearOperator, ::EmptySpace) = EmptySpace()
 
 _union(::EmptySpace, ::VectorSpace) = EmptySpace()
 _union(::VectorSpace, ::EmptySpace) = EmptySpace()

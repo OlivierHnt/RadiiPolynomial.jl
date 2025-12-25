@@ -58,10 +58,11 @@ function getcoefficient(a::AbstractSequence, α)
 end
 
 function _findposition_factor(k, s::SequenceSpace)
-    rep, factor = _get_representative_and_action(symmetry(s), k)
-    p = findfirst(==(rep), indices(s))
-    p === nothing && return nothing, zero(ComplexF64)
-    return p, factor
+    k0, factor = _get_representative_and_action(symmetry(s), k)
+    for (i, k) ∈ enumerate(indices(s))
+        k == k0 && return i, factor
+    end
+    return nothing, zero(ComplexF64)
 end
 
 """

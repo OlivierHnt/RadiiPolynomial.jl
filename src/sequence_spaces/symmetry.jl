@@ -157,14 +157,14 @@ Base.union(s₁::SymmetricSpace, s₂::SymmetricSpace) = SymmetricSpace(union(de
 
 indices(s::SymmetricSpace) = [k for k ∈ _orbit_representatives(symmetry(s), indices(desymmetrize(s))) if _fixed_dim(symmetry(s), k)]
 
-function nz_indices(s::SymmetricSpace)
-    inds = indices(desymmetrize(s))
-    out_inds = Set{eltype(indices(desymmetrize(s)))}()
-    for k ∈ inds
-        union!(out_inds, _orbit(symmetry(s), k))
-    end
-    return collect(out_inds)
-end
+# function nz_indices(s::SymmetricSpace)
+#     inds = indices(desymmetrize(s))
+#     out_inds = Set{eltype(indices(desymmetrize(s)))}()
+#     for k ∈ inds
+#         union!(out_inds, _orbit(symmetry(s), k))
+#     end
+#     return collect(out_inds)
+# end
 
 function _findindex_constant(s::SymmetricSpace)
     k0 = _findindex_constant(space(s))

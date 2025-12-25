@@ -136,6 +136,9 @@ end
 
 desymmetrize(s::SymmetricSpace) = s.space
 desymmetrize(s::NoSymSpace) = s
+desymmetrize(s::ParameterSpace) = s
+desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces(s))
+desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 symmetry(s::SymmetricSpace) = s.symmetry
 symmetry(s::NoSymSpace) = Group(GroupElement(LinearIdx(I(nspaces(s))), PhaseVal(true, fill(false, nspaces(s)), false))) # identity

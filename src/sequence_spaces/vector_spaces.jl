@@ -80,8 +80,6 @@ Base.issubset(::ParameterSpace, ::ParameterSpace) = true
 Base.intersect(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 Base.union(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
 
-desymmetrize(s::ParameterSpace) = s
-
 indices(::ParameterSpace) = Base.OneTo(1)
 
 _findposition(i, ::ParameterSpace) = i
@@ -238,8 +236,6 @@ order(s::TensorSpace, i::Int) = order(s.spaces[i])
 frequency(s::TensorSpace) = map(frequency, s.spaces)
 frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
 
-desymmetrize(s::TensorSpace) = TensorSpace(map(desymmetrize, spaces(s)))
-
 """
     TensorIndices{<:Tuple}
 
@@ -372,8 +368,6 @@ Base.issubset(s₁::Taylor, s₂::Taylor) = s₁.order ≤ s₂.order
 Base.intersect(s₁::Taylor, s₂::Taylor) = Taylor(min(s₁.order, s₂.order))
 Base.union(s₁::Taylor, s₂::Taylor) = Taylor(max(s₁.order, s₂.order))
 
-desymmetrize(s::Taylor) = s
-
 indices(s::Taylor) = 0:s.order
 
 _compatible_space_with_constant_index(s::Taylor) = s
@@ -449,8 +443,6 @@ function Base.union(s₁::Fourier{T}, s₂::Fourier{S}) where {T<:Real,S<:Real}
     return Fourier(max(s₁.order, s₂.order), convert(R, s₁.frequency))
 end
 
-desymmetrize(s::Fourier) = s
-
 indices(s::Fourier) = -s.order:s.order
 
 _compatible_space_with_constant_index(s::Fourier) = s
@@ -516,8 +508,6 @@ Base.:(==)(s₁::Chebyshev, s₂::Chebyshev) = s₁.order == s₂.order
 Base.issubset(s₁::Chebyshev, s₂::Chebyshev) = s₁.order ≤ s₂.order
 Base.intersect(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(min(s₁.order, s₂.order))
 Base.union(s₁::Chebyshev, s₂::Chebyshev) = Chebyshev(max(s₁.order, s₂.order))
-
-desymmetrize(s::Chebyshev) = s
 
 indices(s::Chebyshev) = 0:s.order
 
@@ -812,8 +802,6 @@ function frequency(s::CartesianPower, i::Int)
     return frequency(s.space)
 end
 
-desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces(s))
-
 function _component_findposition(i::Int, s::CartesianPower)
     dim = dimension(s.space)
     x = (i-1)*dim
@@ -958,8 +946,6 @@ order(s::CartesianProduct, i::Int) = order(s.spaces[i])
 
 frequency(s::CartesianProduct) = map(frequency, s.spaces)
 frequency(s::CartesianProduct, i::Int) = frequency(s.spaces[i])
-
-desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 function _component_findposition(i::Int, s::CartesianProduct)
     dims = dimensions(s)

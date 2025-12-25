@@ -328,6 +328,39 @@ _project!(A::LinearOperator, B::Add) = add!(A, B.A, B.B)
 _project!(A::LinearOperator, B::Negate) = rsub!(A, B.A)
 _project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J)
 
+#
+
+function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractVector)
+    @assert nspaces(P.space) == length(v)
+    u = zeros(promote_type(eltype(P), mapreduce(eltype, promote_type, v)), P.space)
+    for (i, vᵢ) ∈ enumerate(v)
+        project!(component(u, i), vᵢ)
+    end
+    return u
+end
+
+function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractMatrix)
+    @assert nspaces(P.space) == size(v, 1)
+    CoefType = reduce(promote_type, [reduce(promote_type, [_coeftype(v[i,j], P.space[i], eltype(P)) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)])
+    dom = CartesianProduct([reduce(union, [_infer_domain(v[i,j], P.space[i]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)]...)
+    any(sᵢ -> sᵢ isa EmptySpace, dom.spaces) && return [ComposedOperator(Projection(P.space[i]), v[i,j]) for i ∈ 1:size(v, 1), j ∈ 1:size(v, 2)]
+    u = zeros(CoefType, dom, P.space)
+    for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
+        project!(component(u, i, j), v[i,j])
+    end
+    return u
+end
+
+function Base.:*(v::AbstractMatrix, P::Projection{<:CartesianSpace})
+    @assert nspaces(P.space) == size(v, 2)
+    CoefType = reduce(promote_type, [reduce(promote_type, [_coeftype(v[i,j], P.space[j], eltype(P)) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)])
+    codom = CartesianProduct([reduce(union, [codomain(v[i,j], P.space[j]) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)]...)
+    u = zeros(CoefType, P.space, codom)
+    for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
+        project!(component(u, i, j), v[i,j])
+    end
+    return u
+end
 
 
 

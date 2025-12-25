@@ -325,6 +325,15 @@ _get_order_mul(::SinFourier, i, j) = (abs(i-j), i+j)
 _index_to_math(::SinFourier, j) = j
 #-
 
+function _add_mul!(c::Sequence{<:SequenceSpace}, a, b, α)
+    for k ∈ indices(space(c))
+        for j ∈ _convolution_indices(space(a), space(b), k)
+            c[k] += getcoefficient(a, _extract_valid_index(desymmetrize(space(a)), k, j)) * getcoefficient(b, _extract_valid_index(desymmetrize(space(b)), j))
+        end
+        c[k] *= α
+    end
+    return c
+end
 function _add_mul!(c::Sequence{<:BaseSpace}, a, b, α)
     _add_mul!(coefficients(c), coefficients(a), coefficients(b), α, space(c), space(a), space(b))
     return c
@@ -444,6 +453,28 @@ _convolution_indices(s₁::CosFourier, s₂::CosFourier, i::Int) = _convolution_
 _convolution_indices(s₁::SinFourier, s₂::SinFourier, i::Int) = _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 _convolution_indices(s₁::CosFourier, s₂::SinFourier, i::Int) = _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
 _convolution_indices(s₁::SinFourier, s₂::CosFourier, i::Int) = _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), i)
+
+#
+
+function codomain(::typeof(*), s₁::SymmetricSpace, s₂::SymmetricSpace)
+    V = codomain(*, desymmetrize(s₁), desymmetrize(s₂))
+    G = _group_product(symmetry(s₁), symmetry(s₂))
+    return SymmetricSpace(V, G)
+end
+function _group_product(G₁::Group, G₂::Group)
+    D₁ = Dict((idx_action(g), val_action(g).phase, val_action(g).conjugacy) => val_action(g).amplitude for g ∈ elements(G₁))
+    D₂ = Dict((idx_action(g), val_action(g).phase, val_action(g).conjugacy) => val_action(g).amplitude for g ∈ elements(G₂))
+    elems = Set{GroupElement}()
+    for (key, amp₁) ∈ D₁
+        if haskey(D₂, key)
+            amp₂ = D₂[key]
+            push!(elems, GroupElement(key[1], PhaseVal(amp₁ * amp₂, key[2], key[3])))
+        end
+    end
+    return Group(elems)
+end
+
+_convolution_indices(s₁::SymmetricSpace, s₂::SymmetricSpace, k::Int) = _convolution_indices(desymmetrize(s₁), desymmetrize(s₂), k)
 
 
 
@@ -609,22 +640,25 @@ _add_sqr!(c::Sequence, a) = _add_mul!(c, a, a, convert(real(eltype(c)), exact(tr
 
 #
 
-codomain(::typeof(^), s::TensorSpace, n::Integer) = TensorSpace(map(sᵢ -> codomain(^, sᵢ, n), spaces(s)))
+function codomain(::typeof(^), s::SequenceSpace, n::Integer)
+    n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
+    n == 0 && return s
+    n == 1 && return s
+    s² = codomain(*, s, s)
+    n == 2 && return s²
+    return codomain(*, s², codomain(^, s, n-2))
+end
 
-codomain(::typeof(pow_bar), s::TensorSpace, n::Integer) = TensorSpace(map(sᵢ -> codomain(pow_bar, sᵢ, n), spaces(s)))
+function codomain(::typeof(pow_bar), s::SequenceSpace, n::Integer)
+    n < 0 && return throw(DomainError(n, "pow_bar is only defined for positive integers"))
+    n == 0 && return s
+    n == 1 && return s
+    s² = codomain(mul_bar, s, s)
+    n == 2 && return s²
+    return codomain(mul_bar, s², codomain(pow_bar, s, n-2))
+end
 
 # Taylor
-
-for (f, g) ∈ ((:^, :*), (:pow_bar, :mul_bar))
-    @eval function codomain(::typeof($f), s::Taylor, n::Integer)
-        n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
-        n == 0 && return s
-        n == 1 && return s
-        s² = codomain($g, s, s)
-        n == 2 && return s²
-        return codomain($g, s², codomain($f, s, n-2))
-    end
-end
 
 function _add_sqr!(c::Sequence{Taylor}, a)
     order_a = order(space(a))
@@ -648,17 +682,6 @@ function _add_sqr!(c::Sequence{Taylor}, a)
 end
 
 # Fourier
-
-for (f, g) ∈ ((:^, :*), (:pow_bar, :mul_bar))
-    @eval function codomain(::typeof($f), s::Fourier, n::Integer)
-        n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
-        n == 0 && return s
-        n == 1 && return s
-        s² = codomain($g, s, s)
-        n == 2 && return s²
-        return codomain($g, s², codomain($f, s, n-2))
-    end
-end
 
 function _add_sqr!(c::Sequence{<:Fourier}, a)
     order_a = order(space(a))
@@ -690,17 +713,6 @@ end
 
 # Chebyshev
 
-for (f, g) ∈ ((:^, :*), (:pow_bar, :mul_bar))
-    @eval function codomain(::typeof($f), s::Chebyshev, n::Integer)
-        n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
-        n == 0 && return s
-        n == 1 && return s
-        s² = codomain($g, s, s)
-        n == 2 && return s²
-        return codomain($g, s², codomain($f, s, n-2))
-    end
-end
-
 function _add_sqr!(c::Sequence{Chebyshev}, a)
     order_a = order(space(a))
     c₀ = zero(eltype(a))
@@ -727,28 +739,6 @@ function _add_sqr!(c::Sequence{Chebyshev}, a)
 end
 
 # CosFourier and SinFourier
-
-for (f, g) ∈ ((:^, :*), (:pow_bar, :mul_bar))
-    @eval function codomain(::typeof($f), s::CosFourier, n::Integer)
-        n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
-        n == 0 && return s
-        n == 1 && return s
-        s² = codomain($g, s, s)
-        n == 2 && return s²
-        return codomain($g, s², codomain($f, s, n-2))
-    end
-end
-
-for (f, g) ∈ ((:^, :*), (:pow_bar, :mul_bar))
-    @eval function codomain(::typeof($f), s::SinFourier, n::Integer)
-        n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
-        n == 0 && return desymmetrize(s)
-        n == 1 && return s
-        s² = codomain($g, s, s)
-        n == 2 && return s²
-        return codomain($g, s², codomain($f, s, n-2))
-    end
-end
 
 function _add_sqr!(c::Sequence{<:CosFourier}, a::Sequence{<:CosFourier})
     order_a = order(space(a))

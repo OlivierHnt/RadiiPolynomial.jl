@@ -105,18 +105,6 @@ function _get_representative_and_action(sym::Group, k)
     return throw(ArgumentError("Symmetry group consistency error"))
 end
 
-function group_product(G₁::Group, G₂::Group)
-    D₁ = Dict(idx_action(g) => val_action(g) for g ∈ elements(G₁))
-    D₂ = Dict(idx_action(g) => val_action(g) for g ∈ elements(G₂))
-    elements = Set{GroupElement}()
-    for (idx, val₁) ∈ D₁
-        haskey(D₂, idx) || continue # symmetry lost
-        val₂ = D₂[idx]
-        push!(elements, GroupElement(idx, val₁ * val₂))
-    end
-    return Group(elements)
-end
-
 function _fixed_dim(sym::Group, k)
     for g ∈ elements(sym)
         idx_action(g)(k) == k || continue
@@ -141,8 +129,8 @@ desymmetrize(s::CartesianPower) = CartesianPower(desymmetrize(space(s)), nspaces
 desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)))
 
 symmetry(s::SymmetricSpace) = s.symmetry
-symmetry(::BaseSpace) = Group(GroupElement(LinearIdx([true;;]), PhaseVal(true, [false], false))) # identity
-symmetry(s::TensorSpace) = Group(GroupElement(LinearIdx(I(nspaces(s))), PhaseVal(true, fill(false, nspaces(s)), false))) # identity
+symmetry(::BaseSpace) = Group(GroupElement(LinearIdx([true;;]), PhaseVal(true, [0], false))) # identity
+symmetry(s::TensorSpace) = Group(GroupElement(LinearIdx(I(nspaces(s))), PhaseVal(true, fill(0, nspaces(s)), false))) # identity
 
 SymmetricSpace(space::SequenceSpace) = SymmetricSpace(space, symmetry(space))
 
@@ -165,6 +153,7 @@ indices(s::SymmetricSpace) = [k for k ∈ _orbit_representatives(symmetry(s), in
 #         union!(out_inds, _orbit(symmetry(s), k))
 #     end
 #     return collect(out_inds)
+#     # or if not nothing_findposition_factor(α, space_a, space_b)
 # end
 
 function _findindex_constant(s::SymmetricSpace)
@@ -185,8 +174,8 @@ IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymme
 evensym(s::Taylor) = SymmetricSpace(s, Group(GroupElement(LinearIdx([1;;]), PhaseVal(true, [1], false))))
 oddsym(s::Taylor) = SymmetricSpace(s, Group(GroupElement(LinearIdx([1;;]), PhaseVal(-1, [1], false))))
 
-evensym(s::Fourier) = SymmetricSpace(s, Group(GroupElement(LinearIdx([-1;;]), PhaseVal(true, [false], false))))
-oddsym(s::Fourier) = SymmetricSpace(s, Group(GroupElement(LinearIdx([-1;;]), PhaseVal(true, [1], false))))
+evensym(s::Fourier) = SymmetricSpace(s, Group(GroupElement(LinearIdx([-1;;]), PhaseVal(true, [0], false))))
+oddsym(s::Fourier) = SymmetricSpace(s, Group(GroupElement(LinearIdx([-1;;]), PhaseVal(-1, [0], false))))
 
 evensym(s::Chebyshev) = SymmetricSpace(s, Group(GroupElement(LinearIdx([1;;]), PhaseVal(true, [1], false))))
 oddsym(s::Chebyshev) = SymmetricSpace(s, Group(GroupElement(LinearIdx([1;;]), PhaseVal(-1, [1], false))))

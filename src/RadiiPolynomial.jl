@@ -24,6 +24,8 @@ include("sequence_spaces/vector_spaces.jl")
         SinFourier, CartesianSpace, CartesianPower, CartesianProduct, ×,
         order, frequency, desymmetrize, space, spaces, dimension, dimensions,
         indices, nspaces
+include("sequence_spaces/symmetry.jl")
+    export LinearIdx, PhaseVal, GroupElement, Group, SymmetricSpace, symmetry
 include("sequence_spaces/banach_spaces.jl")
     export Weight, IdentityWeight, GeometricWeight, AlgebraicWeight, BesselWeight, rate,
         BanachSpace, Ell1, ℓ¹, Ell2, ℓ², EllInf, ℓ∞, NormedCartesianSpace, weight

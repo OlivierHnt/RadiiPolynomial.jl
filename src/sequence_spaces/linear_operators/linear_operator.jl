@@ -376,3 +376,5 @@ end
 Base.:∘(A::AbstractLinearOperator, B::AbstractLinearOperator) = ComposedOperator(A, B)
 Base.:∘(A::AbstractLinearOperator, J::UniformScaling) = ComposedOperator(A, UniformScalingOperator(J))
 Base.:∘(J::UniformScaling, A::AbstractLinearOperator) = ComposedOperator(UniformScalingOperator(J), A)
+
+codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))

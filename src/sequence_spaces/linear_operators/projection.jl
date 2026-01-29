@@ -1,17 +1,3 @@
-# composition of operators
-
-codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
-
-domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s))
-
-project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
-project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
-    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
-
-project!(A::LinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
-
-#
-
 """
     Projection{T<:VectorSpace,S<:Number} <: AbstractLinearOperator
 
@@ -93,6 +79,8 @@ domain(S::Negate, s::VectorSpace) = domain(S.A, s)
 
 domain(::UniformScalingOperator, s::VectorSpace) = s
 domain(J::UniformScaling, s::VectorSpace) = domain(UniformScalingOperator(J), s)
+
+domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s))
 
 domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
 # needed to resolve method ambiguity
@@ -209,17 +197,18 @@ end
 project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace) = project(UniformScalingOperator(J), domain_dest, codomain_dest)
 project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}) where {T} = project(UniformScalingOperator(J), domain_dest, codomain_dest, T)
 
+project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
+project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
+    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
+
 _iscompatible(::AbstractLinearOperator, image_domain_dest, codomain_dest) =
     _iscompatible(image_domain_dest, codomain_dest)
 
 _coeftype(A::AbstractLinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
-_coeftype(A::BandedLinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 _coeftype(S::Add, s::VectorSpace, ::Type{T}) where {T} = promote_type(_coeftype(S.A, s, T), _coeftype(S.B, s, T))
 _coeftype(S::Negate, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.A, s, T)
 
-_coeftype(P::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(P), T)
-_coeftype(J::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(J), T)
 _coeftype(J::UniformScaling, s::VectorSpace, ::Type{T}) where {T} = _coeftype(UniformScalingOperator(J), s, T)
 _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.outer, codomain(S.inner, s), _coeftype(S.inner, s, T))
 
@@ -238,6 +227,8 @@ function project!(C::LinearOperator, A::AbstractLinearOperator)
 end
 
 project!(C::LinearOperator, J::UniformScaling) = project!(C, UniformScalingOperator(J))
+
+project!(C::LinearOperator, A::ComposedOperator) = project!(C, project(A, domain(C), codomain(C)))
 
 """
     project(A::LinearOperator{ParameterSpace,<:VectorSpace}, space_dest::VectorSpace, ::Type{T}=eltype(A))
@@ -261,6 +252,19 @@ function project!(c::Sequence, A::LinearOperator{ParameterSpace,<:VectorSpace})
     project!(LinearOperator(domain(A), space(c), reshape(coefficients(c), :, 1)), A)
     return c
 end
+
+
+
+#
+
+function _project!(C::LinearOperator, A::AbstractLinearOperator)
+    for j ∈ indices(domain(C)), i ∈ indices(codomain(C))
+        C[i,j] = _getindex(A, domain(C), codomain(C), eltype(C), i, j)
+    end
+    return C
+end
+
+_getindex(A::AbstractLinearOperator, ::VectorSpace, ::VectorSpace, ::Type{T}, i::Int, j::Int) where {T} = A[i,j]
 
 function _project!(C::LinearOperator, A::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)
@@ -316,17 +320,12 @@ function _project!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearO
     return C
 end
 
-#
-
-function _project!(A::LinearOperator, P::Projection)
-    B = project(UniformScalingOperator(one(eltype(P))), domain(P), codomain(P))
-    project!(A, B)
-    return A
-end
-
+_project!(A::LinearOperator, P::Projection) = _radd!(A, UniformScalingOperator(one(eltype(P))))
 _project!(A::LinearOperator, B::Add) = add!(A, B.A, B.B)
 _project!(A::LinearOperator, B::Negate) = rsub!(A, B.A)
 _project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J)
+
+
 
 #
 

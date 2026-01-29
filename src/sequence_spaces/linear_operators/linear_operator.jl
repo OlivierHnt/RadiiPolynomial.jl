@@ -320,9 +320,6 @@ Base.:-(A::AbstractLinearOperator, B::AbstractLinearOperator) = A + (-B)
 Base.:-(A::Negate) = A.A
 Base.:-(A::Add) = -A.A + (-A.B)
 
-Base.:*(S::Add, b::Sequence) = (S * Projection(space(b))) * b
-Base.:*(S::Negate, b::Sequence) = (S * Projection(space(b))) * b
-
 codomain(S::Add, s::VectorSpace) = codomain(S.A, s) ∪ codomain(S.B, s)
 codomain(S::Negate, s::VectorSpace) = codomain(S.A, s)
 

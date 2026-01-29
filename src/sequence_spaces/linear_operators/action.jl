@@ -1,4 +1,5 @@
 (S::AbstractLinearOperator)(b::AbstractSequence) = *(S, b)
+Base.:*(A::AbstractLinearOperator, b::AbstractSequence) = (A * Projection(space(b), eltype(b))) * b
 
 # Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b # each operator should provide their own method
 

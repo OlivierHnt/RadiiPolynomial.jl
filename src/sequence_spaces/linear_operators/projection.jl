@@ -195,12 +195,11 @@ function project(A::AbstractLinearOperator, domain_dest::VectorSpace, codomain_d
     return C
 end
 
-project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace) = project(UniformScalingOperator(J), domain_dest, codomain_dest)
-project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}) where {T} = project(UniformScalingOperator(J), domain_dest, codomain_dest, T)
+project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=_coeftype(J, domain_dest, Float64)) where {T} =
+    project(UniformScalingOperator(J), domain_dest, codomain_dest, T)
 
-project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
-project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
-    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
+project(A::ComposedOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=_coeftype(A, domain_dest, Float64)) where {T} =
+    Projection(codomain_dest, T) * (A.outer * (A.inner * Projection(domain_dest, T)))
 
 _iscompatible(::AbstractLinearOperator, image_domain_dest, codomain_dest) =
     _iscompatible(image_domain_dest, codomain_dest)

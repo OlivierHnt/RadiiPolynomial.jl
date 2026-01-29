@@ -14,9 +14,9 @@ lsub!(S::AbstractLinearOperator, A::LinearOperator) = lsub!(project(S, domain(A)
 
 function Base.:*(A::LinearOperator, S::AbstractLinearOperator)
     domain(S, domain(A)) isa EmptySpace && return ComposedOperator(A, S)
-    return A * (Projection(domain(A)) * S)
+    return A * (Projection(domain(A), eltype(A)) * S)
 end
-Base.:*(S::AbstractLinearOperator, A::LinearOperator) = (S * Projection(codomain(A))) * A
+Base.:*(S::AbstractLinearOperator, A::LinearOperator) = (S * Projection(codomain(A), eltype(A))) * A
 
 function mul!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator, α::Number, β::Number)
     domain_C = domain(C)

@@ -37,13 +37,13 @@ Scale(value::Number...) = Scale(value)
 
 value(𝒮::Scale) = 𝒮.value
 
-_infer_domain(S::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((γᵢ, sᵢ) -> _infer_domain(Scale(γᵢ), sᵢ), value(S), spaces(s)))
-_infer_domain(::Scale, s::Taylor) = s
-_infer_domain(S::Scale, s::Fourier) = Fourier(order(s), frequency(s)/value(S))
-_infer_domain(::Scale, s::Chebyshev) = s
-_infer_domain(S::Scale, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
-_infer_domain(S::Scale, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))
+domain(S::Scale{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((γᵢ, sᵢ) -> domain(Scale(γᵢ), sᵢ), value(S), spaces(s)))
+domain(::Scale, s::Taylor) = s
+domain(S::Scale, s::Fourier) = Fourier(order(s), frequency(s)/value(S))
+domain(::Scale, s::Chebyshev) = s
+domain(S::Scale, s::CartesianPower) = CartesianPower(domain(S, space(s)), nspaces(s))
+domain(S::Scale, s::CartesianSpace) = CartesianProduct(map(sᵢ -> domain(S, sᵢ), spaces(s)))
 
 Base.:*(𝒮₁::Scale{<:Number}, 𝒮₂::Scale{<:Number}) = Scale(value(𝒮₁) * value(𝒮₂))
 Base.:*(𝒮₁::Scale{<:NTuple{N,Number}}, 𝒮₂::Scale{<:NTuple{N,Number}}) where {N} = Scale(map(*, value(𝒮₁), value(𝒮₂)))

@@ -2,11 +2,11 @@
 
 codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
 
-_infer_domain(A::ComposedOperator, s::VectorSpace) = _infer_domain(A.inner, _infer_domain(A.outer, s))
+domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s))
 
 project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace) = Projection(codom) * (A.outer * (A.inner * Projection(dom)))
 project(A::ComposedOperator, dom::VectorSpace, codom::VectorSpace, ::Type{T}) where {T} =
-    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, _infer_domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
+    Projection(codom, T) * (A.outer * (A.inner * Projection(dom, T))) # project(A.outer, domain(A.outer, codom), codom, T) * project(A.inner, dom, codomain(A.inner, dom), T)
 
 project!(A::LinearOperator, B::ComposedOperator) = project!(A, project(B, domain(A), codomain(A)))
 
@@ -55,7 +55,7 @@ Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), pro
 Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 
 Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
-Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, _infer_domain(A, P.space), P)
+Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, domain(A, P.space), P)
 _lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
 _lproj(A::AbstractLinearOperator, ::EmptySpace, P::Projection) = ComposedOperator(P, A)
 
@@ -74,32 +74,32 @@ Base.:*(A::AbstractLinearOperator, P::Add{<:Negate{<:Projection},<:Negate{<:Proj
 Base.:*(P::Negate{<:Projection}, A::AbstractLinearOperator) = -(P.A * A)
 Base.:*(A::AbstractLinearOperator, P::Negate{<:Projection}) = -(A * P.A)
 
-_infer_domain(a, b) = throw(DomainError((a, b), "cannot infer a domain"))
+domain(a, b) = throw(DomainError((a, b), "cannot infer a domain"))
 
-function _infer_domain(A::LinearOperator, s::VectorSpace)
+function domain(A::LinearOperator, s::VectorSpace)
     _iscompatible(codomain(A), s) || return throw(ArgumentError("spaces must be compatible"))
     return domain(A)
 end
 
-function _infer_domain(P::Projection, s::VectorSpace)
+function domain(P::Projection, s::VectorSpace)
     _iscompatible(codomain(P), s) || return throw(ArgumentError("spaces must be compatible"))
     return domain(P)
 end
 
-_infer_domain(A::BandedLinearOperator, s::VectorSpace) = _union(_infer_domain(finite_operator(A), s), _infer_domain(banded_operator(A), s))
+domain(A::BandedLinearOperator, s::VectorSpace) = _union(domain(finite_operator(A), s), domain(banded_operator(A), s))
 
-_infer_domain(S::Add, s::VectorSpace) = _union(_infer_domain(S.A, s), _infer_domain(S.B, s))
-_infer_domain(S::Negate, s::VectorSpace) = _infer_domain(S.A, s)
+domain(S::Add, s::VectorSpace) = _union(domain(S.A, s), domain(S.B, s))
+domain(S::Negate, s::VectorSpace) = domain(S.A, s)
 
-_infer_domain(::UniformScalingOperator, s::VectorSpace) = s
-_infer_domain(J::UniformScaling, s::VectorSpace) = _infer_domain(UniformScalingOperator(J), s)
+domain(::UniformScalingOperator, s::VectorSpace) = s
+domain(J::UniformScaling, s::VectorSpace) = domain(UniformScalingOperator(J), s)
 
-_infer_domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
+domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
 # needed to resolve method ambiguity
-_infer_domain(::Add, ::EmptySpace) = EmptySpace()
-_infer_domain(::Negate, ::EmptySpace) = EmptySpace()
-_infer_domain(::UniformScalingOperator, ::EmptySpace) = EmptySpace()
-_infer_domain(::BandedLinearOperator, ::EmptySpace) = EmptySpace()
+domain(::Add, ::EmptySpace) = EmptySpace()
+domain(::Negate, ::EmptySpace) = EmptySpace()
+domain(::UniformScalingOperator, ::EmptySpace) = EmptySpace()
+domain(::BandedLinearOperator, ::EmptySpace) = EmptySpace()
 
 _union(::EmptySpace, ::VectorSpace) = EmptySpace()
 _union(::VectorSpace, ::EmptySpace) = EmptySpace()
@@ -342,7 +342,7 @@ end
 function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractMatrix)
     @assert nspaces(P.space) == size(v, 1)
     CoefType = reduce(promote_type, [reduce(promote_type, [_coeftype(v[i,j], P.space[i], eltype(P)) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)])
-    dom = CartesianProduct([reduce(union, [_infer_domain(v[i,j], P.space[i]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)]...)
+    dom = CartesianProduct([reduce(union, [domain(v[i,j], P.space[i]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)]...)
     any(sᵢ -> sᵢ isa EmptySpace, dom.spaces) && return [ComposedOperator(Projection(P.space[i]), v[i,j]) for i ∈ 1:size(v, 1), j ∈ 1:size(v, 2)]
     u = zeros(CoefType, dom, P.space)
     for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)

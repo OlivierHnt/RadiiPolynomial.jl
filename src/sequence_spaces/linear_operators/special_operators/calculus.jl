@@ -44,23 +44,23 @@ Derivative(order::Int...) = Derivative(order)
 
 order(𝒟::Derivative) = 𝒟.order
 
-function _infer_domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
-    s_out = map((αᵢ, sᵢ) -> _infer_domain(Derivative(αᵢ), sᵢ), order(D), spaces(s))
+function domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    s_out = map((αᵢ, sᵢ) -> domain(Derivative(αᵢ), sᵢ), order(D), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return TensorSpace(s_out)
 end
-_infer_domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
-_infer_domain(::Derivative, s::Fourier) = s
-_infer_domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : EmptySpace() # flags an error
-_infer_domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
-_infer_domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
-function _infer_domain(D::Derivative, s::CartesianPower)
-    s_out = _infer_domain(D, space(s))
+domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
+domain(::Derivative, s::Fourier) = s
+domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : EmptySpace() # flags an error
+domain(D::Derivative, s::CosFourier) = codomain(Integral(order(D)), s)
+domain(D::Derivative, s::SinFourier) = codomain(Integral(order(D)), s)
+function domain(D::Derivative, s::CartesianPower)
+    s_out = domain(D, space(s))
     s_out isa EmptySpace && return EmptySpace()
     return CartesianPower(s_out, nspaces(s))
 end
-function _infer_domain(D::Derivative, s::CartesianSpace)
-    s_out = map(sᵢ -> _infer_domain(D, sᵢ), spaces(s))
+function domain(D::Derivative, s::CartesianSpace)
+    s_out = map(sᵢ -> domain(D, sᵢ), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return CartesianProduct(s_out)
 end
@@ -111,23 +111,23 @@ Integral(order::Int...) = Integral(order)
 
 order(ℐ::Integral) = ℐ.order
 
-function _infer_domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
-    s_out = map((αᵢ, sᵢ) -> _infer_domain(Integral(αᵢ), sᵢ), order(I), spaces(s))
+function domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    s_out = map((αᵢ, sᵢ) -> domain(Integral(αᵢ), sᵢ), order(I), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return TensorSpace(s_out)
 end
-_infer_domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
-_infer_domain(::Integral, s::Fourier) = s
-_infer_domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : EmptySpace() # flags an error
-_infer_domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
-_infer_domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
-function _infer_domain(I::Integral, s::CartesianPower)
-    s_out = _infer_domain(I, space(s))
+domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
+domain(::Integral, s::Fourier) = s
+domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : EmptySpace() # flags an error
+domain(I::Integral, s::CosFourier) = codomain(Derivative(order(I)), s)
+domain(I::Integral, s::SinFourier) = codomain(Derivative(order(I)), s)
+function domain(I::Integral, s::CartesianPower)
+    s_out = domain(I, space(s))
     s_out isa EmptySpace && return EmptySpace()
     return CartesianPower(s_out, nspaces(s))
 end
-function _infer_domain(I::Integral, s::CartesianSpace)
-    s_out = map(sᵢ -> _infer_domain(I, sᵢ), spaces(s))
+function domain(I::Integral, s::CartesianSpace)
+    s_out = map(sᵢ -> domain(I, sᵢ), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return CartesianProduct(s_out)
 end
@@ -1575,19 +1575,19 @@ Laplacian operator.
 """
 struct Laplacian <: AbstractLinearOperator end
 
-function _infer_domain(Δ::Laplacian, s::TensorSpace)
-    s_out = map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s))
+function domain(Δ::Laplacian, s::TensorSpace)
+    s_out = map(sᵢ -> domain(Δ, sᵢ), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return TensorSpace(map((s1, s2) -> codomain(+, s1, s2), spaces(s), s_out))
 end
-_infer_domain(::Laplacian, s::BaseSpace) = _infer_domain(Derivative(2), s)
-function _infer_domain(Δ::Laplacian, s::CartesianPower)
-    s_out = _infer_domain(Δ, space(s))
+domain(::Laplacian, s::BaseSpace) = domain(Derivative(2), s)
+function domain(Δ::Laplacian, s::CartesianPower)
+    s_out = domain(Δ, space(s))
     s_out isa EmptySpace && return EmptySpace()
     return CartesianPower(s_out, nspaces(s))
 end
-function _infer_domain(Δ::Laplacian, s::CartesianSpace)
-    s_out = map(sᵢ -> _infer_domain(Δ, sᵢ), spaces(s))
+function domain(Δ::Laplacian, s::CartesianSpace)
+    s_out = map(sᵢ -> domain(Δ, sᵢ), spaces(s))
     any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
     return CartesianProduct(s_out)
 end

@@ -30,16 +30,16 @@ IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::AbstractVector{In
 IntervalArithmetic.interval(ℳ::Multiplication, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
     Multiplication(interval(sequence(ℳ), d; format = format))
 
-_infer_domain(M::Multiplication, s::SequenceSpace) = _infer_domain(*, space(sequence(M)), s)
-_infer_domain(::typeof(*), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((s₁ᵢ, s₂ᵢ) -> _infer_domain(*, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
-_infer_domain(::typeof(*), ::Taylor, s::Taylor) = s
-_infer_domain(::typeof(*), s₁::Fourier, s₂::Fourier) = codomain(*, s₁, s₂)
-_infer_domain(::typeof(*), s₁::Chebyshev, s₂::Chebyshev) = codomain(*, s₁, s₂)
-_infer_domain(::typeof(*), s₁::CosFourier, s₂::CosFourier) = codomain(*, s₁, s₂)
-_infer_domain(::typeof(*), s₁::SinFourier, s₂::SinFourier) = codomain(*, s₁, s₂)
-_infer_domain(::typeof(*), s₁::SinFourier, s₂::CosFourier) = codomain(*, s₁, s₂)
-_infer_domain(::typeof(*), s₁::CosFourier, s₂::SinFourier) = codomain(*, s₁, s₂)
+domain(M::Multiplication, s::SequenceSpace) = domain(*, space(sequence(M)), s)
+domain(::typeof(*), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((s₁ᵢ, s₂ᵢ) -> domain(*, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
+domain(::typeof(*), ::Taylor, s::Taylor) = s
+domain(::typeof(*), s₁::Fourier, s₂::Fourier) = codomain(*, s₁, s₂)
+domain(::typeof(*), s₁::Chebyshev, s₂::Chebyshev) = codomain(*, s₁, s₂)
+domain(::typeof(*), s₁::CosFourier, s₂::CosFourier) = codomain(*, s₁, s₂)
+domain(::typeof(*), s₁::SinFourier, s₂::SinFourier) = codomain(*, s₁, s₂)
+domain(::typeof(*), s₁::SinFourier, s₂::CosFourier) = codomain(*, s₁, s₂)
+domain(::typeof(*), s₁::CosFourier, s₂::SinFourier) = codomain(*, s₁, s₂)
 
 """
     *(ℳ::Multiplication, a::Sequence)

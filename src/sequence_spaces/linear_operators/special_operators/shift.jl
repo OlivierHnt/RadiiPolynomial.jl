@@ -37,13 +37,13 @@ Shift(value::Number...) = Shift(value)
 
 value(𝒮::Shift) = 𝒮.value
 
-_infer_domain(S::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((τᵢ, sᵢ) -> _infer_domain(Shift(τᵢ), sᵢ), value(S), spaces(s)))
-_infer_domain(::Shift, s::Taylor) = s
-_infer_domain(::Shift, s::Fourier) = s
-_infer_domain(::Shift, s::Chebyshev) = s
-_infer_domain(S::Shift, s::CartesianPower) = CartesianPower(_infer_domain(S, space(s)), nspaces(s))
-_infer_domain(S::Shift, s::CartesianSpace) = CartesianProduct(map(sᵢ -> _infer_domain(S, sᵢ), spaces(s)))
+domain(S::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> domain(Shift(τᵢ), sᵢ), value(S), spaces(s)))
+domain(::Shift, s::Taylor) = s
+domain(::Shift, s::Fourier) = s
+domain(::Shift, s::Chebyshev) = s
+domain(S::Shift, s::CartesianPower) = CartesianPower(domain(S, space(s)), nspaces(s))
+domain(S::Shift, s::CartesianSpace) = CartesianProduct(map(sᵢ -> domain(S, sᵢ), spaces(s)))
 
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(value(𝒮₁) + value(𝒮₂))
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, value(𝒮₁), value(𝒮₂)))

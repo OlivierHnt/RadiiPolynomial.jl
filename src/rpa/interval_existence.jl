@@ -82,7 +82,7 @@ end
     set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool = false)
 
 Return a set of radii, a vector and a boolean value with the following meaning:
-    - `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
+    - `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
     - `false`: otherwise, and the set of radii and the vector are empty.
 """
 function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool = false)

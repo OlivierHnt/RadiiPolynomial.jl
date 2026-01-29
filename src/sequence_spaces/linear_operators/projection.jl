@@ -122,6 +122,7 @@ function project!(c::Sequence, a::AbstractSequence)
     space_a = space(a)
     space_c = space(c)
     _iscompatible(space_a, space_c) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a has space $space_a"))
+    coefficients(c) .= zero(eltype(c))
     _project!(c, a)
     return c
 end
@@ -222,6 +223,7 @@ See also: [`project`](@ref).
 """
 function project!(C::LinearOperator, A::AbstractLinearOperator)
     _iscompatible(A, codomain(A, domain(C)), codomain(C)) || return throw(ArgumentError("spaces must be compatible"))
+    coefficients(C) .= zero(eltype(C))
     _project!(C, A)
     return C
 end

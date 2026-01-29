@@ -265,7 +265,7 @@ function _project!(C::LinearOperator, A::AbstractLinearOperator)
     return C
 end
 
-_getindex(A::AbstractLinearOperator, ::VectorSpace, ::VectorSpace, ::Type{T}, i::Int, j::Int) where {T} = A[i,j]
+_getindex(A::AbstractLinearOperator, ::VectorSpace, ::VectorSpace, ::Type{T}, i, j) where {T} = A[i,j]
 
 function _project!(C::LinearOperator, A::LinearOperator)
     domain_A, codomain_A = domain(A), codomain(A)

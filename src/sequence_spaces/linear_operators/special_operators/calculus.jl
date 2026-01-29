@@ -1647,24 +1647,6 @@ function laplacian!(c::Sequence, a::Sequence)
     return c
 end
 
-"""
-    project!(C::LinearOperator, Δ::Laplacian)
-
-Represent `Δ` as a [`LinearOperator`](@ref) from `domain(C)` to `codomain(C)`.
-The result is stored in `C` by overwriting it.
-
-See also: [`project(::Laplacian, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`Laplacian`](@ref)
-"""
-function project!(C::LinearOperator, Δ::Laplacian)
-    image_domain = codomain(Δ, domain(C))
-    codomain_C = codomain(C)
-    _iscompatible(image_domain, codomain_C) || return throw(ArgumentError("spaces must be compatible: codomain of domain(C) under $Δ is $image_domain, C has codomain $codomain_C"))
-    coefficients(C) .= zero(eltype(C))
-    _project!(C, Δ)
-    return C
-end
-
 #
 
 codomain(::Laplacian, s::TensorSpace) = s

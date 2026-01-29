@@ -212,7 +212,7 @@ project(J::UniformScaling, domain_dest::VectorSpace, codomain_dest::VectorSpace,
 _iscompatible(::AbstractLinearOperator, image_domain_dest, codomain_dest) =
     _iscompatible(image_domain_dest, codomain_dest)
 
-_coeftype(A::LinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
+_coeftype(A::AbstractLinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 _coeftype(A::BandedLinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 _coeftype(S::Add, s::VectorSpace, ::Type{T}) where {T} = promote_type(_coeftype(S.A, s, T), _coeftype(S.B, s, T))

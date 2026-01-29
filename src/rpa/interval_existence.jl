@@ -90,7 +90,7 @@ function _rpa_failure(msg::AbstractString, verbose::Bool)
     return Interval[], Interval[], false
 end
 
-function interval_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real}; verbose::Bool=false)
+function radii_of_existence(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real}; verbose::Bool=false)
     isvalid, msg = _check_inputs(Y, Z₁, Z₂, R)
     isvalid || return _rpa_failure(msg, verbose)
 
@@ -215,7 +215,7 @@ function _collatz_wielandt(A)
     return PFupperbound, testvector
 end
 
-interval_of_existence(Y::AbstractArray{<:Number}, Z₁::AbstractArray{<:Number}, Z₂::AbstractArray{<:Number}, R::AbstractArray{<:Real}; verbose::Bool=false) = interval_of_existence(interval.(Y), interval.(Z₁), interval.(Z₂), R; verbose=verbose)
+radii_of_existence(Y::AbstractArray{<:Number}, Z₁::AbstractArray{<:Number}, Z₂::AbstractArray{<:Number}, R::AbstractArray{<:Real}; verbose::Bool=false) = radii_of_existence(interval.(Y), interval.(Z₁), interval.(Z₂), R; verbose=verbose)
 
 function _check_inputs(Y::AbstractArray{<:Interval}, Z₁::AbstractArray{<:Interval}, Z₂::AbstractArray{<:Interval}, R::AbstractArray{<:Real})
     # Check R for negatives or NaNs

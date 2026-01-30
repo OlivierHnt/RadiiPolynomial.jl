@@ -71,7 +71,7 @@ end
 function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     X = banachspace(a) ∩ banachspace(b)
     full_c = mul(sequence(a), sequence(b), X)
-    c = project(full_c, space(a) ∩ space(b))
+    c = project(full_c, space(a) ∪ space(b))
     @inbounds view(full_c, indices(space(c))) .= zero(eltype(c))
     return InfiniteSequence(c, norm(full_c, X) +
             sequence_norm(a) * sequence_error(b) +

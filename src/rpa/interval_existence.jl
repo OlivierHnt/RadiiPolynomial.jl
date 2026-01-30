@@ -178,7 +178,7 @@ function _collatz_wielandt(A)
 
     Aeps = max.(mid.(A), 10 * eps(Float64))
 
-    F = eigen(Aeps)
+    F = LinearAlgebra.eigen(Aeps)
     eigenvectors = F.vectors
     eigenvalues = F.values
 

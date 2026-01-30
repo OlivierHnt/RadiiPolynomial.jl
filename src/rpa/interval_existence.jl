@@ -206,7 +206,7 @@ end
 
 function _check_inputs(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real})
     any(<(0), R) | any(isnan, R) && return false, "invalid threshold R"
-    all(isbounded, Y) & all(Y_m -> precedes(zero(Y_m), Y_m), Y) & all(Z_mi -> precedes(zero(Z_mi), Z_mi), Z) & all(Z_mi -> strictprecedes(Z_mi, one(Z_mi)), Z) & all(isbounded, W) & all(W_mij -> precedes(zero(W_mij), W_mij), W) ||
-        return false, "each entry of Y, W must be positive and each entry of Z must be in [0, 1)"
+    all(isbounded, Y) & all(Y_m -> precedes(zero(Y_m), Y_m), Y) & all(isbounded, Z) & all(Z_mi -> precedes(zero(Z_mi), Z_mi), Z) & all(isbounded, W) & all(W_mij -> precedes(zero(W_mij), W_mij), W) ||
+        return false, "each entry of Y, Z, W must be positive"
     return true, ""
 end

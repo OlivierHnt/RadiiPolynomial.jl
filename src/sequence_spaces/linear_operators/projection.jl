@@ -330,7 +330,7 @@ _project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J)
 
 #
 
-function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractVector)
+function Base.:*(P::Projection{<:CartesianSpace}, v::Vector)
     @assert nspaces(P.space) == length(v)
     u = zeros(promote_type(eltype(P), mapreduce(eltype, promote_type, v)), P.space)
     for (i, vᵢ) ∈ enumerate(v)
@@ -339,7 +339,7 @@ function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractVector)
     return u
 end
 
-function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractMatrix)
+function Base.:*(P::Projection{<:CartesianSpace}, v::Matrix)
     @assert nspaces(P.space) == size(v, 1)
     CoefType = reduce(promote_type, [reduce(promote_type, [_coeftype(v[i,j], P.space[i], eltype(P)) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)])
     dom = CartesianProduct([reduce(union, [domain(v[i,j], P.space[i]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)]...)
@@ -351,7 +351,7 @@ function Base.:*(P::Projection{<:CartesianSpace}, v::AbstractMatrix)
     return u
 end
 
-function Base.:*(v::AbstractMatrix, P::Projection{<:CartesianSpace})
+function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
     @assert nspaces(P.space) == size(v, 2)
     CoefType = reduce(promote_type, [reduce(promote_type, [_coeftype(v[i,j], P.space[j], eltype(P)) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)])
     codom = CartesianProduct([reduce(union, [codomain(v[i,j], P.space[j]) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)]...)

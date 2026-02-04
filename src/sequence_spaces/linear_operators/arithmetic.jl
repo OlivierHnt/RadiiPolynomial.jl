@@ -667,6 +667,14 @@ end
 
 #
 
+Base.:*(A::LinearOperator, B::Matrix) = A * (Projection(domain(A), eltype(A)) * B)
+Base.:*(B::Matrix, A::LinearOperator) = (B * Projection(codomain(A), eltype(A))) * A
+
+Base.:*(A::LinearOperator, B::LinearAlgebra.Diagonal) = A * Matrix(B)
+Base.:*(B::LinearAlgebra.Diagonal, A::LinearOperator) = Matrix(B) * A
+
+#
+
 Base.:+(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling}) = A + LinearAlgebra.Diagonal(UniformScalingOperator.(J.diag))
 Base.:+(J::LinearAlgebra.Diagonal{<:UniformScaling}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = LinearAlgebra.Diagonal(UniformScalingOperator.(J.diag)) + A
 Base.:-(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling}) = A - LinearAlgebra.Diagonal(UniformScalingOperator.(J.diag))

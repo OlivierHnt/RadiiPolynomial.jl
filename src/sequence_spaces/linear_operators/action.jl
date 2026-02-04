@@ -150,3 +150,11 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
     end
     return c
 end
+
+
+
+#
+
+Base.:*(A::Matrix, b::Sequence) = (A * Projection(space(b))) * b
+
+Base.:*(A::LinearAlgebra.Diagonal, b::Sequence) = Matrix(A) * b

@@ -321,7 +321,7 @@ function _project!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearO
     return C
 end
 
-_project!(A::LinearOperator, P::Projection) = _radd!(A, UniformScalingOperator(one(eltype(P))))
+_project!(A::LinearOperator, P::Projection) = _radd!(A, coefficients(P))
 _project!(A::LinearOperator, B::Add) = add!(A, B.A, B.B)
 _project!(A::LinearOperator, B::Negate) = rsub!(A, B.A)
 _project!(A::LinearOperator, J::UniformScalingOperator) = _radd!(A, J)

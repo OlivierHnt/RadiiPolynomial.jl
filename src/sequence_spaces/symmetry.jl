@@ -166,8 +166,9 @@ _findposition(k, s::SymmetricSpace) = findfirst(==(k), indices(s))
 
 _iscompatible(s₁::SymmetricSpace, s₂::SymmetricSpace) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂)) & (symmetry(s₁) == symmetry(s₂))
 
-IntervalArithmetic.interval(::Type{T}, s::SymmetricSpace) where {T} = SymmetricSpace(interval(T, desymmetrize(s)), symmetry(s))
-IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymmetrize(s)), symmetry(s))
+IntervalArithmetic._infer_numtype(s::SymmetricSpace) = IntervalArithmetic._infer_numtype(desymmetrize(s))
+IntervalArithmetic._interval_infsup(::Type{T}, s₁::SymmetricSpace, s₂::SymmetricSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    SymmetricSpace(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d), intersect(symmetry(s₁), symmetry(s₂)))
 
 #
 

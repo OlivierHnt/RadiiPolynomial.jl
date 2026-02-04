@@ -86,15 +86,6 @@ Base.copy(a::InfiniteSequence) =
 Base.zero(a::InfiniteSequence) = InfiniteSequence(zero(sequence(a)), banachspace(a))
 Base.one(a::InfiniteSequence) = InfiniteSequence(one(sequence(a)), banachspace(a))
 
-IntervalArithmetic.interval(::Type{T}, a::InfiniteSequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    InfiniteSequence(interval(T, sequence(a), d; format = format), interval(T, sequence_error(a)), interval(T, banachspace(a)))
-IntervalArithmetic.interval(a::InfiniteSequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    InfiniteSequence(interval(sequence(a), d; format = format), interval(sequence_error(a)), interval(banachspace(a)))
-IntervalArithmetic.interval(::Type{T}, a::InfiniteSequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    InfiniteSequence(interval(T, sequence(a), d; format = format), interval(T, sequence_error(a)), interval(T, banachspace(a)))
-IntervalArithmetic.interval(a::InfiniteSequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    InfiniteSequence(interval(sequence(a), d; format = format), interval(sequence_error(a)), interval(banachspace(a)))
-
 Base.float(a::InfiniteSequence) = InfiniteSequence(float(sequence(a)), float(sequence_error(a)), banachspace(a))
 for f ∈ (:complex, :real, :imag, :conj, :conj!)
     @eval Base.$f(a::InfiniteSequence) = InfiniteSequence($f(sequence(a)), sequence_error(a), banachspace(a))

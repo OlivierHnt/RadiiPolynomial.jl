@@ -159,7 +159,7 @@ end
 
 IntervalArithmetic._infer_numtype(a::Sequence) = numtype(eltype(a))
 IntervalArithmetic._interval_infsup(::Type{T}, a::Sequence, b::Sequence, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    IntervalArithmetic._interval_infsup.(T, a, b, d)
+    Sequence(IntervalArithmetic._interval_infsup(T, space(a), space(b), d), IntervalArithmetic._interval_infsup(T, coefficients(a), coefficients(b), d))
 
 Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
 

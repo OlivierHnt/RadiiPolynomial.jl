@@ -163,7 +163,7 @@ end
 
 IntervalArithmetic._infer_numtype(A::LinearOperator) = numtype(eltype(A))
 IntervalArithmetic._interval_infsup(::Type{T}, A::LinearOperator, B::LinearOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    IntervalArithmetic._interval_infsup.(T, A, B, d)
+    LinearOperator(IntervalArithmetic._interval_infsup(T, domain(A), domain(B), d), IntervalArithmetic._interval_infsup(T, codomain(A), codomain(B), d), IntervalArithmetic._interval_infsup(T, coefficients(A), coefficients(B), d))
 
 Base.reverse(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse(coefficients(A); dims = dims))
 

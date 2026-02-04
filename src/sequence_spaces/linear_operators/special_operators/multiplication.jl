@@ -23,14 +23,9 @@ Multiplication(x::Number) = UniformScalingOperator(x)
 
 sequence(ℳ::Multiplication) = ℳ.sequence
 
-IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    Multiplication(interval(T, sequence(ℳ), d; format = format))
-IntervalArithmetic.interval(ℳ::Multiplication, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    Multiplication(interval(sequence(ℳ), d; format = format))
-IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    Multiplication(interval(T, sequence(ℳ), d; format = format))
-IntervalArithmetic.interval(ℳ::Multiplication, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    Multiplication(interval(sequence(ℳ), d; format = format))
+IntervalArithmetic._infer_numtype(ℳ::Multiplication) = IntervalArithmetic._infer_numtype(sequence(ℳ))
+IntervalArithmetic._interval_infsup(::Type{T}, ℳ₁::Multiplication, ℳ₂::Multiplication, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    Multiplication(IntervalArithmetic._interval_infsup(T, sequence(ℳ₁), sequence(ℳ₂), d))
 
 domain(M::Multiplication, s::SequenceSpace) = domain(*, space(sequence(M)), s)
 domain(::typeof(*), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =

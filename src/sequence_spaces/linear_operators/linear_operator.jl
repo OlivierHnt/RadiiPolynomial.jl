@@ -362,6 +362,14 @@ IntervalArithmetic._infer_numtype(J::UniformScalingOperator) = numtype(eltype(J)
 IntervalArithmetic._interval_infsup(::Type{T}, J::UniformScalingOperator, H::UniformScalingOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
     UniformScalingOperator(IntervalArithmetic._interval_infsup(T, J.λ, H.λ, d))
 
+Base.promote_rule(::Type{<:UniformScaling}, ::Type{<:AbstractLinearOperator}) = AbstractLinearOperator
+Base.promote_rule(::Type{<:AbstractLinearOperator}, ::Type{<:UniformScaling}) = AbstractLinearOperator
+Base.promote_rule(::Type{UniformScaling{T}}, ::Type{UniformScalingOperator{S}}) where {T<:Number,S<:Number} = UniformScalingOperator{promote_type(T,S)}
+Base.promote_rule(::Type{UniformScalingOperator{T}}, ::Type{UniformScaling{S}}) where {T<:Number,S<:Number} = UniformScalingOperator{promote_type(T,S)}
+
+Base.convert(::Type{AbstractLinearOperator}, J::UniformScaling) = UniformScalingOperator(J.λ)
+Base.convert(::Type{UniformScalingOperator{T}}, J::UniformScaling{S}) where {T<:Number,S<:Number} = UniformScalingOperator(convert(promote_type(T,S), J.λ))
+
 #
 
 struct ComposedOperator{T<:AbstractLinearOperator,S<:AbstractLinearOperator} <: AbstractLinearOperator

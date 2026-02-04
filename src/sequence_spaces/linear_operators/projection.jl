@@ -28,6 +28,12 @@ coefficients(P::Projection) = project(UniformScaling(one(eltype(P))), P.space, P
 Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
 Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S
 
+IntervalArithmetic._infer_numtype(P::Projection) = numtype(eltype(P))
+function IntervalArithmetic._interval_infsup(::Type{T}, P₁::Projection, P₂::Projection, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
+    @assert P₁.space == P₂.space
+    return Projection(IntervalArithmetic._interval_infsup(T, P₁.space, P₂.space, d), Interval{T})
+end
+
 Base.:+(P::Projection, A::LinearOperator) = project(P, P.space, P.space) + A
 Base.:+(A::LinearOperator, P::Projection) = A + project(P, P.space, P.space)
 Base.:-(P::Projection, A::LinearOperator) = project(P, P.space, P.space) - A

@@ -20,6 +20,12 @@ end
 codomain(::typeof(+), s₁::CosFourier, s₂::SinFourier) = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
 codomain(::typeof(+), s₁::SinFourier, s₂::CosFourier) = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
 
+function codomain(::typeof(+), s₁::SymmetricSpace, s₂::SymmetricSpace)
+    V = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
+    G = intersect(symmetry(s₁), symmetry(s₂))
+    return SymmetricSpace(V, G)
+end
+
 # Cartesian spaces
 
 for f ∈ (:+,)

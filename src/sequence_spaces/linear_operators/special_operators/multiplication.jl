@@ -19,6 +19,8 @@ struct Multiplication{T<:Sequence{<:SequenceSpace}} <: AbstractLinearOperator
     sequence :: T
 end
 
+Multiplication(x::Number) = UniformScalingOperator(x)
+
 sequence(ℳ::Multiplication) = ℳ.sequence
 
 IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =

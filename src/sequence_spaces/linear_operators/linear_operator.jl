@@ -161,14 +161,9 @@ function Base.fill!(A::LinearOperator, value)
     return A
 end
 
-IntervalArithmetic.interval(::Type{T}, A::LinearOperator, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    LinearOperator(interval(T, domain(A)), interval(T, codomain(A)), interval(T, coefficients(A), d; format = format))
-IntervalArithmetic.interval(A::LinearOperator, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    LinearOperator(interval(domain(A)), interval(codomain(A)), interval(coefficients(A), d; format = format))
-IntervalArithmetic.interval(::Type{T}, A::LinearOperator, d::AbstractMatrix{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    LinearOperator(interval(T, domain(A)), interval(T, codomain(A)), interval(T, coefficients(A), d; format = format))
-IntervalArithmetic.interval(A::LinearOperator, d::AbstractMatrix{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    LinearOperator(interval(domain(A)), interval(codomain(A)), interval(coefficients(A), d; format = format))
+IntervalArithmetic._infer_numtype(A::LinearOperator) = numtype(eltype(A))
+IntervalArithmetic._interval_infsup(::Type{T}, A::LinearOperator, B::LinearOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    IntervalArithmetic._interval_infsup.(T, A, B, d)
 
 Base.reverse(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse(coefficients(A); dims = dims))
 
@@ -362,6 +357,10 @@ Base.:-(A::AbstractLinearOperator, J::UniformScaling) = A - UniformScalingOperat
 Base.:-(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) - A
 Base.:*(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) * A
 Base.:*(A::AbstractLinearOperator, J::UniformScaling) = A * UniformScalingOperator(J)
+
+IntervalArithmetic._infer_numtype(J::UniformScalingOperator) = numtype(eltype(J))
+IntervalArithmetic._interval_infsup(::Type{T}, J::UniformScalingOperator, H::UniformScalingOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    UniformScalingOperator(IntervalArithmetic._interval_infsup(T, J.λ, H.λ, d))
 
 #
 

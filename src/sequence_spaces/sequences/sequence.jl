@@ -157,14 +157,9 @@ function Base.fill!(a::Sequence, value)
     return a
 end
 
-IntervalArithmetic.interval(::Type{T}, a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) where {T} =
-    Sequence(interval(T, space(a)), interval(T, coefficients(a), d; format = format))
-IntervalArithmetic.interval(a::Sequence, d::IntervalArithmetic.Decoration = com; format::Symbol = :infsup) =
-    Sequence(interval(space(a)), interval(coefficients(a), d; format = format))
-IntervalArithmetic.interval(::Type{T}, a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) where {T} =
-    Sequence(interval(T, space(a)), interval(T, coefficients(a), d; format = format))
-IntervalArithmetic.interval(a::Sequence, d::AbstractVector{IntervalArithmetic.Decoration}; format::Symbol = :infsup) =
-    Sequence(interval(space(a)), interval(coefficients(a), d; format = format))
+IntervalArithmetic._infer_numtype(a::Sequence) = numtype(eltype(a))
+IntervalArithmetic._interval_infsup(::Type{T}, a::Sequence, b::Sequence, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    IntervalArithmetic._interval_infsup.(T, a, b, d)
 
 Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
 

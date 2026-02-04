@@ -1,11 +1,3 @@
-# Intrinsic weights
-
-_intrinsic_weight(::Taylor, ::Int) = 1
-_intrinsic_weight(::Fourier, ::Int) = 1
-_intrinsic_weight(::Chebyshev, k::Int) = ifelse(k == 0, 1, 2)
-_intrinsic_weight(s::TensorSpace{<:NTuple{N,BaseSpace}}, k::NTuple{N,Int}) where {N} = mapreduce(_intrinsic_weight, *, spaces(s), k)
-_intrinsic_weight(s::SymmetricSpace, k) = _intrinsic_weight(desymmetrize(s), k) * length(_orbit(symmetry(s), k))
-
 """
     Weight
 
@@ -21,7 +13,7 @@ _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::N
 _getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
     @inbounds _getindex(weight[1], s[1], α[1])
 
-_getindex(weight, s::SymmetricSpace, α) = _getindex(weight, desymmetrize(s), α)
+_getindex(weight::Weight, s::SymmetricSpace, k) = exact(length(_orbit(symmetry(s), k))) * _getindex(weight, desymmetrize(s), k)
 
 """
     IdentityWeight <: Weight
@@ -35,7 +27,7 @@ Base.min(::IdentityWeight, ::IdentityWeight) = IdentityWeight()
 Base.min(::IdentityWeight, ::Weight) = IdentityWeight()
 Base.min(::Weight, ::IdentityWeight) = IdentityWeight()
 
-_getindex(::IdentityWeight, ::NoSymSpace, k) = true
+_getindex(::IdentityWeight, ::NoSymSpace, k) = exact(true)
 
 """
     GeometricWeight{T<:Real} <: Weight
@@ -73,7 +65,9 @@ rate(weight::GeometricWeight) = weight.rate
 Base.:(==)(w₁::GeometricWeight, w₂::GeometricWeight) = _safe_isequal(rate(w₁), rate(w₂))
 Base.min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(rate(w₁), rate(w₂)))
 
-_getindex(weight::GeometricWeight, ::BaseSpace, i::Int) = rate(weight) ^ exact(abs(i))
+_getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ exact(i)
+_getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ exact(abs(i))
+_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = exact(ifelse(k == 0, 1, 2)) * rate(weight) ^ exact(abs(i))
 
 IntervalArithmetic.interval(::Type{T}, weight::GeometricWeight) where {T} = GeometricWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::GeometricWeight) = GeometricWeight(interval(rate(weight)))
@@ -114,7 +108,9 @@ rate(weight::AlgebraicWeight) = weight.rate
 Base.:(==)(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = _safe_isequal(rate(w₁), rate(w₂))
 Base.min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(rate(w₁), rate(w₂)))
 
-_getindex(weight::AlgebraicWeight, ::BaseSpace, i::Int) = exact(1 + abs(i)) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = exact(1 + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = exact(1 + abs(i)) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = exact(ifelse(k == 0, 1, 2)) * exact(1 + i) ^ rate(weight)
 
 IntervalArithmetic.interval(::Type{T}, weight::AlgebraicWeight) where {T} = AlgebraicWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::AlgebraicWeight) = AlgebraicWeight(interval(rate(weight)))

@@ -183,8 +183,7 @@ function _apply(X::Ell1, space::SequenceSpace, A::AbstractVector)
     s = abs(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s += abs(A[i]) * w * iw
+        s += abs(A[i]) * w
     end
     return s
 end
@@ -193,8 +192,7 @@ function _apply_dual(X::Ell1, space::SequenceSpace, A::AbstractVector)
     s = abs(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s = max(s, abs(A[i]) / (w * iw))
+        s = max(s, abs(A[i]) / w)
     end
     return s
 end
@@ -203,8 +201,7 @@ function _apply(X::Ell2, space::SequenceSpace, A::AbstractVector)
     s = abs2(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s += abs2(A[i]) * w * iw
+        s += abs2(A[i]) * w
     end
     return sqrt(s)
 end
@@ -213,8 +210,7 @@ function _apply_dual(X::Ell2, space::SequenceSpace, A::AbstractVector)
     s = abs2(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s += abs2(A[i]) / (w * iw)
+        s += abs2(A[i]) / w
     end
     return sqrt(s)
 end
@@ -223,8 +219,7 @@ function _apply(X::EllInf, space::SequenceSpace, A::AbstractVector)
     s = abs(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s = max(s, abs(A[i]) * w * iw)
+        s = max(s, abs(A[i]) * w)
     end
     return s
 end
@@ -233,8 +228,7 @@ function _apply_dual(X::EllInf, space::SequenceSpace, A::AbstractVector)
     s = abs(zero(eltype(A)))
     @inbounds for (i, k) ∈ enumerate(indices(space))
         w = _getindex(weight(X), space, k)
-        iw = _intrinsic_weight(space, k)
-        s += abs(A[i]) / (w * iw)
+        s += abs(A[i]) / w
     end
     return s
 end

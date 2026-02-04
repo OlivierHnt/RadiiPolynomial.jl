@@ -67,7 +67,7 @@ Base.min(w₁::GeometricWeight, w₂::GeometricWeight) = GeometricWeight(min(rat
 
 _getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ exact(i)
 _getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ exact(abs(i))
-_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = exact(ifelse(k == 0, 1, 2)) * rate(weight) ^ exact(abs(i))
+_getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = exact(ifelse(i == 0, 1, 2)) * rate(weight) ^ exact(i)
 
 IntervalArithmetic.interval(::Type{T}, weight::GeometricWeight) where {T} = GeometricWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::GeometricWeight) = GeometricWeight(interval(rate(weight)))
@@ -110,7 +110,7 @@ Base.min(w₁::AlgebraicWeight, w₂::AlgebraicWeight) = AlgebraicWeight(min(rat
 
 _getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = exact(1 + i) ^ rate(weight)
 _getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = exact(1 + abs(i)) ^ rate(weight)
-_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = exact(ifelse(k == 0, 1, 2)) * exact(1 + i) ^ rate(weight)
+_getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = exact(ifelse(i == 0, 1, 2)) * exact(1 + i) ^ rate(weight)
 
 IntervalArithmetic.interval(::Type{T}, weight::AlgebraicWeight) where {T} = AlgebraicWeight(interval(T, rate(weight)))
 IntervalArithmetic.interval(weight::AlgebraicWeight) = AlgebraicWeight(interval(rate(weight)))

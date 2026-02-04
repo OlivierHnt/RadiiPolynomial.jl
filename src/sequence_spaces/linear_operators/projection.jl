@@ -23,7 +23,7 @@ function codomain(P::Projection, s::VectorSpace)
     return dom
 end
 
-coefficients(P::Projection) = project(I, P.space, P.space) # needed for general methods
+coefficients(P::Projection) = project(UniformScaling(one(eltype(P))), P.space, P.space) # needed for general methods
 
 Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
 Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S

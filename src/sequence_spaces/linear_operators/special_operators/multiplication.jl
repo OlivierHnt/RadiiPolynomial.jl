@@ -19,8 +19,6 @@ struct Multiplication{T<:Sequence{<:SequenceSpace}} <: AbstractLinearOperator
     sequence :: T
 end
 
-Multiplication(x::Number) = UniformScalingOperator(x)
-
 sequence(ℳ::Multiplication) = ℳ.sequence
 
 IntervalArithmetic._infer_numtype(ℳ::Multiplication) = IntervalArithmetic._infer_numtype(sequence(ℳ))

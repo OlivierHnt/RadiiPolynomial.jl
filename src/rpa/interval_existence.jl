@@ -6,7 +6,7 @@ Return an interval and a boolean value with the following meaning:
     - `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=false)
-    r = Y/(one(Z₁) - Z₁)
+    r = Y / (one(Z₁) - Z₁)
 
     isvalid, msg = _check_inputs(Y, Z₁, R)
     isvalid || return _rpa_failure(msg, r, verbose)
@@ -20,7 +20,7 @@ function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bo
     return _setguarantee(interval(IntervalArithmetic.numtype(r), r_sup, R, min(decoration(Y), decoration(Z₁))), t), true
 end
 
-interval_of_existence(Y, Z₁, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), R; verbose = verbose)
+interval_of_existence(Y, Z₁, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), R; verbose=verbose)
 
 function _check_inputs(Y::Interval, Z₁::Interval, R::Real)
     (R < 0) | isnan(R) && return false, "invalid threshold R"
@@ -42,13 +42,13 @@ Return an interval and a boolean value with the following meaning:
     - `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=false)
-    isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose = verbose)
+    isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose=verbose)
 
     b = Z₁ - one(Z₁)
-    Δ = b^2 - exact(2)*Z₂*Y
+    Δ = b^2 - exact(2) * Z₂ * Y
     sqrtΔ = sqrt(Δ)
-    r₁ = (-b - sqrtΔ)/Z₂
-    r₂ = (-b + sqrtΔ)/Z₂
+    r₁ = (-b - sqrtΔ) / Z₂
+    r₂ = (-b + sqrtΔ) / Z₂
 
     isvalid, msg = _check_inputs(Y, Z₁, Z₂, R)
     isvalid || return _rpa_failure(msg, r₁, verbose)
@@ -56,10 +56,10 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
     r₁_sup = sup(r₁)
 
     inf(Δ) < 0 && return _rpa_failure("discriminant negative → complex roots", r₁, verbose)
-    0 ≤ r₁_sup ≤ R && sup(Z₁ + Z₂*r₁_sup) < 1 || return _rpa_failure("roots not in [0, R] or contraction fails", r₁, verbose)
+    0 ≤ r₁_sup ≤ R && sup(Z₁ + Z₂ * r₁_sup) < 1 || return _rpa_failure("roots not in [0, R] or contraction fails", r₁, verbose)
 
     verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR = $R\nΔ = $Δ\nroots = ($r₁, $r₂)"
-    z = inf(-b/Z₂)
+    z = inf(-b / Z₂)
     x = float(z)
     while x > z
         x = prevfloat(x)
@@ -69,7 +69,7 @@ function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::R
     return _setguarantee(interval(IntervalArithmetic.numtype(r₁), r₁_sup, min(R, x), min(decoration(Y), decoration(Z₁), decoration(Z₂))), t), true
 end
 
-interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose = verbose)
+interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose=verbose)
 
 function _check_inputs(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
     (R < 0) | isnan(R) && return false, "invalid threshold R"
@@ -85,7 +85,7 @@ Return a set of radii, a vector and a boolean value with the following meaning:
     - `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \\in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
     - `false`: otherwise, and the set of radii and the vector are empty.
 """
-function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool = false)
+function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool=false)
     isvalid, msg = _check_inputs(Y, Z, W, R)
     isvalid || return _rpa_failure(msg, verbose)
 
@@ -167,6 +167,11 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
         end
         rmin = NaN
         eta = NaN
+    elseif !all(sup.(rmin) .< R)
+        success = false
+        println("the set of found radii rᵢ are not smaller than Rᵢ")
+        rmin = NaN
+        eta = NaN
     end
 
     verbose && @info "success: $msg\nr = $(rmin)\nη = $(eta)"
@@ -197,7 +202,7 @@ function _collatz_wielandt(A)
     return PFupperbound, testvector
 end
 
-set_of_radii(Y, Z, W, R; verbose::Bool=false) = set_of_radii(interval.(Y), interval.(Z), interval.(W), R; verbose = verbose)
+set_of_radii(Y, Z, W, R; verbose::Bool=false) = set_of_radii(interval.(Y), interval.(Z), interval.(W), R; verbose=verbose)
 
 function _rpa_failure(msg::AbstractString, verbose::Bool)
     verbose && @info "failure: $msg"

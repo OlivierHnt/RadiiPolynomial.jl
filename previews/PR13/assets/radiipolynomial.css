@@ -1,0 +1,78 @@
+/* KaTeX */
+
+.katex {
+  font-size: 1em !important; }
+
+.katex-display .katex {
+  /* allow display equations to wrap on small screens */
+  white-space: normal; }
+
+/* Code */
+
+.content pre {
+  border: 1px solid whitesmoke;
+  border-radius: 15px; }
+
+html.theme--documenter-dark .content pre {
+  border: 1px solid #282f2f;
+  border-radius: 15px; }
+
+/* Start page layout */
+
+.single {
+  margin-left: 135px;
+  margin-right: 135px; }
+
+.column {
+  float: left;
+  width: 50%; }
+
+.row:after {
+  content: "";
+  display: table;
+  clear: both; }
+
+/* Start page boxes */
+
+.boxintro-container {
+  display: grid;
+  grid-gap: 1em;
+  justify-content: space-between;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.boxintro {
+  position: relative;
+  background: transparent;
+  padding: 1em;
+  border-radius: 0.5em;
+  text-align: center;
+  box-shadow: 0px 2px 4px 1px rgba(0, 0, 0, 0.11);
+  font-size: 14px;
+  transition: scale 0.2s ease-in-out; }
+
+.boxintro:hover {
+  scale: 1.03; }
+
+.boxintro img {
+  margin-top: 1em;
+  border-radius: 0.3em; }
+
+a.boxintrolink {
+  text-decoration: none;
+  color: black;
+  display: block; }
+
+a.boxintrolink:visited {
+  color: black; }
+
+a.boxintrolink:hover {
+  text-decoration: none; }
+
+/* Theorem */
+
+.theorem {
+  display: block; }
+
+.theorem[text]:before {
+  content: "Theorem (" attr(text) ") ";
+  font-weight: bold; }

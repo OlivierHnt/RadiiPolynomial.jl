@@ -12,7 +12,7 @@ function RadiiPolynomial.getcoefficient(L::LOp, (codom, k)::Tuple{Fourier,Intege
     return ifelse(k == j, x, zero(x))
 end</code></pre><pre><code class="language-julia hljs">F(u, β, c) = u + LOp(β[1], β[2]) * (-u^2 - β[3] * c)
 
-DF(u, β) = exact(I) + LOp(β[1], β[2]) * Multiplication(-exact(2) * u)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">DF (generic function with 1 method)</code></pre><h3 id="Step-2:-Approximate-zero-(floating-point-arithmetic)"><a class="docs-heading-anchor" href="#Step-2:-Approximate-zero-(floating-point-arithmetic)">Step 2: Approximate zero (floating-point arithmetic)</a><a id="Step-2:-Approximate-zero-(floating-point-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Approximate-zero-(floating-point-arithmetic)" title="Permalink"></a></h3><pre><code class="language- hljs">β_approx = [0.1, 4.0, 1.0]
+DF(u, β) = exact(I) + LOp(β[1], β[2]) * Multiplication(-exact(2) * u)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">DF (generic function with 1 method)</code></pre><h3 id="Step-2:-Approximate-zero-(floating-point-arithmetic)"><a class="docs-heading-anchor" href="#Step-2:-Approximate-zero-(floating-point-arithmetic)">Step 2: Approximate zero (floating-point arithmetic)</a><a id="Step-2:-Approximate-zero-(floating-point-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Approximate-zero-(floating-point-arithmetic)" title="Permalink"></a></h3><pre><code class="language-julia hljs">β_approx = [0.1, 4.0, 1.0]
 
 c = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
 
@@ -21,14 +21,21 @@ K = 10
 u_init = zeros(ComplexF64, Fourier(K, 1.0))
 
 u_bar, success_newton = newton(u -&gt; (F(u, β_approx, c), DF(u, β_approx)), u_init; verbose = true)
-conjugacy_symmetry!(u_bar) # impose real-valued solution
-nothing # hide</code></pre><pre><code class="language- hljs">using GLMakie
-lines(LinRange(-π, π, 101), t -&gt; real(u_bar(t)))</code></pre><h3 id="Step-3:-Approximate-inverse-(floating-point-arithmetic)"><a class="docs-heading-anchor" href="#Step-3:-Approximate-inverse-(floating-point-arithmetic)">Step 3: Approximate inverse (floating-point arithmetic)</a><a id="Step-3:-Approximate-inverse-(floating-point-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Approximate-inverse-(floating-point-arithmetic)" title="Permalink"></a></h3><pre><code class="language- hljs">Π = interval( Projection(Fourier(K, 1.0)) )
+conjugacy_symmetry!(u_bar) # impose real-valued solution</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Newton&#39;s method: Inf-norm, tol = 1.0e-12, ϵ = 2.220446049250313e-16, maxiter = 15, convergence criterion: |F(x)| ≤ tol
+  Iteration       |F(x)|      |DF(x)\F(x)|      ETA (s)
+-----------------------------------------------------------
+      0      |  <span class="sgr31">1.6657e-01</span>  |  <span class="sgr31">1.6657e-01</span>  |    0.0e+00
+      1      |  <span class="sgr31">1.3873e-01</span>  |  <span class="sgr31">1.3913e-01</span>  |    4.0e+01
+      2      |  <span class="sgr31">1.9515e-02</span>  |  <span class="sgr31">2.9687e-02</span>  |    1.9e+01
+      3      |  <span class="sgr31">3.2174e-03</span>  |  <span class="sgr31">3.1294e-03</span>  |    1.1e+01
+      4      |  <span class="sgr33">6.4577e-06</span>  |  <span class="sgr33">5.2631e-06</span>  |    7.9e+00
+      5      |  <span class="sgr32">2.5471e-11</span>  |  <span class="sgr32">3.6997e-11</span>  |    5.7e+00
+      6      |  <span class="sgr32">2.8610e-17</span>  |  <span class="sgr32">2.5831e-17</span>  |    4.3e+00</code></pre><pre><code class="language- hljs">using GLMakie
+lines(LinRange(-π, π, 101), t -&gt; real(u_bar(t)))</code></pre><h3 id="Step-3:-Approximate-inverse-(floating-point-arithmetic)"><a class="docs-heading-anchor" href="#Step-3:-Approximate-inverse-(floating-point-arithmetic)">Step 3: Approximate inverse (floating-point arithmetic)</a><a id="Step-3:-Approximate-inverse-(floating-point-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Approximate-inverse-(floating-point-arithmetic)" title="Permalink"></a></h3><pre><code class="language-julia hljs">Π = interval( Projection(Fourier(K, 1.0)) )
 
 A_K = interval(inv(mid.(Π * DF(u_bar, β_approx) * Π)))
 
-A = A_K + (interval(I) - Π)
-nothing # hide</code></pre><h3 id="Step-4:-Estimating-the-bounds-(interval-arithmetic)"><a class="docs-heading-anchor" href="#Step-4:-Estimating-the-bounds-(interval-arithmetic)">Step 4: Estimating the bounds (interval arithmetic)</a><a id="Step-4:-Estimating-the-bounds-(interval-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Estimating-the-bounds-(interval-arithmetic)" title="Permalink"></a></h3><pre><code class="language- hljs">ν = interval(1.1) # does not have to be exactly 11/10
+A = A_K + (interval(I) - Π)</code></pre><h3 id="Step-4:-Estimating-the-bounds-(interval-arithmetic)"><a class="docs-heading-anchor" href="#Step-4:-Estimating-the-bounds-(interval-arithmetic)">Step 4: Estimating the bounds (interval arithmetic)</a><a id="Step-4:-Estimating-the-bounds-(interval-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Estimating-the-bounds-(interval-arithmetic)" title="Permalink"></a></h3><pre><code class="language-julia hljs">ν = interval(1.1) # does not have to be exactly 11/10
 X = Ell1(GeometricWeight(ν))
 
 β_interval = [I&quot;0.1&quot;, I&quot;4.0&quot;, I&quot;1.0&quot;]
@@ -52,5 +59,10 @@ Z₂ = exact(2) * max(opnorm(A_K, X), interval(1))
 
 #
 
-ie, contraction_success = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = true)
-nothing # hide</code></pre><pre><code class="language- hljs">inf(ie) # smallest error</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../ivp/logistic_ivp/">« Logistic equation</a><a class="docs-footer-nextpage" href="../lorenz_po/">Lorenz system »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 21 April 2026 05:49">Tuesday 21 April 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ie, contraction_success = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Info: success: interval found
+│ Y = Interval{Float64}(8.653295556856143e-10, 8.65332313699294e-10, com, true)
+│ Z₁ = Interval{Float64}(0.011502747276604454, 0.011502747276604998, com, false)
+│ Z₂ = Interval{Float64}(8.94571074327214, 8.945710743272164, com, true)
+│ R = Inf
+│ Δ = Interval{Float64}(0.977126803159674, 0.977126803159725, com, false)
+└ roots = (Interval{Float64}(8.753989628760099e-10, 8.754019290271712e-10, com, false), Interval{Float64}(0.22099915304131024, 0.2209991530413138, com, false))</code></pre><pre><code class="language-julia hljs">inf(ie) # smallest error</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">8.754019290271712e-10</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../ivp/logistic_ivp/">« Logistic equation</a><a class="docs-footer-nextpage" href="../lorenz_po/">Lorenz system »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 21 April 2026 05:54">Tuesday 21 April 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

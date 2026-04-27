@@ -2,9 +2,11 @@
 
 The study of complex [dynamical systems](https://en.wikipedia.org/wiki/Dynamical_system) requires numerical computations to access the dynamics. While numerical methods provide accurate approximations, they often come at the cost of rounding, discretization errors and the surrender of an a posteriori error bound between the approximation and the exact solution of the original problem.
 
-A posteriori validation methods are a type of computer-assisted proofs that aim to **validate numerical simulations**, and/or **derive mathematical theorems**.
+A posteriori validation methods are computer-assisted proof techniques used to
+- **rigorously validate numerical simulations**, and
+- **translate computational results into proven mathematical theorems**.
 
-[RadiiPolynomial](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a software library, shipped as an open-source Julia package, providing an abstraction to objects used to implement the so-called *radii polynomial approach* described below.
+[RadiiPolynomial](https://github.com/OlivierHnt/RadiiPolynomial.jl) is a software library, shipped as an open-source Julia package, that provides a set of abstractions for implementing the so-called *radii polynomial approach* described below.
 
 ## [Radii polynomial approach](@id radii_polynomial_approach)
 

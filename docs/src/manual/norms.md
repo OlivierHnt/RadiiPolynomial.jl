@@ -96,5 +96,6 @@ CollapsedDocStrings = true
 ```@autodocs
 Modules = [RadiiPolynomial]
 Private = false
-Pages   = ["sequence_spaces/norm.jl"]
+Pages   = ["sequence_spaces/banach_spaces.jl",
+    "sequence_spaces/norm.jl"]
 ```

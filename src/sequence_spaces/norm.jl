@@ -39,7 +39,7 @@ This is equivalent to:
 
 See also: [`opnorm(::LinearOperator, ::BanachSpace)`](@ref),
 [`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
-[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
+[`opnorm(::LinearOperator{<:VectorSpace,ScalarSpace}, ::BanachSpace)`](@ref).
 """
 function opnorm(A::LinearOperator, p::Real=Inf)
     if p == 1
@@ -61,7 +61,7 @@ Compute the operator norm of `A` where `X` is the Banach space corresponding to
 
 See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
 [`opnorm(::LinearOperator, ::BanachSpace)`](@ref) and
-[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
+[`opnorm(::LinearOperator{<:VectorSpace,ScalarSpace}, ::BanachSpace)`](@ref).
 """
 function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
     codomain_A = codomain(A)
@@ -79,7 +79,7 @@ function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
             v[i] = norm(Sequence(codomain_A, A_view), Y)
         end
     end
-    return opnorm(LinearOperator(domain(A), ParameterSpace(), transpose(v)), X)
+    return opnorm(LinearOperator(domain(A), ScalarSpace(), transpose(v)), X)
 end
 
 """
@@ -90,7 +90,7 @@ both `domain(A)` and `codomain(A)`.
 
 See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
 [`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
-[`opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)`](@ref).
+[`opnorm(::LinearOperator{<:VectorSpace,ScalarSpace}, ::BanachSpace)`](@ref).
 """
 opnorm(A::LinearOperator, X::BanachSpace) = opnorm(A, X, X)
 
@@ -109,13 +109,8 @@ See also: [`norm(::Sequence, ::Real=Inf)`](@ref).
 """
 norm(::Sequence, ::BanachSpace)
 
-function norm(a::InfiniteSequence, X::BanachSpace = banachspace(a))
-    X == banachspace(a) || return throw(ArgumentError("banach spaces must be equal"))
-    return sequence_norm(a) + sequence_error(a)
-end
-
 """
-    opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::BanachSpace)
+    opnorm(A::LinearOperator{<:VectorSpace,ScalarSpace}, X::BanachSpace)
 
 Compute the operator norm of `A` where `X` is the Banach space corresponding to
 `domain(A)`.
@@ -124,110 +119,91 @@ See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
 [`opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)`](@ref) and
 [`opnorm(::LinearOperator, ::BanachSpace)`](@ref).
 """
-opnorm(::LinearOperator{<:VectorSpace,ParameterSpace}, ::BanachSpace)
+opnorm(::LinearOperator{<:VectorSpace,ScalarSpace}, ::BanachSpace)
 
 for T ∈ (:Ell1, :Ell2, :EllInf)
     @eval begin
-        norm(a::Sequence, X::$T) = _apply(X, space(a), coefficients(a))
+        norm(a::Sequence, X::$T) = _norm(a, X)
 
-        opnorm(A::LinearOperator{<:VectorSpace,ParameterSpace}, X::$T) =
-            _apply_dual(X, domain(A), vec(coefficients(A)))
+        opnorm(A::LinearOperator{<:VectorSpace,ScalarSpace}, X::$T) =
+            _norm_dual(Sequence(domain(A), vec(coefficients(A))), X)
     end
 end
 
-#
+# ScalarSpace
 
-function opnorm(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ::Ell1{IdentityWeight}, ::Ell1{IdentityWeight})
-    r = z = abs(zero(eltype(A)))
-    A_ = coefficients(A)
-    for j ∈ axes(A_, 2)
-        s = z
-        @inbounds for i ∈ axes(A_, 1)
-            s += abs(A_[i,j])
-        end
-        r = max(r, s)
-    end
-    return r
-end
+_norm(a::Sequence{ScalarSpace}, ::Ell1{IdentityWeight}) = @inbounds abs(a[1])
+_norm_dual(a::Sequence{ScalarSpace}, ::Ell1{IdentityWeight}) = @inbounds abs(a[1])
 
-opnorm(A::LinearOperator, ::Ell2{IdentityWeight}, ::Ell2{IdentityWeight}) =
-    sqrt(opnorm(A, Ell1(IdentityWeight())) * opnorm(A, EllInf(IdentityWeight())))
+_norm(a::Sequence{ScalarSpace}, ::Ell2{IdentityWeight}) = @inbounds abs(a[1])
+_norm_dual(a::Sequence{ScalarSpace}, ::Ell2{IdentityWeight}) = @inbounds abs(a[1])
 
-function opnorm(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, ::EllInf{IdentityWeight}, ::EllInf{IdentityWeight})
-    r = z = abs(zero(eltype(A)))
-    A_ = coefficients(A)
-    for i ∈ axes(A_, 1)
-        s = z
-        @inbounds for j ∈ axes(A_, 2)
-            s += abs(A_[i,j])
-        end
-        r = max(r, s)
-    end
-    return r
-end
-
-# ParameterSpace
-
-_apply(::Ell1{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
-_apply_dual(::Ell1{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
-
-_apply(::Ell2{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
-_apply_dual(::Ell2{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
-
-_apply(::EllInf{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
-_apply_dual(::EllInf{IdentityWeight}, ::ParameterSpace, A::AbstractVector) = @inbounds abs(A[1])
+_norm(a::Sequence{ScalarSpace}, ::EllInf{IdentityWeight}) = @inbounds abs(a[1])
+_norm_dual(a::Sequence{ScalarSpace}, ::EllInf{IdentityWeight}) = @inbounds abs(a[1])
 
 # SequenceSpace
 
-function _apply(X::Ell1, space::SequenceSpace, A::AbstractVector)
+function _norm(a::Sequence{<:SequenceSpace}, X::Ell1)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s += abs(A[i]) * w
     end
     return s
 end
 
-function _apply_dual(X::Ell1, space::SequenceSpace, A::AbstractVector)
+function _norm_dual(a::Sequence{<:SequenceSpace}, X::Ell1)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s = max(s, abs(A[i]) / w)
     end
     return s
 end
 
-function _apply(X::Ell2, space::SequenceSpace, A::AbstractVector)
+function _norm(a::Sequence{<:SequenceSpace}, X::Ell2)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs2(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s += abs2(A[i]) * w
     end
     return sqrt(s)
 end
 
-function _apply_dual(X::Ell2, space::SequenceSpace, A::AbstractVector)
+function _norm_dual(a::Sequence{<:SequenceSpace}, X::Ell2)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs2(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s += abs2(A[i]) / w
     end
     return sqrt(s)
 end
 
-function _apply(X::EllInf, space::SequenceSpace, A::AbstractVector)
+function _norm(a::Sequence{<:SequenceSpace}, X::EllInf)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s = max(s, abs(A[i]) * w)
     end
     return s
 end
 
-function _apply_dual(X::EllInf, space::SequenceSpace, A::AbstractVector)
+function _norm_dual(a::Sequence{<:SequenceSpace}, X::EllInf)
+    space_a = space(a)
+    A = coefficients(a)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space))
-        w = _getindex(weight(X), space, k)
+    @inbounds for (i, k) ∈ enumerate(indices(space_a))
+        w = _getindex(weight(X), space_a, k)
         s += abs(A[i]) / w
     end
     return s
@@ -235,17 +211,9 @@ end
 
 # CartesianSpace
 
-_apply(::Ell1{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = sum(abs, A)
-_apply_dual(::Ell1{IdentityWeight}, space::CartesianSpace, A::AbstractVector) = _apply(EllInf(IdentityWeight()), space, A)
-
-_apply(::Ell2{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = sqrt(sum(abs2, A))
-_apply_dual(::Ell2{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = sqrt(sum(abs2, A))
-
-_apply(::EllInf{IdentityWeight}, ::CartesianSpace, A::AbstractVector) = maximum(abs, A)
-_apply_dual(::EllInf{IdentityWeight}, space::CartesianSpace, A::AbstractVector) = _apply(Ell1(IdentityWeight()), space, A)
-
 for X ∈ (:Ell1, :EllInf)
     @eval begin
+        norm(a::Sequence{<:CartesianSpace}, X::$X) = norm(a, NormedCartesianSpace(X, X))
         function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
             0 < nspaces(space(a)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _norm(a, X)
@@ -255,11 +223,12 @@ for X ∈ (:Ell1, :EllInf)
             return _norm(a, X)
         end
 
-        function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
+        opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::$X) = opnorm(A, NormedCartesianSpace(X, X))
+        function opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,$X{IdentityWeight}})
             0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
             return _opnorm(A, X)
         end
-        function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
+        function opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},$X{IdentityWeight}}) where {N}
             0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
             return _opnorm(A, X)
         end
@@ -275,11 +244,11 @@ function norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,
     return sqrt(_norm2(a, X))
 end
 
-function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
+function opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
     0 < nspaces(domain(A)) || return throw(ArgumentError("number of cartesian products must be strictly positive"))
     return sqrt(_opnorm2(A, X))
 end
-function opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
+function opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
     0 < nspaces(domain(A)) == N || return throw(ArgumentError("number of cartesian products must be strictly positive and equal to the number of inner Banach spaces"))
     return sqrt(_opnorm2(A, X))
 end
@@ -287,121 +256,140 @@ end
 # Ell1
 
 function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}})
-    @inbounds r = norm(component(a, 1), X.inner)
+    @inbounds r = norm(block(a, 1), X.inner)
     @inbounds for i ∈ 2:nspaces(space(a))
-        r += norm(component(a, i), X.inner)
+        r += norm(block(a, i), X.inner)
     end
     return r
 end
 _norm(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
-    @inbounds norm(component(a, 1), X.inner) + _norm(component(a, 2:N), X)
+    @inbounds norm(block(a, 1), X.inner) + _norm(block(a, 2:N), X)
 _norm(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) =
-    @inbounds norm(component(a, 1), X.inner)
+    @inbounds norm(block(a, 1), X.inner)
 _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell1{IdentityWeight}}) where {N} =
-    @inbounds norm(component(a, 1), X.inner[1]) + _norm(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+    @inbounds norm(block(a, 1), X.inner[1]) + _norm(block(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
 _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell1{IdentityWeight}}) =
-    @inbounds norm(component(a, 1), X.inner[1])
+    @inbounds norm(block(a, 1), X.inner[1])
 
-function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}})
-    @inbounds r = opnorm(component(A, 1), X.inner)
+function _opnorm(A::LinearOperator{<:CartesianPower,ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}})
+    @inbounds r = opnorm(block(A, 1), X.inner)
     @inbounds for i ∈ 2:nspaces(domain(A))
-        r = max(r, opnorm(component(A, i), X.inner))
+        r = max(r, opnorm(block(A, i), X.inner))
     end
     return r
 end
-_opnorm(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
-    @inbounds max(opnorm(component(A, 1), X.inner), _opnorm(component(A, 2:N), X))
-_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) =
-    @inbounds opnorm(component(A, 1), X.inner)
-_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell1{IdentityWeight}}) where {N} =
-    @inbounds max(opnorm(component(A, 1), X.inner[1]), _opnorm(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
-_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell1{IdentityWeight}}) =
-    @inbounds opnorm(component(A, 1), X.inner[1])
+_opnorm(A::LinearOperator{CartesianProduct{T},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds max(opnorm(block(A, 1), X.inner), _opnorm(block(A, 2:N), X))
+_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell1{IdentityWeight}}) =
+    @inbounds opnorm(block(A, 1), X.inner)
+_opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell1{IdentityWeight}}) where {N} =
+    @inbounds max(opnorm(block(A, 1), X.inner[1]), _opnorm(block(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
+_opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell1{IdentityWeight}}) =
+    @inbounds opnorm(block(A, 1), X.inner[1])
 
 # Ell2
 
 function _norm2(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
-    @inbounds v = norm(component(a, 1), X.inner)
+    @inbounds v = norm(block(a, 1), X.inner)
     r = v*v
     @inbounds for i ∈ 2:nspaces(space(a))
-        v = norm(component(a, i), X.inner)
+        v = norm(block(a, i), X.inner)
         r += v*v
     end
     return r
 end
 function _norm2(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}}
-    @inbounds v = norm(component(a, 1), X.inner)
-    return @inbounds v*v + _norm2(component(a, 2:N), X)
+    @inbounds v = norm(block(a, 1), X.inner)
+    return @inbounds v*v + _norm(block(a, 2:N), X)
 end
 function _norm2(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
-    @inbounds v = norm(component(a, 1), X.inner)
+    @inbounds v = norm(block(a, 1), X.inner)
     return v*v
 end
 function _norm2(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
-    @inbounds v = norm(component(a, 1), X.inner[1])
-    return @inbounds v*v + _norm2(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+    @inbounds v = norm(block(a, 1), X.inner[1])
+    return @inbounds v*v + _norm(block(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
 end
 function _norm2(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell2{IdentityWeight}})
-    @inbounds v = norm(component(a, 1), X.inner[1])
+    @inbounds v = norm(block(a, 1), X.inner[1])
     return v*v
 end
 
-function _opnorm2(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
-    @inbounds v = opnorm(component(A, 1), X.inner)
+function _opnorm2(A::LinearOperator{<:CartesianPower,ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
+    @inbounds v = opnorm(block(A, 1), X.inner)
     r = v*v
     @inbounds for i ∈ 2:nspaces(domain(A))
-        v = opnorm(component(A, i), X.inner)
+        v = opnorm(block(A, i), X.inner)
         r += v*v
     end
     return r
 end
-function _opnorm2(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}}
-    @inbounds v = opnorm(component(A, 1), X.inner)
-    return @inbounds v*v + _opnorm2(component(A, 2:N), X)
+function _opnorm2(A::LinearOperator{CartesianProduct{T},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}}
+    @inbounds v = opnorm(block(A, 1), X.inner)
+    return @inbounds v*v + _opnorm(block(A, 2:N), X)
 end
-function _opnorm2(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
-    @inbounds v = opnorm(component(A, 1), X.inner)
+function _opnorm2(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,Ell2{IdentityWeight}})
+    @inbounds v = opnorm(block(A, 1), X.inner)
     return v*v
 end
-function _opnorm2(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
-    @inbounds v = opnorm(component(A, 1), X.inner[1])
-    return @inbounds v*v + _opnorm2(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+function _opnorm2(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},Ell2{IdentityWeight}}) where {N}
+    @inbounds v = opnorm(block(A, 1), X.inner[1])
+    return @inbounds v*v + _opnorm(block(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
 end
-function _opnorm2(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell2{IdentityWeight}})
-    @inbounds v = opnorm(component(A, 1), X.inner[1])
+function _opnorm2(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},Ell2{IdentityWeight}})
+    @inbounds v = opnorm(block(A, 1), X.inner[1])
     return v*v
 end
 
 # EllInf
 
 function _norm(a::Sequence{<:CartesianPower}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}})
-    @inbounds r = norm(component(a, 1), X.inner)
+    @inbounds r = norm(block(a, 1), X.inner)
     @inbounds for i ∈ 2:nspaces(space(a))
-        r = max(r, norm(component(a, i), X.inner))
+        r = max(r, norm(block(a, i), X.inner))
     end
     return r
 end
 _norm(a::Sequence{CartesianProduct{T}}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
-    @inbounds max(norm(component(a, 1), X.inner), _norm(component(a, 2:N), X))
+    @inbounds max(norm(block(a, 1), X.inner), _norm(block(a, 2:N), X))
 _norm(a::Sequence{<:CartesianProduct{<:Tuple{VectorSpace}}}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) =
-    @inbounds norm(component(a, 1), X.inner)
+    @inbounds norm(block(a, 1), X.inner)
 _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},EllInf{IdentityWeight}}) where {N} =
-    @inbounds max(norm(component(a, 1), X.inner[1]), _norm(component(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
+    @inbounds max(norm(block(a, 1), X.inner[1]), _norm(block(a, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer)))
 _norm(a::Sequence{<:CartesianSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},EllInf{IdentityWeight}}) =
-    @inbounds norm(component(a, 1), X.inner[1])
+    @inbounds norm(block(a, 1), X.inner[1])
 
-function _opnorm(A::LinearOperator{<:CartesianPower,ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}})
-    @inbounds r = opnorm(component(A, 1), X.inner)
+function _opnorm(A::LinearOperator{<:CartesianPower,ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}})
+    @inbounds r = opnorm(block(A, 1), X.inner)
     @inbounds for i ∈ 2:nspaces(domain(A))
-        r += opnorm(component(A, i), X.inner)
+        r += opnorm(block(A, i), X.inner)
     end
     return r
 end
-_opnorm(A::LinearOperator{CartesianProduct{T},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
-    @inbounds opnorm(component(A, 1), X.inner) + _opnorm(component(A, 2:N), X)
-_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ParameterSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) =
-    @inbounds opnorm(component(A, 1), X.inner)
-_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},EllInf{IdentityWeight}}) where {N} =
-    @inbounds opnorm(component(A, 1), X.inner[1]) + _opnorm(component(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
-_opnorm(A::LinearOperator{<:CartesianSpace,ParameterSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},EllInf{IdentityWeight}}) =
-    @inbounds opnorm(component(A, 1), X.inner[1])
+_opnorm(A::LinearOperator{CartesianProduct{T},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) where {N,T<:NTuple{N,VectorSpace}} =
+    @inbounds opnorm(block(A, 1), X.inner) + _opnorm(block(A, 2:N), X)
+_opnorm(A::LinearOperator{<:CartesianProduct{<:Tuple{VectorSpace}},ScalarSpace}, X::NormedCartesianSpace{<:BanachSpace,EllInf{IdentityWeight}}) =
+    @inbounds opnorm(block(A, 1), X.inner)
+_opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:NTuple{N,BanachSpace},EllInf{IdentityWeight}}) where {N} =
+    @inbounds opnorm(block(A, 1), X.inner[1]) + _opnorm(block(A, 2:N), NormedCartesianSpace(Base.tail(X.inner), X.outer))
+_opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace{<:Tuple{BanachSpace},EllInf{IdentityWeight}}) =
+    @inbounds opnorm(block(A, 1), X.inner[1])
+
+
+
+
+
+#
+
+function norm(a::InfiniteSequence, X::BanachSpace = banachspace(a))
+    X == banachspace(a) || return a.full_norm
+    _issubspace(banachspace(a), X) || return throw(DomainError((X, banachspace(a)), "X cannot be a smaller Banach space than the one associated to a"))
+    return min(norm(sequence(a), X) + sequence_error(a), a.full_norm)
+end
+
+_issubspace(::BanachSpace, ::BanachSpace) = false
+_issubspace(::Ell1{IdentityWeight}, ::Ell1{IdentityWeight}) = true
+_issubspace(X::Ell1{<:GeometricWeight}, Y::Ell1{<:GeometricWeight}) = rate(X) ≥ rate(Y)
+_issubspace(X::Ell1{<:GeometricWeight}, ::Ell1{IdentityWeight}) = rate(X) ≥ 1
+_issubspace(X::Ell1{IdentityWeight}, ::Ell1{<:GeometricWeight}) = true
+_issubspace(X::Ell1{<:NTuple{N,Weight}}, Y::Ell1{<:NTuple{N,Weight}}) where {N} = mapreduce((u, w) -> _issubspace(Ell1(u), Ell1(w)), &, weight(X), weight(Y))

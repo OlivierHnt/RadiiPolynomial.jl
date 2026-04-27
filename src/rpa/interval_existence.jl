@@ -2,8 +2,8 @@
     interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=false)
 
 Return an interval and a boolean value with the following meaning:
-    - `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` for all ``r \\in I`` and ``Z_1 < 1``.
-    - `false`: otherwise, and the interval is empty.
+- `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r \\le 0`` for all ``r \\in I`` and ``Z_1 < 1``.
+- `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=false)
     r = Y / (one(Z₁) - Z₁)
@@ -38,8 +38,8 @@ end
     interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=false)
 
 Return an interval and a boolean value with the following meaning:
-    - `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
-    - `false`: otherwise, and the interval is empty.
+- `true`: the interval corresponds to ``I \\subset [0, R]`` such that ``Y + (Z_1 - 1) r + Z_2 r^2 / 2 \\le 0`` and ``Z_1 + Z_2 r < 1`` for all ``r \\in I``.
+- `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=false)
     isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose=verbose)
@@ -82,8 +82,8 @@ end
     set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool = false)
 
 Return a set of radii, a vector and a boolean value with the following meaning:
-    - `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \\in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
-    - `false`: otherwise, and the set of radii and the vector are empty.
+- `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \\in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
+- `false`: otherwise, and the set of radii and the vector are empty.
 """
 function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool=false)
     isvalid, msg = _check_inputs(Y, Z, W, R)

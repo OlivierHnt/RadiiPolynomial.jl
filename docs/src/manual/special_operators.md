@@ -23,7 +23,7 @@ Moreover, the following identifications are permitted:
 
 ```@repl special_operators
 a = Sequence(Taylor(1), [1, 1]) # 1 + x
-A = project(a, ParameterSpace(), Taylor(2))
+A = project(a, ScalarSpace(), Taylor(2))
 project(A, space(a))
 ```
 
@@ -98,7 +98,7 @@ project(Evaluation(0.1), Taylor(2), codomain(Evaluation(0.1), Taylor(2)), Float6
 Furthermore, in the context of [`Evaluation`](@ref), the concept of compatibility between two [`VectorSpace`](@ref) is more permissive to allow manipulating [`Evaluation`](@ref) more like a functional:
 
 ```@repl special_operators
-project(Evaluation(0.1), Taylor(2), ParameterSpace(), Float64)
+project(Evaluation(0.1), Taylor(2), ScalarSpace(), Float64)
 ```
 
 ## Scale
@@ -150,11 +150,12 @@ CollapsedDocStrings = true
 ```@autodocs
 Modules = [RadiiPolynomial]
 Private = false
-Pages   = ["sequence_spaces/special_operators/special_operator.jl",
-    "sequence_spaces/special_operators/projection.jl",
-    "sequence_spaces/special_operators/multiplication.jl",
-    "sequence_spaces/special_operators/calculus.jl",
-    "sequence_spaces/special_operators/evaluation.jl",
-    "sequence_spaces/special_operators/scale.jl",
-    "sequence_spaces/special_operators/shift.jl"]
+Pages   = ["sequence_spaces/linear_operators/projection.jl",
+    "sequence_spaces/linear_operators/special_operators/calculus/derivative.jl",
+    "sequence_spaces/linear_operators/special_operators/calculus/integral.jl",
+    "sequence_spaces/linear_operators/special_operators/calculus/laplacian.jl",
+    "sequence_spaces/linear_operators/special_operators/multiplication.jl",
+    "sequence_spaces/linear_operators/special_operators/evaluation.jl",
+    "sequence_spaces/linear_operators/special_operators/scale.jl",
+    "sequence_spaces/linear_operators/special_operators/shift.jl"]
 ```

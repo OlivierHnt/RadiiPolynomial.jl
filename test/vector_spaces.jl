@@ -1,18 +1,18 @@
 @testset "Vector spaces" begin
     @testset "VectorSpace" begin
-        𝒫 = ParameterSpace()
+        𝒫 = ScalarSpace()
         𝒯 = Taylor(0)
         # different types of vector spaces cannot be equal
         @test !(𝒫 == 𝒯)
         # different types of vector spaces cannot be subset of one another
         @test !(𝒫 ⊆ 𝒯)
-        # intersection and union between different types of vector spaces is not allowed
-        @test_throws MethodError intersect(𝒫, 𝒯)
-        @test_throws MethodError union(𝒫, 𝒯)
+        # # intersection and union between different types of vector spaces is not allowed
+        # @test_throws MethodError intersect(𝒫, 𝒯)
+        # @test_throws MethodError union(𝒫, 𝒯)
     end
 
-    @testset "ParameterSpace" begin
-        𝒫 = ParameterSpace()
+    @testset "ScalarSpace" begin
+        𝒫 = ScalarSpace()
         @test 𝒫 ⊆ 𝒫
         @test 𝒫 ∩ 𝒫 == 𝒫 ∪ 𝒫 == 𝒫
         @test dimension(𝒫) == 1

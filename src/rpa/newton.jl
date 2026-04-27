@@ -27,6 +27,14 @@ end
 
 _copy_maybeinplace!(::Number, y) = y
 _copy_maybeinplace!(x, y) = x .= y
+function _copy_maybeinplace!(x::Sequence, y)
+    _copy_maybeinplace!(coefficients(x), coefficients(Projection(space(x)) * y))
+    return x
+end
+function _copy_maybeinplace!(x::LinearOperator, y)
+    _copy_maybeinplace!(coefficients(x), coefficients(Projection(codomain(x)) * (y * Projection(domain(x)))))
+    return x
+end
 
 newton!(F_DF!, x0; tol::Real = 1e-12, maxiter::Int = 15, convergence_criterion::ConvergenceCriterion = ResidualTolCriterion(), verbose::Bool = false) =
     newton!(F_DF!, x0, _similar(x0), _similar_linop(x0); tol = tol, maxiter = maxiter, convergence_criterion = convergence_criterion, verbose = verbose)
@@ -72,6 +80,22 @@ end
 
 _sub_maybeinplace!(x::Number, y) = x -= y
 _sub_maybeinplace!(x, y) = x .-= y
+function _sub_maybeinplace!(x::Sequence, y)
+    if space(x) == space(y)
+        _sub_maybeinplace!(coefficients(x), coefficients(y))
+    else
+        _sub_maybeinplace!(coefficients(x), coefficients(Projection(space(x)) * y))
+    end
+    return x
+end
+function _sub_maybeinplace!(x::LinearOperator, y)
+    if domain(x) == domain(y) && codomain(x) == codomain(y)
+        _sub_maybeinplace!(coefficients(x), coefficients(y))
+    else
+        _sub_maybeinplace!(coefficients(x), coefficients(Projection(codomain(x)) * y * Projection(domain(x))))
+    end
+    return x
+end
 
 function _print_header(tol, ϵ, maxiter, convergence_criterion)
     println("Newton's method: Inf-norm, tol = $tol, ϵ = $ϵ, maxiter = $maxiter, convergence criterion: $convergence_criterion")

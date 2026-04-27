@@ -1,5 +1,9 @@
-_call_ifft!(C, s, ::Type{<:Real}) = rifft!(C, s)
-_call_ifft!(C, s, ::Type) = ifft!(C, s)
+_call_to_seq!(C, s, ::Type{<:Real}) = real(to_seq!(zeros(float(eltype(C)), s), C))
+_call_to_seq!(C, s, ::Type) = to_seq!(C, s)
+
+
+
+# helper function
 
 _apply!(f!, C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace}}) where {T,N₁,N₂} =
     @inbounds f!(_apply!(f!, C, Base.tail(space)), space[1], Val(N₁-N₂+1))
@@ -16,18 +20,19 @@ fft_size(s::BaseSpace) = nextpow(2, _dft_dimension(s))
 
 _dft_dimension(s::BaseSpace) = 2order(s)+1
 _dft_dimension(s::Chebyshev) = 2order(s)+!ispow2(order(s))
-_dft_dimension(s::CosFourier) = 2order(s)+!ispow2(order(s))
+
+fft_size(s::SymmetricSpace) = fft_size(desymmetrize(s))
 
 
 
 # sequence to grid
+# uses the backward (unnormalized inverse) FFT: Y[j] = Σₖ C[k] e^{+2πi kj/N}
 
-fft(a::Sequence{<:BaseSpace}, n::Integer=fft_size(space(a))) =
-    fft!(zeros(complex(float(eltype(a))), n), a)
-fft(a::Sequence{TensorSpace{T}}, n::NTuple{N,Integer}=fft_size(space(a))) where {N,T<:NTuple{N,BaseSpace}} =
-    fft!(zeros(complex(float(eltype(a))), n), a)
+to_grid(a::Sequence{<:SequenceSpace}, n=fft_size(space(a))) = to_grid!(zeros(complex(float(eltype(a))), n), a)
 
-function fft!(C::AbstractArray, a::Sequence{<:SequenceSpace})
+to_grid!(C::AbstractArray, a::Sequence{<:SymmetricSpace}) = to_grid!(C, Projection(desymmetrize(space(a))) * a)
+
+function to_grid!(C::AbstractArray, a::Sequence{<:NoSymSpace})
     sz = size(C)
     Base.OneTo.(sz) == axes(C) || return throw(ArgumentError("offset arrays are not supported"))
     space_a = space(a)
@@ -35,8 +40,8 @@ function fft!(C::AbstractArray, a::Sequence{<:SequenceSpace})
     C .= zero(eltype(C))
     A = _no_alloc_reshape(a)
     @inbounds view(C, axes(A)...) .= A
-    _apply!(_preprocess!, C, space_a)
-    return _fft_pow2!(C)
+    _apply!(_preprocess_to_grid!, C, space_a)
+    return _bfft_pow2!(C)
 end
 
 _is_fft_size_compatible(n::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
@@ -45,42 +50,26 @@ _is_fft_size_compatible(n::Tuple{Integer}, s::TensorSpace{<:Tuple{BaseSpace}}) =
 _is_fft_size_compatible(n::Tuple{Integer}, s::BaseSpace) = @inbounds _is_fft_size_compatible(n[1], s)
 _is_fft_size_compatible(n::Integer, s::BaseSpace) = ispow2(n) & (_dft_dimension(s) ≤ n)
 
-# Taylor
+# Taylor: coefficients already in standard DFT order
 
-function _preprocess!(C::AbstractVector, space::Taylor)
-    len = length(C)
-    ord = order(space)
-    @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
-    @inbounds view(C, 2:ord+1) .= zero(eltype(C))
-    return C
-end
+_preprocess_to_grid!(C::AbstractVector, ::Taylor) = C
+_preprocess_to_grid!(C::AbstractArray, ::Taylor, ::Val) = C
 
-function _preprocess!(C::AbstractArray, space::Taylor, ::Val{D}) where {D}
-    len = size(C, D)
-    ord = order(space)
-    @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
-    @inbounds selectdim(C, D, 2:ord+1) .= zero(eltype(C))
-    return C
-end
+# Fourier: move zero-frequency from center to position 1
 
-# Fourier
-
-function _preprocess!(C::AbstractVector, space::Fourier)
-    @inbounds reverse!(view(C, 1:dimension(space)))
+function _preprocess_to_grid!(C::AbstractVector, space::Fourier)
     circshift!(C, copy(C), -order(space))
     return C
 end
 
-function _preprocess!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
-    ord = order(space)
-    @inbounds reverse!(selectdim(C, D, 1:dimension(space)); dims = D)
-    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -ord, 0), Val(N)))
+function _preprocess_to_grid!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
+    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -order(space), 0), Val(N)))
     return C
 end
 
-# Chebyshev
+# Chebyshev: mirror
 
-function _preprocess!(C::AbstractVector, space::Chebyshev)
+function _preprocess_to_grid!(C::AbstractVector, space::Chebyshev)
     len = length(C)
     ord = order(space)
     @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
@@ -90,7 +79,7 @@ function _preprocess!(C::AbstractVector, space::Chebyshev)
     return C
 end
 
-function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
+function _preprocess_to_grid!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
     @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
@@ -100,144 +89,98 @@ function _preprocess!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     return C
 end
 
-# CosFourier
-
-_preprocess!(C::AbstractVector, space::CosFourier) = _preprocess!(C, Chebyshev(order(space)))
-_preprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _preprocess!(C, Chebyshev(order(space)), Val(D))
-
-# SinFourier
-
-function _preprocess!(C::AbstractVector, space::SinFourier)
-    len = length(C)
-    ord = order(space)
-    @inbounds view(C, 2:ord+1) .= view(C, 1:ord) .* complex(exact(false), exact(true))
-    @inbounds C[1] = zero(eltype(C))
-    @inbounds view(C, len:-1:len+1-ord) .= .- view(C, 2:ord+1)
-    return C
-end
-
-function _preprocess!(C::AbstractArray, space::SinFourier, ::Val{D}) where {D}
-    len = size(C, D)
-    ord = order(space)
-    @inbounds selectdim(C, D, 2:ord+1) .= selectdim(C, D, 1:ord) .* complex(exact(false), exact(true))
-    @inbounds selectdim(C, D, 1) .= zero(eltype(C))
-    @inbounds selectdim(C, D, len:-1:len+1-ord) .= .- selectdim(C, D, 2:ord+1)
-    return C
-end
-
 
 
 # grid to sequence
+# uses the forward FFT: X[k] = Σⱼ x[j] e^{-2πi kj/N}, then divides by N
 
-ifft(A::AbstractArray, space::SequenceSpace) = ifft!(complex.(A), space) # complex copy
-rifft(A::AbstractArray, space::SequenceSpace) = rifft!(complex.(A), space) # complex copy
+# function interpolation
 
-ifft!(A::AbstractArray, space::SequenceSpace) = ifft!(zeros(complex(float(eltype(A))), space), A)
-rifft!(A::AbstractArray, space::SequenceSpace) = rifft!(zeros(real(float(eltype(A))), space), A)
+to_seq(a::Sequence, s::SequenceSpace) = to_seq!(to_grid(a, fft_size(space(a))), s)
 
-ifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray) = _ifft!(c, A, identity)
-rifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray) = _ifft!(c, A, real)
+function to_seq(f::Function, s::SequenceSpace)
+    N = fft_size(s)
+    C = [complex(f(_node(s, j, N)...)) for j ∈ CartesianIndices(Base.UnitRange.(0, Tuple(N) .- 1))]
+    return to_seq!(C, s)
+end
 
-function _ifft!(c::Sequence{<:SequenceSpace}, A::AbstractArray, f::Union{typeof(identity),typeof(real)})
+_node(s::TensorSpace, j, N) = map((sᵢ, jᵢ, Nᵢ) -> _node(sᵢ, jᵢ, Nᵢ), spaces(s), Tuple(j), N)
+_node(::Taylor, j, N) = cispi(2j[1]/N)
+_node(s::Fourier, j, N) = 2π/frequency(s)*j[1]/N
+_node(::Chebyshev, j, N) = cospi(2j[1]/N)
+_node(s::SymmetricSpace, j, N) = _node(desymmetrize(s), j, N)
+
+#
+
+to_seq(A::AbstractArray, space::SequenceSpace) = to_seq!(complex.(A), space) # complex copy
+
+to_seq!(A::AbstractArray, space::SequenceSpace) = to_seq!(zeros(complex(float(eltype(A))), space), A)
+
+to_seq!(c::Sequence{<:SymmetricSpace}, A::AbstractArray) = project!(c, to_seq!(Projection(desymmetrize(space(c))) * c, A))
+
+function to_seq!(c::Sequence{<:NoSymSpace}, A::AbstractArray)
     sz = size(A)
     Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
     all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _ifft_pow2!(A)
-    _apply!(_postprocess!, A, space(c))
+    _fft_pow2!(A)
+    A ./= exact(prod(sz))
+    _apply!(_postprocess_to_seq!, A, space(c))
     C = _no_alloc_reshape(c)
     C .= zero(eltype(c))
-    inds_C, inds_A = _ifft_get_index(sz, space(c))
-    @inbounds view(C, inds_C...) .= f.(view(A, inds_A...))
+    inds_C, inds_A = _fft_get_index(sz, space(c))
+    @inbounds view(C, inds_C...) .= view(A, inds_A...)
     return c
 end
 
-function _ifft_get_index(n::NTuple{N,Integer}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
-    v = map(_ifft_get_index, n, spaces(space))
+function _fft_get_index(n::NTuple{N,Integer}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+    v = map(_fft_get_index, n, spaces(space))
     return ntuple(i -> v[i][1], Val(N)), ntuple(i -> v[i][2], Val(N))
 end
-_ifft_get_index(n::Tuple{Integer}, space::BaseSpace) = @inbounds map(tuple, _ifft_get_index(n[1], space))
+_fft_get_index(n::Tuple{Integer}, space::BaseSpace) = @inbounds map(tuple, _fft_get_index(n[1], space))
 
-# Taylor
+# Taylor: DFT output already in coefficient order
 
-_ifft_get_index(n::Integer, space::Taylor) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
+_fft_get_index(n::Integer, space::Taylor) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
 
-function _postprocess!(C::AbstractVector, ::Taylor)
-    circshift!(C, copy(C), -1)
-    reverse!(C)
-    return C
-end
+_postprocess_to_seq!(C::AbstractVector, ::Taylor) = C
+_postprocess_to_seq!(C::AbstractArray, ::Taylor, ::Val) = C
 
-function _postprocess!(C::AbstractArray{T,N}, ::Taylor, ::Val{D}) where {T,N,D}
-    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -1, 0), Val(N)))
-    reverse!(C; dims = D)
-    return C
-end
+# Fourier: move zero-frequency from position 1 to center
 
-# Fourier
-
-function _ifft_get_index(n::Integer, space::Fourier)
+function _fft_get_index(n::Integer, space::Fourier)
     ord_C = order(space)
     ord_A = n÷2
-    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+ord_A, 1:n # accomodate for the Nquilst frequency
+    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+ord_A, 1:n
     return 1:2ord_C+1, ord_A+1-ord_C:ord_A+1+ord_C
 end
 
-function _postprocess!(C::AbstractVector, ::Fourier)
-    # C has length 2^n
-    ord = length(C)÷2
-    circshift!(C, copy(C), ord-1)
-    reverse!(C)
+function _postprocess_to_seq!(C::AbstractVector, ::Fourier)
+    circshift!(C, copy(C), length(C)÷2)
     return C
 end
 
-function _postprocess!(C::AbstractArray{T,N}, ::Fourier, ::Val{D}) where {T,N,D}
-    ord = size(C, D)÷2
-    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, ord-1, 0), Val(N)))
-    reverse!(C; dims = D)
+function _postprocess_to_seq!(C::AbstractArray{T,N}, ::Fourier, ::Val{D}) where {T,N,D}
+    circshift!(C, copy(C), ntuple(i -> ifelse(i == D, size(C, D)÷2, 0), Val(N)))
     return C
 end
 
-# Chebyshev
+# Chebyshev: halve the Nyquist frequency
 
-_ifft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
+_fft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
 
-function _postprocess!(C::AbstractVector, ::Chebyshev)
+function _postprocess_to_seq!(C::AbstractVector, ::Chebyshev)
     len = length(C)
     if len != 1
-        @inbounds C[len÷2+1] /= exact(2) # Nquilst frequency
+        @inbounds C[len÷2+1] /= exact(2) # Nyquist frequency
     end
     return C
 end
 
-function _postprocess!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
+function _postprocess_to_seq!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     if len != 1
-        @inbounds selectdim(C, D, len÷2+1) ./= exact(2) # Nquilst frequency
+        @inbounds selectdim(C, D, len÷2+1) ./= exact(2) # Nyquist frequency
     end
-    return C
-end
-
-# CosFourier
-
-_ifft_get_index(n::Integer, space::CosFourier) = _ifft_get_index(n, Chebyshev(order(space)))
-
-_postprocess!(C::AbstractVector, space::CosFourier) = _postprocess!(C, Chebyshev(order(space)))
-
-_postprocess!(C::AbstractArray, space::CosFourier, ::Val{D}) where {D} = _postprocess!(C, Chebyshev(order(space)), Val(D))
-
-# SinFourier
-
-_ifft_get_index(n::Integer, space::SinFourier) = 1:min(n÷2, dimension(space)), 1:min(n÷2, dimension(space))
-
-function _postprocess!(C::AbstractVector, ::SinFourier)
-    ord = length(C) ÷ 2
-    @inbounds view(C, 1:ord) .= -complex(exact(false), exact(true)) .* view(C, 2:ord+1)
-    return C
-end
-
-function _postprocess!(C::AbstractArray, ::SinFourier, ::Val{D}) where {D}
-    ord = size(C, D) ÷ 2
-    @inbounds selectdim(C, D, 1:ord) .= -complex(exact(false), exact(true)) .* selectdim(C, D, 2:ord+1)
     return C
 end
 
@@ -276,66 +219,12 @@ for k ∈ 0:N_fft-1
 end
 
 
-#
+# Backward (unnormalized inverse) FFT: Y[j] = Σₖ x[k] e^{+2πi kj/N}
 
-function _ifft_pow2!(a::AbstractVector{<:Complex})
-    conj!(_fft_pow2!(conj!(a)))
-    a ./= exact(length(a))
-    return a
-end
-
-function _ifft_pow2!(a::AbstractArray{<:Complex})
-    @inbounds for i ∈ axes(a, 1)
-        _ifft_pow2!(selectdim(a, 1, i))
-    end
-    n = size(a, 1)
-    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _ifft_pow2!(a_col)
-    end
-    return a
-end
+_bfft_pow2!(a::AbstractArray{<:Complex}) = conj!(_fft_pow2!(conj!(a)))
 
 
-
-function _ifft_pow2!(a::AbstractVector{Complex{Interval{Float64}}})
-    conj!(_fft_pow2!(conj!(a)))
-    a ./= exact(length(a))
-    return a
-end
-
-function _ifft_pow2!(a::AbstractArray{Complex{Interval{Float64}}})
-    @inbounds for i ∈ axes(a, 1)
-        _ifft_pow2!(selectdim(a, 1, i))
-    end
-    n = size(a, 1)
-    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _ifft_pow2!(a_col)
-    end
-    return a
-end
-
-
-
-_ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}) = _ifft_pow2!(a, Vector{eltype(a)}(undef, maximum(size(a))÷2))
-
-function _ifft_pow2!(a::AbstractVector{<:Complex{<:Interval}}, Ω)
-    conj!(_fft_pow2!(conj!(a), Ω))
-    a ./= exact(length(a))
-    return a
-end
-
-function _ifft_pow2!(a::AbstractArray{<:Complex{<:Interval}}, Ω)
-    @inbounds for i ∈ axes(a, 1)
-        _ifft_pow2!(selectdim(a, 1, i), Ω)
-    end
-    n = size(a, 1)
-    for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _ifft_pow2!(a_col, Ω)
-    end
-    return a
-end
-
-#
+# Forward FFT: X[k] = Σⱼ x[j] e^{-2πi kj/N}
 
 function _fft_pow2!(a::AbstractArray{<:Complex})
     @inbounds for i ∈ axes(a, 1)

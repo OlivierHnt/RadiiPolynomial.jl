@@ -11,10 +11,6 @@ Constructors:
 - `Shift(::Tuple{Vararg{Number}})`
 - `Shift(value::Number...)`: equivalent to `Shift(value)`
 
-See also: [`shift`](@ref), [`shift!`](@ref),
-[`project(::Shift, ::VectorSpace, ::VectorSpace)`](@ref) and
-[`project!(::LinearOperator, ::Shift)`](@ref).
-
 # Examples
 
 ```jldoctest
@@ -37,14 +33,6 @@ Shift(value::Number...) = Shift(value)
 
 value(𝒮::Shift) = 𝒮.value
 
-domain(S::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((τᵢ, sᵢ) -> domain(Shift(τᵢ), sᵢ), value(S), spaces(s)))
-domain(::Shift, s::Taylor) = s
-domain(::Shift, s::Fourier) = s
-domain(::Shift, s::Chebyshev) = s
-domain(S::Shift, s::CartesianPower) = CartesianPower(domain(S, space(s)), nspaces(s))
-domain(S::Shift, s::CartesianSpace) = CartesianProduct(map(sᵢ -> domain(S, sᵢ), spaces(s)))
-
 Base.:*(𝒮₁::Shift{<:Number}, 𝒮₂::Shift{<:Number}) = Shift(value(𝒮₁) + value(𝒮₂))
 Base.:*(𝒮₁::Shift{<:NTuple{N,Number}}, 𝒮₂::Shift{<:NTuple{N,Number}}) where {N} = Shift(map(+, value(𝒮₁), value(𝒮₂)))
 
@@ -52,24 +40,81 @@ Base.:^(𝒮::Shift{<:Number}, n::Integer) = Shift(value(𝒮) * exact(n))
 Base.:^(𝒮::Shift{<:Tuple{Vararg{Number}}}, n::Integer) = Shift(map(τᵢ -> τᵢ * exact(n), value(𝒮)))
 Base.:^(𝒮::Shift{<:NTuple{N,Number}}, n::NTuple{N,Integer}) where {N} = Shift(map((τᵢ, nᵢ) -> τᵢ * exact(nᵢ), value(𝒮), n))
 
-"""
-    *(𝒮::Shift, a::AbstractSequence)
+# Tensor space
 
-Shift `a` by `value(𝒮)`; equivalent to `shift(a, value(𝒮))`.
+domain(S::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> domain(Shift(τᵢ), sᵢ), value(S), spaces(s)))
 
-See also: [`Shift`](@ref), [`shift`](@ref) and [`shift!`](@ref).
-"""
+codomain(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    TensorSpace(map((τᵢ, sᵢ) -> codomain(Shift(τᵢ), sᵢ), value(𝒮), spaces(s)))
+
+_coeftype(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
+    @inbounds promote_type(_coeftype(Shift(value(𝒮)[1]), s[1], T), _coeftype(Shift(Base.tail(value(𝒮))), Base.tail(s), T))
+_coeftype(𝒮::Shift{<:Tuple{Number}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
+    @inbounds _coeftype(Shift(value(𝒮)[1]), s[1], T)
+
+getcoefficient(𝒮::Shift{<:NTuple{N,Number}}, (codom, i)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, (dom, j)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, ::Type{T}) where {N,T} =
+    @inbounds getcoefficient(Shift(value(𝒮)[1]), (codom[1], i[1]), (dom[1], j[1]), T) * getcoefficient(Shift(Base.tail(value(𝒮))), (Base.tail(codom), T, Base.tail(i)), (Base.tail(dom), Base.tail(j)), T)
+getcoefficient(𝒮::Shift{<:Tuple{Number}}, (codom, i)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, (dom, j)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, ::Type{T}) where {T} =
+    @inbounds getcoefficient(Shift(value(𝒮)[1]), (codom[1], i[1]), (dom[1], j[1]), T)
+
+# Taylor
+
+domain(::Shift, s::Taylor) = s
+
+codomain(::Shift, s::Taylor) = s
+
+_coeftype(::Shift{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
+
+function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Taylor,Integer}, (dom, j)::Tuple{Taylor,Integer}, ::Type{T}) where {T}
+    τ = value(𝒮)
+    if iszero(τ)
+        return ifelse(i == j, one(T), zero(T))
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+# Fourier
+
+domain(::Shift, s::Fourier) = s
+
+codomain(::Shift, s::Fourier) = s
+
+_coeftype(::Shift{T}, s::Fourier, ::Type{S}) where {T,S} =
+    promote_type(typeof(cis(frequency(s)*zero(T))), S)
+
+function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Fourier,Integer}, (dom, j)::Tuple{Fourier,Integer}, ::Type{T}) where {T}
+    i == j || return zero(T)
+    τ = value(𝒮)
+    iszero(τ) && return one(T)
+    return convert(T, cis(frequency(dom) * τ * exact(i)))
+end
+
+# Chebyshev
+
+domain(::Shift, s::Chebyshev) = s
+
+codomain(::Shift, s::Chebyshev) = s
+
+_coeftype(::Shift{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
+
+function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Chebyshev,Integer}, (dom, j)::Tuple{Chebyshev,Integer}, ::Type{T}) where {T}
+    τ = value(𝒮)
+    if iszero(τ)
+        return ifelse(i == j, one(T), zero(T))
+    else # TODO: lift restriction
+        return throw(DomainError)
+    end
+end
+
+
+
+# action
+
 Base.:*(𝒮::Shift, a::AbstractSequence) = shift(a, value(𝒮))
 
-"""
-    shift(a::Sequence, τ)
-
-Shift `a` by `τ`.
-
-See also: [`shift!`](@ref), [`Shift`](@ref), [`*(::Shift, ::Sequence)`](@ref)
-and [`(::Shift)(::Sequence)`](@ref).
-"""
-function shift(a::Sequence, τ)
+function shift(a::Sequence, τ::Union{Number,Tuple{Vararg{Number}}})
     𝒮 = Shift(τ)
     space_a = space(a)
     new_space = codomain(𝒮, space_a)
@@ -79,15 +124,7 @@ function shift(a::Sequence, τ)
     return c
 end
 
-"""
-    shift!(c::Sequence, a::Sequence, τ)
-
-Shift `a` by `τ`. The result is stored in `c` by overwriting it.
-
-See also: [`shift`](@ref), [`Shift`](@ref), [`*(::Shift, ::Sequence)`](@ref)
-and [`(::Shift)(::Sequence)`](@ref).
-"""
-function shift!(c::Sequence, a::Sequence, τ)
+function shift!(c::Sequence, a::Sequence, τ::Union{Number,Tuple{Vararg{Number}}})
     𝒮 = Shift(τ)
     space_c = space(c)
     new_space = codomain(𝒮, space(a))
@@ -96,15 +133,7 @@ function shift!(c::Sequence, a::Sequence, τ)
     return c
 end
 
-# Sequence spaces
-
-codomain(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    TensorSpace(map((τᵢ, sᵢ) -> codomain(Shift(τᵢ), sᵢ), value(𝒮), spaces(s)))
-
-_coeftype(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}) where {N,T} =
-    @inbounds promote_type(_coeftype(Shift(value(𝒮)[1]), s[1], T), _coeftype(Shift(Base.tail(value(𝒮))), Base.tail(s), T))
-_coeftype(𝒮::Shift{<:Tuple{Number}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}) where {T} =
-    @inbounds _coeftype(Shift(value(𝒮)[1]), s[1], T)
+# Tensor space
 
 function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Shift, a)
     space_a = space(a)
@@ -120,37 +149,7 @@ _apply!(C, 𝒮::Shift, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::Abstrac
 _apply!(C, 𝒮::Shift, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray) =
     @inbounds _apply!(C, Shift(value(𝒮)[1]), space[1], A)
 
-for (_f, __f) ∈ ((:_nzind_domain, :__nzind_domain), (:_nzind_codomain, :__nzind_codomain))
-    @eval begin
-        $_f(𝒮::Shift{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-            TensorIndices($__f(𝒮, domain, codomain))
-        $__f(𝒮::Shift, domain::TensorSpace, codomain) =
-            @inbounds ($_f(Shift(value(𝒮)[1]), domain[1], codomain[1]), $__f(Shift(Base.tail(value(𝒮))), Base.tail(domain), Base.tail(codomain))...)
-        $__f(𝒮::Shift, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain) =
-            @inbounds ($_f(Shift(value(𝒮)[1]), domain[1], codomain[1]),)
-    end
-end
-
-function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, 𝒮::Shift)
-    domain_C = domain(C)
-    codomain_C = codomain(C)
-    CoefType = eltype(C)
-    @inbounds for (α, β) ∈ zip(_nzind_codomain(𝒮, domain_C, codomain_C), _nzind_domain(𝒮, domain_C, codomain_C))
-        C[α,β] = _nzval(𝒮, domain_C, codomain_C, CoefType, α, β)
-    end
-    return C
-end
-
-_nzval(𝒮::Shift{<:NTuple{N,Number}}, domain::TensorSpace{<:NTuple{N,BaseSpace}}, codomain::TensorSpace{<:NTuple{N,BaseSpace}}, ::Type{T}, α, β) where {N,T} =
-    @inbounds _nzval(Shift(value(𝒮)[1]), domain[1], codomain[1], T, α[1], β[1]) * _nzval(Shift(Base.tail(value(𝒮))), Base.tail(domain), Base.tail(codomain), T, Base.tail(α), Base.tail(β))
-_nzval(𝒮::Shift{<:Tuple{Number}}, domain::TensorSpace{<:Tuple{BaseSpace}}, codomain::TensorSpace{<:Tuple{BaseSpace}}, ::Type{T}, α, β) where {T} =
-    @inbounds _nzval(Shift(value(𝒮)[1]), domain[1], codomain[1], T, α[1], β[1])
-
 # Taylor
-
-codomain(::Shift, s::Taylor) = s
-
-_coeftype(::Shift{T}, ::Taylor, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
     τ = value(𝒮)
@@ -162,13 +161,13 @@ function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
     return c
 end
 
-function _apply!(C, 𝒮::Shift, space::Taylor, ::Val{D}, A) where {D}
+function _apply!(C, 𝒮::Shift, ::Taylor, ::Val{D}, A) where {D}
     τ = value(𝒮)
     iszero(τ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
-function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Taylor, A) where {T,N}
+function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Taylor, A) where {T,N}
     τ = value(𝒮)
     if iszero(τ)
         C .= A
@@ -178,23 +177,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Taylor, A) where {T,
     return C
 end
 
-_nzind_domain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
-_nzind_codomain(::Shift, domain::Taylor, codomain::Taylor) = 0:min(order(domain), order(codomain))
-function _nzval(𝒮::Shift, ::Taylor, ::Taylor, ::Type{T}, i, j) where {T}
-    τ = value(𝒮)
-    if iszero(τ)
-        return one(T)
-    else # TODO: lift restriction
-        return throw(DomainError)
-    end
-end
-
 # Fourier
-
-codomain(::Shift, s::Fourier) = s
-
-_coeftype(::Shift{T}, s::Fourier, ::Type{S}) where {T,S} =
-    promote_type(typeof(cis(frequency(s)*zero(T))), S)
 
 function _apply!(c::Sequence{<:Fourier}, 𝒮::Shift, a)
     τ = value(𝒮)
@@ -246,28 +229,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Fourier, A) where {T
     return C
 end
 
-function _nzind_domain(::Shift, domain::Fourier, codomain::Fourier)
-    ord = min(order(domain), order(codomain))
-    return -ord:ord
-end
-function _nzind_codomain(::Shift, domain::Fourier, codomain::Fourier)
-    ord = min(order(domain), order(codomain))
-    return -ord:ord
-end
-function _nzval(𝒮::Shift, domain::Fourier, ::Fourier, ::Type{T}, i, j) where {T}
-    τ = value(𝒮)
-    if iszero(τ)
-        return one(T)
-    else
-        return convert(T, cis(frequency(domain) * τ * exact(i)))
-    end
-end
-
 # Chebyshev
-
-codomain(::Shift, s::Chebyshev) = s
-
-_coeftype(::Shift{T}, ::Chebyshev, ::Type{S}) where {T,S} = promote_type(T, S)
 
 function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
     τ = value(𝒮)
@@ -279,68 +241,18 @@ function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
     return c
 end
 
-function _apply!(C, 𝒮::Shift, space::Chebyshev, ::Val{D}, A) where {D}
+function _apply!(C, 𝒮::Shift, ::Chebyshev, ::Val{D}, A) where {D}
     τ = value(𝒮)
     iszero(τ) || return throw(DomainError) # TODO: lift restriction
     return C
 end
 
-function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Chebyshev, A) where {T,N}
+function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Chebyshev, A) where {T,N}
     τ = value(𝒮)
     if iszero(τ)
         C .= A
     else # TODO: lift restriction
         return throw(DomainError)
-    end
-    return C
-end
-
-_nzind_domain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
-_nzind_codomain(::Shift, domain::Chebyshev, codomain::Chebyshev) = 0:min(order(domain), order(codomain))
-function _nzval(𝒮::Shift, ::Chebyshev, ::Chebyshev, ::Type{T}, i, j) where {T}
-    τ = value(𝒮)
-    if iszero(τ)
-        return one(T)
-    else # TODO: lift restriction
-        return throw(DomainError)
-    end
-end
-
-# Cartesian spaces
-
-codomain(𝒮::Shift, s::CartesianPower) =
-    CartesianPower(codomain(𝒮, space(s)), nspaces(s))
-
-codomain(𝒮::Shift, s::CartesianProduct) =
-    CartesianProduct(map(sᵢ -> codomain(𝒮, sᵢ), spaces(s)))
-
-_coeftype(𝒮::Shift, s::CartesianPower, ::Type{T}) where {T} =
-    _coeftype(𝒮, space(s), T)
-
-_coeftype(𝒮::Shift, s::CartesianProduct, ::Type{T}) where {T} =
-    @inbounds promote_type(_coeftype(𝒮, s[1], T), _coeftype(𝒮, Base.tail(s), T))
-_coeftype(𝒮::Shift, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
-    @inbounds _coeftype(𝒮, s[1], T)
-
-function _apply!(c::Sequence{<:CartesianPower}, 𝒮::Shift, a)
-    @inbounds for i ∈ 1:nspaces(space(c))
-        _apply!(component(c, i), 𝒮, component(a, i))
-    end
-    return c
-end
-function _apply!(c::Sequence{CartesianProduct{T}}, 𝒮::Shift, a) where {N,T<:NTuple{N,VectorSpace}}
-    @inbounds _apply!(component(c, 1), 𝒮, component(a, 1))
-    @inbounds _apply!(component(c, 2:N), 𝒮, component(a, 2:N))
-    return c
-end
-function _apply!(c::Sequence{CartesianProduct{T}}, 𝒮::Shift, a) where {T<:Tuple{VectorSpace}}
-    @inbounds _apply!(component(c, 1), 𝒮, component(a, 1))
-    return c
-end
-
-function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, 𝒮::Shift)
-    @inbounds for i ∈ 1:nspaces(domain(C))
-        _project!(component(C, i, i), 𝒮)
     end
     return C
 end

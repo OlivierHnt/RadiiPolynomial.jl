@@ -47,8 +47,8 @@
     @test norm(a_alg, ℓ¹( (AlgebraicWeight(p), AlgebraicWeight(p), AlgebraicWeight(p)) )) ==
         opnorm(project(Multiplication(a_alg), space(a_alg), space(a_alg), Float64), ℓ¹( (AlgebraicWeight(p), AlgebraicWeight(p), AlgebraicWeight(p)) ))
 
-    s1 = ParameterSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-    s2 = ParameterSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1
+    s1 = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+    s2 = ScalarSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1
     a_ = Sequence(s1, collect(1.0:13.0))
     A_ = LinearOperator(s1, s2, ones(dimension(s2), dimension(s1)))
 

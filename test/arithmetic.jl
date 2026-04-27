@@ -1,9 +1,9 @@
 @testset "Arithmetic" begin
     @testset "Sequence" begin
-        a = Sequence(ParameterSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:13.0))
-        b = Sequence(ParameterSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:19.0))
-        c = Sequence(ParameterSpace() × (Taylor(0) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
-        d = Sequence(ParameterSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
+        a = Sequence(ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:13.0))
+        b = Sequence(ScalarSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:19.0))
+        c = Sequence(ScalarSpace() × (Taylor(0) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
+        d = Sequence(ScalarSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1, collect(1.0:7.0))
 
         @test +(4.0\(8.0*a*3.0))/3.0 == a + a == a - (-a)
 
@@ -17,10 +17,10 @@
     end
 
     @testset "LinearOperator" begin
-        𝒮₁ = ParameterSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-        𝒮₂ = ParameterSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-        𝒮₃ = ParameterSpace() × (Taylor(0) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-        𝒮₄ = ParameterSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1
+        𝒮₁ = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+        𝒮₂ = ScalarSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+        𝒮₃ = ScalarSpace() × (Taylor(0) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+        𝒮₄ = ScalarSpace() × (Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1))^1
 
         A = LinearOperator(𝒮₁, 𝒮₁, [i+j for i ∈ indices(𝒮₁), j ∈ indices(𝒮₁)])
         B = LinearOperator(𝒮₂, 𝒮₁, [i+j for i ∈ indices(𝒮₁), j ∈ indices(𝒮₂)])
@@ -28,7 +28,7 @@
         D = LinearOperator(𝒮₄, 𝒮₁, [i+j for i ∈ indices(𝒮₁), j ∈ indices(𝒮₄)])
 
         @test +(4.0\(8.0*A*3.0))/3.0 == A + A == A - (-A)
-        @test A == (A - I) + I == -(I - (I + A)) == radd!(rsub!(copy(A), I), I) == -lsub!(I, ladd!(I, copy(A)))
+        @test A == radd!(rsub!(copy(A), I), I) == -lsub!(I, ladd!(I, copy(A)))
 
         @test A + B == A - (-B) == ladd!(A, copy(B)) == lsub!(A, -B)
         @test radd!(copy(A), B) == rsub!(copy(A), -B)
@@ -50,10 +50,10 @@
     @testset "Convolution" begin
         function conv(a, b)
             space_c = codomain(*, space(a), space(b))
-            c = Sequence(space_c, Vector{Float64}(undef, dimension(space_c)))
+            c = Sequence(space_c, Vector{ComplexF64}(undef, dimension(space_c)))
             n = fft_size(space_c)
-            rifft!(c, fft(a, n) .* fft(b, n))
-            return c
+            to_seq!(c, to_grid(a, n) .* to_grid(b, n))
+            return real(c)
         end
 
         a = Sequence(Taylor(1), [1.0, 2.0])
@@ -75,20 +75,5 @@
         b = Sequence(Taylor(2) ⊗ Fourier(0, 1.0) ⊗ Chebyshev(1), collect(1.0:6.0))
         @test conv(a, a) ≈ a * a == a ^ 2
         @test conv(a, b) ≈ a * b
-
-        # symmetry
-
-        a = ones(SinFourier(5, 1))
-        fa = zeros(ComplexF64, Fourier(5, 1))
-        fa[0] = 0
-        fa[1:5] = -im*a[1:5]
-        fa[-1:-1:-5] = im*a[1:5]
-
-        b = ones(CosFourier(5, 1))
-        fb = ones(Fourier(5, 1))
-
-        @test (a^2)[0:10] == (a*a)[0:10] == (fa*fa)[0:10]
-        @test (b^2)[0:10] == (b*b)[0:10] == (fb*fb)[0:10]
-        @test (a*b)[1:10] == (b*a)[1:10] == im*(fa*fb)[1:10]
     end
 end

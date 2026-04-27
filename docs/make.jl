@@ -29,18 +29,16 @@ makedocs(;
             "manual/special_operators.md"
         ],
         "Examples" => [
-            "Finite-dimensional proofs" => [
-                "examples/finite_dimensional_proofs/spiderweb.md",
-                "examples/finite_dimensional_proofs/fhn_pseudo_arclength.md"
+            "Continuation" => [
+                "examples/continuation/cubic_root_cont.md",
+                "examples/continuation/cubic_root_pa.md"
             ],
-            "Infinite-dimensional proofs" => [
-                "Ordinary differential equations (ODE)" => [
-                    "examples/infinite_dimensional_proofs/ode/logistic_ivp.md",
-                    "examples/infinite_dimensional_proofs/ode/lorenz_po.md"
-                ],
-                "Delay differential equations (DDE)" => [
-                    "examples/infinite_dimensional_proofs/dde/ikeda_W_u.md"
-                ]
+            "Cauchy problems (IVPs)" => [
+                "examples/ivp/logistic_ivp.md"
+            ],
+            "Periodic orbits" => [
+                "examples/periodic_orbits/non_autonomous_po.md",
+                "examples/periodic_orbits/lorenz_po.md"
             ]
         ]
     ],
@@ -49,5 +47,6 @@ makedocs(;
 
 deploydocs(;
     repo = "github.com/OlivierHnt/RadiiPolynomial.jl",
-    devbranch = "main"
+    devbranch = "main",
+    push_preview = true
 )

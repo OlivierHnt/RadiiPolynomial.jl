@@ -2,59 +2,52 @@
 
 codomain(::typeof(-), s₁::VectorSpace, s₂::VectorSpace) = codomain(+, s₁, s₂)
 
-# Parameter space
+# Scalar space
 
-codomain(::typeof(+), ::ParameterSpace, ::ParameterSpace) = ParameterSpace()
+codomain(::typeof(+), ::ScalarSpace, ::ScalarSpace) = ScalarSpace()
 
 # Sequence spaces
 
 codomain(::typeof(+), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     TensorSpace(map((s₁ᵢ, s₂ᵢ) -> codomain(+, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
 
-for T ∈ (:Taylor, :Fourier, :Chebyshev, :CosFourier, :SinFourier)
-    @eval begin
-        codomain(::typeof(+), s₁::$T, s₂::$T) = union(s₁, s₂)
-    end
+for T ∈ (:Taylor, :Fourier, :Chebyshev)
+    @eval codomain(::typeof(+), s₁::$T, s₂::$T) = union(s₁, s₂)
 end
-
-codomain(::typeof(+), s₁::CosFourier, s₂::SinFourier) = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
-codomain(::typeof(+), s₁::SinFourier, s₂::CosFourier) = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
 
 function codomain(::typeof(+), s₁::SymmetricSpace, s₂::SymmetricSpace)
     V = codomain(+, desymmetrize(s₁), desymmetrize(s₂))
     G = intersect(symmetry(s₁), symmetry(s₂))
     return SymmetricSpace(V, G)
 end
+codomain(::typeof(+), s₁::SymmetricSpace, s₂::NoSymSpace) = codomain(+, s₁, SymmetricSpace(s₂))
+codomain(::typeof(+), s₁::NoSymSpace, s₂::SymmetricSpace) = codomain(+, SymmetricSpace(s₁), s₂)
 
 # Cartesian spaces
 
-for f ∈ (:+,)
-    @eval begin
-        function codomain(::typeof($f), s₁::CartesianPower, s₂::CartesianPower)
-            n = nspaces(s₁)
-            m = nspaces(s₂)
-            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
-            return CartesianPower(codomain($f, space(s₁), space(s₂)), n)
-        end
-        function codomain(::typeof($f), s₁::CartesianProduct, s₂::CartesianProduct)
-            n = nspaces(s₁)
-            m = nspaces(s₂)
-            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
-            return CartesianProduct(map((s₁ᵢ, s₂ᵢ) -> codomain($f, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
-        end
-        function codomain(::typeof($f), s₁::CartesianPower, s₂::CartesianProduct)
-            n = nspaces(s₁)
-            m = nspaces(s₂)
-            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
-            return CartesianProduct(map(s₂ᵢ -> codomain($f, space(s₁), s₂ᵢ), spaces(s₂)))
-        end
-        function codomain(::typeof($f), s₁::CartesianProduct, s₂::CartesianPower)
-            n = nspaces(s₁)
-            m = nspaces(s₂)
-            n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
-            return CartesianProduct(map(s₁ᵢ -> codomain($f, s₁ᵢ, space(s₂)), spaces(s₁)))
-        end
-    end
+function codomain(::typeof(+), s₁::CartesianPower, s₂::CartesianPower)
+    n = nspaces(s₁)
+    m = nspaces(s₂)
+    n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+    return CartesianPower(codomain(+, space(s₁), space(s₂)), n)
+end
+function codomain(::typeof(+), s₁::CartesianProduct, s₂::CartesianProduct)
+    n = nspaces(s₁)
+    m = nspaces(s₂)
+    n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+    return CartesianProduct(map((s₁ᵢ, s₂ᵢ) -> codomain(+, s₁ᵢ, s₂ᵢ), spaces(s₁), spaces(s₂)))
+end
+function codomain(::typeof(+), s₁::CartesianPower, s₂::CartesianProduct)
+    n = nspaces(s₁)
+    m = nspaces(s₂)
+    n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+    return CartesianProduct(map(s₂ᵢ -> codomain(+, space(s₁), s₂ᵢ), spaces(s₂)))
+end
+function codomain(::typeof(+), s₁::CartesianProduct, s₂::CartesianPower)
+    n = nspaces(s₁)
+    m = nspaces(s₂)
+    n == m || return throw(ArgumentError("number of cartesian products must be equal: s₁ has $n cartesian product(s), s₂ has $m cartesian product(s)"))
+    return CartesianProduct(map(s₁ᵢ -> codomain(+, s₁ᵢ, space(s₂)), spaces(s₁)))
 end
 
 #
@@ -89,10 +82,9 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         (:(Base.:-), :sub!, :rsub!, :lsub!, :_sub!, :_rsub!, :_lsub!))
     @eval begin
         function $f(a::Sequence, b::Sequence)
-            new_space = codomain($f, space(a), space(b))
-            CoefType = promote_type(eltype(a), eltype(b))
-            c = Sequence(new_space, Vector{CoefType}(undef, dimension(new_space)))
-            $_f!(c, a, b)
+            psa, psb = _promote_space(space(a), space(b))
+            c = zeros(promote_type(eltype(a), eltype(b)), codomain($f, psa, psb))
+            $_f!(c, Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return c
         end
         $f(a::InfiniteSequence, b::InfiniteSequence) =
@@ -100,28 +92,25 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
             op = $f
-            space_c = space(c)
-            new_space = codomain(op, space(a), space(b))
-            _iscompatible(space_c, new_space) || return throw(ArgumentError("spaces must be compatible: c has space $space_c, a$(op)b has space $new_space"))
-            $_f!(c, a, b)
+            psa, psb = _promote_space(space(a), space(b))
+            sop = codomain(op, psa, psb)
+            psc, psop = _promote_space(space(c), sop)
+            _iscompatible(psc, psop) || return throw(ArgumentError("spaces must be compatible: c has space $(space(c)), a $(op) b has space $sop"))
+            $_f!(Sequence(psc, coefficients(c)), Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return c
         end
 
         function $rf!(a::Sequence, b::Sequence)
-            op = $f
-            space_a = space(a)
-            new_space = codomain(op, space_a, space(b))
-            _iscompatible(space_a, new_space) || return throw(ArgumentError("spaces must be compatible: a has space $space_a, a$(op)b has space $new_space"))
-            $_rf!(a, b)
+            psa, psb = _promote_space(space(a), space(b))
+            _iscompatible(psa, psb) || return throw(ArgumentError("spaces must be compatible"))
+            $_rf!(Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return a
         end
 
         function $lf!(a::Sequence, b::Sequence)
-            op = $f
-            space_b = space(b)
-            new_space = codomain(op, space(a), space_b)
-            _iscompatible(space_b, new_space) || return throw(ArgumentError("spaces must be compatible: b has space $space_b, a$(op)b has space $new_space"))
-            $_lf!(a, b)
+            psa, psb = _promote_space(space(a), space(b))
+            _iscompatible(psa, psb) || return throw(ArgumentError("spaces must be compatible"))
+            $_lf!(Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return b
         end
     end
@@ -135,21 +124,17 @@ function _add!(c::Sequence, a::Sequence, b::Sequence)
         coefficients(c) .= coefficients(a) .+ coefficients(b)
     elseif space_a == space_c
         coefficients(c) .= coefficients(a)
-        @inbounds for α ∈ indices(space_b ∩ space_c)
-            c[α] += b[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] += getcoefficient(b, (space_c, α))
         end
     elseif space_b == space_c
         coefficients(c) .= coefficients(b)
-        @inbounds for α ∈ indices(space_a ∩ space_c)
-            c[α] += a[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] += getcoefficient(a, (space_c, α))
         end
     else
-        coefficients(c) .= zero(eltype(c))
-        @inbounds for α ∈ indices(space_a ∩ space_c)
-            c[α] = a[α]
-        end
-        @inbounds for α ∈ indices(space_b ∩ space_c)
-            c[α] += b[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] = getcoefficient(a, (space_c, α)) + getcoefficient(b, (space_c, α))
         end
     end
     return c
@@ -163,21 +148,18 @@ function _sub!(c::Sequence, a::Sequence, b::Sequence)
         coefficients(c) .= coefficients(a) .- coefficients(b)
     elseif space_a == space_c
         coefficients(c) .= coefficients(a)
-        @inbounds for α ∈ indices(space_b ∩ space_c)
-            c[α] -= b[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] -= getcoefficient(b, (space_c, α))
         end
     elseif space_b == space_c
         coefficients(c) .= (-).(coefficients(b))
-        @inbounds for α ∈ indices(space_a ∩ space_c)
-            c[α] += a[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] += getcoefficient(a, (space_c, α))
         end
     else
         coefficients(c) .= zero(eltype(c))
-        @inbounds for α ∈ indices(space_a ∩ space_c)
-            c[α] = a[α]
-        end
-        @inbounds for α ∈ indices(space_b ∩ space_c)
-            c[α] -= b[α]
+        @inbounds for α ∈ indices(space_c)
+            c[α] = getcoefficient(a, (space_c, α)) - getcoefficient(b, (space_c, α))
         end
     end
     return c
@@ -189,8 +171,8 @@ function _radd!(a::Sequence, b::Sequence)
     if space_a == space_b
         coefficients(a) .+= coefficients(b)
     else
-        @inbounds for α ∈ indices(space_a ∩ space_b)
-            a[α] += b[α]
+        @inbounds for α ∈ indices(space_a)
+            a[α] += getcoefficient(b, (space_a, α))
         end
     end
     return a
@@ -204,8 +186,8 @@ function _rsub!(a::Sequence, b::Sequence)
     if space_a == space_b
         coefficients(a) .-= coefficients(b)
     else
-        @inbounds for α ∈ indices(space_a ∩ space_b)
-            a[α] -= b[α]
+        @inbounds for α ∈ indices(space_a)
+            a[α] -= getcoefficient(b, (space_a, α))
         end
     end
     return a
@@ -219,12 +201,14 @@ function _lsub!(a::Sequence, b::Sequence)
         B .= coefficients(a) .- B
     else
         B .= (-).(B)
-        @inbounds for α ∈ indices(space_a ∩ space_b)
-            b[α] += a[α]
+        @inbounds for α ∈ indices(space_b)
+            b[α] += getcoefficient(a, (space_b, α))
         end
     end
     return b
 end
+
+# Cartesian spaces
 
 for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsub!, :_lsub!))
     @eval begin
@@ -233,7 +217,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 coefficients(c) .= ($f).(coefficients(a), coefficients(b))
             else
                 @inbounds for i ∈ 1:nspaces(space(c))
-                    $_f!(component(c, i), component(a, i), component(b, i))
+                    $_f!(block(c, i), block(a, i), block(b, i))
                 end
             end
             return c
@@ -242,13 +226,13 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if space(a) == space(b)
                 coefficients(c) .= ($f).(coefficients(a), coefficients(b))
             else
-                @inbounds $_f!(component(c, 1), component(a, 1), component(b, 1))
-                @inbounds $_f!(component(c, 2:N), component(a, 2:N), component(b, 2:N))
+                @inbounds $_f!(block(c, 1), block(a, 1), block(b, 1))
+                @inbounds $_f!(block(c, 2:N), block(a, 2:N), block(b, 2:N))
             end
             return c
         end
         $_f!(c::Sequence{CartesianProduct{T}}, a::Sequence{<:CartesianProduct}, b::Sequence{<:CartesianProduct}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_f!(component(c, 1), component(a, 1), component(b, 1))
+            @inbounds $_f!(block(c, 1), block(a, 1), block(b, 1))
 
         function $_rf!(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
             space_a = space(a)
@@ -257,7 +241,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A .= ($f).(A, coefficients(b))
             else
                 @inbounds for i ∈ 1:nspaces(space_a)
-                    $_rf!(component(a, i), component(b, i))
+                    $_rf!(block(a, i), block(b, i))
                 end
             end
             return a
@@ -268,13 +252,13 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A = coefficients(a)
                 A .= ($f).(A, coefficients(b))
             else
-                @inbounds $_rf!(component(a, 1), component(b, 1))
-                @inbounds $_rf!(component(a, 2:N), component(b, 2:N))
+                @inbounds $_rf!(block(a, 1), block(b, 1))
+                @inbounds $_rf!(block(a, 2:N), block(b, 2:N))
             end
             return a
         end
         $_rf!(a::Sequence{CartesianProduct{T}}, b::Sequence{<:CartesianProduct}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_rf!(component(a, 1), component(b, 1))
+            @inbounds $_rf!(block(a, 1), block(b, 1))
 
         function $_lf!(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
             space_a = space(a)
@@ -283,7 +267,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B .= ($f).(coefficients(a), B)
             else
                 @inbounds for i ∈ 1:nspaces(space_a)
-                    $_lf!(component(a, i), component(b, i))
+                    $_lf!(block(a, i), block(b, i))
                 end
             end
             return b
@@ -294,58 +278,73 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B = coefficients(b)
                 B .= ($f).(coefficients(a), B)
             else
-                @inbounds $_lf!(component(a, 1), component(b, 1))
-                @inbounds $_lf!(component(a, 2:N), component(b, 2:N))
+                @inbounds $_lf!(block(a, 1), block(b, 1))
+                @inbounds $_lf!(block(a, 2:N), block(b, 2:N))
             end
             return b
         end
         $_lf!(a::Sequence{<:CartesianProduct}, b::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_lf!(component(a, 1), component(b, 1))
+            @inbounds $_lf!(block(a, 1), block(b, 1))
     end
 end
 
-# Parameter space
+# Scalar space
 
-Base.:+(a::Sequence{ParameterSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] + b])
-Base.:+(b::Number, a::Sequence{ParameterSpace}) = @inbounds Sequence(space(a), [b + a[1]])
+Base.:+(a::Sequence{ScalarSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] + b])
+Base.:+(b::Number, a::Sequence{ScalarSpace}) = @inbounds Sequence(space(a), [b + a[1]])
 
-Base.:-(a::Sequence{ParameterSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] - b])
-Base.:-(b::Number, a::Sequence{ParameterSpace}) = @inbounds Sequence(space(a), [b - a[1]])
+Base.:-(a::Sequence{ScalarSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] - b])
+Base.:-(b::Number, a::Sequence{ScalarSpace}) = @inbounds Sequence(space(a), [b - a[1]])
 
-radd!(a::Sequence{ParameterSpace}, b::Number) = _radd!(a, b)
-ladd!(b::Number, a::Sequence{ParameterSpace}) = _radd!(a, b)
+radd!(a::Sequence{ScalarSpace}, b::Number) = _radd!(a, b)
+ladd!(b::Number, a::Sequence{ScalarSpace}) = _radd!(a, b)
 
-rsub!(a::Sequence{ParameterSpace}, b::Number) = _radd!(a, -b)
-function lsub!(b::Number, a::Sequence{ParameterSpace})
+rsub!(a::Sequence{ScalarSpace}, b::Number) = _radd!(a, -b)
+function lsub!(b::Number, a::Sequence{ScalarSpace})
     @inbounds a[1] = b - a[1]
     return a
 end
 
-function _radd!(a::Sequence{ParameterSpace}, b::Number)
+function _radd!(a::Sequence{ScalarSpace}, b::Number)
     @inbounds a[1] += b
     return a
 end
 
 # Sequence spaces
 
-function Base.:+(a::Sequence{<:SequenceSpace}, b::Number)
+_sym_with_cst_coef(s::Group{N,T}) where {N,T} =
+    unsafe_group!(Set{GroupElement{N,T}}(g for g ∈ elements(s) if isone(g.coef_action.amplitude)))
+
+function Base.:+(a::Sequence{<:NoSymSpace}, b::Number)
     CoefType = promote_type(eltype(a), typeof(b))
     c = Sequence(space(a), Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
     _radd!(c, b)
     return c
 end
+function Base.:+(a::Sequence{<:SymmetricSpace}, b::Number)
+    dsa = desymmetrize(space(a))
+    da = Projection(dsa) * a
+    space_c = SymmetricSpace(dsa, _sym_with_cst_coef(symmetry(space(a))))
+    return Projection(space_c) * (da + b)
+end
 Base.:+(b::Number, a::Sequence{<:SequenceSpace}) = +(a, b)
 Base.:+(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) + b, sequence_error(a), banachspace(a))
 Base.:+(b::Number, a::InfiniteSequence) = InfiniteSequence(b + sequence(a), sequence_error(a), banachspace(a))
 
 Base.:-(a::Sequence{<:SequenceSpace}, b::Number) = +(a, -b)
-function Base.:-(b::Number, a::Sequence{<:SequenceSpace})
+function Base.:-(b::Number, a::Sequence{<:NoSymSpace})
     CoefType = promote_type(eltype(a), typeof(b))
     c = Sequence(space(a), Vector{CoefType}(undef, length(a)))
     coefficients(c) .= (-).(coefficients(a))
     _radd!(c, b)
     return c
+end
+function Base.:-(b::Number, a::Sequence{<:SymmetricSpace})
+    dsa = desymmetrize(space(a))
+    da = Projection(dsa) * a
+    space_c = SymmetricSpace(dsa, _sym_with_cst_coef(symmetry(space(a))))
+    return Projection(space_c) * (b - da)
 end
 Base.:-(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) - b, sequence_error(a), banachspace(a))
 Base.:-(b::Number, a::InfiniteSequence) = InfiniteSequence(b - sequence(a), sequence_error(a), banachspace(a))
@@ -425,7 +424,7 @@ end
 function _radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
     @inbounds for i ∈ 1:nspaces(space(a))
-        aᵢ = component(a, i)
+        aᵢ = block(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1
@@ -442,7 +441,7 @@ end
 function _rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
     @inbounds for i ∈ 1:nspaces(space(a))
-        aᵢ = component(a, i)
+        aᵢ = block(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1

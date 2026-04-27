@@ -12,7 +12,7 @@
     @test order(a) == order(𝕊)
     @test order(a, 1) == order(𝕊, 1)
     @test_throws MethodError frequency(a)
-    @test frequency(component(a, 1), 2) == frequency(𝑇, 2)
+    @test frequency(block(a, 1), 2) == frequency(𝑇, 2)
     @test firstindex(a) == RadiiPolynomial._firstindex(𝕊)
     @test lastindex(a) == RadiiPolynomial._lastindex(𝕊)
     @test length(a) == length(coeffs)
@@ -34,7 +34,7 @@
     @test conj(a) == Sequence(𝕊, conj(coeffs))
     @test conj!(copy(a)) == Sequence(𝕊, conj!(copy(coeffs)))
     #
-    a_𝑇 = component(a, 1)
+    a_𝑇 = block(a, 1)
     @test coefficients(a_𝑇) == coeffs
     @test selectdim(a_𝑇, 2, 0) == selectdim(reshape(coeffs, 2, 3, 3), 2, 2)
 end

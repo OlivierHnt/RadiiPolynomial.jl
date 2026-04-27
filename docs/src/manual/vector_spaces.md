@@ -13,7 +13,7 @@ VectorSpace
 ├─ CartesianSpace
 │  ├─ CartesianPower
 │  └─ CartesianProduct
-├─ ParameterSpace
+├─ ScalarSpace
 └─ SequenceSpace
    ├─ BaseSpace
    │  ├─ Chebyshev
@@ -22,12 +22,12 @@ VectorSpace
    └─ TensorSpace
 ```
 
-## Parameter space
+## Scalar space
 
-A [`ParameterSpace`](@ref) represents the commutative field of a parameter. This is the standard space to use for an unfolding parameter.
+A [`ScalarSpace`](@ref) represents the commutative field of a parameter. This is the standard space to use for an unfolding parameter.
 
 ```@repl vector_spaces
-𝒫 = ParameterSpace()
+𝒫 = ScalarSpace()
 dimension(𝒫)
 indices(𝒫)
 ```
@@ -132,7 +132,7 @@ indices(𝒯²)
 A [`CartesianProduct`](@ref) is the cartesian product of some [`VectorSpace`](@ref). The standard constructor for [`CartesianProduct`](@ref) is the `×` (`\times<tab>`) operator.
 
 ```@repl vector_spaces
-𝒫_times_𝒯 = ParameterSpace() × Taylor(1) # CartesianProduct((ParameterSpace(), Taylor(1)))
+𝒫_times_𝒯 = ScalarSpace() × Taylor(1) # CartesianProduct((ScalarSpace(), Taylor(1)))
 nspaces(𝒫_times_𝒯)
 dimension(𝒫_times_𝒯)
 indices(𝒫_times_𝒯)

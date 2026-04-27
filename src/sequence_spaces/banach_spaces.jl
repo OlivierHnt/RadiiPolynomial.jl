@@ -5,15 +5,20 @@ Abstract type for all weights.
 """
 abstract type Weight end
 
+Base.broadcastable(a::Weight) = Ref(a)
+
 Base.:(==)(w₁::Weight, w₂::Weight) = false
 Base.min(w₁::NTuple{N,Weight}, w₂::NTuple{N,Weight}) where {N} = map(min, w₁, w₂)
+
+Base.getindex(weight::Weight, (s, i)) = _getindex(weight, s, i)
 
 _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
     @inbounds _getindex(weight[1], s[1], α[1]) * _getindex(Base.tail(weight), Base.tail(s), Base.tail(α))
 _getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
     @inbounds _getindex(weight[1], s[1], α[1])
 
-_getindex(weight::Weight, s::SymmetricSpace, k) = exact(length(_orbit(symmetry(s), k))) * _getindex(weight, desymmetrize(s), k)
+_getindex(weight::Weight, s::SymmetricSpace, k) =
+    exact(length(_orbit(symmetry(s), k))) * _getindex(weight, desymmetrize(s), k)
 
 """
     IdentityWeight <: Weight
@@ -28,6 +33,7 @@ Base.min(::IdentityWeight, ::Weight) = IdentityWeight()
 Base.min(::Weight, ::IdentityWeight) = IdentityWeight()
 
 _getindex(::IdentityWeight, ::NoSymSpace, k) = exact(true)
+_getindex(::IdentityWeight, ::Chebyshev, k::Int) = exact(ifelse(k == 0, 1, 2))
 
 IntervalArithmetic._infer_numtype(::IdentityWeight) = Bool
 IntervalArithmetic._interval_infsup(::Type{T}, ::IdentityWeight, ::IdentityWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
@@ -200,6 +206,8 @@ _prettystring(weight::BesselWeight) = "BesselWeight(" * string(rate(weight)) * "
 Abstract type for all Banach spaces.
 """
 abstract type BanachSpace end
+
+Base.broadcastable(a::BanachSpace) = Ref(a)
 
 Base.:(==)(::BanachSpace, ::BanachSpace) = false
 Base.intersect(s₁::BanachSpace, s₂::BanachSpace) = throw(MethodError(intersect, (s₁, s₂)))

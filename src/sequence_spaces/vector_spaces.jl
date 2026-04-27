@@ -5,6 +5,8 @@ Abstract type for all vector spaces.
 """
 abstract type VectorSpace end
 
+Base.broadcastable(s::VectorSpace) = Ref(s)
+
 Base.:(==)(::VectorSpace, ::VectorSpace) = false
 Base.issubset(::VectorSpace, ::VectorSpace) = false
 Base.intersect(s₁::VectorSpace, s₂::VectorSpace) = throw(MethodError(intersect, (s₁, s₂)))
@@ -62,36 +64,36 @@ _prettystring(::EmptySpace, iscompact::Bool) = ifelse(iscompact, "∅", "EmptySp
 #
 
 """
-    ParameterSpace <: VectorSpace
+    ScalarSpace <: VectorSpace
 
 Parameter space corresponding to a commutative field.
 
 # Example
 
 ```jldoctest
-julia> ParameterSpace()
+julia> ScalarSpace()
 𝕂
 ```
 """
-struct ParameterSpace <: VectorSpace end
+struct ScalarSpace <: VectorSpace end
 
-Base.:(==)(::ParameterSpace, ::ParameterSpace) = true
-Base.issubset(::ParameterSpace, ::ParameterSpace) = true
-Base.intersect(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
-Base.union(::ParameterSpace, ::ParameterSpace) = ParameterSpace()
+Base.:(==)(::ScalarSpace, ::ScalarSpace) = true
+Base.issubset(::ScalarSpace, ::ScalarSpace) = true
+Base.intersect(::ScalarSpace, ::ScalarSpace) = ScalarSpace()
+Base.union(::ScalarSpace, ::ScalarSpace) = ScalarSpace()
 
-indices(::ParameterSpace) = Base.OneTo(1)
+indices(::ScalarSpace) = Base.OneTo(1)
 
-_findposition(i, ::ParameterSpace) = i
-_findposition(α::ParameterSpace, s::ParameterSpace) = _findposition(indices(α), s)
+_findposition(i, ::ScalarSpace) = i
+_findposition(α::ScalarSpace, s::ScalarSpace) = _findposition(indices(α), s)
 
-_iscompatible(::ParameterSpace, ::ParameterSpace) = true
+_iscompatible(::ScalarSpace, ::ScalarSpace) = true
 
-IntervalArithmetic._infer_numtype(::ParameterSpace) = Bool
-IntervalArithmetic._interval_infsup(::Type{T}, ::ParameterSpace, ::ParameterSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    ParameterSpace()
+IntervalArithmetic._infer_numtype(::ScalarSpace) = Bool
+IntervalArithmetic._interval_infsup(::Type{T}, ::ScalarSpace, ::ScalarSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+    ScalarSpace()
 
-_prettystring(::ParameterSpace, iscompact::Bool) = ifelse(iscompact, "𝕂", "ParameterSpace()")
+_prettystring(::ScalarSpace, iscompact::Bool) = ifelse(iscompact, "𝕂", "ScalarSpace()")
 
 #
 
@@ -102,6 +104,11 @@ Abstract type for all sequence spaces.
 """
 abstract type SequenceSpace <: VectorSpace end
 
+Base.intersect(s::SequenceSpace, ::ScalarSpace) = _zero_space(s)
+Base.intersect(::ScalarSpace, s::SequenceSpace) = _zero_space(s)
+Base.union(s::SequenceSpace, ::ScalarSpace) = s
+Base.union(::ScalarSpace, s::SequenceSpace) = s
+
 """
     BaseSpace <: SequenceSpace
 
@@ -109,23 +116,6 @@ Abstract type for all sequence spaces that are not a [`TensorSpace`](@ref) but
 can be interlaced to form one.
 """
 abstract type BaseSpace <: SequenceSpace end
-
-"""
-    SymBaseSpace <: BaseSpace
-
-Abstract type for all symmetric sequence spaces that are not a
-[`TensorSpace`](@ref) but can be interlaced to form one.
-"""
-abstract type SymBaseSpace <: BaseSpace end
-
-order(s::SymBaseSpace) = order(desymmetrize(s))
-frequency(s::SymBaseSpace) = frequency(desymmetrize(s))
-
-Base.issubset(s₁::SymBaseSpace, s₂::SymBaseSpace) = false
-Base.issubset(s₁::SymBaseSpace, s₂::BaseSpace) = issubset(desymmetrize(s₁), s₂)
-Base.union(s₁::SymBaseSpace, s₂::SymBaseSpace) = union(desymmetrize(s₁), desymmetrize(s₂))
-Base.union(s₁::SymBaseSpace, s₂::BaseSpace) = union(desymmetrize(s₁), s₂)
-Base.union(s₁::BaseSpace, s₂::SymBaseSpace) = union(s₁, desymmetrize(s₂))
 
 """
     TensorSpace{T<:Tuple{Vararg{BaseSpace}}} <: SequenceSpace
@@ -200,8 +190,8 @@ Taylor(1) ⊗ Fourier(2, 1.0) ⊗ Chebyshev(3)
 ⊗(s₁::BaseSpace, s₂::TensorSpace) = TensorSpace((s₁, s₂.spaces...))
 
 Base.@propagate_inbounds Base.getindex(s::TensorSpace, i::Int) = getindex(s.spaces, i)
-Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractRange{Int}) = TensorSpace(getindex(s.spaces, u))
-Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractVector{Int}) = TensorSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractRange{<:Integer}) = TensorSpace(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::TensorSpace, u::AbstractVector{<:Integer}) = TensorSpace(getindex(s.spaces, u))
 Base.@propagate_inbounds Base.getindex(s::TensorSpace, c::Colon) = TensorSpace(getindex(s.spaces, c))
 
 Base.front(s::TensorSpace) = TensorSpace(Base.front(s.spaces))
@@ -238,7 +228,7 @@ frequency(s::TensorSpace) = map(frequency, s.spaces)
 frequency(s::TensorSpace, i::Int) = frequency(s.spaces[i])
 
 """
-    TensorIndices{<:Tuple}
+    TensorIndices{T<:Tuple{Vararg{AbstractRange}}}
 
 Multidimentional rectangular range of indices for some [`TensorSpace`](@ref).
 
@@ -255,6 +245,7 @@ TensorIndices{Tuple{UnitRange{Int64}, UnitRange{Int64}}}((0:2, -1:1))
 struct TensorIndices{T<:Tuple}
     indices :: T
 end
+Base.eltype(::TensorIndices{T}) where {T<:Tuple} = Tuple{map(eltype, fieldtypes(T))...}
 Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = getindex(Base.Iterators.ProductIterator(a.indices), i)
 Base.length(a::TensorIndices) = length(Base.Iterators.ProductIterator(a.indices))
 Base.iterate(a::TensorIndices) = iterate(Base.Iterators.ProductIterator(a.indices))
@@ -279,9 +270,9 @@ _compatible_space_with_constant_index(s::TensorSpace{<:NTuple{N,BaseSpace}}) whe
     TensorSpace(map(_compatible_space_with_constant_index, s.spaces))
 _findindex_constant(s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = map(_findindex_constant, s.spaces)
 
-_findposition(α::Tuple{Int}, s::TensorSpace{<:Tuple{BaseSpace}}) =
+_findposition(α::Tuple{Integer}, s::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _findposition(α[1], s.spaces[1])
-function _findposition(α::NTuple{N,Int}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
+function _findposition(α::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
     @inbounds idx = _findposition(α[1], s.spaces[1])
     @inbounds n = dimension(s.spaces[1])
     return __findposition(Base.tail(α), Base.tail(s.spaces), idx, n)
@@ -291,7 +282,7 @@ function __findposition(α, spaces, idx, n)
     @inbounds n *= dimension(spaces[1])
     return __findposition(Base.tail(α), Base.tail(spaces), idx, n)
 end
-__findposition(α::Tuple{Int}, spaces, idx, n) = @inbounds idx + n * (_findposition(α[1], spaces[1]) - 1)
+__findposition(α::Tuple{Integer}, spaces, idx, n) = @inbounds idx + n * (_findposition(α[1], spaces[1]) - 1)
 _findposition(u::NTuple{N,Any}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     _findposition(TensorIndices(map(_colon2indices, u, s.spaces)), s)
 _colon2indices(u, s) = u
@@ -303,7 +294,7 @@ function _findposition(u::TensorIndices{<:NTuple{N,Any}}, s::TensorSpace{<:NTupl
     end
     return v
 end
-_findposition(u::AbstractVector{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+_findposition(u::AbstractVector{<:NTuple{N,Integer}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     map(α -> _findposition(α, s), u)
 _findposition(::NTuple{N,Colon}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = Colon()
 _findposition(c::Colon, ::TensorSpace) = c
@@ -375,9 +366,9 @@ indices(s::Taylor) = 0:s.order
 _compatible_space_with_constant_index(s::Taylor) = s
 _findindex_constant(::Taylor) = 0
 
-_findposition(i::Int, ::Taylor) = i + 1
-_findposition(u::AbstractRange{Int}, ::Taylor) = u .+ 1
-_findposition(u::AbstractVector{Int}, s::Taylor) = map(i -> _findposition(i, s), u)
+_findposition(i::Integer, ::Taylor) = i + 1
+_findposition(u::AbstractRange{<:Integer}, ::Taylor) = u .+ 1
+_findposition(u::AbstractVector{<:Integer}, s::Taylor) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Taylor) = c
 _findposition(α::Taylor, s::Taylor) = _findposition(indices(α), s)
 
@@ -451,9 +442,9 @@ indices(s::Fourier) = -s.order:s.order
 _compatible_space_with_constant_index(s::Fourier) = s
 _findindex_constant(::Fourier) = 0
 
-_findposition(i::Int, s::Fourier) = i + s.order + 1
-_findposition(u::AbstractRange{Int}, s::Fourier) = u .+ s.order .+ 1
-_findposition(u::AbstractVector{Int}, s::Fourier) = map(i -> _findposition(i, s), u)
+_findposition(i::Integer, s::Fourier) = i + s.order + 1
+_findposition(u::AbstractRange{<:Integer}, s::Fourier) = u .+ s.order .+ 1
+_findposition(u::AbstractVector{<:Integer}, s::Fourier) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Fourier) = c
 _findposition(α::Fourier, s::Fourier) = _findposition(indices(α), s)
 
@@ -518,9 +509,9 @@ indices(s::Chebyshev) = 0:s.order
 _compatible_space_with_constant_index(s::Chebyshev) = s
 _findindex_constant(::Chebyshev) = 0
 
-_findposition(i::Int, ::Chebyshev) = i + 1
-_findposition(u::AbstractRange{Int}, ::Chebyshev) = u .+ 1
-_findposition(u::AbstractVector{Int}, s::Chebyshev) = map(i -> _findposition(i, s), u)
+_findposition(i::Integer, ::Chebyshev) = i + 1
+_findposition(u::AbstractRange{<:Integer}, ::Chebyshev) = u .+ 1
+_findposition(u::AbstractVector{<:Integer}, s::Chebyshev) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::Chebyshev) = c
 _findposition(α::Chebyshev, s::Chebyshev) = _findposition(indices(α), s)
 
@@ -531,148 +522,6 @@ IntervalArithmetic._interval_infsup(::Type{T}, s₁::Chebyshev, s₂::Chebyshev,
     s₁ ∪ s₂
 
 _prettystring(s::Chebyshev, ::Bool) = "Chebyshev(" * string(order(s)) * ")"
-
-#
-
-"""
-    CosFourier{T<:Real} <: SymBaseSpace
-
-Sequence space whose elements are cosine sequences of a prescribed order and frequency.
-
-Field:
-- `space :: Fourier{T}`
-
-Constructors:
-- `CosFourier(space::Fourier)`
-- `CosFourier(order::Int, frequency::Real)`
-
-# Example
-
-```jldoctest
-julia> s = CosFourier(2, 1.0)
-CosFourier(2, 1.0)
-
-julia> order(s)
-2
-
-julia> frequency(s)
-1.0
-```
-"""
-struct CosFourier{T<:Real} <: SymBaseSpace
-    space :: Fourier{T}
-    CosFourier{T}(space::Fourier{T}) where {T<:Real} = new{T}(space)
-end
-
-CosFourier(space::Fourier{T}) where {T<:Real} = CosFourier{T}(space)
-CosFourier{T}(order::Int, frequency::T) where {T<:Real} = CosFourier(Fourier{T}(order, frequency))
-CosFourier(order::Int, frequency::Real) = CosFourier(Fourier(order, frequency))
-
-desymmetrize(s::CosFourier) = s.space
-
-Base.:(==)(s₁::CosFourier, s₂::CosFourier) = desymmetrize(s₁) == desymmetrize(s₂)
-Base.issubset(s₁::CosFourier, s₂::CosFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
-Base.intersect(s₁::CosFourier, s₂::CosFourier) = CosFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
-Base.union(s₁::CosFourier, s₂::CosFourier) = CosFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
-
-indices(s::CosFourier) = 0:order(s)
-
-_compatible_space_with_constant_index(s::CosFourier) = s
-_findindex_constant(::CosFourier) = 0
-
-_findposition(i::Int, ::CosFourier) = i + 1
-_findposition(u::AbstractRange{Int}, ::CosFourier) = u .+ 1
-_findposition(u::AbstractVector{Int}, s::CosFourier) = map(i -> _findposition(i, s), u)
-_findposition(c::Colon, ::CosFourier) = c
-_findposition(α::CosFourier, s::CosFourier) = _findposition(indices(α), s)
-
-_iscompatible(s₁::CosFourier, s₂::CosFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
-
-IntervalArithmetic._infer_numtype(s::CosFourier) = IntervalArithmetic._infer_numtype(desymmetrize(s))
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::CosFourier, s₂::CosFourier, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    CosFourier(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d))
-
-_prettystring(s::CosFourier, ::Bool) = "CosFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
-
-# promotion
-
-Base.convert(::Type{CosFourier{T}}, s::CosFourier) where {T<:Real} =
-    CosFourier{T}(order(s), convert(T, frequency(s)))
-
-Base.promote_rule(::Type{CosFourier{T}}, ::Type{CosFourier{S}}) where {T<:Real,S<:Real} =
-    CosFourier{promote_type(T, S)}
-
-#
-
-"""
-    SinFourier{T<:Real} <: SymBaseSpace
-
-Sequence space whose elements are sine sequences of a prescribed order and frequency.
-
-Field:
-- `space :: Fourier{T}`
-
-Constructors:
-- `SinFourier(space::Fourier)`
-- `SinFourier(order::Int, frequency::Real)`
-
-# Example
-
-```jldoctest
-julia> s = SinFourier(2, 1.0)
-SinFourier(2, 1.0)
-
-julia> order(s)
-2
-
-julia> frequency(s)
-1.0
-```
-"""
-struct SinFourier{T<:Real} <: SymBaseSpace
-    space :: Fourier{T}
-    function SinFourier{T}(space::Fourier{T}) where {T<:Real}
-        order(space) < 1 && return throw(DomainError(order, "SinFourier is only defined for orders greater or equal to 1"))
-        return new{T}(space)
-    end
-end
-
-SinFourier(space::Fourier{T}) where {T<:Real} = SinFourier{T}(space)
-SinFourier{T}(order::Int, frequency::T) where {T<:Real} = SinFourier(Fourier{T}(order, frequency))
-SinFourier(order::Int, frequency::Real) = SinFourier(Fourier(order, frequency)) # may fail since it can normalize to order 0
-
-desymmetrize(s::SinFourier) = s.space
-
-Base.:(==)(s₁::SinFourier, s₂::SinFourier) = desymmetrize(s₁) == desymmetrize(s₂)
-Base.issubset(s₁::SinFourier, s₂::SinFourier) = issubset(desymmetrize(s₁), desymmetrize(s₂))
-Base.intersect(s₁::SinFourier, s₂::SinFourier) = SinFourier(intersect(desymmetrize(s₁), desymmetrize(s₂)))
-Base.union(s₁::SinFourier, s₂::SinFourier) = SinFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
-
-indices(s::SinFourier) = 1:order(s)
-
-_compatible_space_with_constant_index(s::SinFourier) = desymmetrize(s)
-
-_findposition(i::Int, ::SinFourier) = i
-_findposition(u::AbstractRange{Int}, ::SinFourier) = u
-_findposition(u::AbstractVector{Int}, s::SinFourier) = map(i -> _findposition(i, s), u)
-_findposition(c::Colon, ::SinFourier) = c
-_findposition(α::SinFourier, s::SinFourier) = _findposition(indices(α), s)
-
-_iscompatible(s₁::SinFourier, s₂::SinFourier) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂))
-
-IntervalArithmetic._infer_numtype(s::SinFourier) = IntervalArithmetic._infer_numtype(desymmetrize(s))
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::SinFourier, s₂::SinFourier, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    SinFourier(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d))
-
-_prettystring(s::SinFourier, ::Bool) = "SinFourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
-
-# promotion
-
-Base.convert(::Type{SinFourier{T}}, s::SinFourier) where {T<:Real} =
-    SinFourier{T}(order(s), convert(T, frequency(s)))
-
-Base.promote_rule(::Type{SinFourier{T}}, ::Type{SinFourier{S}}) where {T<:Real,S<:Real} =
-    SinFourier{promote_type(T, S)}
 
 
 
@@ -687,11 +536,11 @@ Abstract type for all cartesian spaces.
 """
 abstract type CartesianSpace <: VectorSpace end
 
-_findposition(i::Union{Int,AbstractRange{Int},AbstractVector{Int},Colon}, ::CartesianSpace) = i
+_findposition(i::Union{Int,AbstractRange{<:Integer},AbstractVector{<:Integer},Colon}, ::CartesianSpace) = i
 
-_component_findposition(u::AbstractRange{Int}, s::CartesianSpace) =
+_component_findposition(u::AbstractRange{<:Integer}, s::CartesianSpace) =
     mapreduce(i -> _component_findposition(i, s), union, u)
-_component_findposition(u::AbstractVector{Int}, s::CartesianSpace) =
+_component_findposition(u::AbstractVector{<:Integer}, s::CartesianSpace) =
     mapreduce(i -> _component_findposition(i, s), union, u)
 _component_findposition(c::Colon, ::CartesianSpace) = c
 
@@ -764,11 +613,11 @@ Base.@propagate_inbounds function Base.getindex(s::CartesianPower, i::Int)
     @boundscheck((1 ≤ i) & (i ≤ s.n) || throw(BoundsError(s, i)))
     return s.space
 end
-Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractRange{Int})
+Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractRange{<:Integer})
     @boundscheck((1 ≤ first(u)) & (last(u) ≤ s.n) || throw(BoundsError(s, u)))
     return CartesianPower(s.space, length(u))
 end
-Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractVector{Int})
+Base.@propagate_inbounds function Base.getindex(s::CartesianPower, u::AbstractVector{<:Integer})
     @boundscheck(all(i -> (1 ≤ i) & (i ≤ s.n), u) || throw(BoundsError(s, u)))
     return CartesianPower(s.space, length(u))
 end
@@ -910,7 +759,7 @@ Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 julia> Taylor(1) × (Fourier(2, 1.0) × Chebyshev(3))
 Taylor(1) × Fourier(2, 1.0) × Chebyshev(3)
 
-julia> ParameterSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
+julia> ScalarSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
 𝕂² × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))³
 ```
 """
@@ -920,8 +769,8 @@ julia> ParameterSpace()^2 × ((Taylor(1) ⊗ Fourier(2, 1.0)) × Chebyshev(3))^3
 ×(s₁::VectorSpace, s₂::CartesianProduct) = CartesianProduct((s₁, s₂.spaces...))
 
 Base.@propagate_inbounds Base.getindex(s::CartesianProduct, i::Int) = getindex(s.spaces, i)
-Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractRange{Int}) = CartesianProduct(getindex(s.spaces, u))
-Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractVector{Int}) = CartesianProduct(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractRange{<:Integer}) = CartesianProduct(getindex(s.spaces, u))
+Base.@propagate_inbounds Base.getindex(s::CartesianProduct, u::AbstractVector{<:Integer}) = CartesianProduct(getindex(s.spaces, u))
 Base.@propagate_inbounds Base.getindex(s::CartesianProduct, c::Colon) = CartesianProduct(getindex(s.spaces, c))
 
 Base.front(s::CartesianProduct) = CartesianProduct(Base.front(s.spaces))
@@ -1042,7 +891,7 @@ end
 function _findposition(α::CartesianSpace, s::CartesianSpace)
     v = [_findposition(_iterate_space(α, 1), _iterate_space(s, 1));]
     for i ∈ 2:_deep_nspaces(α)
-        offset = sum(dimension(_iterate_space(s, k)) for k in 1:i-1)
+        offset = sum(dimension(_iterate_space(s, k)) for k ∈ 1:i-1)
         append!(v, _findposition(_iterate_space(α, i), _iterate_space(s, i)) .+ offset)
     end
     return v

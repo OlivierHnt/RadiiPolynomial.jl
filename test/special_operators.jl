@@ -1,9 +1,9 @@
 @testset "Special operators" begin
     @testset "Projection" begin
-        s1 = ParameterSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-        s2 = ParameterSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
-        s3 = ParameterSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0))^1
-        s4 = ParameterSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0))^1
+        s1 = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+        s2 = ScalarSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
+        s3 = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0))^1
+        s4 = ScalarSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0))^1
         a = Sequence(s1, [1.0 ; 1.0:12.0])
         @test project(a, s1) == a
         @test project(a, s2) == Sequence(s2, [1.0, 1.0, 2.0, 0.0, 3.0, 4.0, 0.0, 5.0, 6.0, 0.0, 7.0, 8.0, 0.0, 9.0, 10.0, 0.0, 11.0, 12.0, 0.0])
@@ -59,7 +59,7 @@
         #
         a_𝑇 = Sequence(Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), collect(1.0:27.0))
         selectdim(a_𝑇, 2, 0) .= 0.0
-        @test differentiate(integrate(a_𝑇, (1, 2, 1)), (1, 2, 1)) ≈ a_𝑇
+        @test differentiate(integrate(a_𝑇, (1, 1, 1)), (1, 1, 1)) ≈ a_𝑇
         #
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:6.0+3.0+3.0))
         @test ∂¹(a) ==
@@ -84,9 +84,8 @@
         @test ∫¹(a_ℱ) == project(∫¹, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
             integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ) ==
             mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∫¹, a_ℱ) == Sequence(Fourier(1, 1.0), [0.5im, 0.0, -0.5im])
-        @test ∫²(a_ℱ) == project(∫², Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) ==
-            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), a_ℱ, 2) ==
-            mul!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), ∫², a_ℱ) == -a_ℱ
+        @test ∫¹(∫¹(a_ℱ)) == project(∫¹, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)^2 * (a_ℱ) ==
+            integrate!(Sequence(Fourier(1, 1.0), ComplexF64[Inf, Inf, Inf]), integrate(a_ℱ, 1)) == 1-a_ℱ
         #
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
         @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ≈
@@ -94,7 +93,7 @@
             ∫¹(a_𝒞) == integrate!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), a_𝒞)
         #
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:6.0+3.0+3.0))
-        component(a, 2)[0] = 0.0
+        block(a, 2)[0] = 0.0
         @test ∫¹(a) ==
             integrate!(Sequence(Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3), fill(complex(Inf), 8+3+4)), a) ==
             mul!(Sequence(Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3), fill(complex(Inf), 8+3+4)), ∫¹, a)

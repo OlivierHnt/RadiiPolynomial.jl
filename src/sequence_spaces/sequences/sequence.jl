@@ -5,6 +5,8 @@ Abstract type for all sequences.
 """
 abstract type AbstractSequence end
 
+Base.broadcastable(a::AbstractSequence) = Ref(a)
+
 # order, frequency
 
 order(a::AbstractSequence) = order(space(a))
@@ -49,22 +51,6 @@ end
 
 #
 
-function getcoefficient(a::AbstractSequence, α)
-    space_a = space(a)
-    @boundscheck(_checkbounds_indices(α, desymmetrize(space_a)) || throw(BoundsError(indices(desymmetrize(space_a)), α)))
-    p, factor = _findposition_factor(α, space_a)
-    p === nothing && return zero(eltype(a))
-    return factor * coefficients(a)[p]
-end
-
-function _findposition_factor(k, s::SequenceSpace)
-    k0, factor = _get_representative_and_action(symmetry(s), k)
-    for (i, k) ∈ enumerate(indices(s))
-        k == k0 && return i, factor
-    end
-    return nothing, zero(ComplexF64)
-end
-
 """
     Sequence{T<:VectorSpace,S<:AbstractVector} <: AbstractSequence
 
@@ -76,7 +62,7 @@ Fields:
 
 Constructors:
 - `Sequence(::VectorSpace, ::AbstractVector)`
-- `Sequence(coefficients::AbstractVector)`: equivalent to `Sequence(ParameterSpace()^length(coefficients), coefficients)`
+- `Sequence(coefficients::AbstractVector)`: equivalent to `Sequence(ScalarSpace()^length(coefficients), coefficients)`
 
 # Examples
 
@@ -118,13 +104,16 @@ end
 Sequence(space::T, coefficients::S) where {T<:VectorSpace,S<:AbstractVector} =
     Sequence{T,S}(space, coefficients)
 
-Sequence(coefficient::Number) = Sequence(ParameterSpace(), [coefficient])
+Sequence(coefficient::Number) = Sequence(ScalarSpace(), [coefficient])
 Sequence(coefficients::AbstractVector) =
-    Sequence(ParameterSpace()^length(coefficients), coefficients)
+    Sequence(ScalarSpace()^length(coefficients), coefficients)
 
 space(a::Sequence) = a.space
 
 coefficients(a::Sequence) = a.coefficients
+
+# to allow a[...] .= f.(...)
+Base.@propagate_inbounds Base.Broadcast.dotview(a::Sequence, α) = view(a, α)
 
 # utilities
 
@@ -169,12 +158,10 @@ Base.zero(a::Sequence) = zeros(eltype(a), space(a))
 Base.zero(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = zeros(eltype(S), _zero_space(T))
 _zero_space(::Type{TensorSpace{T}}) where {T<:Tuple} = TensorSpace(map(_zero_space, fieldtypes(T)))
 _zero_space(::Type{Taylor}) = Taylor(0)
-# _zero_space(::Type{Fourier{T}}) where {T<:Real} = Fourier(0, one(T))
+_zero_space(::Type{Fourier{T}}) where {T<:Real} = Fourier(0, one(T))
 _zero_space(::Type{Chebyshev}) = Chebyshev(0)
-# _zero_space(::Type{CosFourier{T}}) where {T<:Real} = CosFourier(0, one(T))
-# _zero_space(::Type{SinFourier{T}}) where {T<:Real} = SinFourier(1, one(T))
 
-Base.one(a::Sequence{ParameterSpace}) = Sequence(space(a), [one(eltype(a))])
+Base.one(a::Sequence{ScalarSpace}) = Sequence(space(a), [one(eltype(a))])
 function Base.one(a::Sequence{<:SequenceSpace})
     new_space = _compatible_space_with_constant_index(space(a))
     CoefType = eltype(a)
@@ -186,17 +173,16 @@ Base.one(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = ones(
 
 Base.float(a::Sequence) = Sequence(_float_space(space(a)), float.(coefficients(a)))
 Base.big(a::Sequence) = Sequence(_big_space(space(a)), big.(coefficients(a)))
-for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space))
+IntervalArithmetic.mid(a::Sequence) = Sequence(_mid_space(space(a)), mid.(coefficients(a)))
+for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space), (:mid, :_mid_space))
     @eval begin
-        $g(s::ParameterSpace) = s
+        $g(s::ScalarSpace) = s
 
         $g(s::TensorSpace) = TensorSpace(map($g, spaces(s)))
 
         $g(s::Taylor) = s
         $g(s::Fourier) = Fourier(order(s), $f(frequency(s)))
         $g(s::Chebyshev) = s
-        $g(s::CosFourier) = CosFourier($g(desymmetrize(s)))
-        $g(s::SinFourier) = SinFourier($g(desymmetrize(s)))
 
         $g(s::CartesianPower) = CartesianPower($g(space(s)), nspaces(s))
         $g(s::CartesianProduct) = CartesianProduct(map($g, spaces(s)))
@@ -241,7 +227,7 @@ Base.@propagate_inbounds function Base.setindex!(a::Sequence, x, u::AbstractVect
     end
     return a
 end
-Base.@propagate_inbounds function Base.setindex!(a::Sequence{TensorSpace{T}}, x, u::TensorIndices{<:NTuple{N,Any}}) where {N,T<:NTuple{N,BaseSpace}}
+Base.@propagate_inbounds function Base.setindex!(a::Sequence{<:TensorSpace}, x, u::TensorIndices)
     for (i, uᵢ) ∈ enumerate(u)
         a[uᵢ] = x[i]
     end
@@ -255,21 +241,137 @@ Base.@propagate_inbounds function Base.selectdim(a::Sequence{<:TensorSpace}, dim
     return selectdim(A, dim, _findposition(i, spaces(space(a))[dim]))
 end
 
+# assume compatibility
+
+getcoefficient(a::Sequence, (s, α)::Tuple{VectorSpace,Any}) =
+    _getcoefficient(a, α)
+
+function getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{SymmetricSpace,Any})
+    symmetry(space(a)) == symmetry(s) || return throw(DomainError((symmetry(space(a)), symmetry(s)), "symmetries must be equal"))
+    return _getcoefficient(a, α)
+end
+
+function _getcoefficient(a::Sequence, α)
+    _checkbounds_indices(α, space(a)) || return zero(eltype(a))
+    return @inbounds a[α]
+end
+
+getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{NoSymSpace,Any}) = _desym_getcoefficient(a, α)
+
+function _desym_getcoefficient(a::Sequence{<:SymmetricSpace}, α)
+    CoefType = complex(eltype(a))
+    _checkbounds_indices(α, desymmetrize(space(a))) || return zero(CoefType)
+    k0, factor = _unsafe_get_representative_and_action(space(a), α)
+    _checkbounds_indices(k0, space(a)) || return zero(CoefType)
+    return @inbounds convert(CoefType, factor * a[k0])
+end
+
+_unsafe_get_representative_and_action(::NoSymSpace, k) = k, exact(true)
+_unsafe_get_representative_and_action(s::SymmetricSpace, k) = @inbounds s.rep_idx_action[_findposition(k, desymmetrize(s))]
+
 #
 
-eachcomponent(a::Sequence{<:CartesianSpace}) =
-    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
+"""
+    eachblock(a::Sequence{<:CartesianSpace})
 
-Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
+Create a generator whose iterates yield each [`Sequence`](@ref) composing the block sequence.
+
+# Examples
+
+```jldoctest
+julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
+Sequence in Taylor(1)² with coefficients Vector{Int64}:
+ 1
+ 2
+ 3
+ 4
+
+julia> m = eachblock(a)
+Base.Generator{Base.OneTo{Int64}, RadiiPolynomial.var"#eachblock##0#eachblock##1"{Sequence{CartesianPower{Taylor}, Vector{Int64}}}}(RadiiPolynomial.var"#eachblock##0#eachblock##1"{Sequence{CartesianPower{Taylor}, Vector{Int64}}}(Sequence(Taylor(1)², [1, 2, 3, 4])), Base.OneTo(2))
+
+julia> [v for v = m]
+2-element Vector{Sequence{Taylor, SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}}:
+ Sequence(Taylor(1), [1, 2])
+ Sequence(Taylor(1), [3, 4])
+```
+"""
+eachblock(a::Sequence{<:CartesianSpace}) =
+    (@inbounds(block(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
+
+"""
+    block(a::Sequence{<:CartesianSpace})
+
+Return the collection of blocks composing the sequence.
+
+# Examples
+
+```jldoctest
+julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
+Sequence in Taylor(1)² with coefficients Vector{Int64}:
+ 1
+ 2
+ 3
+ 4
+
+julia> block(a)
+2-element Vector{Sequence{Taylor, SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}}:
+ Sequence(Taylor(1), [1, 2])
+ Sequence(Taylor(1), [3, 4])
+```
+"""
+block(a::Sequence{<:CartesianSpace}) = collect(eachblock(a))
+
+"""
+    block(a::Sequence{<:CartesianSpace}, i)
+
+Return the ``i``-th [`Sequence`](@ref) composing the block sequence.
+
+# Examples
+
+```jldoctest
+julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
+Sequence in Taylor(1)² with coefficients Vector{Int64}:
+ 1
+ 2
+ 3
+ 4
+
+julia> block(a, 1)
+Sequence in Taylor(1) with coefficients SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}:
+ 1
+ 2
+
+julia> block(a, 2)
+Sequence in Taylor(1) with coefficients SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}:
+ 3
+ 4
+```
+"""
+Base.@propagate_inbounds block(a::Sequence{<:CartesianSpace}, i) =
     Sequence(space(a)[i], view(coefficients(a), _component_findposition(i, space(a))))
 
 # promotion
 
-Base.convert(::Type{Sequence{T₁,S₁}}, a::Sequence{T₂,S₂}) where {T₁,S₁,T₂,S₂} =
-    Sequence{T₁,S₁}(convert(T₁, space(a)), convert(S₁, coefficients(a)))
+# Base.convert(::Type{Sequence{ScalarSpace,S}}, a::Number) where {S} = Sequence(ScalarSpace(), eltype(S)[a])
 
-Base.promote_rule(::Type{Sequence{T₁,S₁}}, ::Type{Sequence{T₂,S₂}}) where {T₁,S₁,T₂,S₂} =
-    Sequence{promote_type(T₁, T₂), promote_type(S₁, S₂)}
+
+# Base.convert(::Type{Sequence{S,R}}, a::Number) where {S<:SequenceSpace,R} = Sequence(_zero_space(S), eltype(R)[a])
+
+# Base.promote_rule(::Type{Sequence{S,R}}, ::Type{T}) where {S<:SequenceSpace,R,T<:Number} =
+#     Sequence{S, Vector{promote_type(eltype(R), T)}}
+
+# Base.convert(::Type{Sequence{S₁,R₁}}, a::Sequence{S₂,R₂}) where {S₁<:SequenceSpace,S₂<:SequenceSpace,R₁,R₂} =
+#     Sequence{S₁,R₁}(convert(S₁, space(a)), convert(R₁, coefficients(a)))
+
+# Base.promote_rule(::Type{Sequence{S₁,R₁}}, ::Type{Sequence{S₂,R₂}}) where {S₁<:SequenceSpace,S₂<:SequenceSpace,R₁,R₂} =
+#     Sequence{promote_type(S₁, S₂), promote_type(R₁, R₂)}
+
+
+# Base.convert(::Type{Sequence{T₁,S₁}}, a::Sequence{T₂,S₂}) where {T₁,S₁,T₂,S₂} =
+#     Sequence{T₁,S₁}(convert(T₁, space(a)), convert(S₁, coefficients(a)))
+
+# Base.promote_rule(::Type{Sequence{T₁,S₁}}, ::Type{Sequence{T₂,S₂}}) where {T₁,S₁,T₂,S₂} =
+#     Sequence{promote_type(T₁, T₂), promote_type(S₁, S₂)}
 
 # show
 
@@ -287,22 +389,6 @@ end
 
 
 
-# function approximation
-
-Sequence(a::Sequence, s::SequenceSpace) = ifft!(fft(a, fft_size(space(a))), s)
-
-function Sequence(f, s::SequenceSpace)
-    N = fft_size(s)
-    C = [complex(f(_node(s, j, N)...)) for j ∈ CartesianIndices(Base.UnitRange.(0, Tuple(N) .- 1))]
-    return ifft!(C, s)
-end
-
-_node(s::TensorSpace, j, N) = map((sᵢ, jᵢ, Nᵢ) -> _node(sᵢ, jᵢ, Nᵢ), spaces(s), Tuple(j), N)
-_node(::Taylor, j, N) = cispi(2j[1]/N)
-_node(s::Fourier, j, N) = 2π/frequency(s)*j[1]/N
-_node(::Chebyshev, j, N) = cospi(2j[1]/N)
-_node(s::CosFourier, j, N) = 2π/frequency(s)*j[1]/N
-_node(s::SinFourier, j, N) = 2π/frequency(s)*j[1]/N
 
 
 
@@ -316,13 +402,14 @@ conjugacy_symmetry!(a::Sequence) = _conjugacy_symmetry!(a)
 
 _conjugacy_symmetry!(::Sequence) = throw(DomainError) # TODO: lift restriction
 
-function _conjugacy_symmetry!(a::Sequence{ParameterSpace})
+function _conjugacy_symmetry!(a::Sequence{ScalarSpace})
     @inbounds a[1] = real(a[1])
     return a
 end
 
 function _conjugacy_symmetry!(a::Sequence{<:Fourier})
-    a .= (a .+ conj.(reverse(a))) ./ 2
+    A = coefficients(a)
+    A .= (A .+ conj.(reverse(A))) ./ 2
     return a
 end
 
@@ -333,19 +420,19 @@ function _conjugacy_symmetry!(a::Sequence{<:TensorSpace{<:Tuple{Vararg{Fourier}}
 end
 
 function _conjugacy_symmetry!(a::Sequence{<:CartesianSpace})
-    for aᵢ ∈ eachcomponent(a)
+    for aᵢ ∈ eachblock(a)
         _conjugacy_symmetry!(aᵢ)
     end
     return a
 end
 
 function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {N,T<:NTuple{N,VectorSpace}}
-    @inbounds _conjugacy_symmetry!(component(a, 1))
-    @inbounds _conjugacy_symmetry!(component(a, 2:N))
+    @inbounds _conjugacy_symmetry!(block(a, 1))
+    @inbounds _conjugacy_symmetry!(block(a, 2:N))
     return a
 end
 function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}}
-    @inbounds _conjugacy_symmetry!(component(a, 1))
+    @inbounds _conjugacy_symmetry!(block(a, 1))
     return a
 end
 
@@ -467,32 +554,6 @@ function _linear_regression(::Chebyshev, f, A)
     return β, err, j
 end
 
-# CosFourier
-
-function _linear_regression(::CosFourier, f, A)
-    j = length(A)
-    β, err = β_, err_ = __linear_regression(f, A, j)
-    while err_ ≤ err && j ≥ 3
-        j -= 1
-        β, err = β_, err_
-        β_, err_ = __linear_regression(f, A, j)
-    end
-    return β, err, j
-end
-
-# SinFourier
-
-function _linear_regression(::SinFourier, f, A)
-    j = length(A)
-    β, err = β_, err_ = __linear_regression(f, A, j)
-    while err_ ≤ err && j ≥ 3
-        j -= 1
-        β, err = β_, err_
-        β_, err_ = __linear_regression(f, A, j)
-    end
-    return β, err, j
-end
-
 """
     geometricweight(a::Sequence{<:SequenceSpace})
 
@@ -596,7 +657,7 @@ end
 
 #
 
-polish!(a::Sequence{<:ParameterSpace}) = a
+polish!(a::Sequence{ScalarSpace}) = a
 
 polish!(a::Sequence{<:TensorSpace}) = a
 
@@ -617,7 +678,7 @@ end
 
 function polish!(a::Sequence{<:CartesianSpace})
     for i ∈ 1:nspaces(space(a))
-        polish!(component(a, i))
+        polish!(block(a, i))
     end
     return a
 end

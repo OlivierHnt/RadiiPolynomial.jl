@@ -33,18 +33,18 @@ The coefficients of a [`Sequence`](@ref) are indexed according to the indices of
 a[0:1] # indices(space(a))
 ```
 
-When the space of a [`Sequence`](@ref) is a [`CartesianSpace`](@ref), its coefficients are given as the concatenation of the coefficients associated with each space. The function `component` extracts a [`Sequence`](@ref) composing the cartesian space.
+When the space of a [`Sequence`](@ref) is a [`CartesianSpace`](@ref), its coefficients are given as the concatenation of the coefficients associated with each space. The function [`block`](@ref) extracts a [`Sequence`](@ref) composing the cartesian space.
 
 ```@repl sequences
-b = Sequence(ParameterSpace() × Taylor(1)^2, [1, 2, 3, 4, 5])
+b = Sequence(ScalarSpace() × Taylor(1)^2, [1, 2, 3, 4, 5])
 b[1:5] # indices(space(b))
-component(b, 1) # extract the sequence associated with the space ParameterSpace()
-component(b, 2) # extract the sequence associated with the space Taylor(1)^2
-component(component(b, 2), 1)
-component(component(b, 2), 2)
+block(b, 1) # extract the sequence associated with the space ScalarSpace()
+block(b, 2) # extract the sequence associated with the space Taylor(1)^2
+block(block(b, 2), 1)
+block(block(b, 2), 2)
 ```
 
-Similarly, the function `eachcomponent` returns a `Generator` whose iterates yield each [`Sequence`](@ref) composing the cartesian space.
+Similarly, the function [`eachblock`](@ref) returns a `Generator` whose iterates yield each [`Sequence`](@ref) composing the cartesian space.
 
 ## Arithmetic
 
@@ -57,7 +57,7 @@ c + d
 c - d
 ```
 
-The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the [`*(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace})`](@ref), [`mul!(::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Sequence{<:SequenceSpace}, ::Number, ::Number)`](@ref) and [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref) functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.
+The discrete convolution between sequences whose spaces are a [`SequenceSpace`](@ref) is implemented as the `*`, `mul!` and `^` functions. Their *bar* counterparts `mul_bar` (unicode alias `*\bar<tab>`) and `pow_bar` (unicode alias `^\bar<tab>`) give the result projected in the smallest compatible space between the operands; in general, `mul_bar` is not associative.
 
 ```@repl sequences
 c * d
@@ -87,7 +87,7 @@ CollapsedDocStrings = true
 ```@autodocs
 Modules = [RadiiPolynomial]
 Private = false
-Pages   = ["sequence_spaces/sequence.jl",
-    "sequence_spaces/arithmetic/convolution.jl",
-    "sequence_spaces/arithmetic/fft.jl"]
+Pages   = ["sequence_spaces/sequences/sequence.jl",
+    "sequence_spaces/sequences/convolution.jl",
+    "sequence_spaces/sequences/fft.jl"]
 ```

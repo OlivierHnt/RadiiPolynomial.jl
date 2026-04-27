@@ -9,15 +9,13 @@ _codomain(::typeof(inv), s::TensorSpace) = TensorSpace(map(sᵢ -> _codomain(inv
 _codomain(::typeof(inv), s::Taylor) = s
 _codomain(::typeof(inv), s::Fourier) = s
 _codomain(::typeof(inv), s::Chebyshev) = s
-_codomain(::typeof(inv), s::CosFourier) = s
-_codomain(::typeof(inv), s::SinFourier) = s
 
 function Base.inv(a::Sequence)
     space_approx = _codomain(inv, space(a))
     _isconstant(a) && return _at_value(inv, a)
-    A = fft(a, fft_size(space_approx))
+    A = to_grid(a, fft_size(space_approx))
     A .= inv.(A)
-    return _call_ifft!(A, space_approx, eltype(a))
+    return _call_to_seq!(A, space_approx, eltype(a))
 end
 
 function Base.inv(a::InfiniteSequence)
@@ -44,19 +42,15 @@ _codomain(::typeof(/), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpa
 _codomain(::typeof(/), s₁::Taylor, s₂::Taylor) = union(s₁, s₂)
 _codomain(::typeof(/), s₁::Fourier, s₂::Fourier) = union(s₁, s₂)
 _codomain(::typeof(/), s₁::Chebyshev, s₂::Chebyshev) = union(s₁, s₂)
-_codomain(::typeof(/), s₁::CosFourier, s₂::CosFourier) = union(s₁, s₂)
-_codomain(::typeof(/), s₁::SinFourier, s₂::SinFourier) = CosFourier(union(desymmetrize(s₁), desymmetrize(s₂)))
-_codomain(::typeof(/), s₁::CosFourier, s₂::SinFourier) = union(SinFourier(desymmetrize(s₁)), s₂)
-_codomain(::typeof(/), s₁::SinFourier, s₂::CosFourier) = union(s₁, CosFourier(desymmetrize(s₂)))
 
 function Base.:/(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     # TODO: propagate "NG" flag
     space_approx = _codomain(/, space(a), space(b))
     _isconstant(b) && return rdiv!(a, b[_findindex_constant(space(b))])
-    A = fft(a, fft_size(space_approx))
-    B = fft(b, fft_size(space_approx))
+    A = to_grid(a, fft_size(space_approx))
+    B = to_grid(b, fft_size(space_approx))
     A .= A ./ B
-    return _call_ifft!(A, space_approx, promote_type(eltype(a), eltype(b)))
+    return _call_to_seq!(A, space_approx, promote_type(eltype(a), eltype(b)))
 end
 Base.:/(a::Number, b::Sequence{<:SequenceSpace}) = lmul!(a, inv(b))
 
@@ -69,13 +63,13 @@ function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
     seq_b = sequence(b)
     _isconstant(seq_b) & _safe_iszero(sequence_error(b)) && return InfiniteSequence(rdiv!(seq_a, seq_b[_findindex_constant(space(seq_b))]), banachspace(a))
 
-    A = fft(mid.(seq_a), fft_size(space_approx))
-    B = fft(mid.(seq_b), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), fft_size(space_approx))
+    B = to_grid(mid.(seq_b), fft_size(space_approx))
     A .= A ./ B
     B .= inv.(B)
     CoefType = promote_type(eltype(a), eltype(b))
-    seq_approx_ab⁻¹ = _call_ifft!(A, space_approx, CoefType)
-    seq_approx_b⁻¹ = _call_ifft!(B, space_approx, eltype(b))
+    seq_approx_ab⁻¹ = _call_to_seq!(A, space_approx, CoefType)
+    seq_approx_b⁻¹ = _call_to_seq!(B, space_approx, eltype(b))
 
     X = banachspace(a) ∩ banachspace(b)
     approx_ab⁻¹ = InfiniteSequence(_maybe_interval(CoefType, seq_approx_ab⁻¹), X)
@@ -116,14 +110,13 @@ _codomain(::typeof(sqrt), s::TensorSpace) = TensorSpace(map(sᵢ -> _codomain(sq
 _codomain(::typeof(sqrt), s::Taylor) = s
 _codomain(::typeof(sqrt), s::Fourier) = s
 _codomain(::typeof(sqrt), s::Chebyshev) = s
-_codomain(::typeof(sqrt), s::CosFourier) = s
 
 function Base.sqrt(a::Sequence{<:SequenceSpace})
     space_approx = _codomain(sqrt, space(a))
     _isconstant(a) && return _at_value(sqrt, a)
-    A = fft(a, fft_size(space_approx))
+    A = to_grid(a, fft_size(space_approx))
     A .= sqrt.(A)
-    return _call_ifft!(A, space_approx, eltype(a))
+    return _call_to_seq!(A, space_approx, eltype(a))
 end
 
 function Base.sqrt(a::InfiniteSequence)
@@ -134,11 +127,11 @@ function Base.sqrt(a::InfiniteSequence)
     seq_a = sequence(a)
     _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(sqrt, seq_a), banachspace(a))
 
-    A = fft(mid.(seq_a), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), fft_size(space_approx))
     sqrtA = sqrt.(A)
     A .= inv.(sqrtA)
-    seq_approx_sqrta = _call_ifft!(sqrtA, space_approx, eltype(a))
-    seq_approx_sqrta⁻¹ = _call_ifft!(A, space_approx, eltype(a))
+    seq_approx_sqrta = _call_to_seq!(sqrtA, space_approx, eltype(a))
+    seq_approx_sqrta⁻¹ = _call_to_seq!(A, space_approx, eltype(a))
 
     X = banachspace(a)
     approx_sqrta = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_sqrta), X)
@@ -160,15 +153,13 @@ _codomain(::typeof(cbrt), s::TensorSpace) = TensorSpace(map(sᵢ -> _codomain(cb
 _codomain(::typeof(cbrt), s::Taylor) = s
 _codomain(::typeof(cbrt), s::Fourier) = s
 _codomain(::typeof(cbrt), s::Chebyshev) = s
-_codomain(::typeof(cbrt), s::CosFourier) = s
-_codomain(::typeof(cbrt), s::SinFourier) = s
 
 function Base.cbrt(a::Sequence{<:SequenceSpace})
     space_approx = _codomain(cbrt, space(a))
     _isconstant(a) && return _at_value(cbrt, a)
-    A = fft(a, fft_size(space_approx))
+    A = to_grid(a, fft_size(space_approx))
     A .= A .^ (1//3)
-    return _call_ifft!(A, space_approx, eltype(a))
+    return _call_to_seq!(A, space_approx, eltype(a))
 end
 
 function Base.cbrt(a::InfiniteSequence)
@@ -179,11 +170,11 @@ function Base.cbrt(a::InfiniteSequence)
     seq_a = sequence(a)
     _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(cbrt, seq_a), banachspace(a))
 
-    A = fft(mid.(seq_a), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), fft_size(space_approx))
     cbrtA = A .^ (1//3)
     A .= inv.(cbrtA) .^ 2
-    seq_approx_cbrta = _call_ifft!(cbrtA, space_approx, eltype(a))
-    seq_approx_cbrta⁻² = _call_ifft!(A, space_approx, eltype(a))
+    seq_approx_cbrta = _call_to_seq!(cbrtA, space_approx, eltype(a))
+    seq_approx_cbrta⁻² = _call_to_seq!(A, space_approx, eltype(a))
 
     X = banachspace(a)
     approx_cbrta = InfiniteSequence(_maybe_interval.(eltype(a), seq_approx_cbrta) : seq_approx_cbrta, X)
@@ -221,8 +212,6 @@ _codomain(::typeof(^), s::TensorSpace, p::Real) = TensorSpace(map(sᵢ -> _codom
 _codomain(::typeof(^), s::Taylor, ::Real) = s
 _codomain(::typeof(^), s::Fourier, ::Real) = s
 _codomain(::typeof(^), s::Chebyshev, ::Real) = s
-_codomain(::typeof(^), s::CosFourier, ::Real) = s
-# the returned space depends on the power for `SinFourier`
 
 function Base.:^(a::Sequence{<:SequenceSpace}, p::Real)
     isinteger(p) && return a ^ Integer(p)
@@ -245,32 +234,22 @@ end
 _codomain(::typeof(exp), s::Taylor) = s
 _codomain(::typeof(exp), s::Fourier) = s
 _codomain(::typeof(exp), s::Chebyshev) = s
-_codomain(::typeof(exp), s::CosFourier) = s
-_codomain(::typeof(exp), s::SinFourier) = desymmetrize(s)
 
 _codomain(::typeof(cos), s::Taylor) = s
 _codomain(::typeof(cos), s::Fourier) = s
 _codomain(::typeof(cos), s::Chebyshev) = s
-_codomain(::typeof(cos), s::CosFourier) = s
-_codomain(::typeof(cos), s::SinFourier) = CosFourier(desymmetrize(s))
 
 _codomain(::typeof(sin), s::Taylor) = s
 _codomain(::typeof(sin), s::Fourier) = s
 _codomain(::typeof(sin), s::Chebyshev) = s
-_codomain(::typeof(sin), s::CosFourier) = desymmetrize(s)
-_codomain(::typeof(sin), s::SinFourier) = s
 
 _codomain(::typeof(cosh), s::Taylor) = s
 _codomain(::typeof(cosh), s::Fourier) = s
 _codomain(::typeof(cosh), s::Chebyshev) = s
-_codomain(::typeof(cosh), s::CosFourier) = s
-_codomain(::typeof(cosh), s::SinFourier) = CosFourier(symmetrize(s))
 
 _codomain(::typeof(sinh), s::Taylor) = s
 _codomain(::typeof(sinh), s::Fourier) = s
 _codomain(::typeof(sinh), s::Chebyshev) = s
-_codomain(::typeof(sinh), s::CosFourier) = desymmetrize(s)
-_codomain(::typeof(sinh), s::SinFourier) = s
 
 for f ∈ (:exp, :cos, :sin, :cosh, :sinh)
     @eval begin
@@ -286,9 +265,9 @@ end
 
 function (nl::Nonlinearity)(a::Sequence{<:SequenceSpace}; codomain::SequenceSpace = _codomain(nl.f, space(a)))
     _isconstant(a) && return _at_value(nl.f, a)
-    A = fft(a, fft_size(codomain))
+    A = to_grid(a, fft_size(codomain))
     C = nl.f.(A)
-    return _call_ifft!(C, codomain, eltype(a))
+    return _call_to_seq!(C, codomain, eltype(a))
 end
 
 function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codomain(nl.f, space(a)))
@@ -301,9 +280,9 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
             return throw(ArgumentError("image intersects a branch cut or contains at least one pole: analyticity violated"))
     end
 
-    A = fft(seq_a, fft_size(codomain))
+    A = to_grid(seq_a, fft_size(codomain))
     C = nl.f.(A)
-    c = _call_ifft!(C, codomain, eltype(a))
+    c = _call_to_seq!(C, codomain, eltype(a))
 
     ν̄_ = interval.(_optimize_decay(nl.f, mid.(c), mid.(seq_a), mid.(ν_), a, nl.poles, nl.branch_cut))
 
@@ -329,8 +308,10 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
     return InfiniteSequence(c, error, banachspace(a))
 end
 
+_check_branch_cut_poles(a::InfiniteSequence{<:Taylor}, ν, poles, branch_cut) = error()
+
 function _check_branch_cut_poles(a, ν, poles, branch_cut)
-    r = mince(interval(0,  ν), fft_size(space(a)))
+    r = mince(interval(1, ν), max(fft_size(space(a)), 2^6))
     check = true
     for rⱼ ∈ r
         check &= __check_branch_cut_poles(a, rⱼ, poles, branch_cut)
@@ -344,8 +325,8 @@ function __check_branch_cut_poles(a, r, poles, branch_cut)
     C = zeros(CoefType, fft_size(space(a)))
     A = _no_alloc_reshape(sequence(a))
     @inbounds view(C, axes(A)...) .= A
-    _apply!(_preprocess!, C, space(a))
-    _apply_boxes!(C, r)
+    _apply!(_preprocess_to_grid!, C, space(a))
+    _apply_boxes!(C, (r,))
     _fft_pow2!(C)
     return all(C) do x
         y = interval(x, sequence_error(a); format = :midpoint)
@@ -361,7 +342,7 @@ end
 
 function _isconstant(a::Sequence)
     s = space(a)
-    idx = _findindex_constant(s) # throws for `SinFourier`
+    idx = _findindex_constant(s)
     return all(k -> ifelse(k == idx, true, _safe_iszero(a[k])), indices(s))
 end
 
@@ -487,7 +468,7 @@ function _contour(f, a, ν::Tuple)
 
     A = _no_alloc_reshape(a)
     @inbounds view(grid_a_δ, axes(A)...) .= A # exact.(mid.(A))
-    _apply!(_preprocess!, grid_a_δ, space(a))
+    _apply!(_preprocess_to_grid!, grid_a_δ, space(a))
     _apply_boxes!(grid_a_δ, ν)
 
     _fft_pow2!(grid_a_δ)
@@ -507,16 +488,16 @@ function _boxes!(C, μ::Interval)
     val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
     δ = interval(-val, val)
     @inbounds for k ∈ 1:len÷2-1
-        C[k+1]     *= μ ^ exact(-k) * cispi(exact(-k) * δ)
-        C[len+1-k] *= μ ^ exact( k) * cispi(exact( k) * δ)
+        C[k+1]     *= μ ^ exact( k) * cispi(exact( k) * δ)
+        C[len+1-k] *= μ ^ exact(-k) * cispi(exact(-k) * δ)
     end
     return C
 end
 function _boxes!(C, ν)
     len = length(C)
     @inbounds for k ∈ 1:len÷2-1
-        C[k+1]     *= ν ^ exact(-k)
-        C[len+1-k] *= ν ^ exact( k)
+        C[k+1]     *= ν ^ exact( k)
+        C[len+1-k] *= ν ^ exact(-k)
     end
     return C
 end
@@ -526,16 +507,16 @@ function _boxes!(C, μ::Interval, ::Val{D}) where {D}
     val = sup(inv(interval(IntervalArithmetic.numtype(μ), len))) # 1/N_fft should be an exact operation
     δ = interval(-val, val)
     @inbounds for k ∈ 1:len÷2-1
-        selectdim(C, D, k+1)     .*= μ ^ exact(-k) * cispi(exact(-k) * δ)
-        selectdim(C, D, len+1-k) .*= μ ^ exact( k) * cispi(exact( k) * δ)
+        selectdim(C, D, k+1)     .*= μ ^ exact( k) * cispi(exact( k) * δ)
+        selectdim(C, D, len+1-k) .*= μ ^ exact(-k) * cispi(exact(-k) * δ)
     end
     return C
 end
 function _boxes!(C, ν, ::Val{D}) where {D}
     len = size(C, D)
     @inbounds for k ∈ 1:len÷2-1
-        selectdim(C, D, k+1)     .*= ν ^ exact(-k)
-        selectdim(C, D, len+1-k) .*= ν ^ exact( k)
+        selectdim(C, D, k+1)     .*= ν ^ exact( k)
+        selectdim(C, D, len+1-k) .*= ν ^ exact(-k)
     end
     return C
 end

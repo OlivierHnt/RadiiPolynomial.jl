@@ -1,19 +1,19 @@
 """
     InfiniteSequence{T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} <: AbstractSequence
 
-Infinite sequence in the given sequence space, with a norm and a truncation error.
+Infinite sequence in the given sequence space, with error and norm bookkeeping.
 
 Fields:
-- `sequence :: Sequence{T,S}`
-- `sequence_norm :: R`
-- `sequence_error :: R`
+- `sequence :: Sequence{T,S}`: finite sequence representation which may capture in-truncation uncertainty.
+- `sequence_norm :: R`: norm of the finite sequence representation.
+- `sequence_error :: R`: bound on `‖a_{|k|>K}‖_X`, where `K = order(space(sequence))` (truncation tail only).
+- `full_norm :: R`: tight upper bound on `‖a‖_X`.
 - `banachspace :: U`
 
 Constructors:
-- `InfiniteSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U)`
-- `InfiniteSequence(sequence::Sequence{T,S}, banachspace::U)`
-- `InfiniteSequence(space::SequenceSpace, coefficients::AbstractVector, banachspace::BanachSpace)`
-- `InfiniteSequence(space::SequenceSpace, coefficients::AbstractVector, sequence_error::Interval, banachspace::BanachSpace)`
+- `InfiniteSequence(sequence, sequence_error, banachspace)`: `full_norm = norm(sequence, X) + sequence_error` (conservative default).
+- `InfiniteSequence(sequence, banachspace)`: `sequence_error = 0`.
+- `InfiniteSequence(space, coefficients, banachspace)` / `InfiniteSequence(space, coefficients, sequence_error, banachspace)`.
 
 # Example
 
@@ -32,15 +32,17 @@ struct InfiniteSequence{T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpac
     sequence :: Sequence{T,S}
     sequence_norm :: R
     sequence_error :: R
+    full_norm :: R
     banachspace :: U
-    global _unsafe_infinite_sequence(sequence::Sequence{T,S}, sequence_norm::R, sequence_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} =
-        new{T,S,R,U}(sequence, sequence_norm, sequence_error, banachspace)
+    global _unsafe_infinite_sequence(sequence::Sequence{T,S}, sequence_norm::R, sequence_error::R, full_norm::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} =
+        new{T,S,R,U}(sequence, sequence_norm, sequence_error, full_norm, banachspace)
 end
 
 function InfiniteSequence{T,S,R,U}(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace}
     _iscompatbanachspace(space(sequence), banachspace) || return throw(ArgumentError("invalid norm for the sequence space"))
     inf(sequence_error) ≥ 0 || return throw(ArgumentError("sequence error must be positive"))
-    return _unsafe_infinite_sequence(sequence, convert(R, norm(sequence, banachspace)), sequence_error, banachspace)
+    seq_norm = convert(R, norm(sequence, banachspace))
+    return _unsafe_infinite_sequence(sequence, seq_norm, sequence_error, seq_norm + sequence_error, banachspace)
 end
 
 InfiniteSequence(sequence::Sequence{T,S}, sequence_error::R, banachspace::U) where {T<:SequenceSpace,S<:AbstractVector,R<:Real,U<:BanachSpace} =
@@ -81,18 +83,18 @@ Base.:(==)(a::InfiniteSequence, b::InfiniteSequence) = # by-pass default
     (sequence(a) == sequence(b)) & iszero(sequence_error(a)) & iszero(sequence_error(b))
 
 Base.copy(a::InfiniteSequence) =
-    _unsafe_infinite_sequence(copy(sequence(a)), sequence_norm(a), sequence_error(a), banachspace(a))
+    _unsafe_infinite_sequence(copy(sequence(a)), sequence_norm(a), sequence_error(a), a.full_norm, banachspace(a))
 
 Base.zero(a::InfiniteSequence) = InfiniteSequence(zero(sequence(a)), banachspace(a))
 Base.one(a::InfiniteSequence) = InfiniteSequence(one(sequence(a)), banachspace(a))
 
-Base.float(a::InfiniteSequence) = InfiniteSequence(float(sequence(a)), float(sequence_error(a)), banachspace(a))
+Base.float(a::InfiniteSequence) = InfiniteSequence(float(sequence(a)), float(sequence_error(a)), float(a.full_norm), banachspace(a))
 for f ∈ (:complex, :real, :imag, :conj, :conj!)
-    @eval Base.$f(a::InfiniteSequence) = InfiniteSequence($f(sequence(a)), sequence_error(a), banachspace(a))
+    @eval Base.$f(a::InfiniteSequence) = InfiniteSequence($f(sequence(a)), sequence_error(a), a.full_norm, banachspace(a))
 end
 
 Base.permutedims(a::InfiniteSequence{<:TensorSpace}, σ::AbstractVector{<:Integer}) =
-    _unsafe_infinite_sequence(permutedims(sequence(a), σ), sequence_norm(a), sequence_error(a), banachspace(a))
+    _unsafe_infinite_sequence(permutedims(sequence(a), σ), sequence_norm(a), sequence_error(a), a.full_norm, banachspace(a))
 
 # show
 

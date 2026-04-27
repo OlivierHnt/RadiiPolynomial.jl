@@ -66,9 +66,7 @@ lines(LinRange(0, 1, 201), t -> real(u_bar(t)))
 ### Step 3: Approximate inverse (floating-point arithmetic)
 
 ```@example nonlinear_diffusion
-struct PseudoInverseLaplacian <: AbstractLinearOperator end
-RadiiPolynomial.domain(::PseudoInverseLaplacian, s::SymmetricSpace{<:Fourier}) = s
-RadiiPolynomial.codomain(::PseudoInverseLaplacian, s::SymmetricSpace{<:Fourier}) = s
+struct PseudoInverseLaplacian <: AbstractDiagonalOperator end
 RadiiPolynomial.getcoefficient(::PseudoInverseLaplacian, (codom, i)::Tuple{SymmetricSpace{<:Fourier},Integer}, (dom, j)::Tuple{SymmetricSpace{<:Fourier},Integer}) =
     (i == j) & !(i == j == 0) ? inv(- (frequency(dom) * exact(i))^2) : zero(frequency(dom))
 ```

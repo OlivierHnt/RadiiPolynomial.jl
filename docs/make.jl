@@ -39,6 +39,9 @@ makedocs(;
             "Periodic orbits" => [
                 "examples/periodic_orbits/non_autonomous_po.md",
                 "examples/periodic_orbits/lorenz_po.md"
+            ],
+            "Steady states" => [
+                "examples/steady_states/nonlinear_diffusion.md"
             ]
         ]
     ],

@@ -53,30 +53,30 @@ end
 #
 
 Base.:+(a::Sequence) = Sequence(space(a), +(coefficients(a)))
-Base.:+(a::InfiniteSequence) = InfiniteSequence(+(sequence(a)), sequence_error(a), banachspace(a))
+Base.:+(a::InfiniteSequence) = InfiniteSequence(+(sequence(a)), finite_error(a), tail_error(a), banachspace(a))
 
 Base.:-(a::Sequence) = Sequence(space(a), -(coefficients(a)))
-Base.:-(a::InfiniteSequence) = InfiniteSequence(-(sequence(a)), sequence_error(a), banachspace(a))
+Base.:-(a::InfiniteSequence) = InfiniteSequence(-(sequence(a)), finite_error(a), tail_error(a), banachspace(a))
 
 Base.:*(a::Sequence, b::Number) = Sequence(space(a), *(coefficients(a), b))
 Base.:*(b::Number, a::Sequence) = Sequence(space(a), *(b, coefficients(a)))
-Base.:*(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) * b, sequence_error(a) * abs(b), banachspace(a))
-Base.:*(a::Number, b::InfiniteSequence) = InfiniteSequence(a * sequence(b), abs(a) * sequence_error(b), banachspace(b))
+Base.:*(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) * b, finite_error(a) * abs(b), tail_error(a) * abs(b), banachspace(a))
+Base.:*(a::Number, b::InfiniteSequence) = InfiniteSequence(a * sequence(b), abs(a) * finite_error(b), abs(a) * tail_error(b), banachspace(b))
 
 Base.:/(a::Sequence, b::Number) = Sequence(space(a), /(coefficients(a), b))
 Base.:\(b::Number, a::Sequence) = Sequence(space(a), \(b, coefficients(a)))
-Base.:/(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) / b, sequence_error(a) / abs(b), banachspace(a))
-Base.:\(b::Number, a::InfiniteSequence) = InfiniteSequence(b \ sequence(a), abs(b) \ sequence_error(a), banachspace(a))
+Base.:/(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) / b, finite_error(a) / abs(b), tail_error(a) / abs(b), banachspace(a))
+Base.:\(b::Number, a::InfiniteSequence) = InfiniteSequence(b \ sequence(a), abs(b) \ finite_error(a), abs(b) \ tail_error(a), banachspace(a))
 
 rmul!(a::Sequence, b::Number) = Sequence(space(a), rmul!(coefficients(a), b))
 lmul!(b::Number, a::Sequence) = Sequence(space(a), lmul!(b, coefficients(a)))
-rmul!(a::InfiniteSequence, b::Number) = InfiniteSequence(rmul!(sequence(a), b), sequence_error(a) * abs(b), banachspace(a))
-lmul!(b::Number, a::InfiniteSequence) = InfiniteSequence(lmul!(b, sequence(a)), abs(b) * sequence_error(a), banachspace(a))
+rmul!(a::InfiniteSequence, b::Number) = InfiniteSequence(rmul!(sequence(a), b), finite_error(a) * abs(b), tail_error(a) * abs(b), banachspace(a))
+lmul!(b::Number, a::InfiniteSequence) = InfiniteSequence(lmul!(b, sequence(a)), abs(b) * finite_error(a), abs(b) * tail_error(a), banachspace(a))
 
 rdiv!(a::Sequence, b::Number) = Sequence(space(a), rdiv!(coefficients(a), b))
 ldiv!(b::Number, a::Sequence) = Sequence(space(a), ldiv!(b, coefficients(a)))
-rdiv!(a::InfiniteSequence, b::Number) = InfiniteSequence(rdiv!(sequence(a), b), sequence_error(a) / abs(b), banachspace(a))
-ldiv!(b::Number, a::InfiniteSequence) = InfiniteSequence(ldiv!(b, sequence(a)), abs(b) \ sequence_error(a), banachspace(a))
+rdiv!(a::InfiniteSequence, b::Number) = InfiniteSequence(rdiv!(sequence(a), b), finite_error(a) / abs(b), tail_error(a) / abs(b), banachspace(a))
+ldiv!(b::Number, a::InfiniteSequence) = InfiniteSequence(ldiv!(b, sequence(a)), abs(b) \ finite_error(a), abs(b) \ tail_error(a), banachspace(a))
 
 for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, :_add!, :_radd!, :_ladd!),
         (:(Base.:-), :sub!, :rsub!, :lsub!, :_sub!, :_rsub!, :_lsub!))
@@ -88,7 +88,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
             return c
         end
         $f(a::InfiniteSequence, b::InfiniteSequence) =
-            InfiniteSequence($f(sequence(a), sequence(b)), sequence_error(a) + sequence_error(b), banachspace(a) ∩ banachspace(b))
+            InfiniteSequence($f(sequence(a), sequence(b)), finite_error(a) + finite_error(b), tail_error(a) + tail_error(b), banachspace(a) ∩ banachspace(b))
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
             op = $f
@@ -329,8 +329,8 @@ function Base.:+(a::Sequence{<:SymmetricSpace}, b::Number)
     return Projection(space_c) * (da + b)
 end
 Base.:+(b::Number, a::Sequence{<:SequenceSpace}) = +(a, b)
-Base.:+(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) + b, sequence_error(a), banachspace(a))
-Base.:+(b::Number, a::InfiniteSequence) = InfiniteSequence(b + sequence(a), sequence_error(a), banachspace(a))
+Base.:+(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) + b, finite_error(a), tail_error(a), banachspace(a))
+Base.:+(b::Number, a::InfiniteSequence) = InfiniteSequence(b + sequence(a), finite_error(a), tail_error(a), banachspace(a))
 
 Base.:-(a::Sequence{<:SequenceSpace}, b::Number) = +(a, -b)
 function Base.:-(b::Number, a::Sequence{<:NoSymSpace})
@@ -346,13 +346,13 @@ function Base.:-(b::Number, a::Sequence{<:SymmetricSpace})
     space_c = SymmetricSpace(dsa, _sym_with_cst_coef(symmetry(space(a))))
     return Projection(space_c) * (b - da)
 end
-Base.:-(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) - b, sequence_error(a), banachspace(a))
-Base.:-(b::Number, a::InfiniteSequence) = InfiniteSequence(b - sequence(a), sequence_error(a), banachspace(a))
+Base.:-(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) - b, finite_error(a), tail_error(a), banachspace(a))
+Base.:-(b::Number, a::InfiniteSequence) = InfiniteSequence(b - sequence(a), finite_error(a), tail_error(a), banachspace(a))
 
 radd!(a::Sequence{<:SequenceSpace}, b::Number) = _radd!(a, b)
 ladd!(b::Number, a::Sequence{<:SequenceSpace}) = _radd!(a, b)
-radd!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(radd!(sequence(a), b), sequence_error(a), banachspace(a))
-ladd!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(ladd!(b, sequence(a)), sequence_error(a), banachspace(a))
+radd!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(radd!(sequence(a), b), finite_error(a), tail_error(a), banachspace(a))
+ladd!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(ladd!(b, sequence(a)), finite_error(a), tail_error(a), banachspace(a))
 
 rsub!(a::Sequence{<:SequenceSpace}, b::Number) = _radd!(a, -b)
 function lsub!(b::Number, a::Sequence{<:SequenceSpace})
@@ -361,8 +361,8 @@ function lsub!(b::Number, a::Sequence{<:SequenceSpace})
     _radd!(a, b)
     return a
 end
-rsub!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(rsub!(sequence(a), b), sequence_error(a), banachspace(a))
-rsub!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(lsub!(b, sequence(a)), sequence_error(a), banachspace(a))
+rsub!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(rsub!(sequence(a), b), finite_error(a), tail_error(a), banachspace(a))
+rsub!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(lsub!(b, sequence(a)), finite_error(a), tail_error(a), banachspace(a))
 
 function _radd!(a::Sequence{<:SequenceSpace}, b::Number)
     @inbounds a[_findindex_constant(space(a))] += b

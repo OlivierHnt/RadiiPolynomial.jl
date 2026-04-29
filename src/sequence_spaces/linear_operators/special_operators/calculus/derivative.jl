@@ -483,15 +483,20 @@ end
 function differentiate(a::InfiniteSequence, α::Union{Int,Tuple{Vararg{Int}}}=1)
     c = differentiate(sequence(a), α)
     X = banachspace(a)
-    factor = _derivative_error(X, space(a), α)
-    new_err = factor * sequence_error(a)
-    return InfiniteSequence(c, new_err, Ell1())
+    finite_factor = _derivative_finite_error(X, space(a), α)
+    tail_factor   = _derivative_tail_error(X, space(a), α)
+    new_finite = finite_factor * finite_error(a)
+    new_tail   = tail_factor   * tail_error(a)
+    return InfiniteSequence(c, new_finite, new_tail, Ell1())
 end
 
-_derivative_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    mapreduce((wᵢ, sᵢ, αᵢ) -> _derivative_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+# Tail-only bound: factor C such that ‖D^α t‖_{ℓ¹(1)} ≤ C · ‖t‖_X for tails
+# (i.e. sequences supported on indices |k| > order(s)).
 
-function _derivative_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
+_derivative_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    mapreduce((wᵢ, sᵢ, αᵢ) -> _derivative_tail_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+
+function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
     factα = one(ν)
@@ -499,7 +504,7 @@ function _derivative_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
         factα = exact(k) * factα
     end
     # Tail-only bound at ν' = 1 leveraging N = order(s):
-    #   ‖D^α ε‖_{ℓ¹(1)} ≤ (Σ_{k>N} k!/(k-α)! ν^{-k}) · sequence_error
+    #   ‖D^α ε‖_{ℓ¹(1)} ≤ (Σ_{k>N} k!/(k-α)! ν^{-k}) · ‖ε‖_X
     # Computed iteratively as α!·ν/(ν-1)^(α+1) − Σ_{k=α}^{N} k!/(k-α)! · ν^{-k}.
     cur = factα * ν / (ν - exact(1)) ^ exact(α+1)
     term_coef = factα
@@ -512,13 +517,13 @@ function _derivative_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     return cur
 end
 
-function _derivative_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
+function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
     α == 1 || return throw(DomainError(α, "derivative error on Fourier is only implemented for α ≤ 1"))
     ν = rate(X)
     ω = abs(frequency(s)) * one(ν)
     # Tail-only bound at ν' = 1 with N = order(s):
-    #   ‖D ε‖_{ℓ¹(1)} ≤ 2|ω| (Σ_{m>N} m ν^{-m}) · sequence_error
+    #   ‖D ε‖_{ℓ¹(1)} ≤ 2|ω| (Σ_{m>N} m ν^{-m}) · ‖ε‖_X
     cur = exact(2) * ω * ν / (ν - exact(1)) ^ exact(2)
     m = 1
     while m ≤ order(s)
@@ -528,5 +533,53 @@ function _derivative_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     return cur
 end
 
-_derivative_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
+_derivative_tail_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
+    throw(DomainError(s, "derivative error on Chebyshev InfiniteSequence is not implemented"))
+
+# Finite-truncation bound: factor C such that ‖D^α p‖_{ℓ¹(1)} ≤ C · ‖p‖_X for
+# sequences p supported on indices |k| ≤ order(s).
+
+_derivative_finite_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    mapreduce((wᵢ, sᵢ, αᵢ) -> _derivative_finite_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+
+function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    # ‖D^α p‖_{ℓ¹(1)} = Σ_{k=α}^{N} k!/(k-α)! · |p_k|
+    #                 ≤ max_{α ≤ k ≤ N} k!/(k-α)! · ν^{-k} · ‖p‖_{ℓ¹(ν)}.
+    factα = one(ν)
+    for k ∈ 1:α
+        factα = exact(k) * factα
+    end
+    term_coef = factα
+    cur = term_coef / ν ^ exact(α)
+    k = α
+    while k < order(s)
+        k += 1
+        term_coef = term_coef * exact(k) / exact(k - α)
+        candidate = term_coef / ν ^ exact(k)
+        cur = max(cur, candidate)
+    end
+    return cur
+end
+
+function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
+    α == 0 && return one(rate(X))
+    α == 1 || return throw(DomainError(α, "derivative error on Fourier is only implemented for α ≤ 1"))
+    ν = rate(X)
+    ω = abs(frequency(s)) * one(ν)
+    # ‖D p‖_{ℓ¹(1)} ≤ 2|ω| · max_{1 ≤ j ≤ N} j ν^{-j} · ‖p‖_{ℓ¹(ν)}.
+    N = order(s)
+    N == 0 && return zero(ν)
+    cur = ω / ν # j = 1
+    j = 1
+    while j < N
+        j += 1
+        candidate = ω * exact(j) / ν ^ exact(j)
+        cur = max(cur, candidate)
+    end
+    return exact(2) * cur
+end
+
+_derivative_finite_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
     throw(DomainError(s, "derivative error on Chebyshev InfiniteSequence is not implemented"))

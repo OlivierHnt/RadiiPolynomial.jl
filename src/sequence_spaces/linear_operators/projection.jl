@@ -335,7 +335,9 @@ function project(a::InfiniteSequence, space_dest::SequenceSpace, ::Type{T}=eltyp
     @inbounds view(discarded, indices(space_dest ∩ space(a))) .= zero(T)
 
     X = banachspace(a)
-    return _unsafe_infinite_sequence(c, norm(c, X), sequence_error(a) + norm(discarded, X), a.full_norm, X)
+    new_finite = finite_error(a)
+    new_tail = tail_error(a) + norm(discarded, X)
+    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, a.full_norm, X)
 end
 
 function project!(c::Sequence, a::InfiniteSequence)
@@ -344,10 +346,15 @@ function project!(c::Sequence, a::InfiniteSequence)
     ord_a = order(a)
     space_c = space(c)
     CoefType = eltype(c)
+    fe = finite_error(a)
+    te = tail_error(a)
     @inbounds for k ∈ indices(space_c)
         if any(abs.(k) .> ord_a)
             w_k = _getindex(weight(X), space_c, k)
-            c[k] = _to_interval(CoefType, sup(sequence_error(a) / w_k))
+            c[k] = _to_interval(CoefType, sup(te / w_k))
+        elseif !iszero(fe)
+            w_k = _getindex(weight(X), space_c, k)
+            c[k] += _to_interval(CoefType, sup(fe / w_k))
         end
     end
     return c

@@ -461,19 +461,23 @@ end
 function integrate(a::InfiniteSequence, α::Union{Int,Tuple{Vararg{Int}}}=1)
     c = integrate(sequence(a), α)
     X = banachspace(a)
-    factor = _integral_error(X, space(a), α)
-    new_err = factor * sequence_error(a)
-    return InfiniteSequence(c, new_err, X)
+    finite_factor = _integral_finite_error(X, space(a), α)
+    tail_factor   = _integral_tail_error(X, space(a), α)
+    new_finite = finite_factor * finite_error(a)
+    new_tail   = tail_factor   * tail_error(a)
+    return InfiniteSequence(c, new_finite, new_tail, X)
 end
 
-_integral_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+# Tail-only bound: factor C such that ‖ℐ^α t‖_X ≤ C · ‖t‖_X for tails.
 
-function _integral_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
+_integral_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_tail_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+
+function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
     # Tail-only bound in ℓ¹(ν) with N = order(s):
-    #   ‖ℐ^α ε‖_{ℓ¹(ν)} ≤ ν^α · (N+1)!/(N+α+1)! · sequence_error
+    #   ‖ℐ^α ε‖_{ℓ¹(ν)} ≤ ν^α · (N+1)!/(N+α+1)! · ‖ε‖_X
     factor = ν ^ exact(α)
     N = order(s)
     for j ∈ 1:α
@@ -482,7 +486,7 @@ function _integral_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     return factor
 end
 
-function _integral_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
+function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
     return throw(DomainError(Fourier, "integral error on Fourier InfiniteSequence is not implemented"))
     # α == 1 || return throw(DomainError(α, "integral error on Fourier is only implemented for α ≤ 1"))
@@ -490,9 +494,36 @@ function _integral_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     # ω = abs(frequency(s)) * one(ν)
     # N = order(s)
     # # Tail-only bound in ℓ¹(ν):
-    # #   ‖ℐ ε‖_{ℓ¹(ν)} ≤ (1 + ν^{-(N+1)}) / (|ω|(N+1)) · sequence_error
+    # #   ‖ℐ ε‖_{ℓ¹(ν)} ≤ (1 + ν^{-(N+1)}) / (|ω|(N+1)) · ‖ε‖_X
     # return (one(ν) + one(ν) / ν ^ exact(N+1)) / (ω * exact(N+1))
 end
 
-_integral_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
+_integral_tail_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
+    throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
+
+# Finite-truncation bound: factor C such that ‖ℐ^α p‖_X ≤ C · ‖p‖_X for
+# sequences p supported on indices |k| ≤ order(s).
+
+_integral_finite_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_finite_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+
+function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    # ‖ℐ^α p‖_{ℓ¹(ν)} = Σ_{k=0}^{N} ν^{k+α} / ((k+1)…(k+α)) · |p_k|
+    #                 ≤ max_{0 ≤ k ≤ N} ν^α · ∏_{j=1}^{α} 1/(k+j) · ‖p‖_{ℓ¹(ν)}.
+    # Maximum is attained at k = 0, giving ν^α / α!.
+    factor = ν ^ exact(α)
+    for j ∈ 1:α
+        factor = factor / exact(j)
+    end
+    return factor
+end
+
+function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
+    α == 0 && return one(rate(X))
+    return throw(DomainError(Fourier, "integral error on Fourier InfiniteSequence is not implemented"))
+end
+
+_integral_finite_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
     throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))

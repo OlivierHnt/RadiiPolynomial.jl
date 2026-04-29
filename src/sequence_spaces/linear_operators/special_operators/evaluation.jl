@@ -480,8 +480,73 @@ end
 
 #
 
-evaluate(a::InfiniteSequence, x::Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}}) = _return_evaluate(evaluate(sequence(a), x), a)
+function evaluate(a::InfiniteSequence, x::Union{Nothing,Number,Tuple{Vararg{Union{Nothing,Number}}}})
+    _check_domain(banachspace(a), space(a), x)
+    return _return_evaluate(evaluate(sequence(a), x), a)
+end
 
 _return_evaluate(c, a::InfiniteSequence) = interval(c, sequence_error(a); format = :midpoint)
 
-_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(interval.(c, sequence_error(a); format = :midpoint), sequence_error(a), banachspace(a))
+_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(c, finite_error(a), tail_error(a), banachspace(a))
+
+#--
+
+_check_domain(::BanachSpace, ::SequenceSpace, ::Nothing) = nothing
+
+_check_domain(X::BanachSpace, s::SymmetricSpace, x) =
+    _check_domain(X, desymmetrize(s), x)
+
+function _check_domain(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, x::NTuple{N,Union{Nothing,Number}}) where {N}
+    foreach((wᵢ, sᵢ, xᵢ) -> _check_domain(Ell1(wᵢ), sᵢ, xᵢ), weight(X), spaces(s), x)
+    return nothing
+end
+
+# Taylor: closed disk of radius ν (ν ≥ 1)
+_check_domain(X::Ell1{<:GeometricWeight}, ::Taylor, x::Number) =
+    _check_taylor_disk(rate(weight(X)), x)
+_check_domain(::Ell1{IdentityWeight}, ::Taylor, x::Number) =
+    _check_taylor_disk(1, x)
+
+function _check_taylor_disk(ν, x::Number)
+    sup(abs(x)) ≤ inf(ν) || throw(DomainError(x, "evaluation point must lie in the closed disk of radius ν = $(ν)"))
+    return nothing
+end
+
+# Fourier: closed strip |ω · Im(x)| ≤ log(ν) (ν ≥ 1)
+_check_domain(X::Ell1{<:GeometricWeight}, s::Fourier, x::Number) =
+    _check_fourier_strip(rate(weight(X)), frequency(s), x)
+_check_domain(::Ell1{IdentityWeight}, s::Fourier, x::Number) =
+    _check_fourier_strip(1, frequency(s), x)
+
+function _check_fourier_strip(ν, ω_, x::Number)
+    inf(ν) ≥ 1 || throw(DomainError(ν, "Fourier analyticity domain is empty for rate ν < 1"))
+    ω = abs(ω_)
+    sup(ω * abs(imag(x))) ≤ inf(log(ν)) || throw(DomainError(x, "evaluation point must lie in the closed strip |ω · Im(x)| ≤ log(ν)"))
+    return nothing
+end
+
+# Chebyshev: closed Bernstein ellipse of parameter ν  (ν ≥ 1)
+_check_domain(X::Ell1{<:GeometricWeight}, ::Chebyshev, x::Number) =
+    _check_bernstein_ellipse(rate(weight(X)), x)
+_check_domain(::Ell1{IdentityWeight}, ::Chebyshev, x::Number) =
+    _check_bernstein_ellipse(1, x)
+
+function _check_bernstein_ellipse(ν, x::Number)
+    ν_lo = inf(ν)
+    ν_hi = sup(ν)
+    if (ν_lo == 1) & (ν_hi == 1)
+        # ν = 1: the Bernstein ellipse degenerates to the segment [-1, 1].
+        (sup(abs(imag(x))) == 0) & (inf(real(x)) ≥ -1) & (sup(real(x)) ≤ 1) ||
+            throw(DomainError(x, "evaluation point must lie in [-1, 1] for the degenerate Bernstein ellipse at ν = 1"))
+    else
+        a = (ν + inv(ν)) / 2
+        b = (ν - inv(ν)) / 2
+        sup((real(x) / a)^2 + (imag(x) / b)^2) ≤ 1 ||
+            throw(DomainError(x, "evaluation point must lie in the closed Bernstein ellipse of parameter ν = $(ν)"))
+    end
+    return nothing
+end
+
+# Fallback: any other (BanachSpace, base space) combination.
+_check_domain(X::BanachSpace, s::SequenceSpace, x) =
+    throw(DomainError((X, s), "domain check not implemented for this Banach space / sequence space combination"))

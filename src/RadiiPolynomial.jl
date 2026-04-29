@@ -41,7 +41,7 @@ include("sequence_spaces/sequences/sequence.jl")
     export AbstractSequence, Sequence, coefficients, eachblock, block,
         conjugacy_symmetry!, geometricweight, algebraicweight, polish!
 include("sequence_spaces/sequences/infinite_sequence.jl")
-    export InfiniteSequence, sequence_norm, sequence_error, banachspace
+    export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
     export fft_size, to_grid, to_grid!, to_seq, to_seq!

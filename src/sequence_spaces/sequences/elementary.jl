@@ -1,7 +1,7 @@
 _maybe_interval(::Type, a) = a
 _maybe_interval(::Type{<:RealOrComplexI}, a) = interval.(a)
 
-_isguaranteed(a::InfiniteSequence) = all(isguaranteed, sequence(a)) & isguaranteed(sequence_norm(a)) & isguaranteed(sequence_error(a)) & a
+_isguaranteed(a::InfiniteSequence) = all(isguaranteed, sequence(a)) & isguaranteed(sequence_norm(a)) & isguaranteed(finite_error(a)) & isguaranteed(tail_error(a)) & a
 
 # division
 
@@ -34,7 +34,9 @@ function Base.inv(a::InfiniteSequence)
     Z₁ = norm(f)
     r, _ = interval_of_existence(Y, Z₁, Inf; verbose = false)
 
-    return InfiniteSequence(sequence(approx_a⁻¹), _maybe_interval(eltype(a), inf(r)), X)
+    # TODO: split Newton bound `r` into finite/tail components.
+    err = _maybe_interval(eltype(a), inf(r))
+    return InfiniteSequence(sequence(approx_a⁻¹), err, zero(err), X)
 end
 
 _codomain(::typeof(/), s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
@@ -79,7 +81,9 @@ function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
     Z₁ = norm(approx_b⁻¹ * b - exact(1))
     r, _ = interval_of_existence(Y, Z₁, Inf; verbose = false)
 
-    return InfiniteSequence(sequence(approx_ab⁻¹), _maybe_interval(CoefType, inf(r)), X)
+    # TODO: split Newton bound `r` into finite/tail components.
+    err = _maybe_interval(CoefType, inf(r))
+    return InfiniteSequence(sequence(approx_ab⁻¹), err, zero(err), X)
 end
 Base.:/(a::Number, b::InfiniteSequence) = lmul!(a, inv(b))
 
@@ -142,7 +146,9 @@ function Base.sqrt(a::InfiniteSequence)
     Z₂ = norm(approx_sqrta⁻¹)
     r, _ = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = false)
 
-    return InfiniteSequence(sequence(approx_sqrta), _maybe_interval(eltype(a), inf(r)), X)
+    # TODO: split Newton bound `r` into finite/tail components.
+    err = _maybe_interval(eltype(a), inf(r))
+    return InfiniteSequence(sequence(approx_sqrta), err, zero(err), X)
 end
 
 
@@ -189,7 +195,9 @@ function Base.cbrt(a::InfiniteSequence)
     Z₂ = exact(2) * norm(approx_cbrta⁻²) * (norm(approx_cbrta) + exact(R))
     r, _ = interval_of_existence(Y, Z₁, Z₂, R; verbose = false)
 
-    return InfiniteSequence(sequence(approx_cbrta), _maybe_interval(eltype(a), inf(r)), X)
+    # TODO: split Newton bound `r` into finite/tail components.
+    err = _maybe_interval(eltype(a), inf(r))
+    return InfiniteSequence(sequence(approx_cbrta), err, zero(err), X)
 end
 
 
@@ -305,7 +313,8 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
         error += W * sequence_error(a)
     end
 
-    return InfiniteSequence(c, error, banachspace(a))
+    # TODO: split contour-bound `error` into finite/tail components.
+    return InfiniteSequence(c, error, zero(error), banachspace(a))
 end
 
 _check_branch_cut_poles(a::InfiniteSequence{<:Taylor}, ν, poles, branch_cut) = error()

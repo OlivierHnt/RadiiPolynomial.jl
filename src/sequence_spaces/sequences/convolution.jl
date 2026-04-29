@@ -636,14 +636,17 @@ function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     @inbounds view(full_c, indices(space_c)) .= zero(eltype(full_c)) # keep the tail
 
     X = banachspace(a) ∩ banachspace(b)
-    new_err = norm(full_c, X) +
-              norm(sequence(a), X) * sequence_error(b) +
-              norm(sequence(b), X) * sequence_error(a) +
-              sequence_error(a) * sequence_error(b)
+    # TODO: refactor to propagate finite/tail components through cross terms
+    # separately. For now, the spillover (`norm(full_c)`) is genuine new tail
+    # and the cross terms are lumped into the finite part.
+    new_tail = norm(full_c, X)
+    new_finite = norm(sequence(a), X) * sequence_error(b) +
+                 norm(sequence(b), X) * sequence_error(a) +
+                 sequence_error(a) * sequence_error(b)
 
     new_full_norm = norm(a, X) * norm(b, X) # Banach algebra
 
-    return _unsafe_infinite_sequence(c, norm(c, X), new_err, new_full_norm, X)
+    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_full_norm, X)
 end
 
 Base.:*(a::InfiniteSequence, b::Sequence) = a * InfiniteSequence(b, banachspace(a))

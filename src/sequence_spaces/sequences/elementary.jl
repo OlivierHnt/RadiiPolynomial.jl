@@ -1,7 +1,7 @@
 _maybe_interval(::Type, a) = a
-_maybe_interval(::Type{<:RealOrComplexI}, a) = interval.(a)
+_maybe_interval(::Type{<:RealOrComplexI}, a) = interval(a)
 
-_isguaranteed(a::InfiniteSequence) = all(isguaranteed, sequence(a)) & isguaranteed(sequence_norm(a)) & isguaranteed(finite_error(a)) & isguaranteed(tail_error(a)) & a
+_isguaranteed(a::InfiniteSequence) = all(isguaranteed, sequence(a)) & isguaranteed(sequence_norm(a)) & isguaranteed(finite_error(a)) & isguaranteed(tail_error(a))
 
 # division
 
@@ -183,8 +183,8 @@ function Base.cbrt(a::InfiniteSequence)
     seq_approx_cbrta⁻² = _call_to_seq!(A, space_approx, eltype(a))
 
     X = banachspace(a)
-    approx_cbrta = InfiniteSequence(_maybe_interval.(eltype(a), seq_approx_cbrta) : seq_approx_cbrta, X)
-    approx_cbrta⁻² = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_cbrta⁻²) : seq_approx_cbrta⁻², X)
+    approx_cbrta = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_cbrta), X)
+    approx_cbrta⁻² = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_cbrta⁻²), X)
 
     approx_cbrta² = approx_cbrta ^ 2
     Y = norm(approx_cbrta⁻² * (approx_cbrta² * approx_cbrta - a)) / exact(3)

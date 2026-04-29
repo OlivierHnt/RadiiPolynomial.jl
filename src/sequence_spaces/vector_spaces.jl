@@ -459,7 +459,7 @@ _findposition(α::Fourier, s::Fourier) = _findposition(indices(α), s)
 _iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
 
 IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T<:IntervalArithmetic.NumTypes} = Fourier(order(s), interval(T, frequency(s)))
-IntervalArithmetic.interval(s::Taylor) = Fourier(order(s), interval(frequency(s)))
+IntervalArithmetic.interval(s::Fourier) = Fourier(order(s), interval(frequency(s)))
 # IntervalArithmetic._infer_numtype(::Fourier{T}) where {T<:Real} = T
 # IntervalArithmetic._interval_infsup(::Type{T}, s₁::Fourier, s₂::Fourier, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
 #     Fourier(max(order(s₁), order(s₂)), IntervalArithmetic._interval_infsup(T, frequency(s₁), frequency(s₂), d))

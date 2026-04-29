@@ -35,9 +35,11 @@ Base.min(::Weight, ::IdentityWeight) = IdentityWeight()
 _getindex(::IdentityWeight, ::NoSymSpace, k) = exact(true)
 _getindex(::IdentityWeight, ::Chebyshev, k::Int) = exact(ifelse(k == 0, 1, 2))
 
-IntervalArithmetic._infer_numtype(::IdentityWeight) = Bool
-IntervalArithmetic._interval_infsup(::Type{T}, ::IdentityWeight, ::IdentityWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    IdentityWeight()
+IntervalArithmetic.interval(::Type{T}, ::IdentityWeight) where {T<:IntervalArithmetic.NumTypes} = IdentityWeight()
+IntervalArithmetic.interval(::IdentityWeight) = IdentityWeight()
+# IntervalArithmetic._infer_numtype(::IdentityWeight) = Bool
+# IntervalArithmetic._interval_infsup(::Type{T}, ::IdentityWeight, ::IdentityWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     IdentityWeight()
 
 """
     GeometricWeight{T<:Real} <: Weight
@@ -79,9 +81,12 @@ _getindex(weight::GeometricWeight, ::Taylor, i::Int) = rate(weight) ^ exact(i)
 _getindex(weight::GeometricWeight, ::Fourier, i::Int) = rate(weight) ^ exact(abs(i))
 _getindex(weight::GeometricWeight, ::Chebyshev, i::Int) = exact(ifelse(i == 0, 1, 2)) * rate(weight) ^ exact(i)
 
-IntervalArithmetic._infer_numtype(weight::GeometricWeight) = numtype(typeof(rate(weight)))
-IntervalArithmetic._interval_infsup(::Type{T}, w1::GeometricWeight, w2::GeometricWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    GeometricWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
+IntervalArithmetic.interval(::Type{T}, weight::GeometricWeight) where {T<:IntervalArithmetic.NumTypes} =
+    GeometricWeight(interval(T, rate(weight)))
+IntervalArithmetic.interval(weight::GeometricWeight) = GeometricWeight(interval(rate(weight)))
+# IntervalArithmetic._infer_numtype(weight::GeometricWeight) = numtype(typeof(rate(weight)))
+# IntervalArithmetic._interval_infsup(::Type{T}, w1::GeometricWeight, w2::GeometricWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     GeometricWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
 
 IntervalArithmetic._interval_infsup(::Type{T}, ::IdentityWeight, w::GeometricWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
     GeometricWeight(IntervalArithmetic._interval_infsup(T, true, rate(w), d))
@@ -128,9 +133,12 @@ _getindex(weight::AlgebraicWeight, ::Taylor, i::Int) = exact(1 + i) ^ rate(weigh
 _getindex(weight::AlgebraicWeight, ::Fourier, i::Int) = exact(1 + abs(i)) ^ rate(weight)
 _getindex(weight::AlgebraicWeight, ::Chebyshev, i::Int) = exact(ifelse(i == 0, 1, 2)) * exact(1 + i) ^ rate(weight)
 
-IntervalArithmetic._infer_numtype(weight::AlgebraicWeight) = numtype(typeof(rate(weight)))
-IntervalArithmetic._interval_infsup(::Type{T}, w1::AlgebraicWeight, w2::AlgebraicWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    AlgebraicWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
+IntervalArithmetic.interval(::Type{T}, weight::AlgebraicWeight) where {T<:IntervalArithmetic.NumTypes} =
+    AlgebraicWeight(interval(T, rate(weight)))
+IntervalArithmetic.interval(weight::AlgebraicWeight) = AlgebraicWeight(interval(rate(weight)))
+# IntervalArithmetic._infer_numtype(weight::AlgebraicWeight) = numtype(typeof(rate(weight)))
+# IntervalArithmetic._interval_infsup(::Type{T}, w1::AlgebraicWeight, w2::AlgebraicWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     AlgebraicWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
 
 IntervalArithmetic._interval_infsup(::Type{T}, ::IdentityWeight, w::AlgebraicWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
     AlgebraicWeight(IntervalArithmetic._interval_infsup(T, false, rate(w), d))
@@ -180,9 +188,12 @@ _getindex(weight::BesselWeight{<:Interval}, ::TensorSpace{<:NTuple{N,Fourier}}, 
 
 _getindex(weight::BesselWeight, ::Fourier, i::Int) = (one(rate(weight)) + exact(i*i)) ^ rate(weight)
 
-IntervalArithmetic._infer_numtype(weight::BesselWeight) = numtype(typeof(rate(weight)))
-IntervalArithmetic._interval_infsup(::Type{T}, w1::BesselWeight, w2::BesselWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    BesselWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
+IntervalArithmetic.interval(::Type{T}, weight::BesselWeight) where {T<:IntervalArithmetic.NumTypes} =
+    BesselWeight(interval(T, rate(weight)))
+IntervalArithmetic.interval(weight::BesselWeight) = BesselWeight(interval(rate(weight)))
+# IntervalArithmetic._infer_numtype(weight::BesselWeight) = numtype(typeof(rate(weight)))
+# IntervalArithmetic._interval_infsup(::Type{T}, w1::BesselWeight, w2::BesselWeight, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     BesselWeight(IntervalArithmetic._interval_infsup(T, rate(w1), rate(w2), d))
 
 #
 
@@ -262,12 +273,18 @@ rate(X::Ell1{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 Base.:(==)(X₁::Ell1, X₂::Ell1) = weight(X₁) == weight(X₂)
 Base.intersect(X₁::Ell1, X₂::Ell1) = Ell1(min(weight(X₁), weight(X₂)))
 
-IntervalArithmetic._infer_numtype(X::Ell1{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
-IntervalArithmetic._infer_numtype(X::Ell1{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
-IntervalArithmetic._interval_infsup(::Type{T}, X::Ell1{<:Weight}, Y::Ell1{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    Ell1(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
-IntervalArithmetic._interval_infsup(::Type{T}, X::Ell1{<:NTuple{N,Weight}}, Y::Ell1{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
-    Ell1(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
+IntervalArithmetic.interval(::Type{T}, X::Ell1{<:Weight}) where {T<:IntervalArithmetic.NumTypes} =
+    Ell1(interval(T, weight(X)))
+IntervalArithmetic.interval(X::Ell1{<:Weight}) = Ell1(interval(weight(X)))
+IntervalArithmetic.interval(::Type{T}, X::Ell1{<:Tuple{Vararg{Weight}}}) where {T<:IntervalArithmetic.NumTypes} =
+    Ell1(map(wᵢ -> interval(T, wᵢ), weight(X)))
+IntervalArithmetic.interval(X::Ell1{<:Tuple{Vararg{Weight}}}) = Ell1(map(interval, weight(X)))
+# IntervalArithmetic._infer_numtype(X::Ell1{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
+# IntervalArithmetic._infer_numtype(X::Ell1{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::Ell1{<:Weight}, Y::Ell1{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     Ell1(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::Ell1{<:NTuple{N,Weight}}, Y::Ell1{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
+#     Ell1(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
 
 """
     ℓ¹(::Weight)
@@ -342,12 +359,18 @@ rate(X::Ell2{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 Base.:(==)(X₁::Ell2, X₂::Ell2) = weight(X₁) == weight(X₂)
 Base.intersect(X₁::Ell2, X₂::Ell2) = Ell2(min(weight(X₁), weight(X₂)))
 
-IntervalArithmetic._infer_numtype(X::Ell2{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
-IntervalArithmetic._infer_numtype(X::Ell2{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
-IntervalArithmetic._interval_infsup(::Type{T}, X::Ell2{<:Weight}, Y::Ell2{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    Ell2(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
-IntervalArithmetic._interval_infsup(::Type{T}, X::Ell2{<:NTuple{N,Weight}}, Y::Ell2{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
-    Ell2(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
+IntervalArithmetic.interval(::Type{T}, X::Ell2{<:Weight}) where {T<:IntervalArithmetic.NumTypes} =
+    Ell2(interval(T, weight(X)))
+IntervalArithmetic.interval(X::Ell2{<:Weight}) = Ell2(interval(weight(X)))
+IntervalArithmetic.interval(::Type{T}, X::Ell2{<:Tuple{Vararg{Weight}}}) where {T<:IntervalArithmetic.NumTypes} =
+    Ell2(map(wᵢ -> interval(T, wᵢ), weight(X)))
+IntervalArithmetic.interval(X::Ell2{<:Tuple{Vararg{Weight}}}) = Ell2(map(interval, weight(X)))
+# IntervalArithmetic._infer_numtype(X::Ell2{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
+# IntervalArithmetic._infer_numtype(X::Ell2{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::Ell2{<:Weight}, Y::Ell2{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     Ell2(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::Ell2{<:NTuple{N,Weight}}, Y::Ell2{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
+#     Ell2(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
 
 """
     ℓ²(::Weight)
@@ -422,12 +445,18 @@ rate(X::EllInf{<:Tuple{Vararg{Weight}}}) = rate.(weight(X))
 Base.:(==)(X₁::EllInf, X₂::EllInf) = weight(X₁) == weight(X₂)
 Base.intersect(X₁::EllInf, X₂::EllInf) = EllInf(min(weight(X₁), weight(X₂)))
 
-IntervalArithmetic._infer_numtype(X::EllInf{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
-IntervalArithmetic._infer_numtype(X::EllInf{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
-IntervalArithmetic._interval_infsup(::Type{T}, X::EllInf{<:Weight}, Y::EllInf{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    EllInf(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
-IntervalArithmetic._interval_infsup(::Type{T}, X::EllInf{<:NTuple{N,Weight}}, Y::EllInf{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
-    EllInf(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
+IntervalArithmetic.interval(::Type{T}, X::EllInf{<:Weight}) where {T<:IntervalArithmetic.NumTypes} =
+    EllInf(interval(T, weight(X)))
+IntervalArithmetic.interval(X::EllInf{<:Weight}) = EllInf(interval(weight(X)))
+IntervalArithmetic.interval(::Type{T}, X::EllInf{<:Tuple{Vararg{Weight}}}) where {T<:IntervalArithmetic.NumTypes} =
+    EllInf(map(wᵢ -> interval(T, wᵢ), weight(X)))
+IntervalArithmetic.interval(X::EllInf{<:Tuple{Vararg{Weight}}}) = EllInf(map(interval, weight(X)))
+# IntervalArithmetic._infer_numtype(X::EllInf{<:Weight}) = IntervalArithmetic._infer_numtype(weight(X))
+# IntervalArithmetic._infer_numtype(X::EllInf{<:Tuple{Vararg{Weight}}}) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, weight(X))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::EllInf{<:Weight}, Y::EllInf{<:Weight}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     EllInf(IntervalArithmetic._interval_infsup(T, weight(X), weight(Y), d))
+# IntervalArithmetic._interval_infsup(::Type{T}, X::EllInf{<:NTuple{N,Weight}}, Y::EllInf{<:NTuple{N,Weight}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
+#     EllInf(map((w₁ᵢ, w₂ᵢ) -> IntervalArithmetic._interval_infsup(T, w₁ᵢ, w₂ᵢ, d), weight(X), weight(Y)))
 
 """
     ℓ∞(::Weight)

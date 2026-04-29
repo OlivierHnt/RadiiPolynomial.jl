@@ -89,9 +89,11 @@ _findposition(α::ScalarSpace, s::ScalarSpace) = _findposition(indices(α), s)
 
 _iscompatible(::ScalarSpace, ::ScalarSpace) = true
 
-IntervalArithmetic._infer_numtype(::ScalarSpace) = Bool
-IntervalArithmetic._interval_infsup(::Type{T}, ::ScalarSpace, ::ScalarSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    ScalarSpace()
+IntervalArithmetic.interval(::Type{T}, ::ScalarSpace) where {T<:IntervalArithmetic.NumTypes} = ScalarSpace()
+IntervalArithmetic.interval(::ScalarSpace) = ScalarSpace()
+# IntervalArithmetic._infer_numtype(::ScalarSpace) = Bool
+# IntervalArithmetic._interval_infsup(::Type{T}, ::ScalarSpace, ::ScalarSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     ScalarSpace()
 
 _prettystring(::ScalarSpace, iscompact::Bool) = ifelse(iscompact, "𝕂", "ScalarSpace()")
 
@@ -305,9 +307,13 @@ _iscompatible(s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTup
 _iscompatible(s₁::TensorSpace{<:Tuple{BaseSpace}}, s₂::TensorSpace{<:Tuple{BaseSpace}}) =
     @inbounds _iscompatible(s₁[1], s₂[1])
 
-IntervalArithmetic._infer_numtype(s::TensorSpace) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, spaces(s))
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
-    TensorSpace(map((s₁ᵢ, s₂ᵢ) -> IntervalArithmetic._interval_infsup(T, s₁ᵢ, s₂ᵢ, d), spaces(s₁), spaces(s₂)))
+IntervalArithmetic.interval(::Type{T}, s::TensorSpace) where {T<:IntervalArithmetic.NumTypes} =
+    TensorSpace(map(sᵢ -> interval(T, sᵢ), spaces(s)))
+IntervalArithmetic.interval(s::TensorSpace) =
+    TensorSpace(map(interval, spaces(s)))
+# IntervalArithmetic._infer_numtype(s::TensorSpace) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, spaces(s))
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::TensorSpace{<:NTuple{N,BaseSpace}}, s₂::TensorSpace{<:NTuple{N,BaseSpace}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
+#     TensorSpace(map((s₁ᵢ, s₂ᵢ) -> IntervalArithmetic._interval_infsup(T, s₁ᵢ, s₂ᵢ, d), spaces(s₁), spaces(s₂)))
 
 _prettystring(s::TensorSpace, iscompact::Bool) = _prettystring(s[1], iscompact) * " ⊗ " * _prettystring(Base.tail(s), iscompact)
 _prettystring(s::TensorSpace{<:NTuple{2,BaseSpace}}, iscompact::Bool) = _prettystring(s[1], iscompact) * " ⊗ " * _prettystring(s[2], iscompact)
@@ -374,9 +380,11 @@ _findposition(α::Taylor, s::Taylor) = _findposition(indices(α), s)
 
 _iscompatible(::Taylor, ::Taylor) = true
 
-IntervalArithmetic._infer_numtype(::Taylor) = Bool
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::Taylor, s₂::Taylor, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    s₁ ∪ s₂
+IntervalArithmetic.interval(::Type{T}, s::Taylor) where {T<:IntervalArithmetic.NumTypes} = s
+IntervalArithmetic.interval(s::Taylor) = s
+# IntervalArithmetic._infer_numtype(::Taylor) = Bool
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::Taylor, s₂::Taylor, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     s₁ ∪ s₂
 
 _prettystring(s::Taylor, ::Bool) = "Taylor(" * string(order(s)) * ")"
 
@@ -450,9 +458,11 @@ _findposition(α::Fourier, s::Fourier) = _findposition(indices(α), s)
 
 _iscompatible(s₁::Fourier, s₂::Fourier) = _safe_isequal(frequency(s₁), frequency(s₂))
 
-IntervalArithmetic._infer_numtype(::Fourier{T}) where {T<:Real} = T
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::Fourier, s₂::Fourier, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    Fourier(max(order(s₁), order(s₂)), IntervalArithmetic._interval_infsup(T, frequency(s₁), frequency(s₂), d))
+IntervalArithmetic.interval(::Type{T}, s::Fourier) where {T<:IntervalArithmetic.NumTypes} = Fourier(order(s), interval(T, frequency(s)))
+IntervalArithmetic.interval(s::Taylor) = Fourier(order(s), interval(frequency(s)))
+# IntervalArithmetic._infer_numtype(::Fourier{T}) where {T<:Real} = T
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::Fourier, s₂::Fourier, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     Fourier(max(order(s₁), order(s₂)), IntervalArithmetic._interval_infsup(T, frequency(s₁), frequency(s₂), d))
 
 _prettystring(s::Fourier, ::Bool) = "Fourier(" * string(order(s)) * ", " * string(frequency(s)) * ")"
 
@@ -517,9 +527,11 @@ _findposition(α::Chebyshev, s::Chebyshev) = _findposition(indices(α), s)
 
 _iscompatible(::Chebyshev, ::Chebyshev) = true
 
-IntervalArithmetic._infer_numtype(::Chebyshev) = Bool
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::Chebyshev, s₂::Chebyshev, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    s₁ ∪ s₂
+IntervalArithmetic.interval(::Type{T}, s::Chebyshev) where {T<:IntervalArithmetic.NumTypes} = s
+IntervalArithmetic.interval(s::Chebyshev) = s
+# IntervalArithmetic._infer_numtype(::Chebyshev) = Bool
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::Chebyshev, s₂::Chebyshev, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     s₁ ∪ s₂
 
 _prettystring(s::Chebyshev, ::Bool) = "Chebyshev(" * string(order(s)) * ")"
 
@@ -672,11 +684,15 @@ end
 _iscompatible(s₁::CartesianPower, s₂::CartesianPower) =
     (nspaces(s₁) == nspaces(s₂)) & _iscompatible(space(s₁), space(s₂))
 
-IntervalArithmetic._infer_numtype(s::CartesianPower) = IntervalArithmetic._infer_numtype(space(s))
-function IntervalArithmetic._interval_infsup(::Type{T}, s₁::CartesianPower, s₂::CartesianPower, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
-    @assert s₁.n == s₂.n
-    return CartesianPower(IntervalArithmetic._interval_infsup(T, space(s₁), space(s₂), d), s₁.n)
-end
+IntervalArithmetic.interval(::Type{T}, s::CartesianPower) where {T<:IntervalArithmetic.NumTypes} =
+    CartesianPower(interval(T, space(s)), nspaces(s))
+IntervalArithmetic.interval(s::CartesianPower) =
+    CartesianPower(interval(space(s)), nspaces(s))
+# IntervalArithmetic._infer_numtype(s::CartesianPower) = IntervalArithmetic._infer_numtype(space(s))
+# function IntervalArithmetic._interval_infsup(::Type{T}, s₁::CartesianPower, s₂::CartesianPower, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
+#     @assert s₁.n == s₂.n
+#     return CartesianPower(IntervalArithmetic._interval_infsup(T, space(s₁), space(s₂), d), s₁.n)
+# end
 
 _prettystring(s::CartesianPower, iscompact::Bool) = _prettystring(space(s), iscompact) * _supscript(nspaces(s))
 _prettystring(s::CartesianPower{<:TensorSpace}, iscompact::Bool) = "(" * _prettystring(space(s), iscompact) * ")" * _supscript(nspaces(s))
@@ -824,9 +840,13 @@ _iscompatible(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianPr
 _iscompatible(s₁::CartesianProduct{<:Tuple{VectorSpace}}, s₂::CartesianProduct{<:Tuple{VectorSpace}}) =
     @inbounds _iscompatible(s₁[1], s₂[1])
 
-IntervalArithmetic._infer_numtype(s::CartesianProduct) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, spaces(s))
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
-    CartesianProduct(map((s₁ᵢ, s₂ᵢ) -> IntervalArithmetic._interval_infsup(T, s₁ᵢ, s₂ᵢ, d), spaces(s₁), spaces(s₂)))
+IntervalArithmetic.interval(::Type{T}, s::CartesianProduct) where {T<:IntervalArithmetic.NumTypes} =
+    CartesianProduct(map(sᵢ -> interval(T, sᵢ), spaces(s)))
+IntervalArithmetic.interval(s::CartesianProduct) =
+    CartesianProduct(map(interval, spaces(s)))
+# IntervalArithmetic._infer_numtype(s::CartesianProduct) = mapreduce(IntervalArithmetic._infer_numtype, promote_type, spaces(s))
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProduct{<:NTuple{N,VectorSpace}}, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes,N} =
+#     CartesianProduct(map((s₁ᵢ, s₂ᵢ) -> IntervalArithmetic._interval_infsup(T, s₁ᵢ, s₂ᵢ, d), spaces(s₁), spaces(s₂)))
 
 _prettystring(s::CartesianProduct, iscompact::Bool) = _prettystring_cartesian(s[1], iscompact) * " × " * _prettystring(Base.tail(s), iscompact)
 _prettystring(s::CartesianProduct{<:NTuple{2,VectorSpace}}, iscompact::Bool) = _prettystring_cartesian(s[1], iscompact) * " × " * _prettystring_cartesian(s[2], iscompact)

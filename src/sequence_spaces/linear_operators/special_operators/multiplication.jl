@@ -15,9 +15,11 @@ end
 
 sequence(ℳ::Multiplication) = ℳ.sequence
 
-IntervalArithmetic._infer_numtype(ℳ::Multiplication) = IntervalArithmetic._infer_numtype(sequence(ℳ))
-IntervalArithmetic._interval_infsup(::Type{T}, ℳ₁::Multiplication, ℳ₂::Multiplication, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    Multiplication(IntervalArithmetic._interval_infsup(T, sequence(ℳ₁), sequence(ℳ₂), d))
+IntervalArithmetic.interval(::Type{T}, ℳ::Multiplication) where {T<:IntervalArithmetic.NumTypes} = Multiplication(IntervalArithmetic.interval(T, sequence(ℳ)))
+IntervalArithmetic.interval(ℳ::Multiplication) = Multiplication(interval(sequence(ℳ)))
+# IntervalArithmetic._infer_numtype(ℳ::Multiplication) = IntervalArithmetic._infer_numtype(sequence(ℳ))
+# IntervalArithmetic._interval_infsup(::Type{T}, ℳ₁::Multiplication, ℳ₂::Multiplication, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     Multiplication(IntervalArithmetic._interval_infsup(T, sequence(ℳ₁), sequence(ℳ₂), d))
 
 Base.:+(ℳ::Multiplication) = Multiplication(+(sequence(ℳ)))
 Base.:-(ℳ::Multiplication) = Multiplication(-(sequence(ℳ)))

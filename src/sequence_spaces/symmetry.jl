@@ -233,9 +233,11 @@ _iscompatible(s₁::SymmetricSpace, s₂::SymmetricSpace) = _iscompatible(desymm
 _iscompatible(s₁::SymmetricSpace, s₂::NoSymSpace) = _iscompatible(desymmetrize(s₁), s₂)
 _iscompatible(s₁::NoSymSpace, s₂::SymmetricSpace) = _iscompatible(s₁, desymmetrize(s₂))
 
-IntervalArithmetic._infer_numtype(s::SymmetricSpace) = IntervalArithmetic._infer_numtype(desymmetrize(s))
-IntervalArithmetic._interval_infsup(::Type{T}, s₁::SymmetricSpace, s₂::SymmetricSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    SymmetricSpace(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d), intersect(interval(symmetry(s₁)), interval(symmetry(s₂))))
+IntervalArithmetic.interval(::Type{T}, s::SymmetricSpace) where {T<:IntervalArithmetic.NumTypes} = SymmetricSpace(interval(T, desymmetrize(s)), interval(T, symmetry(s)))
+IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymmetrize(s)), interval(symmetry(s)))
+# IntervalArithmetic._infer_numtype(s::SymmetricSpace) = IntervalArithmetic._infer_numtype(desymmetrize(s))
+# IntervalArithmetic._interval_infsup(::Type{T}, s₁::SymmetricSpace, s₂::SymmetricSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     SymmetricSpace(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d), intersect(interval(symmetry(s₁)), interval(symmetry(s₂))))
 
 IntervalArithmetic.interval(g::Group) = unsafe_group!(Set(interval(h) for h in elements(g)))
 IntervalArithmetic.interval(g::GroupElement) = GroupElement(g.index_action, interval(g.coef_action))

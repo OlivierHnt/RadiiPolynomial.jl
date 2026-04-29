@@ -146,9 +146,11 @@ function Base.fill!(a::Sequence, value)
     return a
 end
 
-IntervalArithmetic._infer_numtype(a::Sequence) = numtype(eltype(a))
-IntervalArithmetic._interval_infsup(::Type{T}, a::Sequence, b::Sequence, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    Sequence(IntervalArithmetic._interval_infsup(T, space(a), space(b), d), IntervalArithmetic._interval_infsup(T, coefficients(a), coefficients(b), d))
+IntervalArithmetic.interval(::Type{T}, a::Sequence) where {T<:IntervalArithmetic.NumTypes} = Sequence(interval(T, space(a)), interval(T, coefficients(a)))
+IntervalArithmetic.interval(a::Sequence) = Sequence(interval(space(a)), interval(coefficients(a)))
+# IntervalArithmetic._infer_numtype(a::Sequence) = numtype(eltype(a))
+# IntervalArithmetic._interval_infsup(::Type{T}, a::Sequence, b::Sequence, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     Sequence(IntervalArithmetic._interval_infsup(T, space(a), space(b), d), IntervalArithmetic._interval_infsup(T, coefficients(a), coefficients(b), d))
 
 Base.reverse(a::Sequence; dims = :) = Sequence(space(a), reverse(coefficients(a); dims = dims))
 

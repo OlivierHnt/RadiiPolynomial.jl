@@ -37,11 +37,13 @@ Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S
 _coeftype(A::Projection, ::VectorSpace) = eltype(A)
 _coeftype(A::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
-IntervalArithmetic._infer_numtype(P::Projection) = numtype(eltype(P))
-function IntervalArithmetic._interval_infsup(::Type{T}, P₁::Projection, P₂::Projection, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
-    @assert P₁.space == P₂.space
-    return Projection(IntervalArithmetic._interval_infsup(T, P₁.space, P₂.space, d), Interval{T})
-end
+IntervalArithmetic.interval(::Type{T}, P::Projection) where {T<:IntervalArithmetic.NumTypes} = Projection(IntervalArithmetic.interval(T, P.space), Interval{T})
+IntervalArithmetic.interval(P::Projection) = Projection(interval(P.space), IntervalArithmetic.promote_numtype(eltype(P), eltype(P)))
+# IntervalArithmetic._infer_numtype(P::Projection) = numtype(eltype(P))
+# function IntervalArithmetic._interval_infsup(::Type{T}, P₁::Projection, P₂::Projection, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
+#     @assert P₁.space == P₂.space
+#     return Projection(IntervalArithmetic._interval_infsup(T, P₁.space, P₂.space, d), Interval{T})
+# end
 
 # materializing methods
 

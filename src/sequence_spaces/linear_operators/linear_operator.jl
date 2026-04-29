@@ -175,9 +175,11 @@ function Base.fill!(A::LinearOperator, value)
     return A
 end
 
-IntervalArithmetic._infer_numtype(A::LinearOperator) = numtype(eltype(A))
-IntervalArithmetic._interval_infsup(::Type{T}, A::LinearOperator, B::LinearOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    LinearOperator(IntervalArithmetic._interval_infsup(T, domain(A), domain(B), d), IntervalArithmetic._interval_infsup(T, codomain(A), codomain(B), d), IntervalArithmetic._interval_infsup(T, coefficients(A), coefficients(B), d))
+IntervalArithmetic.interval(::Type{T}, A::LinearOperator) where {T<:IntervalArithmetic.NumTypes} = LinearOperator(interval(T, domain(A)), interval(T, codomain(A)), interval(T, coefficients(A)))
+IntervalArithmetic.interval(A::LinearOperator) = LinearOperator(interval(domain(A)), interval(codomain(A)), interval(coefficients(A)))
+# IntervalArithmetic._infer_numtype(A::LinearOperator) = numtype(eltype(A))
+# IntervalArithmetic._interval_infsup(::Type{T}, A::LinearOperator, B::LinearOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     LinearOperator(IntervalArithmetic._interval_infsup(T, domain(A), domain(B), d), IntervalArithmetic._interval_infsup(T, codomain(A), codomain(B), d), IntervalArithmetic._interval_infsup(T, coefficients(A), coefficients(B), d))
 
 Base.reverse(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(A), reverse(coefficients(A); dims = dims))
 
@@ -503,9 +505,11 @@ Base.zero(::Type{<:AbstractLinearOperator}) = UniformScalingOperator(exact(false
 Base.one(::AbstractLinearOperator) = UniformScalingOperator(exact(true))
 Base.one(::Type{<:AbstractLinearOperator}) = UniformScalingOperator(exact(true))
 
-IntervalArithmetic._infer_numtype(J::UniformScalingOperator) = numtype(eltype(J))
-IntervalArithmetic._interval_infsup(::Type{T}, J::UniformScalingOperator, H::UniformScalingOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
-    UniformScalingOperator(IntervalArithmetic._interval_infsup(T, J.λ, H.λ, d))
+IntervalArithmetic.interval(::Type{T}, J::UniformScalingOperator) where {T<:IntervalArithmetic.NumTypes} = UniformScalingOperator(IntervalArithmetic.interval(T, J.λ))
+IntervalArithmetic.interval(J::UniformScalingOperator) = UniformScalingOperator(interval(J.λ))
+# IntervalArithmetic._infer_numtype(J::UniformScalingOperator) = numtype(eltype(J))
+# IntervalArithmetic._interval_infsup(::Type{T}, J::UniformScalingOperator, H::UniformScalingOperator, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
+#     UniformScalingOperator(IntervalArithmetic._interval_infsup(T, J.λ, H.λ, d))
 
 Base.promote_rule(::Type{<:UniformScaling}, ::Type{<:AbstractLinearOperator}) = AbstractLinearOperator
 Base.promote_rule(::Type{<:AbstractLinearOperator}, ::Type{<:UniformScaling}) = AbstractLinearOperator

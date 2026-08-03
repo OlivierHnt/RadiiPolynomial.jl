@@ -65,6 +65,7 @@ getcoefficient(A::AbstractLinearOperator, (codom, i)::Tuple{VectorSpace,Any}, (d
 abstract type AbstractDiagonalOperator <: AbstractLinearOperator end
 
 domain(::AbstractDiagonalOperator, s::VectorSpace) = s
+domain(::AbstractDiagonalOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
 
 codomain(::AbstractDiagonalOperator, s::VectorSpace) = s
 
@@ -126,6 +127,7 @@ LinearOperator(a::Sequence) = LinearOperator(ScalarSpace(), space(a), reshape(co
 Sequence(A::LinearOperator) = Sequence(codomain(A), vec(coefficients(A)))
 
 domain(A::LinearOperator) = A.domain
+domain(::LinearOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
 function domain(A::LinearOperator, s::VectorSpace)
     _iscompatible(_promote_space(codomain(A), s)...) || return throw(ArgumentError("spaces must be compatible"))
     return domain(A)
@@ -240,6 +242,11 @@ Base.@propagate_inbounds function Base.view(A::LinearOperator, α, β)
     return view(coefficients(A), _findposition(α, codomain_A), _findposition(β, domain_A))
 end
 
+# resolve the ambiguity between the generic tuple-coordinate `getindex` on `AbstractLinearOperator`
+# and the untyped `getindex(A::LinearOperator, α, β)` above
+Base.getindex(A::LinearOperator, (codom, i)::Tuple{VectorSpace,Any}, (dom, j)::Tuple{VectorSpace,Any}) =
+    getcoefficient(A, (codom, i), (dom, j), _coeftype(A, dom))
+
 Base.getindex(::LinearOperator, ::VectorSpace, β) = error()
 Base.getindex(::LinearOperator, α, ::VectorSpace) = error()
 Base.@propagate_inbounds function Base.getindex(A::LinearOperator, α::VectorSpace, β::VectorSpace)
@@ -336,7 +343,7 @@ getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::T
 
 function _desym_getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, α, β)
     CoefType = complex(eltype(A))
-    _checkbounds_indices(α, codomain(A)) & _checkbounds_indices(β, domain(A)) || return zero(CoefType)
+    _checkbounds_indices(α, desymmetrize(codomain(A))) & _checkbounds_indices(β, domain(A)) || return zero(CoefType)
     k0, factor_α = _unsafe_get_representative_and_action(codomain(A), α)
     _checkbounds_indices(k0, codomain(A)) || return zero(CoefType)
     return @inbounds convert(CoefType, factor_α * A[k0,β])
@@ -344,111 +351,46 @@ end
 
 #
 
-"""
-    eachblock(A::LinearOperator{<:CartesianSpace,<:CartesianSpace})
-
-Create a generator whose iterates yield each [`LinearOperator`](@ref) composing the block operator.
-
-# Examples
-
-```jldoctest
-julia> A = LinearOperator(Taylor(1)^2, Taylor(1)^2, [i+j for i = 1:4, j = 1:4])
-LinearOperator : Taylor(1)² → Taylor(1)² with coefficients Matrix{Int64}:
- 2  3  4  5
- 3  4  5  6
- 4  5  6  7
- 5  6  7  8
-
-julia> m = eachblock(A)
-Base.Generator{Base.Iterators.ProductIterator{Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}, RadiiPolynomial.var"#eachblock##2#eachblock##3"{LinearOperator{CartesianPower{Taylor}, CartesianPower{Taylor}, Matrix{Int64}}}}(RadiiPolynomial.var"#eachblock##2#eachblock##3"{LinearOperator{CartesianPower{Taylor}, CartesianPower{Taylor}, Matrix{Int64}}}(LinearOperator(Taylor(1)², Taylor(1)², [2 3 4 5; 3 4 5 6; 4 5 6 7; 5 6 7 8])), Base.Iterators.ProductIterator{Tuple{Base.OneTo{Int64}, Base.OneTo{Int64}}}((Base.OneTo(2), Base.OneTo(2))))
-
-julia> [v for v = m]
-2×2 Matrix{LinearOperator{Taylor, Taylor, SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, UnitRange{Int64}}, false}}}:
- [2 3; 3 4]  [4 5; 5 6]
- [4 5; 5 6]  [6 7; 7 8]
-```
-"""
-eachblock(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-    (@inbounds(block(A, i, j)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(nspaces(domain(A))))
-eachblock(A::LinearOperator{<:CartesianSpace,<:VectorSpace}) =
-    (@inbounds(block(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(nspaces(domain(A))))
-eachblock(A::LinearOperator{<:VectorSpace,<:CartesianSpace}) =
-    (@inbounds(block(A, i)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(1))
+eachcomponent(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, i, j)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(nspaces(domain(A))))
+eachcomponent(A::LinearOperator{<:CartesianSpace,<:VectorSpace}) =
+    (@inbounds(component(A, j)) for i ∈ Base.OneTo(1), j ∈ Base.OneTo(nspaces(domain(A))))
+eachcomponent(A::LinearOperator{<:VectorSpace,<:CartesianSpace}) =
+    (@inbounds(component(A, i)) for i ∈ Base.OneTo(nspaces(codomain(A))), j ∈ Base.OneTo(1))
 
 """
-    block(a::LinearOperator{<:CartesianSpace,{<:CartesianSpace})
+    component(A::LinearOperator, i, j)
 
-Return the collection of blocks composing the linear operator.
+Return the component of `A` with codomain index `i` and domain index `j` as a
+`LinearOperator` whose coefficients are a view into `coefficients(A)`: the
+component stays glued to `A`. `i` and `j` may also be unit ranges or `:`. When
+the domain (resp. codomain) of `A` is not a cartesian space, the single-index
+method `component(A, i)` indexes into the codomain (resp. domain) only.
 
-# Examples
-
-```jldoctest
-julia> A = LinearOperator(Taylor(1)^2, Taylor(1)^2, [i+j for i = 1:4, j = 1:4])
-LinearOperator : Taylor(1)² → Taylor(1)² with coefficients Matrix{Int64}:
- 2  3  4  5
- 3  4  5  6
- 4  5  6  7
- 5  6  7  8
-
-julia> block(A)
-2×2 Matrix{LinearOperator{Taylor, Taylor, SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, UnitRange{Int64}}, false}}}:
- [2 3; 3 4]  [4 5; 5 6]
- [4 5; 5 6]  [6 7; 7 8]
-```
+See also: [`eachcomponent`](@ref) and [`unpack`](@ref).
 """
-block(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = collect(eachblock(A))
-block(A::LinearOperator{<:CartesianSpace,<:VectorSpace}) = collect(eachblock(A))
-block(A::LinearOperator{<:VectorSpace,<:CartesianSpace}) = collect(eachblock(A))
-
-"""
-    block(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, i, j)
-
-Return the ``(i,j)``-th [`LinearOperator`](@ref) composing the block operator.
-
-# Examples
-
-```jldoctest
-julia> A = LinearOperator(Taylor(1)^2, Taylor(1)^2, [i+j for i = 1:4, j = 1:4])
-LinearOperator : Taylor(1)² → Taylor(1)² with coefficients Matrix{Int64}:
- 2  3  4  5
- 3  4  5  6
- 4  5  6  7
- 5  6  7  8
-
-julia> block(A, 1, 1)
-LinearOperator : Taylor(1) → Taylor(1) with coefficients SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, UnitRange{Int64}}, false}:
- 2  3
- 3  4
-
-julia> block(A, 1, 2)
-LinearOperator : Taylor(1) → Taylor(1) with coefficients SubArray{Int64, 2, Matrix{Int64}, Tuple{UnitRange{Int64}, UnitRange{Int64}}, false}:
- 4  5
- 5  6
-```
-"""
-Base.@propagate_inbounds block(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, i, j) =
+Base.@propagate_inbounds component(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, i, j) =
     LinearOperator(domain(A)[j], codomain(A)[i], view(coefficients(A), _component_findposition(i, codomain(A)), _component_findposition(j, domain(A))))
 
-Base.@propagate_inbounds block(A::LinearOperator{<:CartesianSpace,<:VectorSpace}, j) =
+Base.@propagate_inbounds component(A::LinearOperator{<:CartesianSpace,<:VectorSpace}, j) =
     LinearOperator(domain(A)[j], codomain(A), view(coefficients(A), :, _component_findposition(j, domain(A))))
 
-Base.@propagate_inbounds block(A::LinearOperator{<:VectorSpace,<:CartesianSpace}, i) =
+Base.@propagate_inbounds component(A::LinearOperator{<:VectorSpace,<:CartesianSpace}, i) =
     LinearOperator(domain(A), codomain(A)[i], view(coefficients(A), _component_findposition(i, codomain(A)), :))
 
-# Base.@propagate_inbounds function block(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, k)
-#     n = nspaces(codomain(A))
-#     j, i = divrem(k, n)
-#     if iszero(i)
-#         return block(A, n, j)
-#     else
-#         return block(A, i, 1+j)
-#     end
-# end
+# a single index is ambiguous when both sides are cartesian
+component(::LinearOperator{<:CartesianSpace,<:CartesianSpace}, i) =
+    throw(ArgumentError("the domain and the codomain are both cartesian spaces: use the two-index method `component(A, i, j)`"))
 
-# Base.eachcol(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-#     (@inbounds(block(A, :, j)) for j ∈ Base.OneTo(nspaces(domain(A))))
-# Base.eachrow(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) =
-#     (@inbounds(block(A, i, :)) for i ∈ Base.OneTo(nspaces(codomain(A))))
+"""
+    unpack(A::LinearOperator)
+
+Unglue `A` into the `Matrix` of its components. Each entry is the corresponding
+[`component`](@ref), so its coefficients remain a view into `coefficients(A)`.
+"""
+unpack(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) = collect(eachcomponent(A))
+unpack(A::LinearOperator{<:CartesianSpace,<:VectorSpace}) = collect(eachcomponent(A))
+unpack(A::LinearOperator{<:VectorSpace,<:CartesianSpace}) = collect(eachcomponent(A))
 
 # promotion
 
@@ -566,7 +508,66 @@ Base.:∘(A::AbstractLinearOperator, J::UniformScaling) = ComposedOperator(A, Un
 Base.:∘(J::UniformScaling, A::AbstractLinearOperator) = ComposedOperator(UniformScalingOperator(J), A)
 
 domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s))
+domain(::ComposedOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
 
 codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
 
 _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.outer, codomain(S.inner, s), _coeftype(S.inner, s, T))
+
+
+
+#
+
+to_grid(A::LinearOperator, m::Integer) = to_grid(A, (m,))
+to_grid(A::LinearOperator, m::NTuple{D,Integer}) where {D} =
+    _to_grid(A, m, last(_lead_inner(domain(A), Val(D))))
+function _to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::ScalarSpace)
+    dom = domain(A)
+    dom == _zero_space(dom) ||
+        return throw(ArgumentError("the domain must be the zero space of the leading factors, got $dom"))
+    return to_grid(Sequence(A), m)
+end
+_to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::SequenceSpace) =
+    to_grid!(_grid_buffer(eltype(A), domain(A), codomain(A), m), A)
+
+function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator) where {D}
+    s_lead, inner_codom = _lead_inner(codomain(A), Val(D))
+    dom_lead, inner_dom = _lead_inner(domain(A), Val(D))
+    X₀ = _zero_space(s_lead)
+    dom_lead == X₀ ||
+        return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom_lead"))
+    all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), x_grid) ||
+        return throw(ArgumentError("the grid elements must be linear operators from $inner_dom to $inner_codom"))
+    C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
+    return _fill_grid!(x_grid, C, s_lead)
+end
+
+function _grid_buffer(::Type{T}, dom::SequenceSpace, codom::SequenceSpace, m::NTuple{D,Integer}) where {T,D}
+    _, inner_dom = _lead_inner(dom, Val(D))
+    _, inner_codom = _lead_inner(codom, Val(D))
+    CoefType = complex(float(T))
+    return [LinearOperator(inner_dom, inner_codom, Matrix{CoefType}(undef, dimension(inner_codom), dimension(inner_dom))) for _ ∈ CartesianIndices(m)]
+end
+
+#
+
+to_seq(x_grid::AbstractArray{<:LinearOperator}, s::SequenceSpace) = to_seq!(_seq_buffer(x_grid, s), x_grid, s)
+to_seq(::AbstractArray{<:LinearOperator}, s::SymmetricSpace) = throw(ArgumentError(_grid_factors_message(s)))
+
+function to_seq!(A::LinearOperator, x_grid::AbstractArray{<:LinearOperator,D}, s::NoSymSpace) where {D}
+    _check_grid_axes(s, Val(D))
+    X₁ = first(x_grid)
+    dom, codom = domain(X₁), codomain(X₁)
+    all(X -> (domain(X) == dom) & (codomain(X) == codom), x_grid) ||
+        return throw(ArgumentError("all linear operators must have the same domain and codomain"))
+    (domain(A) == _combine(_zero_space(s), dom)) & (codomain(A) == _combine(s, codom)) ||
+        return throw(ArgumentError("the destination must be a linear operator from $(_combine(_zero_space(s), dom)) to $(_combine(s, codom))"))
+    M = _no_alloc_reshape(coefficients(A), (dimension(s), dimension(codom)*dimension(dom)))
+    _fill_seq!(M, x_grid, s)
+    return A
+end
+
+function _seq_buffer(x_grid::AbstractArray{<:LinearOperator}, s::NoSymSpace)
+    X₁ = first(x_grid)
+    return zeros(complex(float(_grid_eltype(x_grid))), _combine(_zero_space(s), domain(X₁)), _combine(s, codomain(X₁)))
+end

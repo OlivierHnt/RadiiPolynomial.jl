@@ -53,30 +53,30 @@ end
 #
 
 Base.:+(a::Sequence) = Sequence(space(a), +(coefficients(a)))
-Base.:+(a::InfiniteSequence) = InfiniteSequence(+(sequence(a)), finite_error(a), tail_error(a), banachspace(a))
+Base.:+(a::InfiniteSequence) = InfiniteSequence(+(sequence(a)), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 Base.:-(a::Sequence) = Sequence(space(a), -(coefficients(a)))
-Base.:-(a::InfiniteSequence) = InfiniteSequence(-(sequence(a)), finite_error(a), tail_error(a), banachspace(a))
+Base.:-(a::InfiniteSequence) = InfiniteSequence(-(sequence(a)), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 Base.:*(a::Sequence, b::Number) = Sequence(space(a), *(coefficients(a), b))
 Base.:*(b::Number, a::Sequence) = Sequence(space(a), *(b, coefficients(a)))
-Base.:*(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) * b, finite_error(a) * abs(b), tail_error(a) * abs(b), banachspace(a))
-Base.:*(a::Number, b::InfiniteSequence) = InfiniteSequence(a * sequence(b), abs(a) * finite_error(b), abs(a) * tail_error(b), banachspace(b))
+Base.:*(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) * b, finite_error(a) * abs(b), tail_error(a) * abs(b), total_error(a) * abs(b), banachspace(a))
+Base.:*(a::Number, b::InfiniteSequence) = InfiniteSequence(a * sequence(b), abs(a) * finite_error(b), abs(a) * tail_error(b), abs(a) * total_error(b), banachspace(b))
 
 Base.:/(a::Sequence, b::Number) = Sequence(space(a), /(coefficients(a), b))
 Base.:\(b::Number, a::Sequence) = Sequence(space(a), \(b, coefficients(a)))
-Base.:/(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) / b, finite_error(a) / abs(b), tail_error(a) / abs(b), banachspace(a))
-Base.:\(b::Number, a::InfiniteSequence) = InfiniteSequence(b \ sequence(a), abs(b) \ finite_error(a), abs(b) \ tail_error(a), banachspace(a))
+Base.:/(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) / b, finite_error(a) / abs(b), tail_error(a) / abs(b), total_error(a) / abs(b), banachspace(a))
+Base.:\(b::Number, a::InfiniteSequence) = InfiniteSequence(b \ sequence(a), abs(b) \ finite_error(a), abs(b) \ tail_error(a), abs(b) \ total_error(a), banachspace(a))
 
 rmul!(a::Sequence, b::Number) = Sequence(space(a), rmul!(coefficients(a), b))
 lmul!(b::Number, a::Sequence) = Sequence(space(a), lmul!(b, coefficients(a)))
-rmul!(a::InfiniteSequence, b::Number) = InfiniteSequence(rmul!(sequence(a), b), finite_error(a) * abs(b), tail_error(a) * abs(b), banachspace(a))
-lmul!(b::Number, a::InfiniteSequence) = InfiniteSequence(lmul!(b, sequence(a)), abs(b) * finite_error(a), abs(b) * tail_error(a), banachspace(a))
+rmul!(a::InfiniteSequence, b::Number) = InfiniteSequence(rmul!(sequence(a), b), finite_error(a) * abs(b), tail_error(a) * abs(b), total_error(a) * abs(b), banachspace(a))
+lmul!(b::Number, a::InfiniteSequence) = InfiniteSequence(lmul!(b, sequence(a)), abs(b) * finite_error(a), abs(b) * tail_error(a), abs(b) * total_error(a), banachspace(a))
 
 rdiv!(a::Sequence, b::Number) = Sequence(space(a), rdiv!(coefficients(a), b))
 ldiv!(b::Number, a::Sequence) = Sequence(space(a), ldiv!(b, coefficients(a)))
-rdiv!(a::InfiniteSequence, b::Number) = InfiniteSequence(rdiv!(sequence(a), b), finite_error(a) / abs(b), tail_error(a) / abs(b), banachspace(a))
-ldiv!(b::Number, a::InfiniteSequence) = InfiniteSequence(ldiv!(b, sequence(a)), abs(b) \ finite_error(a), abs(b) \ tail_error(a), banachspace(a))
+rdiv!(a::InfiniteSequence, b::Number) = InfiniteSequence(rdiv!(sequence(a), b), finite_error(a) / abs(b), tail_error(a) / abs(b), total_error(a) / abs(b), banachspace(a))
+ldiv!(b::Number, a::InfiniteSequence) = InfiniteSequence(ldiv!(b, sequence(a)), abs(b) \ finite_error(a), abs(b) \ tail_error(a), abs(b) \ total_error(a), banachspace(a))
 
 for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, :_add!, :_radd!, :_ladd!),
         (:(Base.:-), :sub!, :rsub!, :lsub!, :_sub!, :_rsub!, :_lsub!))
@@ -88,7 +88,7 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
             return c
         end
         $f(a::InfiniteSequence, b::InfiniteSequence) =
-            InfiniteSequence($f(sequence(a), sequence(b)), finite_error(a) + finite_error(b), tail_error(a) + tail_error(b), banachspace(a) ∩ banachspace(b))
+            InfiniteSequence($f(sequence(a), sequence(b)), finite_error(a) + finite_error(b), tail_error(a) + tail_error(b), total_error(a) + total_error(b), banachspace(a) ∩ banachspace(b))
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
             op = $f
@@ -217,7 +217,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 coefficients(c) .= ($f).(coefficients(a), coefficients(b))
             else
                 @inbounds for i ∈ 1:nspaces(space(c))
-                    $_f!(block(c, i), block(a, i), block(b, i))
+                    $_f!(component(c, i), component(a, i), component(b, i))
                 end
             end
             return c
@@ -226,13 +226,13 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
             if space(a) == space(b)
                 coefficients(c) .= ($f).(coefficients(a), coefficients(b))
             else
-                @inbounds $_f!(block(c, 1), block(a, 1), block(b, 1))
-                @inbounds $_f!(block(c, 2:N), block(a, 2:N), block(b, 2:N))
+                @inbounds $_f!(component(c, 1), component(a, 1), component(b, 1))
+                @inbounds $_f!(component(c, 2:N), component(a, 2:N), component(b, 2:N))
             end
             return c
         end
         $_f!(c::Sequence{CartesianProduct{T}}, a::Sequence{<:CartesianProduct}, b::Sequence{<:CartesianProduct}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_f!(block(c, 1), block(a, 1), block(b, 1))
+            @inbounds $_f!(component(c, 1), component(a, 1), component(b, 1))
 
         function $_rf!(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
             space_a = space(a)
@@ -241,7 +241,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A .= ($f).(A, coefficients(b))
             else
                 @inbounds for i ∈ 1:nspaces(space_a)
-                    $_rf!(block(a, i), block(b, i))
+                    $_rf!(component(a, i), component(b, i))
                 end
             end
             return a
@@ -252,13 +252,13 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A = coefficients(a)
                 A .= ($f).(A, coefficients(b))
             else
-                @inbounds $_rf!(block(a, 1), block(b, 1))
-                @inbounds $_rf!(block(a, 2:N), block(b, 2:N))
+                @inbounds $_rf!(component(a, 1), component(b, 1))
+                @inbounds $_rf!(component(a, 2:N), component(b, 2:N))
             end
             return a
         end
         $_rf!(a::Sequence{CartesianProduct{T}}, b::Sequence{<:CartesianProduct}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_rf!(block(a, 1), block(b, 1))
+            @inbounds $_rf!(component(a, 1), component(b, 1))
 
         function $_lf!(a::Sequence{<:CartesianSpace}, b::Sequence{<:CartesianSpace})
             space_a = space(a)
@@ -267,7 +267,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B .= ($f).(coefficients(a), B)
             else
                 @inbounds for i ∈ 1:nspaces(space_a)
-                    $_lf!(block(a, i), block(b, i))
+                    $_lf!(component(a, i), component(b, i))
                 end
             end
             return b
@@ -278,17 +278,23 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B = coefficients(b)
                 B .= ($f).(coefficients(a), B)
             else
-                @inbounds $_lf!(block(a, 1), block(b, 1))
-                @inbounds $_lf!(block(a, 2:N), block(b, 2:N))
+                @inbounds $_lf!(component(a, 1), component(b, 1))
+                @inbounds $_lf!(component(a, 2:N), component(b, 2:N))
             end
             return b
         end
         $_lf!(a::Sequence{<:CartesianProduct}, b::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}} =
-            @inbounds $_lf!(block(a, 1), block(b, 1))
+            @inbounds $_lf!(component(a, 1), component(b, 1))
     end
 end
 
 # Scalar space
+
+Base.:*(a::Sequence{ScalarSpace}, b::Sequence{ScalarSpace}) = @inbounds Sequence(ScalarSpace(), [a[1] * b[1]])
+Base.:^(a::Sequence{ScalarSpace}, p::Number) = @inbounds Sequence(ScalarSpace(), [a[1] ^ p])
+Base.:^(a::Sequence{ScalarSpace}, p::Sequence{ScalarSpace}) = @inbounds Sequence(ScalarSpace(), [a[1] ^ p[1]])
+Base.:/(a::Sequence{ScalarSpace}, b::Sequence{ScalarSpace}) = @inbounds Sequence(ScalarSpace(), [a[1] / b[1]])
+Base.:\(a::Sequence{ScalarSpace}, b::Sequence{ScalarSpace}) = @inbounds Sequence(ScalarSpace(), [a[1] \ b[1]])
 
 Base.:+(a::Sequence{ScalarSpace}, b::Number) = @inbounds Sequence(space(a), [a[1] + b])
 Base.:+(b::Number, a::Sequence{ScalarSpace}) = @inbounds Sequence(space(a), [b + a[1]])
@@ -329,8 +335,8 @@ function Base.:+(a::Sequence{<:SymmetricSpace}, b::Number)
     return Projection(space_c) * (da + b)
 end
 Base.:+(b::Number, a::Sequence{<:SequenceSpace}) = +(a, b)
-Base.:+(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) + b, finite_error(a), tail_error(a), banachspace(a))
-Base.:+(b::Number, a::InfiniteSequence) = InfiniteSequence(b + sequence(a), finite_error(a), tail_error(a), banachspace(a))
+Base.:+(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) + b, finite_error(a), tail_error(a), total_error(a), banachspace(a))
+Base.:+(b::Number, a::InfiniteSequence) = InfiniteSequence(b + sequence(a), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 Base.:-(a::Sequence{<:SequenceSpace}, b::Number) = +(a, -b)
 function Base.:-(b::Number, a::Sequence{<:NoSymSpace})
@@ -346,13 +352,13 @@ function Base.:-(b::Number, a::Sequence{<:SymmetricSpace})
     space_c = SymmetricSpace(dsa, _sym_with_cst_coef(symmetry(space(a))))
     return Projection(space_c) * (b - da)
 end
-Base.:-(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) - b, finite_error(a), tail_error(a), banachspace(a))
-Base.:-(b::Number, a::InfiniteSequence) = InfiniteSequence(b - sequence(a), finite_error(a), tail_error(a), banachspace(a))
+Base.:-(a::InfiniteSequence, b::Number) = InfiniteSequence(sequence(a) - b, finite_error(a), tail_error(a), total_error(a), banachspace(a))
+Base.:-(b::Number, a::InfiniteSequence) = InfiniteSequence(b - sequence(a), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 radd!(a::Sequence{<:SequenceSpace}, b::Number) = _radd!(a, b)
 ladd!(b::Number, a::Sequence{<:SequenceSpace}) = _radd!(a, b)
-radd!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(radd!(sequence(a), b), finite_error(a), tail_error(a), banachspace(a))
-ladd!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(ladd!(b, sequence(a)), finite_error(a), tail_error(a), banachspace(a))
+radd!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(radd!(sequence(a), b), finite_error(a), tail_error(a), total_error(a), banachspace(a))
+ladd!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(ladd!(b, sequence(a)), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 rsub!(a::Sequence{<:SequenceSpace}, b::Number) = _radd!(a, -b)
 function lsub!(b::Number, a::Sequence{<:SequenceSpace})
@@ -361,11 +367,14 @@ function lsub!(b::Number, a::Sequence{<:SequenceSpace})
     _radd!(a, b)
     return a
 end
-rsub!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(rsub!(sequence(a), b), finite_error(a), tail_error(a), banachspace(a))
-rsub!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(lsub!(b, sequence(a)), finite_error(a), tail_error(a), banachspace(a))
+rsub!(a::InfiniteSequence{<:SequenceSpace}, b::Number) = InfiniteSequence(rsub!(sequence(a), b), finite_error(a), tail_error(a), total_error(a), banachspace(a))
+rsub!(b::Number, a::InfiniteSequence{<:SequenceSpace}) = InfiniteSequence(lsub!(b, sequence(a)), finite_error(a), tail_error(a), total_error(a), banachspace(a))
 
 function _radd!(a::Sequence{<:SequenceSpace}, b::Number)
-    @inbounds a[_findindex_constant(space(a))] += b
+    space_a = space(a)
+    α = _findindex_constant(space_a)
+    α === nothing && return throw(ArgumentError("constant is not representable in $space_a: use the non-mutating `+` which widens the space accordingly"))
+    @inbounds a[α] += b
     return a
 end
 
@@ -373,7 +382,8 @@ end
 
 function Base.:+(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space_a)
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -384,7 +394,8 @@ Base.:+(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number} =
 
 function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space_a)
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= coefficients(a)
@@ -393,7 +404,8 @@ function Base.:-(a::Sequence{<:CartesianSpace}, b::AbstractVector{T}) where {T<:
 end
 function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:Number}
     space_a = space(a)
-    Base.OneTo(_deep_nspaces(space_a)) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space_a)
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     CoefType = promote_type(eltype(a), T)
     c = Sequence(space_a, Vector{CoefType}(undef, length(a)))
     coefficients(c) .= (-).(coefficients(a))
@@ -402,19 +414,22 @@ function Base.:-(b::AbstractVector{T}, a::Sequence{<:CartesianSpace}) where {T<:
 end
 
 function radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space(a))
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     _radd!(a, b)
     return a
 end
 ladd!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace}) = radd!(a, b)
 
 function rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
-    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space(a))
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     _rsub!(a, b)
     return a
 end
 function lsub!(b::AbstractVector{<:Number}, a::Sequence{<:CartesianSpace})
-    Base.OneTo(_deep_nspaces(space(a))) == eachindex(b) || return throw(ArgumentError)
+    n = _deep_nspaces(space(a))
+    Base.OneTo(n) == eachindex(b) || return throw(ArgumentError("number of cartesian products must match the indices of the vector: a has $n cartesian product(s), b has indices $(eachindex(b))"))
     A = coefficients(a)
     A .= (-).(A)
     _radd!(a, b)
@@ -424,7 +439,7 @@ end
 function _radd!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
     @inbounds for i ∈ 1:nspaces(space(a))
-        aᵢ = block(a, i)
+        aᵢ = component(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1
@@ -441,7 +456,7 @@ end
 function _rsub!(a::Sequence{<:CartesianSpace}, b::AbstractVector{<:Number})
     k = 0
     @inbounds for i ∈ 1:nspaces(space(a))
-        aᵢ = block(a, i)
+        aᵢ = component(a, i)
         space_aᵢ = space(aᵢ)
         if space_aᵢ isa CartesianSpace
             k_ = k + 1

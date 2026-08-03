@@ -34,15 +34,16 @@ The coefficients of a [`LinearOperator`](@ref) are indexed according to the indi
 A[0:1,0:1] # indices(domain(A)), indices(codomain(A))
 ```
 
-When the domain and/or the codomain of a [`LinearOperator`](@ref) is a [`CartesianSpace`](@ref), its coefficients can be thought of as a block matrix . The function `block` extracts a [`LinearOperator`](@ref) composing the cartesian space.
+When the domain and/or the codomain of a [`LinearOperator`](@ref) is a [`CartesianSpace`](@ref), its coefficients can be thought of as a block matrix. The function [`component`](@ref) extracts a [`LinearOperator`](@ref) composing the cartesian space; its coefficients are a view into the parent operator, so the two stay glued. The function [`unpack`](@ref) unglues the operator into the `Matrix` of its components.
 
 ```@repl linear_operators
 B = LinearOperator(ScalarSpace() × Taylor(1)^2, ScalarSpace() × Taylor(1)^2, reshape(1:25, 5, 5))
 B[1:5,1:5] # indices(domain(B)), indices(codomain(B))
-block(B, 1, 1) # extract the linear operator associated with the domain ScalarSpace() and codomain ScalarSpace()
-block(B, 2, 2) # extract the linear operator associated with the domain Taylor(1)^2 and codomain Taylor(1)^2
-block(block(B, 2, 2), 1, 1)
-block(block(B, 2, 2), 2, 2)
+component(B, 1, 1) # extract the linear operator associated with the domain ScalarSpace() and codomain ScalarSpace()
+component(B, 2, 2) # extract the linear operator associated with the domain Taylor(1)^2 and codomain Taylor(1)^2
+component(component(B, 2, 2), 1, 1)
+component(component(B, 2, 2), 2, 2)
+unpack(B)
 ```
 
 Similarly, the function `eachblock` returns a `Generator` whose iterates yield each [`LinearOperator`](@ref) composing the cartesian space.

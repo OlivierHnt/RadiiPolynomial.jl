@@ -78,13 +78,13 @@ end
 function domain(𝒮::Scale{<:Number}, s::Fourier)
     γ = value(𝒮)
     isinteger(γ) || return throw(DomainError(𝒮, "Scale value must be an integer for Fourier spaces"))
-    return Fourier(order(s) ÷ abs(γ), frequency(s))
+    return Fourier(Int(order(s) ÷ abs(γ)), frequency(s))
 end
 
 function codomain(𝒮::Scale{<:Number}, s::Fourier)
     γ = value(𝒮)
     isinteger(γ) || return throw(DomainError(𝒮, "Scale value must be an integer for Fourier spaces"))
-    return Fourier(order(s) * abs(γ), frequency(s))
+    return Fourier(Int(order(s) * abs(γ)), frequency(s))
 end
 
 _coeftype(::Scale{<:Number}, ::Fourier, ::Type{T}) where {T} = T
@@ -104,7 +104,7 @@ function getcoefficient(𝒮::Scale{<:Number}, (codom, i)::Tuple{Chebyshev,Integ
     if isone(γ)
         return ifelse(i == j, one(T), zero(T))
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Scale is only defined for γ = 1 for Chebyshev spaces"))
     end
 end
 
@@ -113,7 +113,7 @@ end
 function domain(𝒮::Scale, s::SymmetricSpace{<:Fourier})
     γ = value(𝒮)
     all(isinteger, indices(s) ./ γ) || return throw(DomainError(𝒮, "Division of indices by Scale value must yield a lattice for symmetric Fourier spaces"))
-    V = Fourier(order(s) ÷ abs(γ), frequency(s))
+    V = Fourier(Int(order(s) ÷ abs(γ)), frequency(s))
     G = unsafe_group!(Set(_groupelem_invscale(𝒮, g, desymmetrize(s))
                   for g ∈ elements(symmetry(s))))
     return SymmetricSpace(V, G)
@@ -178,9 +178,14 @@ function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Scale, a)
 end
 
 _apply!(C, 𝒮::Scale, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _apply!(C, Scale(value(𝒮)[1]), space[1], Val(N₂-N₁+1), _apply!(C, Scale(Base.tail(value(𝒮))), Base.tail(space), A))
+    @inbounds _apply!(C, Scale(value(𝒮)[1]), space[1], _apply(Scale(Base.tail(value(𝒮))), Base.tail(space), A))
 _apply!(C, 𝒮::Scale, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray) =
     @inbounds _apply!(C, Scale(value(𝒮)[1]), space[1], A)
+
+_apply(𝒮::Scale{<:NTuple{N₁,Number}}, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
+    @inbounds _apply(Scale(value(𝒮)[1]), space[1], Val(N₂-N₁+1), _apply(Scale(Base.tail(value(𝒮))), Base.tail(space), A))
+_apply(𝒮::Scale{<:Tuple{Number}}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
+    @inbounds _apply(Scale(value(𝒮)[1]), space[1], Val(N), A)
 
 # Taylor
 
@@ -199,29 +204,31 @@ function _apply!(c::Sequence{Taylor}, 𝒮::Scale, a)
     return c
 end
 
-function _apply!(C, 𝒮::Scale, space::Taylor, ::Val{D}, A) where {D}
+function _apply!(C::AbstractArray, 𝒮::Scale, space::Taylor, A)
     γ = value(𝒮)
-    if !isone(γ)
+    if isone(γ)
+        C .= A
+    else
+        @inbounds selectdim(C, 1, 1) .= selectdim(A, 1, 1)
         γⁱ = one(γ)
         @inbounds for i ∈ 1:order(space)
             γⁱ *= γ
-            selectdim(C, D, i+1) .*= γⁱ
+            selectdim(C, 1, i+1) .= γⁱ .* selectdim(A, 1, i+1)
         end
     end
     return C
 end
 
-function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, space::Taylor, A) where {T,N}
+function _apply(𝒮::Scale, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
     γ = value(𝒮)
-    if isone(γ)
-        C .= A
-    else
-        @inbounds selectdim(C, N, 1) .= selectdim(A, N, 1)
-        γⁱ = one(γ)
-        @inbounds for i ∈ 1:order(space)
-            γⁱ *= γ
-            selectdim(C, N, i+1) .= γⁱ .* selectdim(A, N, i+1)
-        end
+    CoefType = _coeftype(𝒮, space, T)
+    isone(γ) && return convert(Array{CoefType,N}, A)
+    C = Array{CoefType,N}(undef, size(A))
+    @inbounds selectdim(C, D, 1) .= selectdim(A, D, 1)
+    γⁱ = one(γ)
+    @inbounds for i ∈ 1:order(space)
+        γⁱ *= γ
+        selectdim(C, D, i+1) .= γⁱ .* selectdim(A, D, i+1)
     end
     return C
 end
@@ -235,7 +242,7 @@ function _apply!(c::Sequence{<:Fourier}, 𝒮::Scale, a)
     else
         @inbounds for k ∈ indices(space(c))
             if k % γ == 0
-                c[k] = a[k ÷ γ]
+                c[k] = a[Int(k ÷ γ)]
             else
                 c[k] = zero(eltype(c))
             end
@@ -244,31 +251,36 @@ function _apply!(c::Sequence{<:Fourier}, 𝒮::Scale, a)
     return c
 end
 
-function _apply!(C, 𝒮::Scale, ::Fourier, ::Val{D}, A) where {D}
+function _apply!(C::AbstractArray{T}, 𝒮::Scale, space::Fourier, A) where {T}
     γ = value(𝒮)
-    if !isone(γ)
-        @inbounds for k ∈ indices(space(c))
+    if isone(γ)
+        C .= A
+    else
+        ord_A = order(space)
+        ord = Int(ord_A * abs(γ))
+        @inbounds for k ∈ -ord:ord
             if k % γ == 0
-                selectdim(C, D, k) .= selectdim(A, D, k ÷ γ)
+                selectdim(C, 1, k+ord+1) .= selectdim(A, 1, Int(k ÷ γ)+ord_A+1)
             else
-                selectdim(C, D, k) .= zero(eltype(C))
+                selectdim(C, 1, k+ord+1) .= zero(T)
             end
         end
     end
     return C
 end
 
-function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, ::Fourier, A) where {T,N}
+function _apply(𝒮::Scale, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
     γ = value(𝒮)
-    if isone(γ)
-        C .= A
-    else
-        @inbounds for k ∈ indices(space(c))
-            if k % γ == 0
-                selectdim(C, N, k) .= selectdim(A, N, k ÷ γ)
-            else
-                selectdim(C, N, k) .= zero(eltype(C))
-            end
+    CoefType = _coeftype(𝒮, space, T)
+    isone(γ) && return convert(Array{CoefType,N}, A)
+    ord_A = order(space)
+    ord = Int(ord_A * abs(γ))
+    C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, 2ord+1, size(A, i)), Val(N)))
+    @inbounds for k ∈ -ord:ord
+        if k % γ == 0
+            selectdim(C, D, k+ord+1) .= selectdim(A, D, Int(k ÷ γ)+ord_A+1)
+        else
+            selectdim(C, D, k+ord+1) .= zero(CoefType)
         end
     end
     return C
@@ -281,15 +293,16 @@ function _apply!(c::Sequence{Chebyshev}, 𝒮::Scale, a)
     if isone(γ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Scale is only defined for γ = 1 for Chebyshev spaces"))
     end
     return c
 end
 
-function _apply!(C, 𝒮::Scale, ::Chebyshev, ::Val{D}, A) where {D}
+function _apply(𝒮::Scale, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
     γ = value(𝒮)
-    isone(γ) || return throw(DomainError) # TODO: lift restriction
-    return C
+    CoefType = _coeftype(𝒮, space, T)
+    isone(γ) && return convert(Array{CoefType,N}, A)
+    return throw(DomainError(𝒮, "Scale is only defined for γ = 1 for Chebyshev spaces")) # TODO: lift restriction
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, ::Chebyshev, A) where {T,N}
@@ -297,7 +310,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Scale, ::Chebyshev, A) where {T,N}
     if isone(γ)
         C .= A
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Scale is only defined for γ = 1 for Chebyshev spaces"))
     end
     return C
 end

@@ -38,13 +38,13 @@ include("sequence_spaces/banach_spaces.jl")
 # Sequences
 
 include("sequence_spaces/sequences/sequence.jl")
-    export AbstractSequence, Sequence, coefficients, eachblock, block,
+    export AbstractSequence, Sequence, coefficients, unpack, eachcomponent, component,
         conjugacy_symmetry!, geometricweight, algebraicweight, polish!
 include("sequence_spaces/sequences/infinite_sequence.jl")
-    export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, banachspace
+    export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, total_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
-    export fft_size, to_grid, to_grid!, to_seq, to_seq!
+    export fft_size, grid_size, to_grid, to_grid!, to_seq, to_seq!, set_fft_algorithm
 import LinearAlgebra: rmul!, lmul!, rdiv!, ldiv!
 include("sequence_spaces/sequences/arithmetic.jl")
     export codomain, add!, radd!, ladd!, sub!, rsub!, lsub!, rmul!, lmul!,
@@ -61,7 +61,8 @@ include("sequence_spaces/sequences/elementary.jl")
 
 import LinearAlgebra: UniformScaling, I
 include("sequence_spaces/linear_operators/linear_operator.jl")
-    export AbstractLinearOperator, AbstractDiagonalOperator, LinearOperator, domain, eachcol, eachrow, transpose, adjoint,
+    export AbstractLinearOperator, AbstractDiagonalOperator, LinearOperator, domain,
+        transpose, adjoint,
         Add, Negate, ComposedOperator, UniformScalingOperator
     export UniformScaling, I
 include("sequence_spaces/linear_operators/projection.jl")
@@ -98,7 +99,7 @@ include("utilities.jl")
 # Radii polynomial approach
 
 include("rpa/interval_existence.jl")
-    export interval_of_existence
+    export interval_of_existence, set_of_radii
 include("rpa/newton.jl")
     export newton, newton!
 
@@ -128,19 +129,7 @@ function SinFourier(K, freq)
     Base.depwarn("`SinFourier(K, freq)` is deprecated and will be removed in a future version, use `oddsym(Fourier(K, freq))` instead", :SinFourier; force=true)
     return oddsym(Fourier(K, freq))
 end
-function eachcomponent(a)
-    Base.depwarn("`eachcomponent(a)` is deprecated and will be removed in a future version, use `eachblock(a)` instead", :eachcomponent; force=true)
-    return eachblock(a)
-end
-function component(A, i, j)
-    Base.depwarn("`component(A, i, j)` is deprecated and will be removed in a future version, use `block(A, i, j)` instead", :component; force=true)
-    return block(A, i, j)
-end
-function component(A, i)
-    Base.depwarn("`component(A, i)` is deprecated and will be removed in a future version, use `block(A, i)` instead", :component; force=true)
-    return block(A, i)
-end
 
-    export ParameterSpace, CosFourier, SinFourier, eachcomponent, component
+    export ParameterSpace, CosFourier, SinFourier
 
 end

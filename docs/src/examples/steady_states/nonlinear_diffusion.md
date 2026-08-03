@@ -59,7 +59,7 @@ nothing # hide
 ```
 
 ```@example nonlinear_diffusion
-using GLMakie
+using CairoMakie
 lines(LinRange(0, 1, 201), t -> real(u_bar(t)))
 ```
 

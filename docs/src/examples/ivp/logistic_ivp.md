@@ -163,7 +163,7 @@ The following figure[^2] shows the numerical approximation of the proven solutio
 [^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
 ```@example logistic_ivp
-using GLMakie
+using CairoMakie
 
 fig = Figure()
 ax = Axis(fig[1,1], xticks = -5:5)

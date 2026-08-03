@@ -145,7 +145,8 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
 
     if partialsuccess
         if M == 1
-            if Mat(rmin) - 1 < 0
+            dominant = sup(Mat(rmin)[1,1])
+            if dominant - 1 < 0
                 success = true
                 eta = 1
             end

@@ -342,9 +342,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
         end
         for j ∈ 1:m
             @inbounds for k ∈ 1:l
-                Bₖⱼ = block(B, k, j)
+                Bₖⱼ = component(B, k, j)
                 @inbounds for i ∈ 1:n
-                    _mul!(block(C, i, j), block(A, i, k), Bₖⱼ, α, exact(true))
+                    _mul!(component(C, i, j), component(A, i, k), Bₖⱼ, α, exact(true))
                 end
             end
         end
@@ -362,9 +362,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::LinearOp
         n = nspaces(codomain(A))
         m = nspaces(domain(B))
         @inbounds for j ∈ 1:m
-            Bⱼ = block(B, j)
+            Bⱼ = component(B, j)
             @inbounds for i ∈ 1:n
-                _mul!(block(C, i, j), block(A, i), Bⱼ, α, β)
+                _mul!(component(C, i, j), component(A, i), Bⱼ, α, β)
             end
         end
     end
@@ -386,9 +386,9 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
             coefficients(C) .*= β
         end
         @inbounds for j ∈ 1:m
-            Cⱼ = block(C, j)
+            Cⱼ = component(C, j)
             @inbounds for k ∈ 1:l
-                _mul!(Cⱼ, block(A, k), block(B, k, j), α, exact(true))
+                _mul!(Cⱼ, component(A, k), component(B, k, j), α, exact(true))
             end
         end
     end
@@ -403,7 +403,7 @@ function _mul!(C::LinearOperator{<:CartesianSpace,<:VectorSpace}, A::LinearOpera
         mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for j ∈ 1:nspaces(domain_B)
-            _mul!(block(C, j), A, block(B, j), α, β)
+            _mul!(component(C, j), A, component(B, j), α, β)
         end
     end
     return C
@@ -424,9 +424,9 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:l
-            Bₖ = block(B, k)
+            Bₖ = component(B, k)
             @inbounds for i ∈ 1:n
-                _mul!(block(C, i), block(A, i, k), Bₖ, α, exact(true))
+                _mul!(component(C, i), component(A, i, k), Bₖ, α, exact(true))
             end
         end
     end
@@ -441,7 +441,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:CartesianSpace}, A::LinearOpera
         mul!(coefficients(C), coefficients(A), coefficients(B), α, β)
     else
         @inbounds for i ∈ 1:nspaces(codomain_A)
-            _mul!(block(C, i), block(A, i), B, α, β)
+            _mul!(component(C, i), component(A, i), B, α, β)
         end
     end
     return C
@@ -471,7 +471,7 @@ function _mul!(C::LinearOperator{<:VectorSpace,<:VectorSpace}, A::LinearOperator
             coefficients(C) .*= β
         end
         @inbounds for k ∈ 1:nspaces(domain_A)
-            _mul!(C, block(A, k), block(B, k), α, exact(true))
+            _mul!(C, component(A, k), component(B, k), α, exact(true))
         end
     end
     return C
@@ -484,7 +484,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
                 @inbounds for j ∈ 1:nspaces(domain(C)), i ∈ 1:nspaces(codomain(C))
-                    $_f!(block(C, i, j), block(A, i, j), block(B, i, j))
+                    $_f!(component(C, i, j), component(A, i, j), component(B, i, j))
                 end
             end
             return C
@@ -495,7 +495,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
                 @inbounds for j ∈ 1:nspaces(domain(C))
-                    $_f!(block(C, j), block(A, j), block(B, j))
+                    $_f!(component(C, j), component(A, j), component(B, j))
                 end
             end
             return C
@@ -506,7 +506,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 coefficients(C) .= ($f).(coefficients(A), coefficients(B))
             else
                 @inbounds for i ∈ 1:nspaces(codomain(C))
-                    $_f!(block(C, i), block(A, i), block(B, i))
+                    $_f!(component(C, i), component(A, i), component(B, i))
                 end
             end
             return C
@@ -520,7 +520,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ .= ($f).(A_, coefficients(B))
             else
                 @inbounds for j ∈ 1:nspaces(domain_A), i ∈ 1:nspaces(codomain_A)
-                    $_rf!(block(A, i, j), block(B, i, j))
+                    $_rf!(component(A, i, j), component(B, i, j))
                 end
             end
             return A
@@ -533,7 +533,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ .= ($f).(A_, coefficients(B))
             else
                 @inbounds for j ∈ 1:nspaces(domain_A)
-                    $_rf!(block(A, j), block(B, j))
+                    $_rf!(component(A, j), component(B, j))
                 end
             end
             return A
@@ -546,7 +546,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 A_ .= ($f).(A_, coefficients(B))
             else
                 @inbounds for i ∈ 1:nspaces(codomain_A)
-                    $_rf!(block(A, i), block(B, i))
+                    $_rf!(component(A, i), component(B, i))
                 end
             end
             return A
@@ -560,7 +560,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ .= ($f).(coefficients(A), B_)
             else
                 @inbounds for j ∈ 1:nspaces(domain_A), i ∈ 1:nspaces(codomain_A)
-                    $_lf!(block(A, i, j), block(B, i, j))
+                    $_lf!(component(A, i, j), component(B, i, j))
                 end
             end
             return B
@@ -573,7 +573,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ .= ($f).(coefficients(A), B_)
             else
                 @inbounds for j ∈ 1:nspaces(domain_A)
-                    $_lf!(block(A, j), block(B, j))
+                    $_lf!(component(A, j), component(B, j))
                 end
             end
             return B
@@ -586,7 +586,7 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
                 B_ .= ($f).(coefficients(A), B_)
             else
                 @inbounds for i ∈ 1:nspaces(codomain_A)
-                    $_lf!(block(A, i), block(B, i))
+                    $_lf!(component(A, i), component(B, i))
                 end
             end
             return B
@@ -652,7 +652,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Uniform
         end
     else
         @inbounds for i ∈ 1:nspaces(domain_A)
-            _radd!(block(A, i, i), J)
+            _radd!(component(A, i, i), J)
         end
     end
     return A
@@ -697,7 +697,7 @@ end
 function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScalingOperator})
     k = 0
     @inbounds for i ∈ 1:nspaces(domain(A))
-        Aᵢ = block(A, i, i)
+        Aᵢ = component(A, i, i)
         domain_Aᵢ = domain(Aᵢ)
         if domain_Aᵢ isa CartesianSpace
             k_ = k + 1

@@ -40,7 +40,7 @@ We construct a grid of parameters and iterate Newton's method for each step, usi
 using RadiiPolynomial
 
 K = 10
-K_fft = fft_size(Chebyshev(K))
+K_fft = only(fft_size(Chebyshev(K)))
 npts = K_fft ÷ 2 + 1
 
 λ_grid = [-cospi(2j/K_fft) for j = 0:npts-1]
@@ -117,7 +117,7 @@ The following figure[^1] shows the numerical approximation of the proven branch 
 [^1]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
 ```@example cubic_root_cont
-using GLMakie
+using CairoMakie
 
 fig = Figure()
 ax = Axis(fig[1,1], xticks = -3:3)

@@ -105,9 +105,9 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:CartesianSpace
             coefficients(c) .*= β
         end
         @inbounds for j ∈ 1:m
-            bⱼ = block(b, j)
+            bⱼ = component(b, j)
             @inbounds for i ∈ 1:n
-                _mul!(block(c, i), block(A, i, j), bⱼ, α, exact(true))
+                _mul!(component(c, i), component(A, i, j), bⱼ, α, exact(true))
             end
         end
     end
@@ -122,7 +122,7 @@ function _mul!(c::Sequence{<:CartesianSpace}, A::LinearOperator{<:VectorSpace,<:
         mul!(coefficients(c), coefficients(A), coefficients(b), α, β)
     else
         @inbounds for i ∈ 1:nspaces(codomain_A)
-            _mul!(block(c, i), block(A, i), b, α, β)
+            _mul!(component(c, i), component(A, i), b, α, β)
         end
     end
     return c
@@ -151,7 +151,7 @@ function _mul!(c::Sequence{<:VectorSpace}, A::LinearOperator{<:CartesianSpace,<:
             coefficients(c) .*= β
         end
         @inbounds for j ∈ 1:nspaces(domain_A)
-            _mul!(c, block(A, j), block(b, j), α, exact(true))
+            _mul!(c, component(A, j), component(b, j), α, exact(true))
         end
     end
     return c

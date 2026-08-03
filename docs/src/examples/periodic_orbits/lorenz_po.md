@@ -95,24 +95,24 @@ The mapping ``F`` and its Fréchet derivative are implemented as follows:
 
 ```@example lorenz_po
 function F(x, params, ξ_)
-    u, τ = block(x)
-    ξ = block(ξ_)
-    return [Derivative(1) .* block(u) - τ[1] * f(block(u), params),
-            [adjoint(ξ[1]) adjoint(ξ[2]) adjoint(ξ[3])] * [block(u, j) for j = 1:3]]
+    u, τ = unpack(x)
+    ξ = unpack(ξ_)
+    return [Derivative(1) .* unpack(u) - τ[1] * f(unpack(u), params),
+            [adjoint(ξ[1]) adjoint(ξ[2]) adjoint(ξ[3])] * [component(u, j) for j = 1:3]]
 end
 
 function DF(x, params, ξ_)
-    u, τ = block(x)
-    ξ = block(ξ_)
+    u, τ = unpack(x)
+    ξ = unpack(ξ_)
     M = Matrix{Any}(undef, 2, 2)
 
     L = [Derivative(1)  0*I            0*I
          0*I            Derivative(1)  0*I
          0*I            0*I            Derivative(1)]
 
-    M[1,1] = L - τ[1] * Multiplication.(Df(block(u), params))
+    M[1,1] = L - τ[1] * Multiplication.(Df(unpack(u), params))
 
-    M[1,2] = [LinearOperator.(-f(block(u), params));;]
+    M[1,2] = [LinearOperator.(-f(unpack(u), params));;]
 
     M[2,1] = [adjoint(ξ[1]) adjoint(ξ[2]) adjoint(ξ[3])]
 
@@ -156,21 +156,21 @@ Given an initial guess, the approximate zero is obtained by running Newton's met
 K = 40
 
 u_guess = zeros(ComplexF64, Fourier(K, 1.0)^3)
-block(u_guess, 1)[1:2:5] =
+component(u_guess, 1)[1:2:5] =
     [-2.9 - 4.3im,
       1.6 - 1.1im,
       0.3 + 0.4im]
-block(u_guess, 2)[1:2:5] =
+component(u_guess, 2)[1:2:5] =
     [-1.2 - 5.4im,
       3.0 + 0.8im,
      -0.4 + 1.1im]
-block(u_guess, 3)[0:2:4] =
+component(u_guess, 3)[0:2:4] =
     [ 23,
       3.8 + 4.7im,
      -1.8 + 0.9im]
-block(u_guess, 1)[-5:2:-1] .= conj.(block(u_guess, 1)[5:-2:1])
-block(u_guess, 2)[-5:2:-1] .= conj.(block(u_guess, 2)[5:-2:1])
-block(u_guess, 3)[-4:2:0]  .= conj.(block(u_guess, 3)[4:-2:0])
+component(u_guess, 1)[-5:2:-1] .= conj.(component(u_guess, 1)[5:-2:1])
+component(u_guess, 2)[-5:2:-1] .= conj.(component(u_guess, 2)[5:-2:1])
+component(u_guess, 3)[-4:2:0]  .= conj.(component(u_guess, 3)[4:-2:0])
 
 ξ = differentiate(u_guess)
 
@@ -213,7 +213,7 @@ A_tail_22 = interval(zeros(ScalarSpace()^1,  ScalarSpace()^1))
 A_tail = [A_tail_11 A_tail_12
           A_tail_21 A_tail_22]
 
-A = block(A_K_interval) + A_tail
+A = unpack(A_K_interval) + A_tail
 nothing # hide
 ```
 
@@ -262,8 +262,8 @@ Z₁ = opnorm(Π_2Kp1 - A * (DF_interval * Π_2Kp1), X)
 
 #- Z₂ bound
 R = exact(10 * sup(Y))
-u₁_bar_interval, u₂_bar_interval, u₃_bar_interval = block(block(x_bar_interval, 1))
-τ_bar_interval = block(x_bar_interval, 2)[1]
+u₁_bar_interval, u₂_bar_interval, u₃_bar_interval = unpack(component(x_bar_interval, 1))
+τ_bar_interval = component(x_bar_interval, 2)[1]
 
 Z₂ = max(opnorm(A_K_interval, X), inv(interval(K+1))) *
     max(exact(2) * (abs(τ_bar_interval) + R),
@@ -286,11 +286,11 @@ The following figure[^2] shows the numerical approximation of the proven periodi
 [^2]: S. Danisch and J. Krumbiegel, [Makie.jl: Flexible high-performance data visualization for Julia](https://doi.org/10.21105/joss.03349), *Journal of Open Source Software*, **6** (2021), 3349.
 
 ```@example lorenz_po
-using GLMakie
+using CairoMakie
 
 fig = Figure()
 ax = Axis3(fig[1,1], aspect = :data, azimuth = 0.9π, elevation = 0.25)
-lines!(ax, [Point3f(real(block(x_bar, 1)(t))) for t = LinRange(-π, π, 501)];
+lines!(ax, [Point3f(real(component(x_bar, 1)(t))) for t = LinRange(-π, π, 501)];
     color = :blue, label = L"\bar{u}(t)")
 meshscatter!(ax, [Point3f(0, 0, 0), Point3f(-sqrt(β*(ρ-1)), -sqrt(β*(ρ-1)), ρ), Point3f(sqrt(β*(ρ-1)), sqrt(β*(ρ-1)), ρ)];
     color = :red, markersize = 0.5, label = "Equilibria")

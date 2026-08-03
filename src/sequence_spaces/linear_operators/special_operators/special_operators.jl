@@ -35,7 +35,7 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
             return convert(T, v / exact(length(orbit_α)))
         end
 
-        function _apply!(c, A::$S, a::Sequence{<:SymmetricSpace})
+        function _apply!(c::Sequence{<:SymmetricSpace}, A::$S, a::Sequence{<:SymmetricSpace})
             @inbounds for k ∈ indices(space(c))
                 c[k] = zero(eltype(c))
                 for l ∈ indices(space(a))
@@ -78,27 +78,27 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
 
             function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::$S)
                 @inbounds for i ∈ 1:nspaces(domain(C))
-                    _project!(block(C, i, i), A)
+                    _project!(component(C, i, i), A)
                 end
                 return C
             end
 
             #
 
-            function _apply!(c::Sequence{<:CartesianPower}, A::$S, a)
+            function _apply!(c::Sequence{<:CartesianPower}, A::$S, a::Sequence{<:CartesianSpace})
                 @inbounds for i ∈ 1:nspaces(space(c))
-                    _apply!(block(c, i), A, block(a, i))
+                    _apply!(component(c, i), A, component(a, i))
                 end
                 return c
             end
 
-            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a) where {N,T<:NTuple{N,VectorSpace}}
-                @inbounds _apply!(block(c, 1), A, block(a, 1))
-                @inbounds _apply!(block(c, 2:N), A, block(a, 2:N))
+            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {N,T<:NTuple{N,VectorSpace}}
+                @inbounds _apply!(component(c, 1), A, component(a, 1))
+                @inbounds _apply!(component(c, 2:N), A, component(a, 2:N))
                 return c
             end
-            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a) where {T<:Tuple{VectorSpace}}
-                @inbounds _apply!(block(c, 1), A, block(a, 1))
+            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {T<:Tuple{VectorSpace}}
+                @inbounds _apply!(component(c, 1), A, component(a, 1))
                 return c
             end
         end

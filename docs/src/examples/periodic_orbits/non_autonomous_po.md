@@ -53,7 +53,7 @@ nothing # hide
 ```
 
 ```@example non_autonomous_po
-using GLMakie
+using CairoMakie
 lines(LinRange(-π, π, 101), t -> real(u_bar(t)))
 ```
 

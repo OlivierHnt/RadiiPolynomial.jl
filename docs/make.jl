@@ -1,4 +1,6 @@
 using Documenter, RadiiPolynomial
+using CairoMakie
+CairoMakie.activate!(type = "png", px_per_unit = 2)
 
 DocMeta.setdocmeta!(RadiiPolynomial, :DocTestSetup, :(using RadiiPolynomial))
 
@@ -31,7 +33,8 @@ makedocs(;
         "Examples" => [
             "Continuation" => [
                 "examples/continuation/cubic_root_cont.md",
-                "examples/continuation/cubic_root_pa.md"
+                "examples/continuation/cubic_root_pa.md",
+                "examples/continuation/cahn_hilliard_cont.md"
             ],
             "Cauchy problems (IVPs)" => [
                 "examples/ivp/logistic_ivp.md"
@@ -41,6 +44,7 @@ makedocs(;
                 "examples/periodic_orbits/lorenz_po.md"
             ],
             "Steady states" => [
+                "examples/steady_states/cahn_hilliard.md",
                 "examples/steady_states/nonlinear_diffusion.md"
             ]
         ]

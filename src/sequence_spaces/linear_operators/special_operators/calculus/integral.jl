@@ -64,7 +64,7 @@ _coeftype(ℱ::Integral{Tuple{Int}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Type{
     @inbounds _coeftype(Integral(order(ℱ)[1]), s[1], T)
 
 getcoefficient(ℱ::Integral{NTuple{N,Int}}, (codom, i)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, (dom, j)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, ::Type{T}) where {N,T} =
-    @inbounds getcoefficient(Integral(order(ℱ)[1]), (codom[1], i[1]), (dom[1], j[1]), T) * getcoefficient(Integral(Base.tail(order(ℱ))), (Base.tail(codom), T, Base.tail(i)), (Base.tail(dom), Base.tail(j)), T)
+    @inbounds getcoefficient(Integral(order(ℱ)[1]), (codom[1], i[1]), (dom[1], j[1]), T) * getcoefficient(Integral(Base.tail(order(ℱ))), (Base.tail(codom), Base.tail(i)), (Base.tail(dom), Base.tail(j)), T)
 getcoefficient(ℱ::Integral{Tuple{Int}}, (codom, i)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, (dom, j)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, ::Type{T}) where {T} =
     @inbounds getcoefficient(Integral(order(ℱ)[1]), (codom[1], i[1]), (dom[1], j[1]), T)
 
@@ -88,7 +88,7 @@ end
 
 # Fourier
 
-domain(I::Integral, s::Fourier) = iszero(order(I)) ? s : EmptySpace() # flags an error
+domain(::Integral, s::Fourier) = s
 
 codomain(::Integral, s::Fourier) = s
 
@@ -98,16 +98,19 @@ function getcoefficient(ℐ::Integral, (codom, i)::Tuple{Fourier,Integer}, (dom,
     n = order(ℐ)
     if n == 0
         return ifelse(i == j, one(T), zero(T))
-    elseif n == 1
-        if i == 0
-            j == 0 && return zero(T)
-            return convert(T, -inv(im * one(real(T)) * frequency(dom) * exact(j)))
+    else
+        (i != j) | (j == 0) && return zero(T)
+        ω⁻ⁿj⁻ⁿ = inv(one(real(T)) * frequency(dom) * exact(j)) ^ exact(n)
+        r = n % 4
+        if r == 0
+            return convert(T, complex(ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
+        elseif r == 1
+            return convert(T, complex(zero(ω⁻ⁿj⁻ⁿ), -ω⁻ⁿj⁻ⁿ))
+        elseif r == 2
+            return convert(T, complex(-ω⁻ⁿj⁻ⁿ, zero(ω⁻ⁿj⁻ⁿ)))
         else
-            i != j && return zero(T)
-            return convert(T, inv(im * one(real(T)) * frequency(dom) * exact(j)))
+            return convert(T, complex(zero(ω⁻ⁿj⁻ⁿ), ω⁻ⁿj⁻ⁿ))
         end
-    else # TODO: lift restriction
-        return throw(DomainError)
     end
 end
 
@@ -148,8 +151,55 @@ function getcoefficient(ℐ::Integral, (codom, i)::Tuple{Chebyshev,Integer}, (do
             end
         end
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
     end
+end
+
+# Symmetric space
+
+function domain(I::Integral, s::SymmetricSpace)
+    V = domain(I, desymmetrize(s))
+    V isa EmptySpace && return EmptySpace()
+    G = unsafe_group!(Set(_groupelem_antiintegral(I, g, desymmetrize(s))
+                  for g ∈ elements(symmetry(s))))
+    return SymmetricSpace(V, G)
+end
+
+function _groupelem_antiintegral(I::Integral, g::GroupElement, ::Fourier)
+    c = g.index_action.matrix[1]^order(I)
+    new_va = CoefAction(g.coef_action.amplitude / exact(c),
+                      g.coef_action.phase)
+    return GroupElement(g.index_action, new_va)
+end
+
+function codomain(I::Integral, s::SymmetricSpace)
+    V = codomain(I, desymmetrize(s))
+    G = unsafe_group!(Set(_groupelem_integral(I, g, desymmetrize(s)) for g ∈ elements(symmetry(s))))
+    return SymmetricSpace(V, G)
+end
+
+function _groupelem_integral(I::Integral, g::GroupElement, ::Fourier)
+    c = g.index_action.matrix[1]^order(I)
+    new_va = CoefAction(g.coef_action.amplitude * exact(c),
+                      g.coef_action.phase)
+    return GroupElement(g.index_action, new_va)
+end
+
+_coeftype(I::Integral, s::SymmetricSpace, ::Type{T}) where {T} =
+    _coeftype(I, desymmetrize(s), T)
+
+function _apply!(c::Sequence{<:SymmetricSpace{<:Fourier}}, ℐ::Integral, a::Sequence{<:SymmetricSpace{<:Fourier}})
+    n = order(ℐ)
+    if n != 0 && 0 ∈ indices(space(a))
+        @inbounds iszero(a[0]) || return throw(DomainError(a[0], "Fourier coefficient of order zero must be zero"))
+    end
+    @inbounds for k ∈ indices(space(c))
+        c[k] = zero(eltype(c))
+        for l ∈ indices(space(a))
+            c[k] += _sym_getcoefficient(ℐ, space(a), space(c), k, l, eltype(c)) * a[l]
+        end
+    end
+    return c
 end
 
 
@@ -269,20 +319,37 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     n = order(ℐ)
     if n == 0
         coefficients(c) .= coefficients(a)
-    elseif n == 1
+    else
         @inbounds iszero(a[0]) || return throw(DomainError("Fourier coefficient of order zero must be zero"))
         ω = one(real(eltype(a)))*frequency(a)
         @inbounds c[0] = zero(eltype(c))
-        @inbounds for j ∈ 1:order(c)
-            ω⁻¹j⁻¹ = inv(ω * exact(j))
-            aⱼ = a[j]
-            a₋ⱼ = a[-j]
-            c[0] += ω⁻¹j⁻¹ * im * (aⱼ - a₋ⱼ)
-            c[j] = complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
-            c[-j] = complex(-ω⁻¹j⁻¹ * imag(a₋ⱼ), ω⁻¹j⁻¹ * real(a₋ⱼ))
+        if n == 1
+            @inbounds for j ∈ 1:order(c)
+                ω⁻¹j⁻¹ = inv(ω * exact(j))
+                aⱼ = a[j]
+                a₋ⱼ = a[-j]
+                c[j] = complex(ω⁻¹j⁻¹ * imag(aⱼ), -ω⁻¹j⁻¹ * real(aⱼ))
+                c[-j] = complex(-ω⁻¹j⁻¹ * imag(a₋ⱼ), ω⁻¹j⁻¹ * real(a₋ⱼ))
+            end
+        else
+            if isodd(n)
+                sign_i⁻ⁿ = ifelse(n%4 == 1, 1, -1)
+                @inbounds for j ∈ 1:order(c)
+                    sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ = exact(sign_i⁻ⁿ) * inv(ω * exact(j)) ^ exact(n)
+                    aⱼ = a[j]
+                    a₋ⱼ = a[-j]
+                    c[j] = complex(sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ * imag(aⱼ), -sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ * real(aⱼ))
+                    c[-j] = complex(-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ * imag(a₋ⱼ), sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ * real(a₋ⱼ))
+                end
+            else
+                i⁻ⁿ_real = ifelse(n%4 == 0, 1, -1)
+                @inbounds for j ∈ 1:order(c)
+                    i⁻ⁿω⁻ⁿj⁻ⁿ_real = exact(i⁻ⁿ_real) * inv(ω * exact(j)) ^ exact(n)
+                    c[j] = i⁻ⁿω⁻ⁿj⁻ⁿ_real * a[j]
+                    c[-j] = i⁻ⁿω⁻ⁿj⁻ⁿ_real * a[-j]
+                end
+            end
         end
-    else # TODO: lift restriction
-        return throw(DomainError)
     end
     return c
 end
@@ -291,21 +358,38 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T
     n = order(ℐ)
     if n == 0
         C .= A
-    elseif n == 1
+    else
         ord = order(space)
         @inbounds all(iszero, selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
         ω = one(real(eltype(A)))*frequency(space)
         @inbounds selectdim(C, 1, ord+1) .= zero(T)
-        @inbounds for j ∈ 1:ord
-            ω⁻¹j⁻¹ = inv(ω * exact(j))
-            Aⱼ = selectdim(A, 1, ord+1+j)
-            A₋ⱼ = selectdim(A, 1, ord+1-j)
-            selectdim(C, 1, ord+1) .+= (ω⁻¹j⁻¹ * im) .* (Aⱼ .- A₋ⱼ)
-            selectdim(C, 1, ord+1+j) .= complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
-            selectdim(C, 1, ord+1-j) .= complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
+        if n == 1
+            @inbounds for j ∈ 1:ord
+                ω⁻¹j⁻¹ = inv(ω * exact(j))
+                Aⱼ = selectdim(A, 1, ord+1+j)
+                A₋ⱼ = selectdim(A, 1, ord+1-j)
+                selectdim(C, 1, ord+1+j) .= complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
+                selectdim(C, 1, ord+1-j) .= complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
+            end
+        else
+            if isodd(n)
+                sign_i⁻ⁿ = ifelse(n%4 == 1, 1, -1)
+                @inbounds for j ∈ 1:ord
+                    sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ = exact(sign_i⁻ⁿ) * inv(ω * exact(j)) ^ exact(n)
+                    Aⱼ = selectdim(A, 1, ord+1+j)
+                    A₋ⱼ = selectdim(A, 1, ord+1-j)
+                    selectdim(C, 1, ord+1+j) .= complex.(sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
+                    selectdim(C, 1, ord+1-j) .= complex.((-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* imag.(A₋ⱼ), sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* real.(A₋ⱼ))
+                end
+            else
+                i⁻ⁿ_real = ifelse(n%4 == 0, 1, -1)
+                @inbounds for j ∈ 1:ord
+                    i⁻ⁿω⁻ⁿj⁻ⁿ_real = exact(i⁻ⁿ_real) * inv(ω * exact(j)) ^ exact(n)
+                    selectdim(C, 1, ord+1+j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1+j)
+                    selectdim(C, 1, ord+1-j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1-j)
+                end
+            end
         end
-    else # TODO: lift restriction
-        return throw(DomainError)
     end
     return C
 end
@@ -315,24 +399,41 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
     CoefType = _coeftype(ℐ, space, T)
     if n == 0
         return convert(Array{CoefType,N}, A)
-    elseif n == 1
+    else
         ord = order(space)
         @inbounds all(iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
         ω = one(real(T))*frequency(space)
         C = Array{CoefType,N}(undef, size(A))
         @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
-        @inbounds for j ∈ 1:ord
-            ω⁻¹j⁻¹ = inv(ω * exact(j))
-            Aⱼ = selectdim(A, D, ord+1+j)
-            A₋ⱼ = selectdim(A, D, ord+1-j)
-            selectdim(C, D, ord+1) .+= (ω⁻¹j⁻¹ * im) .* (Aⱼ .- A₋ⱼ)
-            selectdim(C, D, ord+1+j) .= complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
-            selectdim(C, D, ord+1-j) .= complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
+        if n == 1
+            @inbounds for j ∈ 1:ord
+                ω⁻¹j⁻¹ = inv(ω * exact(j))
+                Aⱼ = selectdim(A, D, ord+1+j)
+                A₋ⱼ = selectdim(A, D, ord+1-j)
+                selectdim(C, D, ord+1+j) .= complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
+                selectdim(C, D, ord+1-j) .= complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
+            end
+        else
+            if isodd(n)
+                sign_i⁻ⁿ = ifelse(n%4 == 1, 1, -1)
+                @inbounds for j ∈ 1:ord
+                    sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ = exact(sign_i⁻ⁿ) * inv(ω * exact(j)) ^ exact(n)
+                    Aⱼ = selectdim(A, D, ord+1+j)
+                    A₋ⱼ = selectdim(A, D, ord+1-j)
+                    selectdim(C, D, ord+1+j) .= complex.(sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
+                    selectdim(C, D, ord+1-j) .= complex.((-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* imag.(A₋ⱼ), sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* real.(A₋ⱼ))
+                end
+            else
+                i⁻ⁿ_real = ifelse(n%4 == 0, 1, -1)
+                @inbounds for j ∈ 1:ord
+                    i⁻ⁿω⁻ⁿj⁻ⁿ_real = exact(i⁻ⁿ_real) * inv(ω * exact(j)) ^ exact(n)
+                    selectdim(C, D, ord+1+j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1+j)
+                    selectdim(C, D, ord+1-j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, D, ord+1-j)
+                end
+            end
         end
-    else # TODO: lift restriction
-        return throw(DomainError)
+        return C
     end
-    return C
 end
 
 # Chebyshev
@@ -367,7 +468,7 @@ function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
             @inbounds c[order_a+1] = a[order_a] / exact(2(order_a+1))
         end
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
     end
     return c
 end
@@ -406,7 +507,7 @@ function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where 
             @inbounds selectdim(C, 1, ord+2) .= selectdim(A, 1, ord+1) ./ exact(2(ord+1))
         end
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
     end
     return C
 end
@@ -448,7 +549,7 @@ function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}
         end
         return C
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
     end
 end
 
@@ -461,23 +562,26 @@ end
 function integrate(a::InfiniteSequence, α::Union{Int,Tuple{Vararg{Int}}}=1)
     c = integrate(sequence(a), α)
     X = banachspace(a)
-    finite_factor = _integral_finite_error(X, space(a), α)
-    tail_factor   = _integral_tail_error(X, space(a), α)
-    new_finite = finite_factor * finite_error(a)
-    new_tail   = tail_factor   * tail_error(a)
-    return InfiniteSequence(c, new_finite, new_tail, X)
+    fe = finite_error(a)
+    te = tail_error(a)
+    to = total_error(a)
+    new_finite = _safe_iszero(fe) ? fe : _integral_finite_error(X, space(a), α) * fe
+    new_tail   = _safe_iszero(te) ? te : _integral_tail_error(X, space(a), α)   * te
+    new_total  = _safe_iszero(to) ? to : _integral_total_error(X, space(a), α)  * to
+    return InfiniteSequence(c, new_finite, new_tail, new_total, X)
 end
 
-# Tail-only bound: factor C such that ‖ℐ^α t‖_X ≤ C · ‖t‖_X for tails.
+#-
 
-_integral_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_tail_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+function _integral_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N}
+    tails  = map((wᵢ, sᵢ, αᵢ) -> _integral_tail_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    totals = map((wᵢ, sᵢ, αᵢ) -> _integral_total_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    return _box_complement_factor(tails, totals)
+end
 
 function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    # Tail-only bound in ℓ¹(ν) with N = order(s):
-    #   ‖ℐ^α ε‖_{ℓ¹(ν)} ≤ ν^α · (N+1)!/(N+α+1)! · ‖ε‖_X
     factor = ν ^ exact(α)
     N = order(s)
     for j ∈ 1:α
@@ -488,31 +592,21 @@ end
 
 function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
-    return throw(DomainError(Fourier, "integral error on Fourier InfiniteSequence is not implemented"))
-    # α == 1 || return throw(DomainError(α, "integral error on Fourier is only implemented for α ≤ 1"))
-    # ν = rate(X)
-    # ω = abs(frequency(s)) * one(ν)
-    # N = order(s)
-    # # Tail-only bound in ℓ¹(ν):
-    # #   ‖ℐ ε‖_{ℓ¹(ν)} ≤ (1 + ν^{-(N+1)}) / (|ω|(N+1)) · ‖ε‖_X
-    # return (one(ν) + one(ν) / ν ^ exact(N+1)) / (ω * exact(N+1))
+    ω = abs(frequency(s)) * one(rate(X))
+    return inv(ω * exact(order(s) + 1)) ^ exact(α)
 end
 
 _integral_tail_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
     throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
 
-# Finite-truncation bound: factor C such that ‖ℐ^α p‖_X ≤ C · ‖p‖_X for
-# sequences p supported on indices |k| ≤ order(s).
+#-
 
 _integral_finite_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
     mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_finite_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
 
-function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
+function _integral_finite_error(X::Ell1{<:GeometricWeight}, ::Taylor, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    # ‖ℐ^α p‖_{ℓ¹(ν)} = Σ_{k=0}^{N} ν^{k+α} / ((k+1)…(k+α)) · |p_k|
-    #                 ≤ max_{0 ≤ k ≤ N} ν^α · ∏_{j=1}^{α} 1/(k+j) · ‖p‖_{ℓ¹(ν)}.
-    # Maximum is attained at k = 0, giving ν^α / α!.
     factor = ν ^ exact(α)
     for j ∈ 1:α
         factor = factor / exact(j)
@@ -522,8 +616,34 @@ end
 
 function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
-    return throw(DomainError(Fourier, "integral error on Fourier InfiniteSequence is not implemented"))
+    ω = abs(frequency(s)) * one(rate(X))
+    order(s) == 0 && return zero(inv(ω))
+    return inv(ω) ^ exact(α)
 end
 
 _integral_finite_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
+    throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
+
+#-
+
+_integral_total_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    mapreduce((wᵢ, sᵢ, αᵢ) -> _integral_total_error(Ell1(wᵢ), sᵢ, αᵢ), *, weight(X), spaces(s), α)
+
+function _integral_total_error(X::Ell1{<:GeometricWeight}, ::Taylor, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    factor = ν ^ exact(α)
+    for j ∈ 1:α
+        factor = factor / exact(j)
+    end
+    return factor
+end
+
+function _integral_total_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
+    α == 0 && return one(rate(X))
+    ω = abs(frequency(s)) * one(rate(X))
+    return inv(ω) ^ exact(α)
+end
+
+_integral_total_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
     throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))

@@ -52,10 +52,18 @@ getcoefficient(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, (codom, i)::T
 getcoefficient(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, (codom, i)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, (dom, j)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, ::Type{T}) where {T} =
     @inbounds getcoefficient(Evaluation(value(ℰ)[1]), (codom[1], i[1]), (dom[1], j[1]), T)
 
-#
+# # ScalarSpace
 
-domain(::Evaluation{<:Number}, ::ScalarSpace) = EmptySpace()
-domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
+# domain(::Evaluation{Nothing}, s::ScalarSpace) = s
+# domain(::Evaluation{<:Number}, ::ScalarSpace) = EmptySpace()
+# domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
+
+# codomain(::Evaluation, ::ScalarSpace) = ScalarSpace()
+
+# _coeftype(::Evaluation, ::ScalarSpace, ::Type{T}) where {T} = T
+
+# getcoefficient(::Evaluation, (codom, i)::Tuple{ScalarSpace,Integer}, (dom, j)::Tuple{ScalarSpace,Integer}, ::Type{T}) where {T} =
+#     ifelse(i == j, one(T), zero(T))
 
 # Taylor
 
@@ -474,6 +482,12 @@ function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,
     end
 end
 
+# # ScalarSpace
+
+# function _apply!(c, ::Evaluation, a::Sequence{ScalarSpace})
+#     coefficients(c) .= coefficients(a)
+#     return c
+# end
 
 
 
@@ -486,15 +500,18 @@ function evaluate(a::InfiniteSequence, x::Union{Nothing,Number,Tuple{Vararg{Unio
 end
 
 _return_evaluate(c, a::InfiniteSequence) = interval(c, sequence_error(a); format = :midpoint)
-
-_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(c, finite_error(a), tail_error(a), banachspace(a))
+_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(c, banachspace(a); total_error = sequence_error(a))
 
 #--
+
+_check_domain(X::BanachSpace, s::SequenceSpace, x) =
+    throw(DomainError((X, s), "domain check not implemented for this Banach space / sequence space combination"))
 
 _check_domain(::BanachSpace, ::SequenceSpace, ::Nothing) = nothing
 
 _check_domain(X::BanachSpace, s::SymmetricSpace, x) =
     _check_domain(X, desymmetrize(s), x)
+_check_domain(::BanachSpace, ::SymmetricSpace, ::Nothing) = nothing # needed to resolve method ambiguity
 
 function _check_domain(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, x::NTuple{N,Union{Nothing,Number}}) where {N}
     foreach((wᵢ, sᵢ, xᵢ) -> _check_domain(Ell1(wᵢ), sᵢ, xᵢ), weight(X), spaces(s), x)
@@ -535,7 +552,7 @@ function _check_bernstein_ellipse(ν, x::Number)
     ν_lo = inf(ν)
     ν_hi = sup(ν)
     if (ν_lo == 1) & (ν_hi == 1)
-        # ν = 1: the Bernstein ellipse degenerates to the segment [-1, 1].
+        # ν = 1: the Bernstein ellipse degenerates to the segment [-1, 1]
         (sup(abs(imag(x))) == 0) & (inf(real(x)) ≥ -1) & (sup(real(x)) ≤ 1) ||
             throw(DomainError(x, "evaluation point must lie in [-1, 1] for the degenerate Bernstein ellipse at ν = 1"))
     else
@@ -546,7 +563,3 @@ function _check_bernstein_ellipse(ν, x::Number)
     end
     return nothing
 end
-
-# Fallback: any other (BanachSpace, base space) combination.
-_check_domain(X::BanachSpace, s::SequenceSpace, x) =
-    throw(DomainError((X, s), "domain check not implemented for this Banach space / sequence space combination"))

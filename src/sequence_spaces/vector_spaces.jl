@@ -248,7 +248,7 @@ struct TensorIndices{T<:Tuple}
     indices :: T
 end
 Base.eltype(::TensorIndices{T}) where {T<:Tuple} = Tuple{map(eltype, fieldtypes(T))...}
-Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = getindex(Base.Iterators.ProductIterator(a.indices), i)
+Base.@propagate_inbounds Base.getindex(a::TensorIndices, i) = map(getindex, a.indices, Tuple(getindex(CartesianIndices(map(length, a.indices)), i)))
 Base.length(a::TensorIndices) = length(Base.Iterators.ProductIterator(a.indices))
 Base.iterate(a::TensorIndices) = iterate(Base.Iterators.ProductIterator(a.indices))
 Base.iterate(a::TensorIndices, state) = iterate(Base.Iterators.ProductIterator(a.indices), state)
@@ -299,6 +299,10 @@ end
 _findposition(u::AbstractVector{<:NTuple{N,Integer}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
     map(α -> _findposition(α, s), u)
 _findposition(::NTuple{N,Colon}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = Colon()
+# the empty tuple is both a tuple of `Integer` and a tuple of `Colon`; a
+# `TensorSpace` always has at least one factor, so this case never occurs and
+# the method only resolves the ambiguity between the two above
+_findposition(::Tuple{}, ::TensorSpace{<:Tuple{}}) = Colon()
 _findposition(c::Colon, ::TensorSpace) = c
 _findposition(α::TensorSpace{<:NTuple{N,BaseSpace}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = _findposition(indices(α), s)
 
@@ -652,30 +656,30 @@ end
 
 indices(s::CartesianPower) = Base.OneTo(dimension(s.space)*s.n)
 
-function dimension(s::CartesianPower, i::Int)
+function dimension(s::CartesianPower, i::Integer)
     (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
     return dimension(s.space)
 end
 dimensions(s::CartesianPower) = fill(dimension(s.space), s.n)
 
 order(s::CartesianPower) = fill(order(s.space), s.n)
-function order(s::CartesianPower, i::Int)
+function order(s::CartesianPower, i::Integer)
     (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
     return order(s.space)
 end
 
 frequency(s::CartesianPower) = fill(frequency(s.space), s.n)
-function frequency(s::CartesianPower, i::Int)
+function frequency(s::CartesianPower, i::Integer)
     (1 ≤ i) & (i ≤ s.n) || return throw(BoundsError(s, i))
     return frequency(s.space)
 end
 
-function _component_findposition(i::Int, s::CartesianPower)
+function _component_findposition(i::Integer, s::CartesianPower)
     dim = dimension(s.space)
     x = (i-1)*dim
     return 1+x:dim+x
 end
-function _component_findposition(u::UnitRange{Int}, s::CartesianPower)
+function _component_findposition(u::UnitRange{<:Integer}, s::CartesianPower)
     dim = dimension(s.space)
     x = (first(u)-1)*dim
     return 1+x:dim*length(u)+x
@@ -813,22 +817,22 @@ Base.union(s₁::CartesianProduct{<:NTuple{N,VectorSpace}}, s₂::CartesianProdu
 
 indices(s::CartesianProduct) = Base.OneTo(mapreduce(dimension, +, s.spaces))
 
-dimension(s::CartesianProduct, i::Int) = dimension(s.spaces[i])
+dimension(s::CartesianProduct, i::Integer) = dimension(s.spaces[i])
 dimensions(s::CartesianProduct) = map(dimension, s.spaces)
 
 order(s::CartesianProduct) = map(order, s.spaces)
-order(s::CartesianProduct, i::Int) = order(s.spaces[i])
+order(s::CartesianProduct, i::Integer) = order(s.spaces[i])
 
 frequency(s::CartesianProduct) = map(frequency, s.spaces)
-frequency(s::CartesianProduct, i::Int) = frequency(s.spaces[i])
+frequency(s::CartesianProduct, i::Integer) = frequency(s.spaces[i])
 
-function _component_findposition(i::Int, s::CartesianProduct)
+function _component_findposition(i::Integer, s::CartesianProduct)
     dims = dimensions(s)
     dim = dims[i]
     x = mapreduce(j -> dims[j], +, 1:i-1; init=0)
     return 1+x:dim+x
 end
-function _component_findposition(u::UnitRange{Int}, s::CartesianProduct)
+function _component_findposition(u::UnitRange{<:Integer}, s::CartesianProduct)
     dims = dimensions(s)
     dim = mapreduce(j -> dims[j], +, u)
     x = mapreduce(j -> dims[j], +, 1:first(u)-1; init=0)
@@ -917,7 +921,7 @@ function _findposition(α::CartesianSpace, s::CartesianSpace)
     return v
 end
 
-_iterate_space(s::CartesianPower, i) = _iterate_space(space(s), i)
+_iterate_space(s::CartesianPower, i) = _iterate_space(space(s), mod1(i, _deep_nspaces(space(s))))
 function _iterate_space(s::CartesianProduct, i)
     _deep_nspaces(s[1]) ≥ i && return _iterate_space(s[1], i)
     for j ∈ 2:nspaces(s)-1

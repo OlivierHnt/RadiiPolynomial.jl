@@ -169,7 +169,7 @@ julia> rate(w)
 struct BesselWeight{T<:Real} <: Weight
     rate :: T
     function BesselWeight{T}(rate::T) where {T<:Real}
-        isfinite(rate) & (rate ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
+        isfinite(inf(rate)) & (inf(rate) ≥ 0) || return throw(DomainError(rate, "rate must be finite and positive"))
         return new{T}(rate)
     end
 end

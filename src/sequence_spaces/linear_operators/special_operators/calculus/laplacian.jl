@@ -39,7 +39,7 @@ domain(::Laplacian, s::BaseSpace) = domain(Derivative(2), s)
 
 codomain(::Laplacian, s::BaseSpace) = codomain(Derivative(2), s)
 
-_coeftype(::Laplacian, s::BaseSpace, ::Type{T}) where {T} = real(_coeftype(Derivative(2), s, T))
+_coeftype(::Laplacian, s::BaseSpace, ::Type{T}) where {T} = _coeftype(Derivative(2), s, T)
 
 getcoefficient(::Laplacian, (codom, i)::Tuple{BaseSpace,Integer}, (dom, j)::Tuple{BaseSpace,Integer}, ::Type{T}) where {T} =
     @inbounds getcoefficient(Derivative(2), (codom, i), (dom, j), T)
@@ -50,7 +50,32 @@ domain(::Laplacian, s::SymmetricSpace{<:BaseSpace}) = domain(Derivative(2), s)
 
 codomain(::Laplacian, s::SymmetricSpace{<:BaseSpace}) = codomain(Derivative(2), s)
 
-_coeftype(::Laplacian, s::SymmetricSpace{<:BaseSpace}, ::Type{T}) where {T} = real(_coeftype(Derivative(2), s, T))
+_coeftype(::Laplacian, s::SymmetricSpace{<:BaseSpace}, ::Type{T}) where {T} = _coeftype(Derivative(2), s, T)
+
+#= NOTE
+The Laplacian is diagonal with symbol -(ω₁²k₁² + … + ω_N²k_N²). It maps a symmetric space into itself, with the same symmetry group, if and only if every index action β of the group preserves the symbol, i.e. βᵀ diag(ω²) β = diag(ω²); otherwise the image is not a symmetric space and no valid domain/codomain exists.
+=#
+function _check_laplacian_symmetry(s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
+    w2 = map(ω -> ω*ω, frequency(s))
+    for g ∈ elements(symmetry(s))
+        β = g.index_action.matrix
+        for i ∈ 1:N, j ∈ i:N
+            v = sum(l -> w2[l] * (β[l,i]*β[l,j]), 1:N)
+            valid = i == j ? _safe_isequal(v, w2[i]) : _safe_iszero(v)
+            valid || return throw(ArgumentError("Laplacian is not compatible with the symmetry group: the index action with matrix $β does not preserve the symbol -(ω₁²k₁² + … + ω_N²k_N²)"))
+        end
+    end
+    return s
+end
+
+domain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N} =
+    _check_laplacian_symmetry(s)
+
+codomain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N} =
+    _check_laplacian_symmetry(s)
+
+_coeftype(Δ::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}, ::Type{T}) where {N,T} =
+    _coeftype(Δ, desymmetrize(s), T)
 
 
 

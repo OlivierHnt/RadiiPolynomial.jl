@@ -274,83 +274,33 @@ _unsafe_get_representative_and_action(s::SymmetricSpace, k) = @inbounds s.rep_id
 #
 
 """
-    eachblock(a::Sequence{<:CartesianSpace})
+    eachcomponent(a::Sequence{<:CartesianSpace})
 
-Create a generator whose iterates yield each [`Sequence`](@ref) composing the block sequence.
-
-# Examples
-
-```jldoctest
-julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
-Sequence in Taylor(1)² with coefficients Vector{Int64}:
- 1
- 2
- 3
- 4
-
-julia> m = eachblock(a)
-Base.Generator{Base.OneTo{Int64}, RadiiPolynomial.var"#eachblock##0#eachblock##1"{Sequence{CartesianPower{Taylor}, Vector{Int64}}}}(RadiiPolynomial.var"#eachblock##0#eachblock##1"{Sequence{CartesianPower{Taylor}, Vector{Int64}}}(Sequence(Taylor(1)², [1, 2, 3, 4])), Base.OneTo(2))
-
-julia> [v for v = m]
-2-element Vector{Sequence{Taylor, SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}}:
- Sequence(Taylor(1), [1, 2])
- Sequence(Taylor(1), [3, 4])
-```
+Return a generator over the components of `a` (cf. [`component`](@ref)).
 """
-eachblock(a::Sequence{<:CartesianSpace}) =
-    (@inbounds(block(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
+eachcomponent(a::Sequence{<:CartesianSpace}) =
+    (@inbounds(component(a, i)) for i ∈ Base.OneTo(nspaces(space(a))))
 
 """
-    block(a::Sequence{<:CartesianSpace})
+    component(a::Sequence{<:CartesianSpace}, i)
 
-Return the collection of blocks composing the sequence.
+Return the `i`-th component of `a` as a `Sequence` whose coefficients are a
+view into `coefficients(a)`: the component stays glued to `a`. `i` may also be
+a unit range or `:`, in which case the returned sequence lives in the
+corresponding cartesian subspace.
 
-# Examples
-
-```jldoctest
-julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
-Sequence in Taylor(1)² with coefficients Vector{Int64}:
- 1
- 2
- 3
- 4
-
-julia> block(a)
-2-element Vector{Sequence{Taylor, SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}}}:
- Sequence(Taylor(1), [1, 2])
- Sequence(Taylor(1), [3, 4])
-```
+See also: [`eachcomponent`](@ref) and [`unpack`](@ref).
 """
-block(a::Sequence{<:CartesianSpace}) = collect(eachblock(a))
-
-"""
-    block(a::Sequence{<:CartesianSpace}, i)
-
-Return the ``i``-th [`Sequence`](@ref) composing the block sequence.
-
-# Examples
-
-```jldoctest
-julia> a = Sequence(Taylor(1)^2, [1, 2, 3, 4])
-Sequence in Taylor(1)² with coefficients Vector{Int64}:
- 1
- 2
- 3
- 4
-
-julia> block(a, 1)
-Sequence in Taylor(1) with coefficients SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}:
- 1
- 2
-
-julia> block(a, 2)
-Sequence in Taylor(1) with coefficients SubArray{Int64, 1, Vector{Int64}, Tuple{UnitRange{Int64}}, true}:
- 3
- 4
-```
-"""
-Base.@propagate_inbounds block(a::Sequence{<:CartesianSpace}, i) =
+Base.@propagate_inbounds component(a::Sequence{<:CartesianSpace}, i) =
     Sequence(space(a)[i], view(coefficients(a), _component_findposition(i, space(a))))
+
+"""
+    unpack(a::Sequence{<:CartesianSpace})
+
+Unglue `a` into the `Vector` of its components. Each entry is the corresponding
+[`component`](@ref), so its coefficients remain a view into `coefficients(a)`.
+"""
+unpack(a::Sequence{<:CartesianSpace}) = collect(eachcomponent(a))
 
 # promotion
 
@@ -402,7 +352,7 @@ end
 
 conjugacy_symmetry!(a::Sequence) = _conjugacy_symmetry!(a)
 
-_conjugacy_symmetry!(::Sequence) = throw(DomainError) # TODO: lift restriction
+_conjugacy_symmetry!(a::Sequence) = throw(DomainError(space(a), "conjugacy symmetry is not defined for this space")) # TODO: lift restriction
 
 function _conjugacy_symmetry!(a::Sequence{ScalarSpace})
     @inbounds a[1] = real(a[1])
@@ -422,19 +372,19 @@ function _conjugacy_symmetry!(a::Sequence{<:TensorSpace{<:Tuple{Vararg{Fourier}}
 end
 
 function _conjugacy_symmetry!(a::Sequence{<:CartesianSpace})
-    for aᵢ ∈ eachblock(a)
+    for aᵢ ∈ eachcomponent(a)
         _conjugacy_symmetry!(aᵢ)
     end
     return a
 end
 
 function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {N,T<:NTuple{N,VectorSpace}}
-    @inbounds _conjugacy_symmetry!(block(a, 1))
-    @inbounds _conjugacy_symmetry!(block(a, 2:N))
+    @inbounds _conjugacy_symmetry!(component(a, 1))
+    @inbounds _conjugacy_symmetry!(component(a, 2:N))
     return a
 end
 function _conjugacy_symmetry!(a::Sequence{CartesianProduct{T}}) where {T<:Tuple{VectorSpace}}
-    @inbounds _conjugacy_symmetry!(block(a, 1))
+    @inbounds _conjugacy_symmetry!(component(a, 1))
     return a
 end
 
@@ -680,7 +630,7 @@ end
 
 function polish!(a::Sequence{<:CartesianSpace})
     for i ∈ 1:nspaces(space(a))
-        polish!(block(a, i))
+        polish!(component(a, i))
     end
     return a
 end

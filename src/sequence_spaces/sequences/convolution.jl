@@ -1,7 +1,7 @@
-const CONV_ALGORITHM = Ref(:sum) # default
+const CONV_ALGORITHM = Ref(:loop) # default
 
 function set_conv_algorithm(algo::Symbol)
-    algo ∉ (:fft, :sum) && return throw(ArgumentError("algorithm must be :fft or :sum"))
+    algo ∉ (:fft, :loop) && return throw(ArgumentError("algorithm must be :fft or :loop"))
     CONV_ALGORITHM[] = algo
     return algo
 end
@@ -18,21 +18,41 @@ See also: [`^(::Sequence{<:SequenceSpace}, ::Int)`](@ref).
 """
 function Base.:*(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     space_c = codomain(*, space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(b))
     if CONV_ALGORITHM[] === :fft
-        da = _maybe_desym(a)
-        db = _maybe_desym(b)
-        A = to_grid(da, fft_size(space_c))
-        B = to_grid(db, fft_size(space_c))
-        C = A .* B
-        dc = _call_to_seq!(C, desymmetrize(space_c), CoefType)
-        _enforce_zeros!(dc, da, db)
-        banach_rounding!(dc, da, db)
-        c = _maybe_sym(dc, space_c)
-    else # CONV_ALGORITHM[] === :sum
-        c = zeros(CoefType, space_c)
-        _conv!(c, a, b)
+        return _mul_via_fft(a, b, space_c, space_c)
+    else # CONV_ALGORITHM[] === :loop
+        return _mul_via_sum(a, b, space_c)
     end
+end
+
+function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
+    space_c = codomain(mul_bar, space(a), space(b))
+    if CONV_ALGORITHM[] === :fft
+        # `mul_bar` truncates to `intersect(s_a, s_b)`, but the FFT must run on
+        # the full convolution support (`codomain(*, ...)`) to avoid aliasing
+        return _mul_via_fft(a, b, space_c, codomain(*, space(a), space(b)))
+    else # CONV_ALGORITHM[] === :loop
+        return _mul_via_sum(a, b, space_c)
+    end
+end
+
+function _mul_via_fft(a::Sequence, b::Sequence, output_space::SequenceSpace, fft_space::SequenceSpace)
+    CoefType = promote_type(eltype(a), eltype(b))
+    da = _maybe_desym(a)
+    db = _maybe_desym(b)
+    A = to_grid(da, fft_size(fft_space))
+    B = to_grid(db, fft_size(fft_space))
+    C = A .* B
+    dc = _call_to_seq!(C, desymmetrize(output_space), CoefType)
+    _enforce_zeros!(dc, da, db)
+    banach_rounding!(dc, da, db)
+    return _maybe_sym(dc, output_space)
+end
+
+function _mul_via_sum(a::Sequence, b::Sequence, output_space::SequenceSpace)
+    CoefType = promote_type(eltype(a), eltype(b))
+    c = zeros(CoefType, output_space)
+    _conv!(c, a, b)
     return c
 end
 
@@ -40,27 +60,6 @@ _maybe_desym(a::Sequence{<:NoSymSpace}) = a
 _maybe_desym(a::Sequence{<:SymmetricSpace}) = Projection(desymmetrize(space(a))) * a
 _maybe_sym(a::Sequence, ::NoSymSpace) = a
 _maybe_sym(a::Sequence, s::SymmetricSpace) = Projection(s) * a
-
-function mul_bar(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
-    space_c = codomain(mul_bar, space(a), space(b))
-    CoefType = promote_type(eltype(a), eltype(b))
-    if CONV_ALGORITHM[] === :fft
-        full_space = codomain(*, space(a), space(b))
-        da = _maybe_desym(a)
-        db = _maybe_desym(b)
-        A = to_grid(da, fft_size(full_space))
-        B = to_grid(db, fft_size(full_space))
-        C = A .* B
-        dc = _call_to_seq!(C, desymmetrize(space_c), CoefType)
-        _enforce_zeros!(dc, da, db)
-        banach_rounding!(dc, da, db)
-        c = _maybe_sym(dc, space_c)
-    else # CONV_ALGORITHM[] === :sum
-        c = zeros(CoefType, space_c)
-        _conv!(c, a, b)
-    end
-    return c
-end
 
 #-
 _to_interval(::Type{T}, x) where {T<:Union{Interval,Complex{<:Interval}}} = interval(zero(T), x; format = :midpoint)
@@ -72,7 +71,7 @@ function banach_rounding_order(bound::T, X::Ell1{GeometricWeight{T}}) where {T<:
     v = bound/eps(T)
     v ≤ 1 && return 0
     order = log(v)/log(rate(weight(X)))
-    isinf(order) && return typemax(Int)
+    order ≥ typemax(Int) && return typemax(Int)
     return ceil(Int, order)
 end
 
@@ -81,7 +80,7 @@ function banach_rounding_order(bound::T,  X::Ell1{AlgebraicWeight{T}}) where {T<
     v = bound/eps(T)
     v ≤ 1 && return 0
     order = exp(log(v)/rate(weight(X)))-1
-    isinf(order) && return typemax(Int)
+    order ≥ typemax(Int) && return typemax(Int)
     return ceil(Int, order)
 end
 
@@ -131,84 +130,18 @@ function banach_rounding!(a::Sequence{TensorSpace{T},<:AbstractVector{S}}, bound
     return a
 end
 
-# Taylor
-
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
-    if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weight(X)))
-        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
-        @inbounds for i ∈ rounding_order:order(a)
-            a[i] = _to_interval(T, sup(μⁱ))
-            μⁱ *= ν⁻¹
-        end
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{Taylor,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
+function banach_rounding!(a::Sequence{<:BaseSpace,<:AbstractVector{T}}, bound::Real, X::Ell1, rounding_order::Int) where {T}
     (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
     space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
+    @inbounds for i ∈ rounding_order:order(space_a)
         μⁱ = bound / _getindex(weight(X), space_a, i)
-        a[i] = _to_interval(T, sup(μⁱ))
+        _write_symmetric!(a, i, _to_interval(T, sup(μⁱ)))
     end
     return a
 end
 
-# Fourier
-
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
-    if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weight(X)))
-        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
-        @inbounds for i ∈ rounding_order:order(a)
-            x = _to_interval(T, sup(μⁱ))
-            a[i] = x
-            a[-i] = x
-            μⁱ *= ν⁻¹
-        end
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{<:Fourier,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
-    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
-    space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
-        μⁱ = bound / _getindex(weight(X), space_a, i)
-        x = _to_interval(T, sup(μⁱ))
-        a[i] = x
-        a[-i] = x
-    end
-    return a
-end
-
-# Chebyshev
-
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:GeometricWeight}, rounding_order::Int) where {T}
-    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
-    if rounding_order ≤ order(a)
-        ν⁻¹ = inv(rate(weight(X)))
-        μⁱ = bound / _getindex(weight(X), space(a), rounding_order)
-        @inbounds for i ∈ rounding_order:order(a)
-            a[i] = _to_interval(T, sup(μⁱ))
-            μⁱ *= ν⁻¹
-        end
-    end
-    return a
-end
-
-function banach_rounding!(a::Sequence{Chebyshev,<:AbstractVector{T}}, bound::Real, X::Ell1{<:AlgebraicWeight}, rounding_order::Int) where {T}
-    (inf(bound) ≥ 0) & (rounding_order ≥ 0) || return throw(DomainError((bound, rounding_order), "the bound and the rounding order must be positive"))
-    space_a = space(a)
-    @inbounds for i ∈ rounding_order:order(a)
-        μⁱ = bound / _getindex(weight(X), space_a, i)
-        a[i] = _to_interval(T, sup(μⁱ))
-    end
-    return a
-end
+_write_symmetric!(a::Sequence{<:Union{Taylor,Chebyshev}}, i, x) = @inbounds (a[i] = x)
+_write_symmetric!(a::Sequence{<:Fourier}, i, x) = @inbounds (a[i] = a[-i] = x)
 #-
 
 #-
@@ -229,73 +162,56 @@ _enforce_zeros!(C::AbstractArray{T,N}, A, B::AbstractArray, space_c::TensorSpace
 function _enforce_zeros!(C, A, B, sc::BaseSpace, sa, sb)
     amin, amax = _nonzero_bounds(A, sa)
     bmin, bmax = _nonzero_bounds(B, sb)
-    cmin, _ = _get_order_mul(sc, amin, bmin)
-    _, cmax = _get_order_mul(sc, amax, bmax)
-    CoefType = eltype(C)
-    for i ∈ 1:length(C)
-        k = _index_to_math(sc, i)
-        if k < cmin || cmax < k
-            C[i] = zero(CoefType)
-        end
-    end
-    return C
+    cmin, cmax = _conv_bounds(sc, amin, amax, bmin, bmax)
+    return _zero_outside!(C, sc, cmin, cmax)
 end
 function _enforce_zeros!(C, A, B, sc::BaseSpace, sa, sb, ::Val{D}) where {D}
     amin, amax = _nonzero_bounds(A, sa, Val(D))
     bmin, bmax = _nonzero_bounds(B, sb, Val(D))
-    cmin, _ = _get_order_mul(sc, amin, bmin)
-    _, cmax = _get_order_mul(sc, amax, bmax)
-    CoefType = eltype(C)
-    @inbounds for i ∈ 1:size(C, D)
-        k = _index_to_math(sc, i)
-        if k < cmin || cmax < k
-            selectdim(C, D, i) .= zero(CoefType)
-        end
-    end
+    cmin, cmax = _conv_bounds(sc, amin, amax, bmin, bmax)
+    return _zero_outside!(C, sc, cmin, cmax, Val(D))
+end
+
+function _zero_outside!(C, sc::BaseSpace, cmin, cmax)
+    z = zero(eltype(C))
+    n = length(C)
+    offset = first(indices(sc)) - 1
+    head_end = clamp(cmin - offset - 1, 0, n)
+    tail_start = clamp(cmax - offset + 1, 1, n + 1)
+    @inbounds view(C, 1:head_end) .= z
+    @inbounds view(C, tail_start:n) .= z
+    return C
+end
+function _zero_outside!(C, sc::BaseSpace, cmin, cmax, ::Val{D}) where {D}
+    z = zero(eltype(C))
+    n = size(C, D)
+    offset = first(indices(sc)) - 1
+    head_end = clamp(cmin - offset - 1, 0, n)
+    tail_start = clamp(cmax - offset + 1, 1, n + 1)
+    @inbounds selectdim(C, D, 1:head_end) .= z
+    @inbounds selectdim(C, D, tail_start:n) .= z
     return C
 end
 
 function _nonzero_bounds(C, s)
-    first_idx = 0
-    last_idx  = 0
-    found = false
-    @inbounds for i ∈ 1:length(C)
-        if !iszero(C[i])
-            if !found
-                first_idx = i
-                found = true
-            end
-            last_idx = i
-        end
-    end
-    !found && return 0, -1 # all zeros
-    return _index_to_math(s, first_idx), _index_to_math(s, last_idx)
+    lo = findfirst(!iszero, C)
+    lo === nothing && return 0, -1
+    hi = findlast(!iszero, C)
+    offset = first(indices(s)) - 1
+    return lo + offset, hi + offset
 end
 function _nonzero_bounds(C, s, ::Val{D}) where {D}
-    first_idx = 0
-    last_idx  = 0
-    found = false
-    @inbounds for i ∈ 1:size(C, D)
-        if any(!iszero, selectdim(C, D, i))
-            if !found
-                first_idx = i
-                found = true
-            end
-            last_idx = i
-        end
-    end
-    !found && return 0, -1 # all zeros
-    return _index_to_math(s, first_idx), _index_to_math(s, last_idx)
+    pred = i -> any(!iszero, selectdim(C, D, i))
+    lo = findfirst(pred, 1:size(C, D))
+    lo === nothing && return 0, -1
+    hi = findlast(pred, 1:size(C, D))
+    offset = first(indices(s)) - 1
+    return lo + offset, hi + offset
 end
 
-_get_order_mul(::Taylor, i, j) = (i+j, i+j)
-_index_to_math(::Taylor, j) = j - 1
-
-_get_order_mul(::Fourier, i, j) = (i+j, i+j)
-_index_to_math(s::Fourier, j) = j - (div(dimension(s), 2) + 1)
-
-_get_order_mul(::Chebyshev, i, j) = (abs(i-j), i+j)
-_index_to_math(::Chebyshev, j) = j - 1
+_conv_bounds(::Taylor, amin, amax, bmin, bmax) = (amin + bmin, amax + bmax)
+_conv_bounds(::Fourier, amin, amax, bmin, bmax) = (amin + bmin, amax + bmax)
+_conv_bounds(::Chebyshev, amin, amax, bmin, bmax) = (max(0, amin - bmax, bmin - amax), amax + bmax)
 #-
 
 function _conv!(c::Sequence{<:SequenceSpace}, a, b)
@@ -411,47 +327,34 @@ function Base.:^(a::Sequence{<:SequenceSpace}, n::Integer)
         dc = _call_to_seq!(C, desymmetrize(space_c), eltype(a))
         _pow_enforce_zeros!(dc, da, n)
         banach_rounding!(dc, da, n)
-        c = _maybe_sym(dc, space_c)
-    else # CONV_ALGORITHM[] === :sum
-        n == 2 && return _sqr(a)
-        # power by squaring
-        t = trailing_zeros(n) + 1
-        n >>= t
-        while (t -= 1) > 0
-            a = _sqr(a)
-        end
-        c = a
-        while n > 0
-            t = trailing_zeros(n) + 1
-            n >>= t
-            while (t -= 1) ≥ 0
-                a = _sqr(a)
-            end
-            c = c * a
-        end
+        return _maybe_sym(dc, space_c)
+    else # CONV_ALGORITHM[] === :loop
+        return _pow_by_squaring(a, n, _sqr, *)
     end
-    return c
 end
 
 function pow_bar(a::Sequence{<:SequenceSpace}, n::Integer)
     n < 0 && return throw(DomainError(n, "pow_bar is only defined for positive integers"))
     n == 0 && return one(a)
     n == 1 && return copy(a)
-    n == 2 && return _sqr_bar(a)
-    # power by squaring
+    return _pow_by_squaring(a, n, _sqr_bar, mul_bar)
+end
+
+function _pow_by_squaring(a, n::Integer, sqr, mul)
+    n == 2 && return sqr(a)
     t = trailing_zeros(n) + 1
     n >>= t
     while (t -= 1) > 0
-        a = _sqr_bar(a)
+        a = sqr(a)
     end
     c = a
     while n > 0
         t = trailing_zeros(n) + 1
         n >>= t
         while (t -= 1) ≥ 0
-            a = _sqr_bar(a)
+            a = sqr(a)
         end
-        c = mul_bar(c, a)
+        c = mul(c, a)
     end
     return c
 end
@@ -471,37 +374,23 @@ _pow_enforce_zeros!(C::AbstractArray{T,N}, A, space_c::TensorSpace{<:Tuple{BaseS
     @inbounds _pow_enforce_zeros!(C, A, space_c[1], space_a[1], n, Val(N))
 
 function _pow_enforce_zeros!(C, A, sc::BaseSpace, sa, n)
-    amin, amax = _nonzero_bounds(A, sa, Val(D))
-    cmin, _ = _get_order_pow(sc, amin, n)
-    _, cmax = _get_order_pow(sc, amax, n)
-    CoefType = eltype(C)
-    for i ∈ 1:length(C)
-        k = _index_to_math(sc, i)
-        if k < cmin || cmax < k
-            C[i] = zero(CoefType)
-        end
-    end
-    return C
+    amin, amax = _nonzero_bounds(A, sa)
+    cmin, cmax = _pow_bounds(sc, amin, amax, n)
+    return _zero_outside!(C, sc, cmin, cmax)
 end
 function _pow_enforce_zeros!(C, A, sc::BaseSpace, sa, n, ::Val{D}) where {D}
     amin, amax = _nonzero_bounds(A, sa, Val(D))
-    cmin, _ = _get_order_pow(sc, amin, n)
-    _, cmax = _get_order_pow(sc, amax, n)
-    CoefType = eltype(C)
-    @inbounds for i ∈ 1:size(C, D)
-        k = _index_to_math(sc, i)
-        if k < cmin || cmax < k
-            selectdim(C, D, i) .= zero(CoefType)
-        end
-    end
-    return C
+    cmin, cmax = _pow_bounds(sc, amin, amax, n)
+    return _zero_outside!(C, sc, cmin, cmax, Val(D))
 end
 
-_get_order_pow(::Taylor, i, n) = (i*n, i*n)
-
-_get_order_pow(::Fourier, i, n) = (i*n, i*n)
-
-_get_order_pow(::Chebyshev, i, n) = (ifelse(isodd(n), i % 2, 0), i*n)
+function _pow_bounds(s::BaseSpace, amin, amax, n)
+    cmin, cmax = amin, amax
+    for _ in 2:n
+        cmin, cmax = _conv_bounds(s, cmin, cmax, amin, amax)
+    end
+    return cmin, cmax
+end
 #-
 
 function _sqr(a::Sequence{<:SequenceSpace})
@@ -639,12 +528,14 @@ function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     cross_bound = norm(sequence(a), X) * sequence_error(b) +
                   norm(sequence(b), X) * sequence_error(a) +
                   sequence_error(a) * sequence_error(b)
+    spillover = norm(full_c, X)
     new_finite = cross_bound
-    new_tail = norm(full_c, X) + cross_bound
+    new_tail = spillover + cross_bound
+    new_total = spillover + cross_bound
 
     new_full_norm = norm(a, X) * norm(b, X) # Banach algebra
 
-    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_full_norm, X)
+    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_total, new_full_norm, X)
 end
 
 Base.:*(a::InfiniteSequence, b::Sequence) = a * InfiniteSequence(b, banachspace(a))

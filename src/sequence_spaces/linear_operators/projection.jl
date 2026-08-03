@@ -15,6 +15,11 @@ end
 Projection(space::VectorSpace, ::Type{T}=Float64) where {T<:Number} = Projection{typeof(space),T}(space)
 
 domain(P::Projection) = P.space # needed for general methods
+function domain(P::Projection, s::EmptySpace) # needed to resolve methods ambiguity
+    dom = P.space
+    _iscompatible(dom, s) || return throw(ArgumentError("spaces must be compatible: projection space is $dom, codomain space is $s"))
+    return dom
+end
 function domain(P::Projection, s::VectorSpace)
     dom = P.space
     pdom, ps = _promote_space(dom, s)
@@ -33,12 +38,12 @@ end
 coefficients(P::Projection) = project(UniformScalingOperator(one(eltype(P))), P.space, P.space) # needed for general methods
 
 Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
-Base.eltype(::Type{Projection{<:VectorSpace,S}}) where {S<:Number} = S
+Base.eltype(::Type{<:Projection{<:VectorSpace,S}}) where {S<:Number} = S
 _coeftype(A::Projection, ::VectorSpace) = eltype(A)
 _coeftype(A::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 IntervalArithmetic.interval(::Type{T}, P::Projection) where {T<:IntervalArithmetic.NumTypes} = Projection(IntervalArithmetic.interval(T, P.space), Interval{T})
-IntervalArithmetic.interval(P::Projection) = Projection(interval(P.space), IntervalArithmetic.promote_numtype(eltype(P), eltype(P)))
+IntervalArithmetic.interval(P::Projection) = Projection(interval(P.space), Interval{IntervalArithmetic.promote_numtype(eltype(P), eltype(P))})
 # IntervalArithmetic._infer_numtype(P::Projection) = numtype(eltype(P))
 # function IntervalArithmetic._interval_infsup(::Type{T}, P₁::Projection, P₂::Projection, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes}
 #     @assert P₁.space == P₂.space
@@ -64,24 +69,29 @@ Base.:∘(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space,
 Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 
-Base.:*(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
-Base.:*(P::Projection, A::AbstractLinearOperator) = _lproj(A, domain(A, P.space), P)
 _lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
 _lproj(A::AbstractLinearOperator, ::EmptySpace, P::Projection) = ComposedOperator(P, A)
 
 #- also trigger materilization
 
-Base.:*(P::Add{<:Projection,<:Projection}, A::AbstractLinearOperator) = P.A * A + P.B * A
-Base.:*(A::AbstractLinearOperator, P::Add{<:Projection,<:Projection}) = A * P.A + A * P.B
-Base.:*(P::Add{<:Projection,<:Negate{<:Projection}}, A::AbstractLinearOperator) = P.A * A + P.B * A
-Base.:*(A::AbstractLinearOperator, P::Add{<:Projection,<:Negate{<:Projection}}) = A * P.A + A * P.B
-Base.:*(P::Add{<:Negate{<:Projection},<:Projection}, A::AbstractLinearOperator) = P.A * A + P.B * A
-Base.:*(A::AbstractLinearOperator, P::Add{<:Negate{<:Projection},<:Projection}) = A * P.A + A * P.B
-Base.:*(P::Add{<:Negate{<:Projection},<:Negate{<:Projection}}, A::AbstractLinearOperator) = P.A * A + P.B * A
-Base.:*(A::AbstractLinearOperator, P::Add{<:Negate{<:Projection},<:Negate{<:Projection}}) = A * P.A + A * P.B
+const _ProjSummand = Union{Projection,Negate{<:Projection}}
+const _ProjLike = Union{_ProjSummand,Add{<:_ProjSummand,<:_ProjSummand}}
 
-Base.:*(P::Negate{<:Projection}, A::AbstractLinearOperator) = -(P.A * A)
-Base.:*(A::AbstractLinearOperator, P::Negate{<:Projection}) = -(A * P.A)
+Base.:*(P::_ProjLike, A::AbstractLinearOperator) = _ldistribute(P, A)
+Base.:*(A::AbstractLinearOperator, P::_ProjLike) = _rdistribute(A, P)
+Base.:*(P::_ProjLike, Q::_ProjLike) = _ldistribute(P, Q) # distribute the left operand until `_ldistribute(P::Projection, Q::_ProjLike)`
+Base.:*(P::_ProjLike, A::LinearOperator) = _ldistribute(P, A)
+Base.:*(A::LinearOperator, P::_ProjLike) = _rdistribute(A, P)
+
+_ldistribute(P::Projection, Q::_ProjLike) = _rdistribute(P, Q)
+
+_ldistribute(P::Add, A::AbstractLinearOperator) = P.A * A + P.B * A
+_ldistribute(P::Negate{<:Projection}, A::AbstractLinearOperator) = -(P.A * A)
+_ldistribute(P::Projection, A::AbstractLinearOperator) = _lproj(A, domain(A, P.space), P)
+
+_rdistribute(A::AbstractLinearOperator, P::Add) = A * P.A + A * P.B
+_rdistribute(A::AbstractLinearOperator, P::Negate{<:Projection}) = -(A * P.A)
+_rdistribute(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
 
 
 
@@ -226,7 +236,7 @@ function __promote_space(t1::Tuple, t2::Tuple, s1::VectorSpace, s2::Tuple{Vector
     return (t1..., u), (t2..., v)
 end
 
-_zero_space(s::TensorSpace) = TensorSpace(map(_zero_space, s))
+_zero_space(s::TensorSpace) = TensorSpace(map(_zero_space, spaces(s)))
 _zero_space(::Taylor) = Taylor(0)
 _zero_space(s::Fourier) = Fourier(0, frequency(s))
 _zero_space(::Chebyshev) = Chebyshev(0)
@@ -304,7 +314,7 @@ function Base.:*(P::Projection{<:CartesianSpace}, v::Matrix)
     CoefType = reduce(promote_type, [reduce(promote_type, [eltype(u[i,j]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)])
     u_ = zeros(CoefType, dom, P.space)
     @inbounds for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
-        project!(block(u_, i, j), u[i,j])
+        project!(component(u_, i, j), u[i,j])
     end
     return u_
 end
@@ -316,7 +326,7 @@ function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
     CoefType = reduce(promote_type, [reduce(promote_type, [eltype(u[i,j]) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)])
     u_ = zeros(CoefType, P.space, codom)
     @inbounds for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
-        project!(block(u_, i, j), u[i,j])
+        project!(component(u_, i, j), u[i,j])
     end
     return u_
 end
@@ -335,9 +345,11 @@ function project(a::InfiniteSequence, space_dest::SequenceSpace, ::Type{T}=eltyp
     @inbounds view(discarded, indices(space_dest ∩ space(a))) .= zero(T)
 
     X = banachspace(a)
-    new_finite = finite_error(a)
-    new_tail = tail_error(a) + norm(discarded, X)
-    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, a.full_norm, X)
+    discarded_norm = norm(discarded, X)
+    new_finite = finite_error(a) # bounded by the original finite_error
+    new_tail = tail_error(a) + discarded_norm + ifelse(iszero(discarded_norm), zero(finite_error(a)), finite_error(a))
+    new_total = total_error(a) + discarded_norm
+    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_total, a.full_norm, X)
 end
 
 function project!(c::Sequence, a::InfiniteSequence)
@@ -348,13 +360,15 @@ function project!(c::Sequence, a::InfiniteSequence)
     CoefType = eltype(c)
     fe = finite_error(a)
     te = tail_error(a)
+    tote = total_error(a)
+    in_finite_bound = min(fe, tote)
+    in_tail_bound   = min(te, tote)
     @inbounds for k ∈ indices(space_c)
+        w_k = _getindex(weight(X), space_c, k)
         if any(abs.(k) .> ord_a)
-            w_k = _getindex(weight(X), space_c, k)
-            c[k] = _to_interval(CoefType, sup(te / w_k))
-        elseif !iszero(fe)
-            w_k = _getindex(weight(X), space_c, k)
-            c[k] += _to_interval(CoefType, sup(fe / w_k))
+            c[k] = _to_interval(CoefType, sup(in_tail_bound / w_k))
+        elseif !iszero(in_finite_bound)
+            c[k] += _to_interval(CoefType, sup(in_finite_bound / w_k))
         end
     end
     return c
@@ -374,7 +388,7 @@ end
 
 # function tail!(a::Sequence{<:CartesianSpace}, order)
 #     for i ∈ 1:nspaces(space(a))
-#         tail!(block(a, i), _tail_order_getindex(order, i))
+#         tail!(component(a, i), _tail_order_getindex(order, i))
 #     end
 #     return a
 # end

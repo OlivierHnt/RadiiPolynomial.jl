@@ -54,7 +54,7 @@ _coeftype(𝒮::Shift{<:Tuple{Number}}, s::TensorSpace{<:Tuple{BaseSpace}}, ::Ty
     @inbounds _coeftype(Shift(value(𝒮)[1]), s[1], T)
 
 getcoefficient(𝒮::Shift{<:NTuple{N,Number}}, (codom, i)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, (dom, j)::Tuple{TensorSpace{<:NTuple{N,BaseSpace}},NTuple{N,Integer}}, ::Type{T}) where {N,T} =
-    @inbounds getcoefficient(Shift(value(𝒮)[1]), (codom[1], i[1]), (dom[1], j[1]), T) * getcoefficient(Shift(Base.tail(value(𝒮))), (Base.tail(codom), T, Base.tail(i)), (Base.tail(dom), Base.tail(j)), T)
+    @inbounds getcoefficient(Shift(value(𝒮)[1]), (codom[1], i[1]), (dom[1], j[1]), T) * getcoefficient(Shift(Base.tail(value(𝒮))), (Base.tail(codom), Base.tail(i)), (Base.tail(dom), Base.tail(j)), T)
 getcoefficient(𝒮::Shift{<:Tuple{Number}}, (codom, i)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, (dom, j)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, ::Type{T}) where {T} =
     @inbounds getcoefficient(Shift(value(𝒮)[1]), (codom[1], i[1]), (dom[1], j[1]), T)
 
@@ -71,7 +71,7 @@ function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Taylor,Integer}, (dom, j)
     if iszero(τ)
         return ifelse(i == j, one(T), zero(T))
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces"))
     end
 end
 
@@ -104,7 +104,7 @@ function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Chebyshev,Integer}, (dom,
     if iszero(τ)
         return ifelse(i == j, one(T), zero(T))
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces"))
     end
 end
 
@@ -156,14 +156,14 @@ function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
     if iszero(τ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces"))
     end
     return c
 end
 
 function _apply!(C, 𝒮::Shift, ::Taylor, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    iszero(τ) || return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces")) # TODO: lift restriction
     return C
 end
 
@@ -172,7 +172,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Taylor, A) where {T,N}
     if iszero(τ)
         C .= A
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces"))
     end
     return C
 end
@@ -236,14 +236,14 @@ function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
     if iszero(τ)
         coefficients(c) .= coefficients(a)
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces"))
     end
     return c
 end
 
 function _apply!(C, 𝒮::Shift, ::Chebyshev, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    iszero(τ) || return throw(DomainError) # TODO: lift restriction
+    iszero(τ) || return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces")) # TODO: lift restriction
     return C
 end
 
@@ -252,7 +252,7 @@ function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Chebyshev, A) where {T,N}
     if iszero(τ)
         C .= A
     else # TODO: lift restriction
-        return throw(DomainError)
+        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces"))
     end
     return C
 end

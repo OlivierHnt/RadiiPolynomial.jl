@@ -63,8 +63,11 @@ Base.hash(g::GroupElement, h::UInt) = hash(g.index_action, hash(g.coef_action, h
 
 struct Group{N,T<:Number}
     elements :: Set{GroupElement{N,T}}
+    # a `Group` is never mutated once closed, so its hash is computed once here
+    # storing the hash helps with every lookup in `_orbit_cache` when constructing symmetric spaces
+    hash     :: UInt
     global function unsafe_group!(elements::Set{GroupElement{N,T}}) where {N,T<:Number}
-        # modify in-place the input set of group elements until it is closed under composition
+        # modify in-place the input set of group elements until it is closed under composition (O(|G|²))
         changed = true
         while changed
             changed = false
@@ -76,7 +79,7 @@ struct Group{N,T<:Number}
                 end
             end
         end
-        return new{N,T}(elements)
+        return new{N,T}(elements, hash(elements))
     end
 end
 
@@ -84,12 +87,18 @@ Group(g::GroupElement{N,T}, h::GroupElement{N,T}...) where {N,T<:Number} = unsaf
 
 elements(g::Group) = g.elements
 
-Base.:(==)(G₁::Group, G₂::Group) = elements(G₁) == elements(G₂)
+Base.:(==)(G₁::Group, G₂::Group) = G₁ === G₂ || (G₁.hash == G₂.hash && elements(G₁) == elements(G₂)) # elements(G₁) == elements(G₂) is a safeguard
 Base.issubset(G₁::Group, G₂::Group) = issubset(elements(G₁), elements(G₂))
-Base.intersect(G₁::Group, G₂::Group) = unsafe_group!(intersect(elements(G₁), elements(G₂)))
-Base.union(G₁::Group, G₂::Group) = Group(elements(G₁)..., elements(G₂)...)
+function Base.intersect(G₁::Group, G₂::Group)
+    G₁ == G₂ && return G₁
+    return unsafe_group!(intersect(elements(G₁), elements(G₂)))
+end
+function Base.union(G₁::Group, G₂::Group)
+    G₁ == G₂ && return G₁
+    return Group(elements(G₁)..., elements(G₂)...)
+end
 
-Base.hash(g::Group, h::UInt) = hash(g.elements, h)
+Base.hash(g::Group, h::UInt) = hash(g.hash, h)
 
 _orbit(sym::Group{1}, k::T) where {T<:Integer} = Set{T}(g.index_action(k) for g ∈ elements(sym))
 _orbit(sym::Group{N}, k::NTuple{N,T}) where {N,T<:Integer} = Set{NTuple{N,T}}(g.index_action(k) for g ∈ elements(sym))
@@ -131,8 +140,11 @@ function _filter_valid_representatives(sym::Group, k_reps)
             push!(reps, k_rep)
         end
     end
-    return sort!(reps)
+    return _sort_representatives!(reps)
 end
+
+_sort_representatives!(reps::Vector{<:Integer}) = sort!(reps)
+_sort_representatives!(reps::Vector{<:NTuple{N,Integer}}) where {N} = sort!(reps; by = reverse)
 
 function _compute_action_map(sym::Group, inds, k_reps)
     sym_elements = elements(sym)
@@ -153,36 +165,45 @@ end
 
 const NoSymSpace = Union{BaseSpace,TensorSpace}
 
+const _orbit_cache = Dict{Tuple{Any,Group},Tuple{Any,Vector}}()
+const _orbit_cache_lock = ReentrantLock()
+
+# helper functions for type inference
+_indices_type(::Type{<:BaseSpace}) = StepRange{Int,Int}
+_indices_type(::Type{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = Vector{NTuple{N,Int}}
+_rep_idx_action_type(::Type{S}, ::Type{Group{N,T}}) where {S<:NoSymSpace,N,T} =
+    Tuple{eltype(_indices_type(S)),Base.promote_op((v, k) -> v(k), CoefAction{N,T}, eltype(_indices_type(S)))}
+
 struct SymmetricSpace{S<:NoSymSpace,G<:Group,I,R} <: SequenceSpace
     space    :: S
     symmetry :: G
     indices  :: I
     rep_idx_action :: Vector{R}
-    #= NOTE
-    Constructing the orbit on the fly is slow. The field `rep_idx_action` stores the index representative of the orbit along with the action of the corresponding coefficient action. The issue is that this gets reconstructed every time. It might be possible to have a more global dictonary containing the `rep_idx_action` per symmetry group.
-    =#
     function SymmetricSpace(space::S, sym::G) where {S<:NoSymSpace,G<:Group}
         inds = indices(space)
-        k_reps = _orbit_representatives(sym, inds)
-        reps = _filter_valid_representatives(sym, k_reps)
-        inds2 = _maybe_range(reps)
-        rep_idx_action = _compute_action_map(sym, inds, k_reps)
-        return new{S,G,typeof(inds2),eltype(rep_idx_action)}(space, sym, inds2, rep_idx_action)
+        inds2, rep_idx_action = lock(_orbit_cache_lock) do
+            get!(_orbit_cache, (inds, sym)) do
+                k_reps = _orbit_representatives(sym, inds)
+                reps = _filter_valid_representatives(sym, k_reps)
+                (_reps_indices(reps), _compute_action_map(sym, inds, k_reps))
+            end
+        end
+        TI = _indices_type(S)
+        TR = _rep_idx_action_type(S, G)
+        isconcretetype(TR) && return new{S,G,TI,TR}(space, sym, inds2::TI, rep_idx_action::Vector{TR})
+        return new{S,G,TI,eltype(rep_idx_action)}(space, sym, inds2::TI, rep_idx_action)
     end
 end
 
-_maybe_range(v) = v
-function _maybe_range(v::Vector{<:Integer})
+_reps_indices(v::Vector) = v # tensor case: tuple representatives stay as a plain vector
+function _reps_indices(v::Vector{Int})
     n = length(v)
-    n == 0 && return v
-    n == 1 && return @inbounds v[1]:v[1]
+    n == 0 && return 1:1:0
+    n == 1 && return @inbounds v[1]:1:v[1]
     @inbounds d = v[2] - v[1]
     @inbounds for i ∈ 3:n
-        if v[i] - v[i-1] != d
-            return v
-        end
+        v[i] - v[i-1] == d || return throw(ArgumentError("the representatives do not form an arithmetic progression: the symmetry group is inconsistent"))
     end
-    d == 1 && return @inbounds v[1]:v[n]
     return @inbounds v[1]:d:v[n]
 end
 
@@ -190,7 +211,7 @@ SymmetricSpace(space::NoSymSpace) = SymmetricSpace(space, symmetry(space))
 
 SymmetricSpace(space::SymmetricSpace) = space
 
-SymmetricSpace(space::SymmetricSpace, sym::Group) = SymmetricSpace(space, symmetry(space) ∪ sym)
+SymmetricSpace(space::SymmetricSpace, sym::Group) = SymmetricSpace(desymmetrize(space), symmetry(space) ∪ sym)
 
 desymmetrize(s::SymmetricSpace) = s.space
 desymmetrize(s::NoSymSpace) = s
@@ -201,10 +222,10 @@ desymmetrize(s::CartesianProduct) = CartesianProduct(map(desymmetrize, spaces(s)
 symmetry(s::SymmetricSpace) = s.symmetry
 symmetry(::BaseSpace) = # identity
     Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(1), StaticArrays.SVector{1,Rational{Int}}(0//1))))
+                       CoefAction(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(0//1))))
 symmetry(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = # identity
     Group(GroupElement(IndexAction(StaticArrays.SMatrix{N,N,Int}(I)),
-                       CoefAction(exact(1), StaticArrays.SVector{N,Rational{Int}}(ntuple(_ -> 0//1, Val(N))))))
+                       CoefAction(exact(1//1), StaticArrays.SVector{N,Rational{Int}}(ntuple(_ -> 0//1, Val(N))))))
 
 indices(s::SymmetricSpace) = s.indices
 
@@ -224,7 +245,18 @@ function _findindex_constant(s::SymmetricSpace)
     return nothing
 end
 
-_findposition(k, s::SymmetricSpace) = findfirst(==(k), indices(s))
+function _findposition(k::Integer, s::SymmetricSpace{<:BaseSpace})
+    # representative located by by arithmetic on the `StepRange`
+    r = indices(s)
+    i, rem = divrem(k - first(r), step(r))
+    return iszero(rem) & (0 ≤ i < length(r)) ? i+1 : nothing
+end
+function _findposition(k::NTuple{N,Integer}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N}
+    # representative located by bisection on the vector of a `TensorSpace`
+    inds = indices(s)
+    i = searchsortedfirst(inds, k; by = reverse)
+    return (i ≤ length(inds)) && (@inbounds inds[i] == k) ? i : nothing
+end
 _findposition(u::AbstractRange, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(u::AbstractVector, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::SymmetricSpace) = c
@@ -233,7 +265,7 @@ _iscompatible(s₁::SymmetricSpace, s₂::SymmetricSpace) = _iscompatible(desymm
 _iscompatible(s₁::SymmetricSpace, s₂::NoSymSpace) = _iscompatible(desymmetrize(s₁), s₂)
 _iscompatible(s₁::NoSymSpace, s₂::SymmetricSpace) = _iscompatible(s₁, desymmetrize(s₂))
 
-IntervalArithmetic.interval(::Type{T}, s::SymmetricSpace) where {T<:IntervalArithmetic.NumTypes} = SymmetricSpace(interval(T, desymmetrize(s)), interval(T, symmetry(s)))
+IntervalArithmetic.interval(::Type{T}, s::SymmetricSpace) where {T<:IntervalArithmetic.NumTypes} = SymmetricSpace(interval(T, desymmetrize(s)), interval(symmetry(s)))
 IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymmetrize(s)), interval(symmetry(s)))
 # IntervalArithmetic._infer_numtype(s::SymmetricSpace) = IntervalArithmetic._infer_numtype(desymmetrize(s))
 # IntervalArithmetic._interval_infsup(::Type{T}, s₁::SymmetricSpace, s₂::SymmetricSpace, d::IntervalArithmetic.Decoration) where {T<:IntervalArithmetic.NumTypes} =
@@ -242,6 +274,21 @@ IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymme
 IntervalArithmetic.interval(g::Group) = unsafe_group!(Set(interval(h) for h in elements(g)))
 IntervalArithmetic.interval(g::GroupElement) = GroupElement(g.index_action, interval(g.coef_action))
 IntervalArithmetic.interval(g::CoefAction) = CoefAction(interval(g.amplitude), g.phase)
+
+# tensor product
+
+⊗(g₁::GroupElement{N₁}, g₂::GroupElement{N₂}) where {N₁,N₂} = GroupElement(
+    IndexAction(hcat(vcat(g₁.index_action.matrix, zero(StaticArrays.SMatrix{N₂,N₁,Int})),
+                     vcat(zero(StaticArrays.SMatrix{N₁,N₂,Int}), g₂.index_action.matrix))),
+    CoefAction(g₁.coef_action.amplitude * g₂.coef_action.amplitude,
+               vcat(g₁.coef_action.phase, g₂.coef_action.phase)))
+
+⊗(G₁::Group, G₂::Group) = unsafe_group!(Set(g₁ ⊗ g₂ for g₁ ∈ elements(G₁), g₂ ∈ elements(G₂)))
+
+⊗(s₁::SymmetricSpace, s₂::SymmetricSpace) =
+    SymmetricSpace(desymmetrize(s₁) ⊗ desymmetrize(s₂), symmetry(s₁) ⊗ symmetry(s₂))
+⊗(s₁::SymmetricSpace, s₂::NoSymSpace) = s₁ ⊗ SymmetricSpace(s₂)
+⊗(s₁::NoSymSpace, s₂::SymmetricSpace) = SymmetricSpace(s₁) ⊗ s₂
 
 #
 
@@ -278,6 +325,6 @@ oddsym(s::Chebyshev)  = SymmetricSpace(s,
 d4sym(s::TensorSpace{T}) where {T<:Tuple{<:Fourier,<:Fourier}} = SymmetricSpace(s,
     Group(
         GroupElement(IndexAction(StaticArrays.SMatrix{2,2,Int}([0 -1 ; 1 0])),
-                       CoefAction(exact(1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1))),
+                       CoefAction(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1))),
         GroupElement(IndexAction(StaticArrays.SMatrix{2,2,Int}([0  1 ; 1 0])),
-                       CoefAction(exact(1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1)))))
+                       CoefAction(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1)))))

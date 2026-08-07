@@ -114,6 +114,11 @@ Base.eltype(::Type{<:InfiniteSequence{<:SequenceSpace,T}}) where {T<:AbstractVec
 Base.:(==)(a::InfiniteSequence, b::InfiniteSequence) = # by-pass default
     (sequence(a) == sequence(b)) & iszero(sequence_error(a)) & iszero(sequence_error(b))
 
+IntervalArithmetic.interval(::Type{T}, a::InfiniteSequence) where {T<:IntervalArithmetic.NumTypes} =
+    InfiniteSequence(interval(T, sequence(a)), interval(T, finite_error(a)), interval(T, tail_error(a)), interval(T, total_error(a)), interval(T, banachspace(a)))
+IntervalArithmetic.interval(a::InfiniteSequence) =
+    InfiniteSequence(interval(sequence(a)), interval(finite_error(a)), interval(tail_error(a)), interval(total_error(a)), interval(banachspace(a)))
+
 Base.zero(a::InfiniteSequence) = InfiniteSequence(zero(sequence(a)), banachspace(a))
 Base.one(a::InfiniteSequence) = InfiniteSequence(one(sequence(a)), banachspace(a))
 

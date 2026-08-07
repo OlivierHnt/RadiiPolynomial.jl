@@ -124,6 +124,35 @@
         end
     end
 
+    @testset "interval" begin
+        ia = InfiniteSequence(a, 0.1, 0.2, 0.25, Ell1(GeometricWeight(2.0)))
+        iia = interval(ia)
+        @test eltype(iia) == Interval{Float64}
+        @test all(isequal_interval.(coefficients(iia), interval.([1.0, 2.0, 1.0])))
+        @test isequal_interval(finite_error(iia), interval(0.1))
+        @test isequal_interval(tail_error(iia), interval(0.2))
+        @test isequal_interval(total_error(iia), interval(0.25))
+        # the weight of the Banach space is carried over as an interval
+        @test banachspace(iia) == Ell1(GeometricWeight(interval(2.0)))
+        # the derived norms are recomputed rather than thinly wrapped
+        @test in_interval(sequence_norm(ia), sequence_norm(iia))
+        @test isguaranteed(sequence_norm(iia)) && isguaranteed(finite_error(iia))
+
+        # interval(T, ...) widens to the enclosure at the requested precision
+        ib = interval(BigFloat, ia)
+        @test eltype(ib) == Interval{BigFloat}
+        @test in_interval(0.1, finite_error(ib))
+        @test in_interval(sequence_norm(ia), sequence_norm(ib))
+
+        # the frequency of a Fourier space becomes an interval too
+        ℱ = Fourier(1, 1.0)
+        ic = interval(InfiniteSequence(ℱ, [0.5, 0.0, 0.5], 0.0, 0.1, 0.1, Ell1()))
+        @test space(ic) == Fourier(1, interval(1.0))
+
+        # idempotent on data that is already interval-valued
+        @test isequal_interval(sequence_norm(interval(iia)), sequence_norm(iia))
+    end
+
     @testset "permutedims" begin
         𝒯′ = Taylor(1)
         ℱ = Fourier(1, 1.0)

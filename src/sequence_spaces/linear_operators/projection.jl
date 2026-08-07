@@ -337,20 +337,9 @@ end
 
 #
 
-function project(a::InfiniteSequence, space_dest::SequenceSpace, ::Type{T}=eltype(a)) where {T}
-    c = zeros(T, space_dest)
-    project!(c, a)
-
-    discarded = copy(sequence(a))
-    @inbounds view(discarded, indices(space_dest ∩ space(a))) .= zero(T)
-
-    X = banachspace(a)
-    discarded_norm = norm(discarded, X)
-    new_finite = finite_error(a) # bounded by the original finite_error
-    new_tail = tail_error(a) + discarded_norm + ifelse(iszero(discarded_norm), zero(finite_error(a)), finite_error(a))
-    new_total = total_error(a) + discarded_norm
-    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_total, a.full_norm, X)
-end
+# bound on |aₖ| given ‖a‖_X ≤ err and the weight wₖ at the index k
+_coefficient_bound(::Union{Ell1,EllInf}, err, w) = err / w
+_coefficient_bound(::Ell2, err, w) = sqrt(err^exact(2) / w) # ‖a‖² = √(∑ |aₖ|² wₖ)
 
 function project!(c::Sequence, a::InfiniteSequence)
     project!(c, sequence(a))
@@ -366,9 +355,9 @@ function project!(c::Sequence, a::InfiniteSequence)
     @inbounds for k ∈ indices(space_c)
         w_k = _getindex(weight(X), space_c, k)
         if any(abs.(k) .> ord_a)
-            c[k] = _to_interval(CoefType, sup(in_tail_bound / w_k))
+            c[k] = _to_interval(CoefType, sup(_coefficient_bound(X, in_tail_bound, w_k)))
         elseif !iszero(in_finite_bound)
-            c[k] += _to_interval(CoefType, sup(in_finite_bound / w_k))
+            c[k] += _to_interval(CoefType, sup(_coefficient_bound(X, in_finite_bound, w_k)))
         end
     end
     return c

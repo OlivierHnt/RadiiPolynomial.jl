@@ -81,21 +81,21 @@ x³ = x ^ 3 # only rounding error
 
 ## Grids and interpolation
 
-The functions `to_grid` and `to_seq` convert between a sequence and its values on a sampling grid, using rigorous FFTs when the coefficients are intervals. `grid_size(space)` gives the number of nodes per factor, as a tuple with one entry per factor: for `Taylor` these are the roots of unity, for `Fourier` the equispaced points of the period, and for `Chebyshev` the Chebyshev–Lobatto nodes ``x_k = \cos(\pi (k-1)/(m-1))``, ordered from ``x = 1`` down to ``x = -1``.
+The functions `to_grid` and `to_coef` convert between a sequence and its values on a sampling grid, using rigorous FFTs when the coefficients are intervals. `grid_size(space)` gives the number of nodes per factor, as a tuple with one entry per factor: for `Taylor` these are the roots of unity, for `Fourier` the equispaced points of the period, and for `Chebyshev` the Chebyshev–Lobatto nodes ``x_k = \cos(\pi (k-1)/(m-1))``, ordered from ``x = 1`` down to ``x = -1``. It is the smallest grid that determines the space, so `to_coef(f, space)` returns the *interpolant* of `f` at those nodes, and `to_coef(to_grid(a), space(a))` recovers `a`.
 
 ```@repl sequences
 m = grid_size(Chebyshev(2)) # one entry per factor
 g = [cospi((k-1)/2) for k ∈ 1:m[1]] # values of f(x) = x at the nodes
-to_seq(g, Chebyshev(2)) # x = 2 (0.5 T₁(x)); interior modes carry an implicit factor 2
+to_coef(g, Chebyshev(2)) # x = 2 (0.5 T₁(x)); interior modes carry an implicit factor 2
 to_grid(ans, m) # back to the nodes
 ```
 
-The second argument of `to_grid` is a tuple of grid sizes, one per discretized axis (an `Integer` is accepted as shorthand for a single axis, and `Chebyshev` axes take either a ``2^k+1`` Lobatto half grid or a power-of-two full grid). Giving fewer sizes than the space has factors discretizes only the leading factors, which is convenient for families of sequences depending on a parameter (e.g. in continuation): `to_grid(a, m)` then returns a grid of `Sequence`s on the remaining factors, and `to_seq(x_grid, s)` interpolates such a grid back into a `Sequence` on `s ⊗ inner_space`. The analogous methods exist for `LinearOperator`s, where `s` must match the leading factors of the codomain. Symmetric inner spaces are supported, and round-trip with their symmetry intact.
+The second argument of `to_grid` is a tuple of grid sizes, one per discretized axis (an `Integer` is accepted as shorthand for a single axis). Any size is allowed, from `grid_size(space)` upwards — the transform behind it is not restricted to powers of two — and oversampling a grid keeps the interpolant unchanged. Giving fewer sizes than the space has factors discretizes only the leading factors, which is convenient for families of sequences depending on a parameter (e.g. in continuation): `to_grid(a, m)` then returns a grid of `Sequence`s on the remaining factors, and `to_coef(x_grid, s)` interpolates such a grid back into a `Sequence` on `s ⊗ inner_space`. The analogous methods exist for `LinearOperator`s, where `s` must match the leading factors of the codomain. Symmetric inner spaces are supported, and round-trip with their symmetry intact.
 
 ```@repl sequences
 a = Sequence(Chebyshev(2) ⊗ Fourier(1, 1.0), collect(1.0:9)) # a family of Fourier sequences
 x_grid = to_grid(a, grid_size(Chebyshev(2))) # one Fourier sequence per Chebyshev–Lobatto node
-to_seq(x_grid, Chebyshev(2)) # interpolate back
+to_coef(x_grid, Chebyshev(2)) # interpolate back
 ```
 
 ## API

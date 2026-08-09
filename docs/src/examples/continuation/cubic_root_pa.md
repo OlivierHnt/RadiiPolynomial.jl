@@ -67,11 +67,10 @@ where ``\phi_k`` are the [Chebyshev polynomials of the first kind](https://en.wi
 using RadiiPolynomial, LinearAlgebra
 
 K = 25
-K_fft = only(fft_size(Chebyshev(K)))
-npts = K_fft ÷ 2 + 1
+npts = only(grid_size(Chebyshev(K)))
 
 arclength = 3.14
-arclength_grid = [0.5 * arclength - 0.5 * cospi(2j/K_fft) * arclength for j = 0:npts-1]
+arclength_grid = [0.5 * arclength - 0.5 * cospi((j-1)/(npts-1)) * arclength for j = 1:npts]
 x_grid = Vector{Vector{Float64}}(undef, npts)
 v_grid = Vector{Vector{Float64}}(undef, npts)
 
@@ -108,11 +107,11 @@ end
 
 # construct the approximations
 
-x_fft = [reverse(x_grid) ; x_grid[begin+1:end-1]]
-x_cheb = [real(to_seq([z[i] for z = x_fft], Chebyshev(K))) for i = 1:2]
+x_nodes = reverse(x_grid) # the nodes run from the end of the branch back to its start
+x_cheb = [real(to_coef([z[i] for z = x_nodes], Chebyshev(K))) for i = 1:2]
 
-v_fft = [reverse(v_grid) ; v_grid[begin+1:end-1]]
-v_cheb = [real(to_seq([z[i] for z = v_fft], Chebyshev(K))) for i = 1:2]
+v_nodes = reverse(v_grid)
+v_cheb = [real(to_coef([z[i] for z = v_nodes], Chebyshev(K))) for i = 1:2]
 nothing # hide
 ```
 
@@ -120,8 +119,8 @@ nothing # hide
 
 ```@example cubic_root_pa
 A_grid = inv.(DF.(x_grid, v_grid))
-A_fft = [reverse(A_grid) ; A_grid[begin+1:end-1]]
-A_cheb = [real(to_seq([z[i,j] for z = A_fft], Chebyshev(K))) for i = 1:2, j = 1:2]
+A_nodes = reverse(A_grid)
+A_cheb = [real(to_coef([z[i,j] for z = A_nodes], Chebyshev(K))) for i = 1:2, j = 1:2]
 nothing # hide
 ```
 

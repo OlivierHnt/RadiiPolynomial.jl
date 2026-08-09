@@ -40,10 +40,9 @@ We construct a grid of parameters and iterate Newton's method for each step, usi
 using RadiiPolynomial
 
 K = 10
-K_fft = only(fft_size(Chebyshev(K)))
-npts = K_fft ÷ 2 + 1
+npts = only(grid_size(Chebyshev(K)))
 
-λ_grid = [-cospi(2j/K_fft) for j = 0:npts-1]
+λ_grid = [-cospi((j-1)/(npts-1)) for j = 1:npts] # the nodes, swept from λ = -1 to λ = 1
 u_grid = Vector{Float64}(undef, npts)
 
 # initialize
@@ -66,8 +65,7 @@ end
 
 # construct the approximation
 
-u_fft = [reverse(u_grid) ; u_grid[begin+1:end-1]]
-u_cheb = real(to_seq(u_fft, Chebyshev(K)))
+u_cheb = real(to_coef(reverse(u_grid), Chebyshev(K))) # the nodes run from λ = 1 down to λ = -1
 ```
 
 ### Step 3: Approximate inverse (floating-point arithmetic)
@@ -76,8 +74,7 @@ We construct the approximate inverse ``A(\lambda) \approx D_u f(\bar{u}(\lambda)
 
 ```@example cubic_root_cont
 A_grid = inv.(Duf.(u_grid, λ_grid))
-A_fft = [reverse(A_grid) ; A_grid[begin+1:end-1]]
-A_cheb = real(to_seq(A_fft, Chebyshev(K)))
+A_cheb = real(to_coef(reverse(A_grid), Chebyshev(K)))
 ```
 
 ### Step 4: Bounds estimation (interval arithmetic)

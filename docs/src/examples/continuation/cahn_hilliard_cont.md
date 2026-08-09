@@ -72,7 +72,7 @@ nothing # hide
 
 ### Step 2: Approximate zero (floating-point arithmetic)
 
-We sample the parameter square at the Chebyshev-Lobatto nodes ``\cos(\pi j / N)``, which is the grid convention of `to_grid` and `to_seq`: the index ``j`` runs from the node ``+1`` down to the node ``-1``.
+We sample the parameter square at the Chebyshev-Lobatto nodes ``\cos(\pi j / N)``, which is the grid convention of `to_grid` and `to_coef`: the index ``j`` runs from the node ``+1`` down to the node ``-1``.
 
 ```@example cahn_hilliard_cont
 N₁, N₂ = 8, 8
@@ -85,7 +85,7 @@ A_finite_grid = Matrix{LinearOperator}(undef, N₁+1, N₂+1)
 nothing # hide
 ```
 
-The continuation starts from the corner ``(s_1, s_2) = (-1,-1)``, which is the *last* index of the grid in this ordering, and sweeps backwards; each Newton solve is started from the approximate zero at the previous parameter (the **predictor**). Only the sweep order is reversed, the grids themselves stay in the node ordering required by `to_seq`.
+The continuation starts from the corner ``(s_1, s_2) = (-1,-1)``, which is the *last* index of the grid in this ordering, and sweeps backwards; each Newton solve is started from the approximate zero at the previous parameter (the **predictor**). Only the sweep order is reversed, the grids themselves stay in the node ordering required by `to_coef`.
 
 ```@example cahn_hilliard_cont
 c₀, β₀ = θ_grid[N₁+1,N₂+1]
@@ -111,15 +111,15 @@ end
 maximum(u -> abs(u[K]), u_grid) # the order K is large enough across the whole region
 ```
 
-The grids are turned into Chebyshev interpolants in the parameters. Since `to_seq` accepts a grid of `Sequence`s (resp. `LinearOperator`s), the family ``\bar{u}(s_1,s_2)`` is represented as a single sequence on `Chebyshev(N₁) ⊗ Chebyshev(N₂) ⊗ evensym(Fourier(K, π))`:
+The grids are turned into Chebyshev interpolants in the parameters. Since `to_coef` accepts a grid of `Sequence`s (resp. `LinearOperator`s), the family ``\bar{u}(s_1,s_2)`` is represented as a single sequence on `Chebyshev(N₁) ⊗ Chebyshev(N₂) ⊗ evensym(Fourier(K, π))`:
 
 ```@example cahn_hilliard_cont
-c_cheb = interval(real(to_seq(getindex.(θ_grid, 1), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
-β_cheb = interval(real(to_seq(getindex.(θ_grid, 2), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
+c_cheb = interval(real(to_coef(getindex.(θ_grid, 1), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
+β_cheb = interval(real(to_coef(getindex.(θ_grid, 2), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
 
-u_cheb = interval(to_seq(u_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
+u_cheb = interval(to_coef(u_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
 
-A_finite_cheb = interval(to_seq(A_finite_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
+A_finite_cheb = interval(to_coef(A_finite_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
 
 space(u_cheb)
 ```
@@ -140,7 +140,7 @@ c_grid_Y = to_grid(c_cheb, m_Y)
 u_grid_Y = to_grid(u_cheb, m_Y)
 A_grid_Y = to_grid(A_finite_cheb, m_Y) .+ PseudoInverseLaplacian() * (interval(I) - interval(Π))
 
-Y = norm(to_seq(A_grid_Y .* F.(u_grid_Y, c_grid_Y, β_grid_Y), Chebyshev(4N₁) ⊗ Chebyshev(4N₂)), Ell1())
+Y = norm(to_coef(A_grid_Y .* F.(u_grid_Y, c_grid_Y, β_grid_Y), Chebyshev(4N₁) ⊗ Chebyshev(4N₂)), Ell1())
 ```
 
 ```@example cahn_hilliard_cont
@@ -155,7 +155,7 @@ A_grid_Z = to_grid(A_finite_cheb, m_Z) .+ PseudoInverseLaplacian() * (interval(I
 
 Π_3K = interval(Projection(evensym(Fourier(3K+1, π))))
 
-Z₁_finite = opnorm(to_seq(Π_3K .- A_grid_Z .* (DF.(u_grid_Z, c_grid_Z, β_grid_Z) .* Π_3K), Chebyshev(3N₁) ⊗ Chebyshev(3N₂)), Ell1(), Ell1())
+Z₁_finite = opnorm(to_coef(Π_3K .- A_grid_Z .* (DF.(u_grid_Z, c_grid_Z, β_grid_Z) .* Π_3K), Chebyshev(3N₁) ⊗ Chebyshev(3N₂)), Ell1(), Ell1())
 
 Z₁_tail = norm(β_cheb, Ell1()) * (interval(1) + interval(3) * norm(u_cheb, Ell1())^2) / (interval(π) * interval(K+2))^2
 

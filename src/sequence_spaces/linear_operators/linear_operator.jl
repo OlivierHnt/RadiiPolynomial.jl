@@ -519,12 +519,13 @@ _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(
 #
 
 to_grid(A::LinearOperator, m::Integer) = to_grid(A, (m,))
-to_grid(A::LinearOperator, m::NTuple{D,Integer}) where {D} =
+to_grid(A::LinearOperator, m::NTuple{D,Integer} = grid_size(codomain(A))) where {D} =
     _to_grid(A, m, last(_lead_inner(domain(A), Val(D))))
-function _to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::ScalarSpace)
+function _to_grid(A::LinearOperator, m::NTuple{D,Integer}, ::ScalarSpace) where {D}
     dom = domain(A)
-    dom == _zero_space(dom) ||
-        return throw(ArgumentError("the domain must be the zero space of the leading factors, got $dom"))
+    X₀ = _zero_space(first(_lead_inner(codomain(A), Val(D))))
+    dom == X₀ ||
+        return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom"))
     return to_grid(Sequence(A), m)
 end
 _to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::SequenceSpace) =
@@ -538,6 +539,7 @@ function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator) 
         return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom_lead"))
     all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), x_grid) ||
         return throw(ArgumentError("the grid elements must be linear operators from $inner_dom to $inner_codom"))
+    _check_grid_size(size(x_grid), s_lead)
     C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
     return _fill_grid!(x_grid, C, s_lead)
 end
@@ -551,23 +553,20 @@ end
 
 #
 
-to_seq(x_grid::AbstractArray{<:LinearOperator}, s::SequenceSpace) = to_seq!(_seq_buffer(x_grid, s), x_grid, s)
-to_seq(::AbstractArray{<:LinearOperator}, s::SymmetricSpace) = throw(ArgumentError(_grid_factors_message(s)))
-
-function to_seq!(A::LinearOperator, x_grid::AbstractArray{<:LinearOperator,D}, s::NoSymSpace) where {D}
-    _check_grid_axes(s, Val(D))
-    X₁ = first(x_grid)
-    dom, codom = domain(X₁), codomain(X₁)
-    all(X -> (domain(X) == dom) & (codomain(X) == codom), x_grid) ||
-        return throw(ArgumentError("all linear operators must have the same domain and codomain"))
-    (domain(A) == _combine(_zero_space(s), dom)) & (codomain(A) == _combine(s, codom)) ||
-        return throw(ArgumentError("the destination must be a linear operator from $(_combine(_zero_space(s), dom)) to $(_combine(s, codom))"))
-    M = _no_alloc_reshape(coefficients(A), (dimension(s), dimension(codom)*dimension(dom)))
-    _fill_seq!(M, x_grid, s)
+function to_coef!(A::LinearOperator, x_grid::AbstractArray{<:LinearOperator,D}) where {D}
+    s_lead, inner_codom = _lead_inner(codomain(A), Val(D))
+    dom_lead, inner_dom = _lead_inner(domain(A), Val(D))
+    X₀ = _zero_space(s_lead)
+    dom_lead == X₀ ||
+        return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom_lead"))
+    all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), x_grid) ||
+        return throw(ArgumentError("the grid elements must be linear operators from $inner_dom to $inner_codom"))
+    C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
+    _fill_coef!(C, x_grid, s_lead)
     return A
 end
 
-function _seq_buffer(x_grid::AbstractArray{<:LinearOperator}, s::NoSymSpace)
+function _coef_buffer(x_grid::AbstractArray{<:LinearOperator}, s::SequenceSpace)
     X₁ = first(x_grid)
     return zeros(complex(float(_grid_eltype(x_grid))), _combine(_zero_space(s), domain(X₁)), _combine(s, codomain(X₁)))
 end

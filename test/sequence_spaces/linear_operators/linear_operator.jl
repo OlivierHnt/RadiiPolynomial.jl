@@ -426,7 +426,7 @@
     end
 
     @testset "grids of LinearOperators (parameter families, cf. sequences/fft.jl)" begin
-        @testset "Chebyshev parameter: to_grid/to_seq round trip" begin
+        @testset "Chebyshev parameter: to_grid/to_coef round trip" begin
             s_par = Chebyshev(2)
             dom, codom = Taylor(1), Fourier(1, 1.0)
             new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
@@ -435,7 +435,7 @@
             @test A_grid isa Vector
             @test size(A_grid) == grid_size(s_par) == (3,)
             @test all(X -> (domain(X) == dom) & (codomain(X) == codom), A_grid)
-            B = to_seq(A_grid, s_par)
+            B = to_coef(A_grid, s_par)
             @test (domain(B) == new_dom) & (codomain(B) == new_codom)
             @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
         end
@@ -465,7 +465,7 @@
             A_grid = to_grid(A, grid_size(s_par))
             @test A_grid isa Matrix
             @test size(A_grid) == grid_size(s_par) == (2, 3)
-            B = to_seq(A_grid, s_par)
+            B = to_coef(A_grid, s_par)
             @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
         end
 
@@ -474,7 +474,7 @@
             dom, codom = Taylor(1), Chebyshev(1)
             new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
             A = LinearOperator(new_dom, new_codom, interval.(reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom))))
-            B = to_seq(to_grid(A, grid_size(s_par)), s_par)
+            B = to_coef(to_grid(A, grid_size(s_par)), s_par)
             for (i, j) ∈ Iterators.product(1:size(coefficients(A), 1), 1:size(coefficients(A), 2))
                 @test issubset_interval(coefficients(A)[i, j], real(coefficients(B)[i, j]))
             end
@@ -487,7 +487,7 @@
             A = LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
             A_fine = to_grid(A, (9,)) # 9 nodes instead of 3
             @test size(A_fine) == (9,)
-            B = to_seq(A_fine, s_par)
+            B = to_coef(A_fine, s_par)
             @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
         end
 
@@ -501,7 +501,7 @@
             A_grid = to_grid(A, grid_size(s_par))
             # grid elements carry the restricted symmetry group on the codomain
             @test all(X -> (domain(X) == dom) & (codomain(X) == codom_sym), A_grid)
-            B = to_seq(A_grid, s_par)
+            B = to_coef(A_grid, s_par)
             @test (domain(B) == new_dom) & (codomain(B) == prod_sym)
             @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
         end
@@ -555,9 +555,9 @@
             # mismatched domains/codomains in the grid
             X₁ = LinearOperator(Taylor(1), Taylor(1), ones(2, 2))
             X₂ = LinearOperator(Taylor(2), Taylor(1), ones(2, 3))
-            @test_throws ArgumentError to_seq([X₁, X₂], s_par)
+            @test_throws ArgumentError to_coef([X₁, X₂], s_par)
             # grid dimension must match the number of factors of `s`
-            @test_throws ArgumentError to_seq(fill(X₁, 2, 2), s_par)
+            @test_throws ArgumentError to_coef(fill(X₁, 2, 2), s_par)
         end
     end
 

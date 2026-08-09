@@ -1,5 +1,6 @@
-_call_to_seq!(C, s, ::Type{<:Real}) = real(to_seq!(zeros(float(eltype(C)), s), C))
-_call_to_seq!(C, s, ::Type) = to_seq!(C, s)
+# the grid comes fresh from `to_grid` at the call site, so it is fed to `to_coef!`
+_call_to_coef!(C, s, ::Type{<:Real}) = real(to_coef!(_coef_buffer(C, s), C))
+_call_to_coef!(C, s, ::Type) = to_coef!(_coef_buffer(C, s), C)
 
 
 
@@ -13,22 +14,15 @@ _apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
 
 
 
-# dimension for DFT and FFT
+# dimension for FFT
 
 fft_size(s::TensorSpace) = map(_fft_size, spaces(s))
 fft_size(s::BaseSpace) = (_fft_size(s),)
 fft_size(s::SymmetricSpace) = fft_size(desymmetrize(s))
 
-_fft_size(s::BaseSpace) = nextpow(2, _dft_dimension(s))
-
-_dft_dimension(s::BaseSpace) = 2order(s)+1
-_dft_dimension(s::Chebyshev) = 2order(s)+!ispow2(order(s))
-
-_is_fft_size_compatible(n::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    @inbounds _is_fft_size_compatible(n[1], s[1]) & _is_fft_size_compatible(Base.tail(n), Base.tail(s))
-_is_fft_size_compatible(n::Tuple{Integer}, s::TensorSpace{<:Tuple{BaseSpace}}) = @inbounds _is_fft_size_compatible(n[1], s[1])
-_is_fft_size_compatible(n::Tuple{Integer}, s::BaseSpace) = @inbounds _is_fft_size_compatible(n[1], s)
-_is_fft_size_compatible(n::Integer, s::BaseSpace) = ispow2(n) & (_dft_dimension(s) ≤ n)
+_fft_size(s::Taylor) = order(s)+1 # TODO: really?
+_fft_size(s::Fourier) = 2order(s)+1
+_fft_size(s::Chebyshev) = max(2order(s), 1) # the coefficients are mirrored
 
 # dimension of sampling grid
 
@@ -37,14 +31,17 @@ grid_size(s::BaseSpace) = (_grid_size(s),)
 grid_size(s::SymmetricSpace) = grid_size(desymmetrize(s))
 
 _grid_size(s::BaseSpace) = _fft_size(s)
-_grid_size(s::Chebyshev) = _fft_size(s)÷2+1
+_grid_size(s::Chebyshev) = _fft_size(s)÷2+1 # the mirrored nodes are dropped
 
-_is_grid_size_compatible(n::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
-    @inbounds _is_grid_size_compatible(n[1], s[1]) & _is_grid_size_compatible(Base.tail(n), Base.tail(s))
-_is_grid_size_compatible(n::Tuple{Integer}, s::TensorSpace{<:Tuple{BaseSpace}}) = @inbounds _is_grid_size_compatible(n[1], s[1])
-_is_grid_size_compatible(n::Tuple{Integer}, s::BaseSpace) = @inbounds _is_grid_size_compatible(n[1], s)
-_is_grid_size_compatible(n::Integer, s::BaseSpace) = _is_fft_size_compatible(n, s)
-_is_grid_size_compatible(n::Integer, s::Chebyshev) = _is_fft_size_compatible(_full_fft_size(n, s), s)
+fast_grid_size(s::SequenceSpace) = fast_grid_size(grid_size(s), s)
+fast_grid_size(sz::Tuple{Vararg{Integer}}, s::SymmetricSpace) = fast_grid_size(sz, desymmetrize(s))
+fast_grid_size(sz::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = map(_fast_grid_size, sz, spaces(s))
+fast_grid_size(sz::Tuple{Integer}, s::BaseSpace) = (_fast_grid_size(sz[1], s),)
+
+_fast_grid_size(m::Integer, ::BaseSpace) = nextpow(2, m)
+_fast_grid_size(m::Integer, ::Chebyshev) = m == 1 ? 1 : nextpow(2, m-1)+1 # the mirror is what must be a power of two
+
+
 
 # recover fft size from sampling grid
 
@@ -53,7 +50,15 @@ _full_fft_size(sz::NTuple{N,Integer}, s::TensorSpace{<:NTuple{N,BaseSpace}}) whe
 _full_fft_size(sz::Tuple{Integer}, s::BaseSpace) = (_full_fft_size(sz[1], s),)
 _full_fft_size(sz::Tuple{Vararg{Integer}}, ::SequenceSpace) = sz
 _full_fft_size(m::Integer, ::BaseSpace) = m
-_full_fft_size(m::Integer, ::Chebyshev) = ifelse((m > 2) & ispow2(m-1), 2*(m-1), m)
+_full_fft_size(m::Integer, ::Chebyshev) = max(2*(m-1), 1) # the nodes unfold onto their mirror image
+
+# a grid fits a space whenever the transform it unfolds to is large enough
+
+function _check_grid_size(sz::Tuple{Vararg{Integer}}, s::SequenceSpace)
+    all(map(≤, fft_size(s), _full_fft_size(sz, s))) ||
+        throw(DimensionMismatch("the grid size must be compatible with the space: size is $sz, space is $s"))
+    return nothing
+end
 
 
 
@@ -61,45 +66,48 @@ _full_fft_size(m::Integer, ::Chebyshev) = ifelse((m > 2) & ispow2(m-1), 2*(m-1),
 # uses the backward (unnormalized inverse) FFT: Y[j] = Σₖ C[k] e^{+2πi kj/N}
 
 to_grid(a::Sequence{<:SequenceSpace}, m::Integer) = to_grid(a, (m,))
-to_grid(a::Sequence{<:SequenceSpace}, m::NTuple{D,Integer} = fft_size(space(a))) where {D} =
+to_grid(a::Sequence{<:SequenceSpace}, m::NTuple{D,Integer} = grid_size(space(a))) where {D} =
     to_grid!(_grid_buffer(eltype(a), last(_lead_inner(space(a), Val(D))), m), a)
-
-to_grid!(C::AbstractArray{<:Number}, a::Sequence{<:SymmetricSpace}) = to_grid!(C, Projection(desymmetrize(space(a))) * a)
 
 function to_grid!(x_grid::AbstractArray{<:Sequence,D}, a::Sequence{<:SequenceSpace}) where {D}
     s_lead, inner = _lead_inner(space(a), Val(D))
     all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
+    _check_grid_size(size(x_grid), s_lead)
     C = _no_alloc_reshape(coefficients(a), (dimension(s_lead), dimension(inner)))
     return _fill_grid!(x_grid, C, s_lead)
 end
 function _fill_grid!(x_grid::AbstractArray{<:Any,D}, C::AbstractMatrix, s_lead::NoSymSpace) where {D}
-    cache = Array{_grid_eltype(x_grid),D}(undef, size(x_grid))
+    sz = size(x_grid)
+    cache = Array{_grid_eltype(x_grid),D}(undef, _full_fft_size(sz, s_lead))
+    nodes = view(cache, map(n -> 1:n, sz)...)
     @inbounds for j ∈ axes(C, 2)
-        to_grid!(cache, Sequence(s_lead, view(C, :, j)))
-        @inbounds for (i, x) ∈ enumerate(x_grid)
-            coefficients(x)[j] = cache[i]
+        _to_grid!(cache, Sequence(s_lead, view(C, :, j)))
+        for (i, x) ∈ enumerate(x_grid)
+            coefficients(x)[j] = nodes[i]
         end
     end
     return x_grid
 end
 
+to_grid!(C::AbstractArray{<:Number}, a::Sequence{<:SymmetricSpace}) = to_grid!(C, Projection(desymmetrize(space(a))) * a)
 function to_grid!(C::AbstractArray{<:Number}, a::Sequence{<:NoSymSpace})
     sz = size(C)
     Base.OneTo.(sz) == axes(C) || return throw(ArgumentError("offset arrays are not supported"))
     space_a = space(a)
+    _check_grid_size(sz, space_a)
     full_sz = _full_fft_size(sz, space_a)
-    if sz != full_sz # user grid with folded Chebyshev axes: transform in a full-size buffer, then fold
-        _is_grid_size_compatible(sz, space_a) || return throw(DimensionMismatch("the grid size must be compatible with the space: size is $sz, space is $space_a"))
-        C_full = to_grid!(zeros(eltype(C), full_sz), a)
-        C .= view(C_full, map(n -> 1:n, sz)...)
-        return C
-    end
-    _is_fft_size_compatible(sz, space_a) || return throw(DimensionMismatch("the grid size must be compatible with the space: size is $sz, space is $space_a"))
+    sz == full_sz && return _to_grid!(C, a)
+    # mirrored axes: transform in a full-size buffer, then keep the nodes
+    C .= view(_to_grid!(zeros(eltype(C), full_sz), a), map(n -> 1:n, sz)...)
+    return C
+end
+function _to_grid!(C::AbstractArray, a::Sequence)
+    # `C` is sized as the transform, not as the grid
     C .= zero(eltype(C))
     A = _no_alloc_reshape(a)
     @inbounds view(C, axes(A)...) .= A
-    _apply!(_preprocess_to_grid!, C, space_a)
-    return _bfft_pow2!(C)
+    _apply!(_preprocess_to_grid!, C, space(a))
+    return _bfft!(C)
 end
 
 #--
@@ -172,9 +180,8 @@ function _preprocess_to_grid!(C::AbstractVector, space::Chebyshev)
     len = length(C)
     ord = order(space)
     @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
-    if len != 1
-        @inbounds C[len÷2+1] *= exact(2)
-    end
+    # on the tightest grid the top mode is its own mirror image
+    2ord == len && @inbounds C[ord+1] *= exact(2)
     return C
 end
 
@@ -182,9 +189,7 @@ function _preprocess_to_grid!(C::AbstractArray, space::Chebyshev, ::Val{D}) wher
     len = size(C, D)
     ord = order(space)
     @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
-    if len != 1
-        @inbounds selectdim(C, D, len÷2+1) .*= exact(2)
-    end
+    2ord == len && @inbounds selectdim(C, D, ord+1) .*= exact(2)
     return C
 end
 
@@ -195,12 +200,13 @@ end
 
 # function interpolation
 
-to_seq(a::Sequence, s::SequenceSpace) = to_seq!(to_grid(a, fft_size(space(a))), s)
+to_coef(a::Sequence, s::SequenceSpace) = to_coef(to_grid(a), s)
 
-function to_seq(f::Function, s::SequenceSpace)
-    N = fft_size(s)
-    C = [complex(f(_node(s, j, _node_size(s, N))...)) for j ∈ CartesianIndices(Base.UnitRange.(0, N .- 1))]
-    return to_seq!(C, s)
+function to_coef(f::Function, s::SequenceSpace)
+    m = grid_size(s)
+    N = _full_fft_size(m, s)
+    C = [complex(f(_node(s, j, _node_size(s, N))...)) for j ∈ CartesianIndices(Base.UnitRange.(0, m .- 1))]
+    return to_coef(C, s)
 end
 
 _node_size(::BaseSpace, N::Tuple{Integer}) = @inbounds N[1]
@@ -215,86 +221,79 @@ _node(s::SymmetricSpace, j, N) = _node(desymmetrize(s), j, N)
 
 #
 
-to_seq(A::AbstractArray, space::SequenceSpace) =
-    to_seq!(_unfold_grid(A, _full_fft_size(size(A), space)), space)
-to_seq(x_grid::AbstractArray{<:Sequence}, s::SequenceSpace) = to_seq!(_seq_buffer(x_grid, s), x_grid, s)
-to_seq(::AbstractArray{<:Sequence}, s::SymmetricSpace) = throw(ArgumentError(_grid_factors_message(s)))
-# `to_grid` splits the factors of the grid off with `_restrict`, which is only
-# defined when the symmetry group acts trivially on them
-_grid_factors_message(s::SymmetricSpace) = "the factors of the grid must not be symmetric, got $s"
+to_coef(x_grid::AbstractArray, s::SequenceSpace) = to_coef!(_coef_buffer(x_grid, s), _maybe_copy_grid(x_grid))
+_maybe_copy_grid(A::AbstractArray{<:Number}) = _unfold_grid(A, size(A)) # in-place, copy needed
+_maybe_copy_grid(x_grid::AbstractArray) = x_grid # only read from, no copy needed
 
-to_seq!(A::AbstractArray, space::SequenceSpace) = to_seq!(zeros(complex(float(eltype(A))), space), A)
-to_seq!(c::Sequence{<:SymmetricSpace}, A::AbstractArray) = project!(c, to_seq!(zeros(eltype(c), desymmetrize(space(c))), A))
-
-function to_seq!(c::Sequence, x_grid::AbstractArray{<:Sequence,D}, s::NoSymSpace) where {D}
-    _check_grid_axes(s, Val(D))
-    inner = space(first(x_grid))
-    all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("all sequences must have the same space"))
-    space(c) == _combine(s, inner) || return throw(ArgumentError("the destination must have space $(_combine(s, inner))"))
-    C = _no_alloc_reshape(coefficients(c), (dimension(s), dimension(inner)))
-    _fill_seq!(C, x_grid, s)
+function to_coef!(c::Sequence, x_grid::AbstractArray{<:Sequence,D}) where {D}
+    s_lead, inner = _lead_inner(space(c), Val(D))
+    all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
+    C = _no_alloc_reshape(coefficients(c), (dimension(s_lead), dimension(inner)))
+    _fill_coef!(C, x_grid, s_lead)
     return c
 end
-function _fill_seq!(C::AbstractMatrix, x_grid::AbstractArray{<:Any,D}, s::NoSymSpace) where {D}
-    cache = Array{complex(float(_grid_eltype(x_grid))),D}(undef, size(x_grid))
+function _fill_coef!(C::AbstractMatrix, x_grid::AbstractArray{<:Any,D}, s_lead::NoSymSpace) where {D}
+    sz = size(x_grid)
+    cache = Array{complex(float(_grid_eltype(x_grid))),D}(undef, _full_fft_size(sz, s_lead))
+    nodes = view(cache, map(n -> 1:n, sz)...)
     @inbounds for j ∈ axes(C, 2)
         for (i, x) ∈ enumerate(x_grid)
-            cache[i] = coefficients(x)[j]
+            nodes[i] = coefficients(x)[j]
         end
-        C[:,j] .= coefficients(to_seq(cache, s))
+        _to_coef!(Sequence(s_lead, view(C, :, j)), _mirror_grid!(cache, sz))
     end
     return C
 end
 
-function to_seq!(c::Sequence{<:NoSymSpace}, A::AbstractArray)
+to_coef!(c::Sequence{<:SymmetricSpace}, A::AbstractArray{<:Number}) =
+    project!(c, to_coef!(zeros(eltype(c), desymmetrize(space(c))), A))
+function to_coef!(c::Sequence{<:NoSymSpace}, A::AbstractArray{<:Number})
     sz = size(A)
     Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
-    space_c = space(c)
-    full_sz = _full_fft_size(sz, space_c)
-    if sz != full_sz # user grid with folded Chebyshev axes: unfold, then transform
-        _is_grid_size_compatible(sz, space_c) || return throw(DimensionMismatch("the grid size must be compatible with the space: size is $sz, space is $space_c"))
-        return to_seq!(c, _unfold_grid(A, full_sz))
-    end
-    all(ispow2, sz) || return throw(ArgumentError("all sizes must be a power of 2"))
-    _fft_pow2!(A)
+    full_sz = _full_fft_size(sz, space(c))
+    return _to_coef!(c, sz == full_sz ? A : _unfold_grid(A, full_sz)) # mirrored axes need more room
+end
+function _to_coef!(c::Sequence, A::AbstractArray)
+    # `A` is sized as the transform, not as the grid
+    sz = size(A)
+    _fft!(A)
     A ./= exact(prod(sz))
-    _apply!(_postprocess_to_seq!, A, space(c))
+    _apply!(_postprocess_to_coef!, A, space(c))
     C = _no_alloc_reshape(c)
     C .= zero(eltype(c))
     inds_C, inds_A = _fft_get_index(sz, space(c))
     @inbounds view(C, inds_C...) .= view(A, inds_A...)
     return c
 end
-
 function _fft_get_index(n::NTuple{N,Integer}, space::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
     v = map(_fft_get_index, n, spaces(space))
-    return ntuple(i -> v[i][1], Val(N)), ntuple(i -> v[i][2], Val(N))
+    return @inbounds ntuple(i -> v[i][1], Val(N)), ntuple(i -> v[i][2], Val(N))
 end
 _fft_get_index(n::Tuple{Integer}, space::BaseSpace) = @inbounds map(tuple, _fft_get_index(n[1], space))
+_fft_get_index(n::Integer, space::BaseSpace) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
 
 #--
 
 function _unfold_grid(A::AbstractArray{T,N}, full_sz::NTuple{N,Integer}) where {T,N}
-    sz = size(A)
-    Base.OneTo.(sz) == axes(A) || return throw(ArgumentError("offset arrays are not supported"))
     C = zeros(complex(float(T)), full_sz)
-    @inbounds view(C, map(n -> 1:n, sz)...) .= A
+    view(C, map(n -> 1:n, size(A))...) .= A
+    return _mirror_grid!(C, size(A))
+end
+
+function _mirror_grid!(C::AbstractArray{<:Any,N}, sz::NTuple{N,Integer}) where {N}
     for d ∈ 1:N
-        m, n = sz[d], full_sz[d]
+        m, n = sz[d], size(C, d)
         if m < n
-            @inbounds selectdim(C, d, m+1:n) .= selectdim(C, d, m-1:-1:2)
+            selectdim(C, d, m+1:n) .= selectdim(C, d, m-1:-1:2)
         end
     end
     return C
 end
 
-_seq_buffer(x_grid::AbstractArray{<:Sequence}, s::NoSymSpace) =
+_coef_buffer(x_grid::AbstractArray{<:Number}, s::SequenceSpace) =
+    zeros(complex(float(eltype(x_grid))), s)
+_coef_buffer(x_grid::AbstractArray{<:Sequence}, s::NoSymSpace) =
     zeros(complex(float(_grid_eltype(x_grid))), _combine(s, space(first(x_grid))))
-
-_check_grid_axes(::BaseSpace, ::Val{1}) = nothing
-_check_grid_axes(::TensorSpace{<:NTuple{D,BaseSpace}}, ::Val{D}) where {D} = nothing
-_check_grid_axes(s::SequenceSpace, ::Val) =
-    throw(ArgumentError("the grid must have one axis per factor of $s"))
 
 _combine(s::SequenceSpace, ::ScalarSpace) = s
 _combine(s::SequenceSpace, inner::SequenceSpace) = s ⊗ inner
@@ -303,47 +302,41 @@ _combine(s::SequenceSpace, inner::SequenceSpace) = s ⊗ inner
 
 # Taylor: DFT output already in coefficient order
 
-_fft_get_index(n::Integer, space::Taylor) = 1:min(n, dimension(space)), 1:min(n, dimension(space))
-
-_postprocess_to_seq!(C::AbstractVector, ::Taylor) = C
-_postprocess_to_seq!(C::AbstractArray, ::Taylor, ::Val) = C
+_postprocess_to_coef!(C::AbstractVector, ::Taylor) = C
+_postprocess_to_coef!(C::AbstractArray, ::Taylor, ::Val) = C
 
 # Fourier: move zero-frequency from position 1 to center
 
 function _fft_get_index(n::Integer, space::Fourier)
     ord_C = order(space)
     ord_A = n÷2
-    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+(n == 1)+ord_A, 1:n
+    ord_A ≤ ord_C && return ord_C+1-ord_A:ord_C+isodd(n)+ord_A, 1:n # every mode fits
     return 1:2ord_C+1, ord_A+1-ord_C:ord_A+1+ord_C
 end
 
-function _postprocess_to_seq!(C::AbstractVector, ::Fourier)
+function _postprocess_to_coef!(C::AbstractVector, ::Fourier)
     circshift!(C, copy(C), length(C)÷2)
     return C
 end
 
-function _postprocess_to_seq!(C::AbstractArray{T,N}, ::Fourier, ::Val{D}) where {T,N,D}
+function _postprocess_to_coef!(C::AbstractArray{T,N}, ::Fourier, ::Val{D}) where {T,N,D}
     circshift!(C, copy(C), ntuple(i -> ifelse(i == D, size(C, D)÷2, 0), Val(N)))
     return C
 end
 
-# Chebyshev: halve the Nyquist frequency
+# Chebyshev: halve the Nyquist frequency, which carries both mirror images
 
 _fft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
 
-function _postprocess_to_seq!(C::AbstractVector, ::Chebyshev)
+function _postprocess_to_coef!(C::AbstractVector, ::Chebyshev)
     len = length(C)
-    if len != 1
-        @inbounds C[len÷2+1] /= exact(2) # Nyquist frequency
-    end
+    iseven(len) && @inbounds C[len÷2+1] /= exact(2)
     return C
 end
 
-function _postprocess_to_seq!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
+function _postprocess_to_coef!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
-    if len != 1
-        @inbounds selectdim(C, D, len÷2+1) ./= exact(2) # Nyquist frequency
-    end
+    iseven(len) && @inbounds selectdim(C, D, len÷2+1) ./= exact(2)
     return C
 end
 
@@ -385,13 +378,14 @@ end
 
 #= NOTE
 
-A transform of length `n` runs `log2(n)` stages, the `k`-th combining elements
-`2^(k-1)` apart. The last stage needs `n÷2` distinct factors and every earlier
-one an evenly spaced subset of them, so a single table of that length serves
-them all.
+A radix-2 transform of length `n` runs `log2(n)` stages, the `k`-th combining
+elements `2^(k-1)` apart. The last stage needs `n÷2` distinct factors and every
+earlier one an evenly spaced subset of them, so a single table of that length
+serves them all. The other routines read the same table by half-turns, hence the
+angles `-πj/len` rather than `-2πj/len`.
 
-Every angle is a dyadic rational, hence exact, so building the table at the
-working precision is as tight as building it higher and rounding.
+For a power of two every angle is a dyadic rational, hence exact, so building the
+table at the working precision is as tight as building it higher and rounding.
 
 Tables are memoised on element type, precision and length,
 the precision belonging to the key because `BigFloat` sets it at runtime.
@@ -422,34 +416,65 @@ end
 _twiddle_table(::Type{Complex{Interval{T}}}, len::Integer) where {T<:AbstractFloat} = _roots_of_unity(T, len).interval
 _twiddle_table(::Type{Complex{T}}, len::Integer) where {T<:AbstractFloat} = _roots_of_unity(T, len).mid
 
+# ω_n^t = e^{-2πi t/n}, read off the half-turn table of length `n`
+
+_root(W::AbstractVector, t::Integer, n::Integer) = 2t < n ? @inbounds(W[2t+1]) : @inbounds(-W[2t-n+1])
+
 # Backward (unnormalized inverse) FFT: Y[j] = Σₖ x[k] e^{+2πi kj/N}
 
-_bfft_pow2!(a::AbstractArray{<:Complex}) = conj!(_fft_pow2!(conj!(a)))
+_bfft!(a::AbstractArray{<:Complex}) = conj!(_fft!(conj!(a)))
 
 # Forward FFT: X[k] = Σⱼ x[j] e^{-2πi kj/N}
 
-_fft_pow2!(a::AbstractArray{<:Complex{<:AbstractFloat}}) = _fft_pow2_table!(a)
+_fft!(a::AbstractArray{<:Complex{<:AbstractFloat}}) = _fft_table!(a)
 
-function _fft_pow2!(a::AbstractArray{Complex{Interval{T}}}) where {T<:AbstractFloat}
-    FFT_ALGORITHM[] === :apriori_bound && return _fft_apriori_bound!(a)
-    return _fft_pow2_table!(a)
+function _fft!(a::AbstractArray{Complex{Interval{T}}}) where {T<:AbstractFloat}
+    # the a priori bound is an error analysis of the radix-2 stages
+    FFT_ALGORITHM[] === :apriori_bound && all(ispow2, size(a)) && return _fft_apriori_bound!(a)
+    return _fft_table!(a)
 end
 
-function _fft_pow2_table!(a::AbstractArray)
+function _fft_table!(a::AbstractArray)
     @inbounds for i ∈ axes(a, 1)
-        _fft_pow2_table!(selectdim(a, 1, i))
+        _fft_table!(selectdim(a, 1, i))
     end
     n = size(a, 1)
     for a_col ∈ eachcol(_no_alloc_reshape(a, (n, length(a)÷n)))
-        _fft_pow2_table!(a_col)
+        _fft_table!(a_col)
     end
     return a
 end
 
-_fft_pow2_table!(a::AbstractVector) =
-    _fft_pow2_table!(a, _twiddle_table(eltype(a), max(length(a)÷2, 1)))
+#= NOTE
 
-function _fft_pow2_table!(a::AbstractVector, W::AbstractVector)
+Every length is supported: a power of two runs the radix-2 routine, a composite
+length `n = r m` is decimated into `r` transforms of length `m` (Cooley-Tukey),
+and a prime length is summed term by term or, once that gets too costly, turned
+into a convolution of power-of-two length (Bluestein).
+=#
+
+function _fft_table!(a::AbstractVector)
+    n = length(a)
+    ispow2(n) && return _fft_radix2!(a)
+    r = _smallest_prime_factor(n)
+    r < n && return _fft_decimate!(a, r)
+    n ≤ 32 && return _fft_naive!(a) # beyond that length Bluestein is faster, at a slightly wider enclosure
+    return _fft_bluestein!(a)
+end
+
+function _smallest_prime_factor(n::Integer)
+    r = 2
+    while r*r ≤ n
+        n % r == 0 && return r
+        r += 1
+    end
+    return n
+end
+
+_fft_radix2!(a::AbstractVector) =
+    _fft_radix2!(a, _twiddle_table(eltype(a), max(length(a)÷2, 1)))
+
+function _fft_radix2!(a::AbstractVector, W::AbstractVector)
     _bitreverse!(a)
     n = length(a)
     len = length(W)
@@ -467,6 +492,96 @@ function _fft_pow2_table!(a::AbstractVector, W::AbstractVector)
         end
         N <<= 1
     end
+    return a
+end
+
+# X[k] = Σ_q ω_n^{qk} Y_q[k mod m], with Y_q the transform of x[q], x[q+r], ...
+
+function _fft_decimate!(a::AbstractVector, r::Integer)
+    n = length(a)
+    m = n ÷ r
+    W = _twiddle_table(eltype(a), n)
+    Y = [_fft!(a[q:r:n]) for q ∈ 1:r]
+    @inbounds for k ∈ 0:n-1
+        i = k % m + 1
+        aₖ = Y[1][i]
+        for q ∈ 1:r-1
+            aₖ += _root(W, (q*k) % n, n) * Y[q+1][i]
+        end
+        a[k+1] = aₖ
+    end
+    return a
+end
+
+function _fft_naive!(a::AbstractVector)
+    n = length(a)
+    W = _twiddle_table(eltype(a), n)
+    x = copy(a)
+    @inbounds for k ∈ 0:n-1
+        aₖ = x[1]
+        for j ∈ 1:n-1
+            aₖ += x[j+1] * _root(W, (j*k) % n, n)
+        end
+        a[k+1] = aₖ
+    end
+    return a
+end
+
+#-
+
+#= NOTE
+
+Bluestein's algorithm turns a transform of prime length `n` into a convolution of
+power-of-two length: since `2jk = j² + k² - (k-j)²`,
+
+    X[k] = wₖ Σⱼ (x[j] wⱼ) conj(w_{k-j}),   wₘ = e^{-iπ m²/n},
+
+whose kernel `conj(w)` is even and gets padded to a length `2^p ≥ 2n-1`. The
+angles are rationals of denominator `n`, with `m²` reduced modulo `2n` to keep
+them small; the transformed kernel is memoised alongside the chirp.
+=#
+
+struct Chirp{T<:AbstractFloat}
+    interval :: Vector{Complex{Interval{T}}}
+    mid :: Vector{Complex{T}}
+    kernel_interval :: Vector{Complex{Interval{T}}}
+    kernel_mid :: Vector{Complex{T}}
+end
+
+function Chirp{T}(n::Integer) where {T<:AbstractFloat}
+    w = [cispi(interval(T, -((m*m) % (2n))//n)) for m ∈ 0:n-1]
+    B = zeros(Complex{Interval{T}}, nextpow(2, 2n-1))
+    @inbounds for m ∈ 0:n-1
+        B[m+1] = conj(w[m+1])
+        m > 0 && (B[end+1-m] = B[m+1])
+    end
+    return Chirp{T}(w, mid.(w), _fft!(copy(B)), _fft!(mid.(B)))
+end
+
+const chirps = Dict{Tuple{DataType,Int,Int},Chirp}() # (type, precision, length)
+const chirps_lock = ReentrantLock()
+
+function _chirp(::Type{T}, n::Integer) where {T<:AbstractFloat}
+    key = (T, precision(T), n)
+    return lock(chirps_lock) do
+        return get!(() -> Chirp{T}(n), chirps, key)::Chirp{T}
+    end
+end
+
+_chirp_table(::Type{Complex{Interval{T}}}, n::Integer) where {T<:AbstractFloat} =
+    (c = _chirp(T, n); (c.interval, c.kernel_interval))
+_chirp_table(::Type{Complex{T}}, n::Integer) where {T<:AbstractFloat} =
+    (c = _chirp(T, n); (c.mid, c.kernel_mid))
+
+function _fft_bluestein!(a::AbstractVector)
+    n = length(a)
+    w, B̂ = _chirp_table(eltype(a), n)
+    u = zeros(eltype(a), length(B̂))
+    @inbounds u[1:n] .= a .* w
+    _fft!(u)
+    u .*= B̂
+    _bfft!(u)
+    @inbounds a .= w .* view(u, 1:n) ./ exact(length(B̂))
     return a
 end
 
@@ -488,7 +603,7 @@ function _fft_apriori_bound!(a::AbstractArray{Complex{Interval{T}}}) where {T<:A
     end
     e₀ = min(nextfloat(eˢ), _modulus(eʳ, eⁱ)) # bounds |a[i] - C[i]|
     M₀ = min(nextfloat(Mˢ), _modulus(Mʳ, Mⁱ)) # bounds |C[i]|
-    _fft_pow2_table!(C)
+    _fft_table!(C)
     ρ = maximum(n -> _roots_of_unity(T, max(n÷2, 1)).radius, size(a))
     e = _fft_error_bound(interval(M₀) + interval(e₀), interval(e₀), interval(ρ), sum(trailing_zeros, size(a)))
     @inbounds for i ∈ eachindex(a)

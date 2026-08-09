@@ -3,6 +3,10 @@ _maybe_interval(::Type{<:RealOrComplexI}, a) = interval(a)
 
 _isguaranteed(a::InfiniteSequence) = all(isguaranteed, sequence(a)) & isguaranteed(sequence_norm(a)) & isguaranteed(finite_error(a)) & isguaranteed(tail_error(a)) & isguaranteed(total_error(a))
 
+# aliasing must stay negligible next to truncation
+_oversampled_grid_size(s::SequenceSpace) = fast_grid_size(s) # fast_grid_size(2 .* grid_size(s), s)
+_oversampled_fft_size(s::SequenceSpace) = _full_fft_size(_oversampled_grid_size(s), s)
+
 # division
 
 _codomain(::typeof(inv), s::TensorSpace) = TensorSpace(map(sᵢ -> _codomain(inv, sᵢ), spaces(s)))
@@ -13,9 +17,9 @@ _codomain(::typeof(inv), s::Chebyshev) = s
 function Base.inv(a::Sequence)
     space_approx = _codomain(inv, space(a))
     _isconstant(a) && return _at_value(inv, a)
-    A = to_grid(a, fft_size(space_approx))
+    A = to_grid(a, _oversampled_grid_size(space_approx))
     A .= inv.(A)
-    return _call_to_seq!(A, space_approx, eltype(a))
+    return _call_to_coef!(A, space_approx, eltype(a))
 end
 
 function Base.inv(a::InfiniteSequence)
@@ -48,10 +52,10 @@ function Base.:/(a::Sequence{<:SequenceSpace}, b::Sequence{<:SequenceSpace})
     # TODO: propagate "NG" flag
     space_approx = _codomain(/, space(a), space(b))
     _isconstant(b) && return a / b[_findindex_constant(space(b))]
-    A = to_grid(a, fft_size(space_approx))
-    B = to_grid(b, fft_size(space_approx))
+    A = to_grid(a, _oversampled_grid_size(space_approx))
+    B = to_grid(b, _oversampled_grid_size(space_approx))
     A .= A ./ B
-    return _call_to_seq!(A, space_approx, promote_type(eltype(a), eltype(b)))
+    return _call_to_coef!(A, space_approx, promote_type(eltype(a), eltype(b)))
 end
 Base.:/(a::Number, b::Sequence{<:SequenceSpace}) = lmul!(a, inv(b))
 
@@ -64,13 +68,13 @@ function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
     seq_b = sequence(b)
     _isconstant(seq_b) & _safe_iszero(sequence_error(b)) && return InfiniteSequence(seq_a / seq_b[_findindex_constant(space(seq_b))], banachspace(a))
 
-    A = to_grid(mid.(seq_a), fft_size(space_approx))
-    B = to_grid(mid.(seq_b), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
+    B = to_grid(mid.(seq_b), _oversampled_grid_size(space_approx))
     A .= A ./ B
     B .= inv.(B)
     CoefType = promote_type(eltype(a), eltype(b))
-    seq_approx_ab⁻¹ = _call_to_seq!(A, space_approx, CoefType)
-    seq_approx_b⁻¹ = _call_to_seq!(B, space_approx, eltype(b))
+    seq_approx_ab⁻¹ = _call_to_coef!(A, space_approx, CoefType)
+    seq_approx_b⁻¹ = _call_to_coef!(B, space_approx, eltype(b))
 
     X = banachspace(a) ∩ banachspace(b)
     approx_ab⁻¹ = InfiniteSequence(_maybe_interval(CoefType, seq_approx_ab⁻¹), X)
@@ -106,9 +110,9 @@ _codomain(::typeof(sqrt), s::Chebyshev) = s
 function Base.sqrt(a::Sequence{<:SequenceSpace})
     space_approx = _codomain(sqrt, space(a))
     _isconstant(a) && return _at_value(sqrt, a)
-    A = to_grid(a, fft_size(space_approx))
+    A = to_grid(a, _oversampled_grid_size(space_approx))
     A .= sqrt.(A)
-    return _call_to_seq!(A, space_approx, eltype(a))
+    return _call_to_coef!(A, space_approx, eltype(a))
 end
 
 function Base.sqrt(a::InfiniteSequence)
@@ -119,11 +123,11 @@ function Base.sqrt(a::InfiniteSequence)
     seq_a = sequence(a)
     _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(sqrt, seq_a), banachspace(a))
 
-    A = to_grid(mid.(seq_a), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
     sqrtA = sqrt.(A)
     A .= inv.(sqrtA)
-    seq_approx_sqrta = _call_to_seq!(sqrtA, space_approx, eltype(a))
-    seq_approx_sqrta⁻¹ = _call_to_seq!(A, space_approx, eltype(a))
+    seq_approx_sqrta = _call_to_coef!(sqrtA, space_approx, eltype(a))
+    seq_approx_sqrta⁻¹ = _call_to_coef!(A, space_approx, eltype(a))
 
     X = banachspace(a)
     approx_sqrta = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_sqrta), X)
@@ -150,9 +154,9 @@ _codomain(::typeof(cbrt), s::Chebyshev) = s
 function Base.cbrt(a::Sequence{<:SequenceSpace})
     space_approx = _codomain(cbrt, space(a))
     _isconstant(a) && return _at_value(cbrt, a)
-    A = to_grid(a, fft_size(space_approx))
+    A = to_grid(a, _oversampled_grid_size(space_approx))
     A .= A .^ (1//3)
-    return _call_to_seq!(A, space_approx, eltype(a))
+    return _call_to_coef!(A, space_approx, eltype(a))
 end
 
 function Base.cbrt(a::InfiniteSequence)
@@ -163,11 +167,11 @@ function Base.cbrt(a::InfiniteSequence)
     seq_a = sequence(a)
     _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(cbrt, seq_a), banachspace(a))
 
-    A = to_grid(mid.(seq_a), fft_size(space_approx))
+    A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
     cbrtA = A .^ (1//3)
     A .= inv.(cbrtA) .^ 2
-    seq_approx_cbrta = _call_to_seq!(cbrtA, space_approx, eltype(a))
-    seq_approx_cbrta⁻² = _call_to_seq!(A, space_approx, eltype(a))
+    seq_approx_cbrta = _call_to_coef!(cbrtA, space_approx, eltype(a))
+    seq_approx_cbrta⁻² = _call_to_coef!(A, space_approx, eltype(a))
 
     X = banachspace(a)
     approx_cbrta = InfiniteSequence(_maybe_interval(eltype(a), seq_approx_cbrta), X)
@@ -252,9 +256,9 @@ end
 
 function (nl::Nonlinearity)(a::Sequence{<:SequenceSpace}; codomain::SequenceSpace = _codomain(nl.f, space(a)))
     _isconstant(a) && return _at_value(nl.f, a)
-    A = to_grid(a, fft_size(codomain))
+    A = to_grid(a, _oversampled_grid_size(codomain))
     C = nl.f.(A)
-    return _call_to_seq!(C, codomain, eltype(a))
+    return _call_to_coef!(C, codomain, eltype(a))
 end
 
 function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codomain(nl.f, space(a)))
@@ -268,9 +272,9 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
             return throw(ArgumentError("image intersects a branch cut or contains at least one pole: analyticity violated"))
     end
 
-    A = to_grid(seq_a, fft_size(codomain))
+    A = to_grid(seq_a, _oversampled_grid_size(codomain))
     C = nl.f.(A)
-    c = _call_to_seq!(C, codomain, eltype(a))
+    c = _call_to_coef!(C, codomain, eltype(a))
 
     ν̄ = interval.(_optimize_decay(nl.f, mid.(c), mid.(seq_a), mid.(ν), a, nl.poles, nl.branch_cut))
 
@@ -323,7 +327,7 @@ _check_branch_cut_poles(a::InfiniteSequence{<:BaseSpace}, ν::Tuple{Any}, poles,
 function _check_branch_cut_poles(a::InfiniteSequence, ν, poles, branch_cut)
     s = space(a)
     _validate_rate(s, ν)
-    fs = fft_size(s)
+    fs = fft_size(s) # number of radii sweeping the annulus, not a grid
     n = max(fs isa Tuple ? maximum(fs) : fs, 2^6)
     sweeps = _radii_sweeps(s, ν, n)
     for r ∈ Iterators.product(sweeps...)
@@ -334,12 +338,12 @@ end
 
 function __check_branch_cut_poles(a, r::Tuple, poles, branch_cut)
     CoefType = complex(float(eltype(a)))
-    C = zeros(CoefType, fft_size(space(a)))
+    C = zeros(CoefType, _oversampled_fft_size(space(a)))
     A = _no_alloc_reshape(sequence(a))
     @inbounds view(C, axes(A)...) .= A
     _apply!(_preprocess_to_grid!, C, space(a))
     _apply_boxes!(C, r)
-    _fft_pow2!(C)
+    _fft!(C)
     return all(C) do x
         y = interval(x, sequence_error(a); format = :midpoint)
         return isdisjoint_interval(y, branch_cut) & all(p -> isdisjoint_interval(y, p), poles)
@@ -463,7 +467,7 @@ end
 #
 
 function _contour(f, a, ν::Tuple)
-    N_fft = fft_size(space(a))
+    N_fft = _oversampled_fft_size(space(a))
 
     CoefType = complex(eltype(a))
     grid_a_δ = zeros(CoefType, N_fft)
@@ -473,7 +477,7 @@ function _contour(f, a, ν::Tuple)
     _apply!(_preprocess_to_grid!, grid_a_δ, space(a))
     _apply_boxes!(grid_a_δ, ν)
 
-    _fft_pow2!(grid_a_δ)
+    _fft!(grid_a_δ)
     contour_integral = sum(abs ∘ f, grid_a_δ)
 
     return contour_integral / exact(prod(N_fft))
@@ -536,7 +540,7 @@ function _error(f, a, approx, ν::NTuple{N}, ν̄, N_v) where {N}
 
     q = sum(k -> sum(μ -> prod(μ .^ exact.(k)), _mix_) * prod(ν .^ exact.(abs.(k))), TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))))
 
-    finite_alias = q / prod(ν̄ .^ exact.( fft_size(space(approx)) ) .- exact(1))
+    finite_alias = q / prod(ν̄ .^ exact.( _oversampled_fft_size(space(approx)) ) .- exact(1))
     tail_alias   = exact(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ exact.(N_v .+ 1))
 
     return C, finite_alias, tail_alias

@@ -44,7 +44,7 @@ include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, total_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
-    export fft_size, grid_size, to_grid, to_grid!, to_seq, to_seq!, set_fft_algorithm
+    export fft_size, grid_size, to_grid, to_grid!, to_coef, to_coef!, set_fft_algorithm
 import LinearAlgebra: rmul!, lmul!, rdiv!, ldiv!
 include("sequence_spaces/sequences/arithmetic.jl")
     export codomain, add!, radd!, ladd!, sub!, rsub!, lsub!, rmul!, lmul!,
@@ -129,7 +129,15 @@ function SinFourier(K, freq)
     Base.depwarn("`SinFourier(K, freq)` is deprecated and will be removed in a future version, use `oddsym(Fourier(K, freq))` instead", :SinFourier; force=true)
     return oddsym(Fourier(K, freq))
 end
+function to_seq(args...)
+    Base.depwarn("`to_seq` is deprecated and will be removed in a future version, use `to_coef` instead", :to_seq; force=true)
+    return to_coef(args...)
+end
+function to_seq!(args...)
+    Base.depwarn("`to_seq!` is deprecated and will be removed in a future version, use `to_coef!` instead", :to_seq!; force=true)
+    return to_coef!(args...)
+end
 
-    export ParameterSpace, CosFourier, SinFourier
+    export ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!
 
 end

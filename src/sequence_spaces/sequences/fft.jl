@@ -235,7 +235,7 @@ end
 function _fill_coef!(C::AbstractMatrix, x_grid::AbstractArray{<:Any,D}, s_lead::NoSymSpace) where {D}
     sz = size(x_grid)
     cache = Array{complex(float(_grid_eltype(x_grid))),D}(undef, _full_fft_size(sz, s_lead))
-    nodes = view(cache, map(n -> 1:n, sz)...)
+    @inbounds nodes = view(cache, map(n -> 1:n, sz)...)
     @inbounds for j ∈ axes(C, 2)
         for (i, x) ∈ enumerate(x_grid)
             nodes[i] = coefficients(x)[j]

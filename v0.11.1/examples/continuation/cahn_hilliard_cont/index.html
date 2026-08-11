@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Parameter continuation for the Cahn-Hilliard equation · RadiiPolynomial.jl</title><meta name="title" content="Parameter continuation for the Cahn-Hilliard equation · RadiiPolynomial.jl"/><meta property="og:title" content="Parameter continuation for the Cahn-Hilliard equation · RadiiPolynomial.jl"/><meta property="twitter:title" content="Parameter continuation for the Cahn-Hilliard equation · RadiiPolynomial.jl"/><meta name="description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:description" content="Documentation for RadiiPolynomial.jl."/><meta property="twitter:description" content="Documentation for RadiiPolynomial.jl."/><meta property="og:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/continuation/cahn_hilliard_cont/"/><meta property="twitter:url" content="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/continuation/cahn_hilliard_cont/"/><link rel="canonical" href="https://olivierhnt.github.io/RadiiPolynomial.jl/examples/continuation/cahn_hilliard_cont/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/radiipolynomial.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img src="../../../assets/logo.png" alt="RadiiPolynomial.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">RadiiPolynomial.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><a class="tocitem" href="../../../radii_polynomial_approach/">The radii polynomial approach</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox"/><label class="tocitem" for="menuitem-3"><span class="docs-label">Getting started</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../getting_started/first_proof/">A first proof</a></li><li><a class="tocitem" href="../../../getting_started/lorenz_equilibria/">Equilibria of the Lorenz system</a></li><li><a class="tocitem" href="../../../getting_started/cubic_root_cont/">Parameter continuation for the cube root</a></li><li><a class="tocitem" href="../../../getting_started/logistic_equation/">The logistic equation</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../manual/vector_spaces/">Vector spaces</a></li><li><a class="tocitem" href="../../../manual/sequences/">Sequences</a></li><li><a class="tocitem" href="../../../manual/linear_operators/">Linear operators</a></li><li><a class="tocitem" href="../../../manual/norms/">Norms</a></li><li><a class="tocitem" href="../../../manual/special_operators/">Special operators</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox" checked/><label class="tocitem" for="menuitem-5"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../index_examples/">Examples</a></li><li><input class="collapse-toggle" id="menuitem-5-2" type="checkbox"/><label class="tocitem" for="menuitem-5-2"><span class="docs-label">Steady states</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../steady_states/cahn_hilliard/">Cahn-Hilliard</a></li><li><a class="tocitem" href="../../steady_states/nonlinear_diffusion/">Nonlinear diffusion</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Periodic orbits</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../periodic_orbits/non_autonomous_po/">Non-autonomous ODE</a></li><li><a class="tocitem" href="../../periodic_orbits/lorenz_po/">Lorenz system</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-4" type="checkbox" checked/><label class="tocitem" for="menuitem-5-4"><span class="docs-label">Continuation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../cube_root_pa/">Pseudo-arclength continuation for the cube root</a></li><li class="is-active"><a class="tocitem" href>Parameter continuation for the Cahn-Hilliard equation</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Continuation</a></li><li class="is-active"><a href>Parameter continuation for the Cahn-Hilliard equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Parameter continuation for the Cahn-Hilliard equation</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/docs/src/examples/continuation/cahn_hilliard_cont.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><ul><li><a href="#Parameter-continuation-for-the-Cahn-Hilliard-equation">Parameter continuation for the Cahn-Hilliard equation</a></li><li class="no-marker"><ul><li class="no-marker"><ul><li><a href="#Step-1:-Formulation">Step 1: Formulation</a></li><li><a href="#Step-2:-Approximation-(floating-point-arithmetic)">Step 2: Approximation (floating-point arithmetic)</a></li><li><a href="#Step-3:-Bounds-(interval-arithmetic)">Step 3: Bounds (interval arithmetic)</a></li><li><a href="#Step-4:-Conclusion">Step 4: Conclusion</a></li></ul></li></ul></li></ul><h1 id="Parameter-continuation-for-the-Cahn-Hilliard-equation"><a class="docs-heading-anchor" href="#Parameter-continuation-for-the-Cahn-Hilliard-equation">Parameter continuation for the Cahn-Hilliard equation</a><a id="Parameter-continuation-for-the-Cahn-Hilliard-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Parameter-continuation-for-the-Cahn-Hilliard-equation" title="Permalink"></a></h1><p>The <a href="../../steady_states/cahn_hilliard/#Cahn-Hilliard">Cahn-Hilliard</a> example proves the existence of a steady-state for a single choice of the parameters <span>$(c, \beta)$</span>; here we prove the existence of a whole surface of steady-states over a curved region of the parameter plane.</p><h3 id="Step-1:-Formulation"><a class="docs-heading-anchor" href="#Step-1:-Formulation">Step 1: Formulation</a><a id="Step-1:-Formulation-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-Formulation" title="Permalink"></a></h3><pre><code class="language-julia hljs">using RadiiPolynomial, LinearAlgebra
+
+F(u, c, β) = Laplacian() * u + β * (u - u^3 - c)
+
+DF(u, c, β) = Laplacian() + Multiplication(β * (exact(1) - exact(3) * u^2))</code></pre><p>The parameter region is described by a <a href="https://en.wikipedia.org/wiki/Coons_patch">Coons patch</a>: given four boundary curves <span>$\gamma_1, \dots, \gamma_4$</span>, the map <span>$\theta$</span> interpolates them into a parameterization of the enclosed region by the square <span>$[-1,1]^2$</span>. This lets us cover a curved region of the <span>$(c, \beta)$</span> plane while keeping the Chebyshev machinery on a square.</p><pre><code class="language-julia hljs">struct BoundaryCurves{T₁,T₂,T₃,T₄}
+    γ₁ :: T₁
+    γ₂ :: T₂
+    γ₃ :: T₃
+    γ₄ :: T₄
+end
+
+α(s) = (s + 1) / 2 # [-1,1] → [0,1]
+
+θ_edge(s₁, s₂, γᵢ, γⱼ) = γᵢ(s₁) + α(s₂) * (γⱼ(-s₁) - γᵢ(s₁))
+
+θ_corners(s₁, s₂; P₁, P₂, P₃, P₄) =
+    P₁ + α(s₁) * (P₂ - P₁) + α(s₂) * (P₄ - P₁ + α(s₁) * (P₃ - P₄ - P₂ + P₁))
+
+θ(curves::BoundaryCurves, s₁, s₂) =
+    θ_edge(s₁, s₂, curves.γ₁, curves.γ₃) +
+    θ_edge(-s₂, s₁, curves.γ₄, curves.γ₂) -
+    θ_corners(s₁, s₂; P₁ = curves.γ₁(-1), P₂ = curves.γ₁(1), P₃ = curves.γ₃(-1), P₄ = curves.γ₃(1))</code></pre><pre><code class="language-julia hljs">γ₁(s) = [ 0.1 * (s - 3) / 4, 39.5 + 150 * (0.1 * (s - 3) / 4)^2]
+γ₂(s) = [ 0.1 * s       / 2, 39.5 + 150 * (0.1 * s       / 2)^2]
+γ₃(s) = [ 0.1 * (s + 3) / 4, 39.5 + 150 * (0.1 * (s + 3) / 4)^2]
+γ₄(s) = [-0.1 * s, 41]
+
+curves = BoundaryCurves(γ₁, γ₂, γ₃, γ₄)</code></pre><h3 id="Step-2:-Approximation-(floating-point-arithmetic)"><a class="docs-heading-anchor" href="#Step-2:-Approximation-(floating-point-arithmetic)">Step 2: Approximation (floating-point arithmetic)</a><a id="Step-2:-Approximation-(floating-point-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-Approximation-(floating-point-arithmetic)" title="Permalink"></a></h3><pre><code class="language-julia hljs">N₁, N₂ = 8, 8
+K = 20
+
+θ_grid = [θ(curves, cospi(j₁/N₁), cospi(j₂/N₂)) for j₁ ∈ 0:N₁, j₂ ∈ 0:N₂]
+
+u_grid = Matrix{Sequence}(undef, N₁+1, N₂+1)
+A_finite_grid = Matrix{LinearOperator}(undef, N₁+1, N₂+1)</code></pre><pre><code class="language-julia hljs">c₀, β₀ = θ_grid[N₁+1,N₂+1]
+
+u_init = Sequence(evensym(Fourier(K, π)), [-0.1022666446473428 ; 0 ; 0.044213651292169816 ; zeros(K-2)])
+
+u_bar, success_newton = newton(u -&gt; (F(u, c₀, β₀), DF(u, c₀, β₀)), u_init)
+
+Π = Projection(space(u_bar))
+
+for j₂ ∈ N₂+1:-1:1, j₁ ∈ N₁+1:-1:1
+    cⱼ, βⱼ = θ_grid[j₁,j₂]
+
+    w = j₁ == N₁+1 ? (j₂ == N₂+1 ? u_bar : u_grid[N₁+1,j₂+1]) : u_grid[j₁+1,j₂] # predictor
+
+    uⱼ, success_newton_j = newton(u -&gt; (F(u, cⱼ, βⱼ), DF(u, cⱼ, βⱼ)), w)
+    success_newton_j || error()
+
+    u_grid[j₁,j₂] = uⱼ
+    A_finite_grid[j₁,j₂] = inv(Π * DF(uⱼ, cⱼ, βⱼ) * Π)
+end
+
+maximum(u -&gt; abs(u[K]), u_grid) # the order K is large enough across the whole region</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">8.093724250425546e-15</code></pre><pre><code class="language-julia hljs">c_cheb = interval(real(to_coef(getindex.(θ_grid, 1), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
+β_cheb = interval(real(to_coef(getindex.(θ_grid, 2), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
+
+u_cheb = interval(to_coef(u_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
+
+A_finite_cheb = interval(to_coef(A_finite_grid, Chebyshev(N₁) ⊗ Chebyshev(N₂)))
+
+space(u_cheb)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(Chebyshev(8) ⊗ Chebyshev(8) ⊗ Fourier(20, [3.14159, 3.1416]_com))_sym</code></pre><pre><code class="language-julia hljs">using CairoMakie
+
+vals = [norm(u_grid[j₁,j₂], 2) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]
+
+fig = Figure(; size = (900, 400))
+
+ax1 = Axis(fig[1,1]; xlabel = L&quot;c&quot;, ylabel = L&quot;\beta&quot;, title = &quot;parameter region&quot;)
+scatter!(ax1, vec([Point2f(θ_grid[j₁,j₂]) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]); color = :black, markersize = 5)
+
+ax2 = Axis3(fig[1,2]; xlabel = L&quot;c&quot;, ylabel = L&quot;\beta&quot;, zlabel = L&quot;\|u\|_2&quot;,
+    azimuth = -0.7π, title = &quot;proven family&quot;)
+surface!(ax2,
+    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    vals; colormap = :viridis)
+wireframe!(ax2,
+    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    vals; color = :black, linewidth = 0.5)
+fig</code></pre><img src="da852f8f.png" alt="Example block output"/><pre><code class="language-julia hljs">struct PseudoInverseLaplacian &lt;: AbstractDiagonalOperator end
+
+RadiiPolynomial.getcoefficient(::PseudoInverseLaplacian, (codom, i)::Tuple{SymmetricSpace{&lt;:Fourier},Integer}, (dom, j)::Tuple{SymmetricSpace{&lt;:Fourier},Integer}) =
+    (i == j) &amp; !(i == j == 0) ? inv(-(frequency(dom) * exact(i))^2) : zero(frequency(dom))</code></pre><h3 id="Step-3:-Bounds-(interval-arithmetic)"><a class="docs-heading-anchor" href="#Step-3:-Bounds-(interval-arithmetic)">Step 3: Bounds (interval arithmetic)</a><a id="Step-3:-Bounds-(interval-arithmetic)-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Bounds-(interval-arithmetic)" title="Permalink"></a></h3><pre><code class="language-julia hljs">#- Y bound
+
+m_Y = grid_size(Chebyshev(4N₁) ⊗ Chebyshev(4N₂))
+
+c_grid_Y = to_grid(c_cheb, m_Y)
+β_grid_Y = to_grid(β_cheb, m_Y)
+u_grid_Y = to_grid(u_cheb, m_Y)
+A_grid_Y = to_grid(A_finite_cheb, m_Y) .+ PseudoInverseLaplacian() * (interval(I) - interval(Π))
+
+Y = norm(to_coef(A_grid_Y .* F.(u_grid_Y, c_grid_Y, β_grid_Y), Chebyshev(4N₁) ⊗ Chebyshev(4N₂)), Ell1())</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[0.000386405, 0.000386406]_com</code></pre><pre><code class="language-julia hljs">#- Z₁ bound
+
+m_Z = grid_size(Chebyshev(3N₁) ⊗ Chebyshev(3N₂))
+
+c_grid_Z = to_grid(c_cheb, m_Z)
+β_grid_Z = to_grid(β_cheb, m_Z)
+u_grid_Z = to_grid(u_cheb, m_Z)
+A_grid_Z = to_grid(A_finite_cheb, m_Z) .+ PseudoInverseLaplacian() * (interval(I) - interval(Π))
+
+Π_3K = interval(Projection(evensym(Fourier(3K+1, π))))
+
+Z₁_finite = opnorm(to_coef(Π_3K .- A_grid_Z .* (DF.(u_grid_Z, c_grid_Z, β_grid_Z) .* Π_3K), Chebyshev(3N₁) ⊗ Chebyshev(3N₂)), Ell1(), Ell1())
+
+Z₁_tail = norm(β_cheb, Ell1()) * (interval(1) + interval(3) * norm(u_cheb, Ell1())^2) / (interval(π) * interval(K+2))^2
+
+Z₁ = max(Z₁_finite, Z₁_tail)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[0.338169, 0.33817]_com</code></pre><pre><code class="language-julia hljs">#- Z₂ bound
+
+R = exact(10sup(Y))
+
+normA = max(opnorm(A_finite_cheb, Ell1(), Ell1()), interval(1)/interval(π)^2)
+
+Z₂ = exact(3) * norm(β_cheb, Ell1()) * normA * (exact(2) * norm(u_cheb, Ell1()) + R)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[544.191, 544.192]_com</code></pre><p>The computer-assisted proof is completed by the Radii Polynomial Theorem; the bounds being uniform over the parameter square, the contraction holds simultaneously for every <span>$(s_1,s_2) \in [-1,1]^2$</span>:</p><pre><code class="language-julia hljs">ie, success_contraction = interval_of_existence(Y, Z₁, Z₂, R; verbose = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Info: success: interval found
+│ Y = [0.000386405, 0.000386406]_com
+│ Z₁ = [0.338169, 0.33817]_com
+│ Z₂ = [544.191, 544.192]_com
+│ R = ExactReal{Float64}(0.00386405948057856434008083823528068023733794689178466796875)
+│ Δ = [0.0174612, 0.0174614]_com
+└ roots = ([0.000973349, 0.000973351]_com, [0.00145899, 0.001459]_com)</code></pre><h3 id="Step-4:-Conclusion"><a class="docs-heading-anchor" href="#Step-4:-Conclusion">Step 4: Conclusion</a><a id="Step-4:-Conclusion-1"></a><a class="docs-heading-anchor-permalink" href="#Step-4:-Conclusion" title="Permalink"></a></h3><pre><code class="language-julia hljs">inf(ie) # smallest error, uniform over the parameter region</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0009733502878532479</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../cube_root_pa/">« Pseudo-arclength continuation for the cube root</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 11 August 2026 16:19">Tuesday 11 August 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

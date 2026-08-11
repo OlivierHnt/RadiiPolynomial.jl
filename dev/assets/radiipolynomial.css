@@ -17,62 +17,85 @@ html.theme--documenter-dark .content pre {
   border: 1px solid #282f2f;
   border-radius: 15px; }
 
-/* Start page layout */
+/* Landing page
 
-.single {
-  margin-left: 135px;
-  margin-right: 135px; }
+   Colour is declared once, as tokens on `:root`, and overridden for the four dark themes that
+   Documenter ships. Documenter resolves the system preference in `themeswap.js` rather than in
+   CSS, so a `prefers-color-scheme` query would fire even for a reader who explicitly chose the
+   light theme — the theme class is the correct hook. */
 
-.column {
-  float: left;
-  width: 50%; }
+:root {
+  --rp-card-border: #dfe3e8;
+  --rp-card-shadow: rgba(0, 0, 0, 0.11);
+  --rp-card-hover: rgba(31, 131, 255, 0.5); }
 
-.row:after {
-  content: "";
-  display: table;
-  clear: both; }
-
-/* Start page boxes */
+html.theme--documenter-dark,
+html.theme--catppuccin-frappe,
+html.theme--catppuccin-macchiato,
+html.theme--catppuccin-mocha {
+  --rp-card-border: rgba(127, 127, 127, 0.35);
+  --rp-card-shadow: rgba(0, 0, 0, 0.4);
+  --rp-card-hover: rgba(31, 131, 255, 0.7); }
 
 .boxintro-container {
   display: grid;
-  grid-gap: 1em;
-  justify-content: space-between;
-  grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  gap: 1em;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin: 1.5em 0; }
 
-.boxintro {
-  position: relative;
-  background: transparent;
-  padding: 1em;
+/* each `**[Title](page)** — description` paragraph becomes a card */
+.boxintro-container > p {
+  margin: 0;
+  padding: 1em 1.1em;
+  border: 1px solid var(--rp-card-border);
   border-radius: 0.5em;
-  text-align: center;
-  box-shadow: 0px 2px 4px 1px rgba(0, 0, 0, 0.11);
-  font-size: 14px;
-  transition: scale 0.2s ease-in-out; }
+  box-shadow: 0 2px 4px 1px var(--rp-card-shadow);
+  transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out; }
 
-.boxintro:hover {
-  scale: 1.03; }
+.boxintro-container > p:hover {
+  border-color: var(--rp-card-hover);
+  transform: translateY(-2px); }
 
-.boxintro img {
-  margin-top: 1em;
-  border-radius: 0.3em; }
+@media (prefers-reduced-motion: reduce) {
+  .boxintro-container > p {
+    transition: none; }
+  .boxintro-container > p:hover {
+    transform: none; } }
 
-a.boxintrolink {
-  text-decoration: none;
-  color: black;
-  display: block; }
+/* Theorem admonition
 
-a.boxintrolink:visited {
-  color: black; }
+   `!!! theorem "..."` makes Documenter emit `.admonition.is-category-theorem`; styling it here
+   replaces the former hand-rolled `<div class="theorem">` shim, so the block stays searchable,
+   keeps its heading, and follows the theme. */
 
-a.boxintrolink:hover {
-  text-decoration: none; }
+.admonition.is-category-theorem {
+  background-color: #f6f8fb; }
 
-/* Theorem */
+.admonition.is-category-theorem > .admonition-header {
+  background-color: #1f83ff;
+  color: #fff; }
 
-.theorem {
-  display: block; }
+html.theme--documenter-dark .admonition.is-category-theorem,
+html.theme--catppuccin-frappe .admonition.is-category-theorem,
+html.theme--catppuccin-macchiato .admonition.is-category-theorem,
+html.theme--catppuccin-mocha .admonition.is-category-theorem {
+  background-color: rgba(127, 127, 127, 0.1); }
 
-.theorem[text]:before {
-  content: "Theorem (" attr(text) ") ";
-  font-weight: bold; }
+/* "About this proof" admonition
+
+   `!!! about "..."` gives every example a machine-readable header: what it proves, what it adds
+   over the previous rung, what it assumes, and its position on the ladder. Deliberately quieter
+   than a note, since it is metadata rather than a warning. */
+
+.admonition.is-category-about {
+  background-color: #f7f7f9; }
+
+.admonition.is-category-about > .admonition-header {
+  background-color: #6b7280;
+  color: #fff; }
+
+html.theme--documenter-dark .admonition.is-category-about,
+html.theme--catppuccin-frappe .admonition.is-category-about,
+html.theme--catppuccin-macchiato .admonition.is-category-about,
+html.theme--catppuccin-mocha .admonition.is-category-about {
+  background-color: rgba(127, 127, 127, 0.08); }

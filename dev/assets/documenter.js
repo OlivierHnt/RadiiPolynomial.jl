@@ -58,9 +58,9 @@ $(document).ready(function() {
     }
   ],
   "macros": {
-    "\\bx": "\\bar{x}",
     "\\bydef": "\\stackrel{\\tiny\\text{def}}{=}",
-    "\\tx": "x^\\star"
+    "\\exact": "u_\\star",
+    "\\num": "\\bar{u}"
   }
 }
   );

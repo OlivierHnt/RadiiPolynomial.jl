@@ -1,11 +1,11 @@
 ```@contents
 Pages = ["nonlinear_diffusion.md"]
-Depth = 3
+Depth = 4
 ```
 
 # Nonlinear diffusion
 
-In this example, we prove the existence of a steady-state of a reaction-diffusion equation with nonlinear diffusion
+We prove the existence of a steady-state of a reaction-diffusion equation with nonlinear diffusion
 
 ```math
 \begin{cases}
@@ -28,7 +28,7 @@ See the reference[^1] for more details.
 
 [^1]: M. Breden, [Computer-assisted proofs for some nonlinear diffusion problems](https://doi.org/10.1016/j.cnsns.2022.106292), *Communications in Nonlinear Science and Numerical Simulation*, **109** (2022), 106292.
 
-### Step 1: Problem definition
+### Step 1: Formulation
 
 ```@example nonlinear_diffusion
 Φ(u) = u^2
@@ -42,7 +42,9 @@ DF(u) = Laplacian() * Multiplication(DΦ(u)) + Multiplication(DR(u))
 nothing # hide
 ```
 
-### Step 2: Approximate zero (floating-point arithmetic)
+### Step 2: Approximation (floating-point arithmetic)
+
+#### The approximate zero
 
 ```@example nonlinear_diffusion
 using RadiiPolynomial
@@ -63,15 +65,13 @@ using CairoMakie
 lines(LinRange(0, 1, 201), t -> real(u_bar(t)))
 ```
 
-### Step 3: Approximate inverse (floating-point arithmetic)
+#### The approximate inverse
 
 ```@example nonlinear_diffusion
 struct PseudoInverseLaplacian <: AbstractDiagonalOperator end
 RadiiPolynomial.getcoefficient(::PseudoInverseLaplacian, (codom, i)::Tuple{SymmetricSpace{<:Fourier},Integer}, (dom, j)::Tuple{SymmetricSpace{<:Fourier},Integer}) =
     (i == j) & !(i == j == 0) ? inv(- (frequency(dom) * exact(i))^2) : zero(frequency(dom))
-```
 
-```@example nonlinear_diffusion
 Π = Projection(evensym(Fourier(K, π)))
 Π_2K = Projection(evensym(Fourier(2K, π)))
 A_finite = interval(Π * inv(Π_2K * DF(u_bar) * Π_2K) * Π)
@@ -87,7 +87,7 @@ A = A_finite + A_tail
 nothing # hide
 ```
 
-### Step 4: Estimating the bounds (interval arithmetic)
+### Step 3: Bounds (interval arithmetic)
 
 ```@example nonlinear_diffusion
 g_interval = interval(g)
@@ -116,6 +116,8 @@ Z₂ = exact(4) * opnorm_A_Delta
 ie, contraction_success = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = true)
 nothing # hide
 ```
+
+### Step 4: Conclusion
 
 ```@example nonlinear_diffusion
 inf(ie) # smallest error

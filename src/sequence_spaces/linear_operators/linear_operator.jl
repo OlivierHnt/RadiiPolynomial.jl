@@ -516,6 +516,8 @@ _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(
 
 
 
+
+
 #
 
 to_grid(A::LinearOperator, m::Integer) = to_grid(A, (m,))

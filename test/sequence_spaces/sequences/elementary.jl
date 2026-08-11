@@ -42,7 +42,13 @@
         end
 
         @testset "TensorSpace" begin
-            s = Taylor(2) ⊗ Taylor(2)
+            #= `inv` samples on `_oversampled_grid_size(space(a))`, so the order of `a` sets the
+               grid and hence how far the Taylor coefficients alias. For 1/(2 + x/10) the exact
+               coefficients are 0.5(-0.05)^k, and a grid of m folds k onto k+m: at m = 4 the
+               leading aliased term is 0.5·0.05^4 ≈ 3.1e-6, which is above the tolerance below.
+               Padding `a` with zeros to order 4 raises the grid to 8 and the aliasing to
+               0.5·0.05^8 ≈ 2e-11. =#
+            s = Taylor(4) ⊗ Taylor(4)
             a = Sequence(s, zeros(Float64, dimension(s)))
             a[(0,0)] = 2.0
             a[(1,0)] = 0.1
@@ -244,8 +250,15 @@
             end
         end
 
-        @testset "Interval{Float64}: hand-computed Maclaurin coefficients, rigorous enclosure" begin
-            a = Sequence(Taylor(8), interval.(vcat([0.0, 1.0], zeros(7))))
+        @testset "Interval{Float64}: hand-computed Maclaurin coefficients" begin
+            #= On a grid of m nodes the FFT returns the *aliased* coefficients Σⱼ cₖ₊ⱼₘ, and
+               `Nonlinearity(::Sequence)` adds no aliasing bound (only the `::InfiniteSequence`
+               method does). So these coefficients agree with the Maclaurin ones only while the
+               aliasing stays below the width of the interval enclosure. For exp(x) the leading
+               aliased term is 1/m!: at m = 16 that is ≈ 4.8e-14, which already moves b[0] off
+               1.0, whereas at m = 32 it is ≈ 3.8e-36. `a` is therefore padded with zeros to
+               order 16, which is the smallest order whose grid rounds up to 32. =#
+            a = Sequence(Taylor(16), interval.(vcat([0.0, 1.0], zeros(15))))
             b = exp(a)
             @test all(isguaranteed, coefficients(b))
             @test all(k -> in_interval(1 / factorial(k), b[k]), 0:8)

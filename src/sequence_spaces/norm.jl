@@ -391,5 +391,5 @@ _issubspace(::BanachSpace, ::BanachSpace) = false
 _issubspace(::Ell1{IdentityWeight}, ::Ell1{IdentityWeight}) = true
 _issubspace(X::Ell1{<:GeometricWeight}, Y::Ell1{<:GeometricWeight}) = rate(X) ≥ rate(Y)
 _issubspace(X::Ell1{<:GeometricWeight}, ::Ell1{IdentityWeight}) = rate(X) ≥ 1
-_issubspace(X::Ell1{IdentityWeight}, ::Ell1{<:GeometricWeight}) = true
+_issubspace(::Ell1{IdentityWeight}, Y::Ell1{<:GeometricWeight}) = 1 == rate(Y) # for geometric weight, `rate ≥ 1` is enforced
 _issubspace(X::Ell1{<:NTuple{N,Weight}}, Y::Ell1{<:NTuple{N,Weight}}) where {N} = mapreduce((u, w) -> _issubspace(Ell1(u), Ell1(w)), &, weight(X), weight(Y))

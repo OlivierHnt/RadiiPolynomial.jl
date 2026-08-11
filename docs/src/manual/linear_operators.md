@@ -46,7 +46,7 @@ component(component(B, 2, 2), 2, 2)
 unpack(B)
 ```
 
-Similarly, the function `eachblock` returns a `Generator` whose iterates yield each [`LinearOperator`](@ref) composing the cartesian space.
+Similarly, the function `eachcomponent` returns a `Generator` whose iterates yield each [`LinearOperator`](@ref) composing the cartesian space.
 
 ## Arithmetic
 

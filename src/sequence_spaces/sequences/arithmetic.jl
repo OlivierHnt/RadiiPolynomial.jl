@@ -89,6 +89,10 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         end
         $f(a::InfiniteSequence, b::InfiniteSequence) =
             InfiniteSequence($f(sequence(a), sequence(b)), finite_error(a) + finite_error(b), tail_error(a) + tail_error(b), total_error(a) + total_error(b), banachspace(a) ∩ banachspace(b))
+        $f(a::InfiniteSequence, b::Sequence) =
+            InfiniteSequence($f(sequence(a), b), finite_error(a), tail_error(a), total_error(a), banachspace(a))
+        $f(a::Sequence, b::InfiniteSequence) =
+            InfiniteSequence($f(a, sequence(b)), finite_error(b), tail_error(b), total_error(b), banachspace(b))
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
             op = $f

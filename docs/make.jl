@@ -4,6 +4,39 @@ CairoMakie.activate!(type = "png", px_per_unit = 2)
 
 DocMeta.setdocmeta!(RadiiPolynomial, :DocTestSetup, :(using RadiiPolynomial))
 
+const PAGES = [
+    "Home" => "index.md",
+    "The radii polynomial approach" => "radii_polynomial_approach.md",
+    "Getting started" => [
+        "getting_started/first_proof.md",
+        "getting_started/lorenz_equilibria.md",
+        "getting_started/cubic_root_cont.md",
+        "getting_started/logistic_equation.md"
+    ],
+    "Manual" => [
+        "manual/vector_spaces.md",
+        "manual/sequences.md",
+        "manual/linear_operators.md",
+        "manual/norms.md",
+        "manual/special_operators.md"
+    ],
+    "Examples" => [
+        "examples/index_examples.md",
+        "Steady states" => [
+            "examples/steady_states/cahn_hilliard.md",
+            "examples/steady_states/nonlinear_diffusion.md"
+        ],
+        "Periodic orbits" => [
+            "examples/periodic_orbits/non_autonomous_po.md",
+            "examples/periodic_orbits/lorenz_po.md"
+        ],
+        "Continuation" => [
+            "examples/continuation/cube_root_pa.md",
+            "examples/continuation/cahn_hilliard_cont.md"
+        ]
+    ]
+]
+
 makedocs(;
     modules = [RadiiPolynomial],
     authors = "Olivier Hénot",
@@ -12,44 +45,19 @@ makedocs(;
         assets = ["assets/radiipolynomial.css"],
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://olivierhnt.github.io/RadiiPolynomial.jl",
+        collapselevel = 1,
         mathengine = KaTeX(Dict(
             :macros => Dict(
                 "\\bydef" => "\\stackrel{\\tiny\\text{def}}{=}",
-                "\\bx" => "\\bar{x}",
-                "\\tx" => "x^\\star"
+                "\\num" => "\\bar{u}",
+                "\\exact" => "u_\\star"
             )
         ))
     ),
-    pages = [
-        "Home" => "index.md",
-        "State of the art" => "radii_polynomial_approach.md",
-        "Sequence spaces" => [
-            "manual/vector_spaces.md",
-            "manual/sequences.md",
-            "manual/linear_operators.md",
-            "manual/norms.md",
-            "manual/special_operators.md"
-        ],
-        "Examples" => [
-            "Continuation" => [
-                "examples/continuation/cubic_root_cont.md",
-                "examples/continuation/cubic_root_pa.md",
-                "examples/continuation/cahn_hilliard_cont.md"
-            ],
-            "Cauchy problems (IVPs)" => [
-                "examples/ivp/logistic_ivp.md"
-            ],
-            "Periodic orbits" => [
-                "examples/periodic_orbits/non_autonomous_po.md",
-                "examples/periodic_orbits/lorenz_po.md"
-            ],
-            "Steady states" => [
-                "examples/steady_states/cahn_hilliard.md",
-                "examples/steady_states/nonlinear_diffusion.md"
-            ]
-        ]
-    ],
-    warnonly = true
+    pages = PAGES,
+    checkdocs = :exports,
+    draft = get(ENV, "RP_DOCS_DRAFT", "false") == "true",
+    warnonly = [:missing_docs]
 )
 
 deploydocs(;

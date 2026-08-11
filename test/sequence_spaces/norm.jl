@@ -318,5 +318,19 @@
             Xbig = Ell1(GeometricWeight(3.0))
             @test_throws DomainError norm(a, Xbig)
         end
+
+        @testset "identity weight does not embed in a geometric weight" begin
+            # ℓ¹ ⊄ ℓ¹_ν for ν > 1, so a bound in ℓ¹ says nothing about the ℓ¹_ν norm
+            b = InfiniteSequence(seq, Ell1(); tail_error = 0.1)
+            @test_throws DomainError norm(b, Ell1(GeometricWeight(2.0)))
+            # rate one is the identity weight in disguise, so it is admissible
+            @test norm(b, Ell1(GeometricWeight(1.0))) == norm(b, Ell1()) == norm(b)
+
+            # reachable without ever constructing an `Ell1()` sequence by hand, since
+            # `differentiate` collapses the weight of its argument to `IdentityWeight`
+            d = differentiate(a)
+            @test banachspace(d) == Ell1()
+            @test_throws DomainError norm(d, Ell1(GeometricWeight(2.0)))
+        end
     end
 end

@@ -16,6 +16,22 @@ _apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
 
 # dimension for FFT
 
+"""
+    fft_size(s::SequenceSpace)
+
+Return the size of the discrete transform underlying `s`, one entry per factor. For `Chebyshev` this counts the *mirrored* grid, so it is larger than [`grid_size`](@ref); elsewhere the two agree.
+
+Prefer [`grid_size`](@ref) when choosing how finely to sample: it is the number of nodes actually required.
+
+# Examples
+
+```jldoctest
+julia> fft_size(Chebyshev(2)), grid_size(Chebyshev(2))
+((4,), (3,))
+```
+
+See also: [`grid_size`](@ref), [`to_grid`](@ref) and [`to_coef`](@ref).
+"""
 fft_size(s::TensorSpace) = map(_fft_size, spaces(s))
 fft_size(s::BaseSpace) = (_fft_size(s),)
 fft_size(s::SymmetricSpace) = fft_size(desymmetrize(s))
@@ -26,6 +42,25 @@ _fft_size(s::Chebyshev) = max(2order(s), 1) # the coefficients are mirrored
 
 # dimension of sampling grid
 
+"""
+    grid_size(s::SequenceSpace)
+
+Return, as a tuple with one entry per factor of `s`, the number of sampling nodes that determines `s` exactly. In other words, the smallest grid size on which [`to_grid`](@ref) and [`to_coef`](@ref) are inverse to one another.
+
+The nodes are:
+- the roots of unity for `Taylor`,
+- the equispaced points of the period for `Fourier`,
+- the Chebyshev-Lobatto points for `Chebyshev`, ordered from ``x = 1`` down to ``x = -1``.
+
+# Examples
+
+```jldoctest
+julia> grid_size(Taylor(2)), grid_size(Fourier(2, 1.0)), grid_size(Chebyshev(2))
+((3,), (5,), (3,))
+```
+
+See also: [`to_grid`](@ref), [`to_coef`](@ref) and [`fft_size`](@ref).
+"""
 grid_size(s::TensorSpace) = map(_grid_size, spaces(s))
 grid_size(s::BaseSpace) = (_grid_size(s),)
 grid_size(s::SymmetricSpace) = grid_size(desymmetrize(s))
@@ -65,10 +100,28 @@ end
 # sequence to grid
 # uses the backward (unnormalized inverse) FFT: Y[j] = Σₖ C[k] e^{+2πi kj/N}
 
+"""
+    to_grid(a::Sequence, m = grid_size(space(a)))
+
+Evaluate `a` at the sampling nodes of its space and return the array of values.
+
+`m` is a tuple of grid sizes, one per discretized axis; an `Integer` is accepted as shorthand for a single axis. Any size from [`grid_size`](@ref) upwards is allowed.
+
+Giving fewer sizes than `space(a)` has factors discretizes only the leading factors and returns a grid of `Sequence`s on the remaining ones.
+
+See also: [`to_coef`](@ref), [`grid_size`](@ref) and [`to_grid!`](@ref).
+"""
 to_grid(a::Sequence{<:SequenceSpace}, m::Integer) = to_grid(a, (m,))
 to_grid(a::Sequence{<:SequenceSpace}, m::NTuple{D,Integer} = grid_size(space(a))) where {D} =
     to_grid!(_grid_buffer(eltype(a), last(_lead_inner(space(a), Val(D))), m), a)
 
+"""
+    to_grid!(x_grid, a::Sequence)
+
+In-place version of [`to_grid`](@ref), writing the sampled values into `x_grid`.
+
+See also: [`to_grid`](@ref) and [`to_coef!`](@ref).
+"""
 function to_grid!(x_grid::AbstractArray{<:Sequence,D}, a::Sequence{<:SequenceSpace}) where {D}
     s_lead, inner = _lead_inner(space(a), Val(D))
     all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
@@ -200,6 +253,17 @@ end
 
 # function interpolation
 
+"""
+    to_coef(f::Function, s::SequenceSpace)
+    to_coef(a::Sequence, s::SequenceSpace)
+    to_coef(x_grid::AbstractArray, s::SequenceSpace)
+
+Interpolate onto `s`, returning a [`Sequence`](@ref).
+
+A grid of `Sequence`s is also accepted, in which case only the leading factors are interpolated.
+
+See also: [`to_grid`](@ref), [`grid_size`](@ref) and [`to_coef!`](@ref).
+"""
 to_coef(a::Sequence, s::SequenceSpace) = to_coef(to_grid(a), s)
 
 function to_coef(f::Function, s::SequenceSpace)
@@ -225,6 +289,13 @@ to_coef(x_grid::AbstractArray, s::SequenceSpace) = to_coef!(_coef_buffer(x_grid,
 _maybe_copy_grid(A::AbstractArray{<:Number}) = _unfold_grid(A, size(A)) # in-place, copy needed
 _maybe_copy_grid(x_grid::AbstractArray) = x_grid # only read from, no copy needed
 
+"""
+    to_coef!(c::Sequence, x_grid)
+
+In-place version of [`to_coef`](@ref), writing the interpolant into `c` and potentially also using `x_grid` as a buffer.
+
+See also: [`to_coef`](@ref) and [`to_grid!`](@ref).
+"""
 function to_coef!(c::Sequence, x_grid::AbstractArray{<:Sequence,D}) where {D}
     s_lead, inner = _lead_inner(space(c), Val(D))
     all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
@@ -346,16 +417,6 @@ end
 
 # FFT routines
 
-const FFT_ALGORITHM = Ref(:interval) # default
-
-function set_fft_algorithm(algo::Symbol)
-    algo ∉ (:interval, :apriori_bound) && return throw(ArgumentError("algorithm must be :interval or :apriori_bound"))
-    FFT_ALGORITHM[] = algo
-    return algo
-end
-
-#-
-
 function _bitreverse!(a::AbstractVector)
     n = length(a)
     n½ = n÷2
@@ -426,13 +487,7 @@ _bfft!(a::AbstractArray{<:Complex}) = conj!(_fft!(conj!(a)))
 
 # Forward FFT: X[k] = Σⱼ x[j] e^{-2πi kj/N}
 
-_fft!(a::AbstractArray{<:Complex{<:AbstractFloat}}) = _fft_table!(a)
-
-function _fft!(a::AbstractArray{Complex{Interval{T}}}) where {T<:AbstractFloat}
-    # the a priori bound is an error analysis of the radix-2 stages
-    FFT_ALGORITHM[] === :apriori_bound && all(ispow2, size(a)) && return _fft_apriori_bound!(a)
-    return _fft_table!(a)
-end
+_fft!(a::AbstractArray{<:Complex}) = _fft_table!(a)
 
 function _fft_table!(a::AbstractArray)
     @inbounds for i ∈ axes(a, 1)
@@ -583,50 +638,4 @@ function _fft_bluestein!(a::AbstractVector)
     _bfft!(u)
     @inbounds a .= w .* view(u, 1:n) ./ exact(length(B̂))
     return a
-end
-
-#-
-
-_modulus(x::T, y::T) where {T<:AbstractFloat} = sup(abs(complex(interval(x), interval(y))))
-
-function _fft_apriori_bound!(a::AbstractArray{Complex{Interval{T}}}) where {T<:AbstractFloat}
-    C = Array{Complex{T}}(undef, size(a))
-    eʳ = eⁱ = eˢ = zero(T)
-    Mʳ = Mⁱ = Mˢ = zero(T)
-    @inbounds for i ∈ eachindex(a)
-        re, im = real(a[i]), imag(a[i])
-        mʳ, mⁱ = mid(re), mid(im)
-        rʳ, rⁱ = radius(re), radius(im)
-        C[i] = complex(mʳ, mⁱ)
-        eʳ = max(eʳ, rʳ) ; eⁱ = max(eⁱ, rⁱ) ; eˢ = max(eˢ, rʳ + rⁱ)
-        Mʳ = max(Mʳ, abs(mʳ)) ; Mⁱ = max(Mⁱ, abs(mⁱ)) ; Mˢ = max(Mˢ, abs(mʳ) + abs(mⁱ))
-    end
-    e₀ = min(nextfloat(eˢ), _modulus(eʳ, eⁱ)) # bounds |a[i] - C[i]|
-    M₀ = min(nextfloat(Mˢ), _modulus(Mʳ, Mⁱ)) # bounds |C[i]|
-    _fft_table!(C)
-    ρ = maximum(n -> _roots_of_unity(T, max(n÷2, 1)).radius, size(a))
-    e = _fft_error_bound(interval(M₀) + interval(e₀), interval(e₀), interval(ρ), sum(trailing_zeros, size(a)))
-    @inbounds for i ∈ eachindex(a)
-        a[i] = interval(C[i], e; format = :midpoint)
-    end
-    return a
-end
-
-function _fft_error_bound(M::Interval{T}, e::Interval{T}, ρ::Interval{T}, nstages::Integer) where {T<:AbstractFloat}
-    # a stage maps a bound `e` on the absolute error and a bound `M` on the magnitude to
-    #
-    #     Et = γ(M+e)(1+ρ) + e(1+ρ) + Mρ     error of `t = a[j′] * ω`
-    #     Tt = (M+e)(1+ρ)(1+γ)               magnitude of `t`
-    #     e  ← e + Et + u(M + e + Tt)        error of `a[j] ± t`
-    #     M  ← (M + Tt)(1+u)
-    #
-    u = interval(eps(T))/interval(2) # unit roundoff
-    γ = sqrt(interval(T, 5)) * u # Brent-Percival-Zimmermann bound
-    for _ ∈ 1:nstages
-        Et = γ*(M+e)*(interval(1)+ρ) + e*(interval(1)+ρ) + M*ρ
-        Tt = (M+e)*(interval(1)+ρ)*(interval(1)+γ)
-        e = e + Et + u*(M + e + Tt)
-        M = (M + Tt)*(interval(1)+u)
-    end
-    return sup(e)
 end

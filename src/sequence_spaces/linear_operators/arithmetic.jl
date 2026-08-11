@@ -594,6 +594,32 @@ for (f, _f!, _rf!, _lf!) ∈ ((:+, :_add!, :_radd!, :_ladd!), (:-, :_sub!, :_rsu
     end
 end
 
+# the identity is exactly representable only when the domain and the codomain carry no tail
+# otherwise the sum is kept lazy and materialized by `project`
+
+_isscalarspace(A::LinearOperator) = _isscalarspace(domain(A)) & _isscalarspace(codomain(A))
+_isscalarspace(::VectorSpace) = false
+_isscalarspace(::ScalarSpace) = true
+_isscalarspace(s::CartesianPower) = _isscalarspace(s.space)
+_isscalarspace(s::CartesianProduct) =
+    @inbounds _isscalarspace(s[1]) & _isscalarspace(Base.tail(s))
+_isscalarspace(s::CartesianProduct{<:Tuple{VectorSpace}}) = @inbounds _isscalarspace(s[1])
+
+function _promote_copy(A::LinearOperator, J::UniformScalingOperator)
+    C = similar(A, promote_type(eltype(A), eltype(J)))
+    coefficients(C) .= coefficients(A)
+    return C
+end
+
+Base.:+(A::LinearOperator, J::UniformScalingOperator) =
+    _isscalarspace(A) ? radd!(_promote_copy(A, J), J) : Add(A, J)
+Base.:+(J::UniformScalingOperator, A::LinearOperator) =
+    _isscalarspace(A) ? ladd!(J, _promote_copy(A, J)) : Add(J, A)
+Base.:-(A::LinearOperator, J::UniformScalingOperator) =
+    _isscalarspace(A) ? rsub!(_promote_copy(A, J), J) : Add(A, -J)
+Base.:-(J::UniformScalingOperator, A::LinearOperator) =
+    _isscalarspace(A) ? lsub!(J, _promote_copy(A, J)) : Add(J, -A)
+
 #
 
 radd!(A::LinearOperator, J::UniformScaling) = radd!(A, UniformScalingOperator(J))

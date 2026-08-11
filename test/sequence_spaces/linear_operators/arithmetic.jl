@@ -230,6 +230,49 @@
         @test_throws ArgumentError lsub!(I, copy(Dmix))
     end
 
+    @testset "A + I and A - I materialize on spaces built solely out of ScalarSpace" begin
+        Amat = [1.0 2.0; 3.0 4.0]
+        identity2 = [1.0 0.0; 0.0 1.0]
+
+        # no truncated tail, so the identity is exactly representable and `+`/`-` return a
+        # `LinearOperator` rather than the lazy `Add` used on sequence spaces
+        @testset "$s" for s ∈ (ScalarSpace()^2, ScalarSpace() × ScalarSpace())
+            A = LinearOperator(s, s, copy(Amat))
+            @test A + I == I + A == LinearOperator(s, s, Amat + identity2)
+            @test A - I == LinearOperator(s, s, Amat - identity2)
+            @test I - A == LinearOperator(s, s, identity2 - Amat)
+            @test A + 2I == LinearOperator(s, s, Amat + 2.0 * identity2)
+        end
+
+        # `ScalarSpace` itself
+        As = LinearOperator(ScalarSpace(), ScalarSpace(), reshape([3.0], 1, 1))
+        @test As + I == LinearOperator(ScalarSpace(), ScalarSpace(), reshape([4.0], 1, 1))
+        @test I - As == LinearOperator(ScalarSpace(), ScalarSpace(), reshape([-2.0], 1, 1))
+
+        # nested cartesian spaces recurse block by block
+        s = ScalarSpace()^2 × ScalarSpace() # dim 3
+        Bmat = Float64[1 2 3; 4 5 6; 7 8 9]
+        identity3 = Matrix{Float64}(I, 3, 3)
+        B = LinearOperator(s, s, copy(Bmat))
+        @test B + I == LinearOperator(s, s, Bmat + identity3)
+        @test I - B == LinearOperator(s, s, identity3 - Bmat)
+
+        # a `SequenceSpace` factor puts the tail back, so the sum stays lazy
+        smix = ScalarSpace() × Taylor(1) # dim 3
+        M = LinearOperator(smix, smix, copy(Bmat))
+        @test M + I isa Add
+        @test project(M + I, smix, smix) == LinearOperator(smix, smix, Bmat + identity3)
+        @test project(I - M, smix, smix) == LinearOperator(smix, smix, identity3 - Bmat)
+
+        # the identity needs compatible domain and codomain
+        @test_throws ArgumentError LinearOperator(ScalarSpace()^2, ScalarSpace()^3, ones(3, 2)) + I
+
+        # the coefficients are promoted against the scaling
+        Aint = LinearOperator(ScalarSpace()^2, ScalarSpace()^2, [1 2 ; 3 4])
+        @test eltype(Aint + I) == Int
+        @test eltype(Aint - 2.5I) == Float64
+    end
+
     @testset "in-place add!/sub!/radd!/rsub!/ladd!/lsub! with AbstractLinearOperator operands" begin
         𝒯 = Taylor(1)
         B = LinearOperator(𝒯, 𝒯, [1.0 2.0; 3.0 4.0])

@@ -114,7 +114,7 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
     r0 = Yf
     r0, newton_success = newton(r -> (Pf(r), DPf(r)), r0)
     if !(all(>(0), r0)) || !newton_success
-        println("no good set of radii found for inclusion")
+        verbose && println("no good set of radii found for inclusion")
     end
 
     r0 = max.(r0, floatmin(Float64))
@@ -148,34 +148,31 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
             dominant = sup(Mat(rmin)[1,1])
             if dominant - 1 < 0
                 success = true
-                eta = 1
+                eta = ones(1)
             end
         else
             dominant, eta = _collatz_wielandt(Mat(rmin))
             if dominant - 1 < 0
                 success = true
             else
-                println("inclusion found, but no contraction.")
+                verbose && println("inclusion found, but no contraction.")
             end
         end
     end
 
     if !success
         if M == 1
-            println("radii polynomial not negative")
+            verbose && println("radii polynomial not negative")
         else
-            println("radii polynomials not negative simultaneously")
+            verbose && println("radii polynomials not negative simultaneously")
         end
-        rmin = NaN
-        eta = NaN
+        return _rpa_failure("no set of radii found", verbose)
     elseif !all(sup.(rmin) .< R)
-        success = false
-        println("the set of found radii rᵢ are not smaller than Rᵢ")
-        rmin = NaN
-        eta = NaN
+        verbose && println("the set of found radii rᵢ are not smaller than Rᵢ")
+        return _rpa_failure("the set of found radii rᵢ are not smaller than Rᵢ", verbose)
     end
 
-    verbose && @info "success: $msg\nr = $(rmin)\nη = $(eta)"
+    verbose && @info "success\nr = $(rmin)\nη = $(eta)"
     return rmin, eta, success
 end
 
@@ -207,7 +204,7 @@ set_of_radii(Y, Z, W, R; verbose::Bool=false) = set_of_radii(interval.(Y), inter
 
 function _rpa_failure(msg::AbstractString, verbose::Bool)
     verbose && @info "failure: $msg"
-    return Interval[], Interval[], false
+    return Float64[], Float64[], false
 end
 
 function _check_inputs(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real})

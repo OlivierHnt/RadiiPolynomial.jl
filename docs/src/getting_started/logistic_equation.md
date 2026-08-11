@@ -1,20 +1,35 @@
 ```@contents
-Pages = ["logistic_ivp.md"]
-Depth = 3
+Pages = ["logistic_equation.md"]
+Depth = 4
 ```
 
-# Logistic equation
+# The logistic equation
 
-In this example, we prove the existence of a solution of the logistic equation
+We prove the existence of a solution of the logistic equation
 
 ```math
 \begin{cases}
-\displaystyle \frac{\mathrm{d}}{\mathrm{d}t} u(t) = u(t)(1 - u(t)), & t \in [-2, 2],\\
+\displaystyle \dot{u}(t) = u(t)(1 - u(t)), & t \in [-2, 2],\\
 u(0) = 1/2.
 \end{cases}
 ```
 
-### Step 1: Problem definition
+!!! about "About this proof"
+    **Proves** the solution of ``u' = u(1-u)``, ``u(0) = 1/2``, on ``t \in [-2,2]``.
+
+    **Adds** a genuinely infinite-dimensional space: the truncation ``\Pi_{\le K}``, the tail
+    ``\Pi_{>K}`` that has to be bounded rather than computed, and a geometric weight ``\nu``
+    chosen so that the norm controls the pointwise error on ``[-\nu, \nu]``.
+
+    **Assumes** [Equilibria of the Lorenz system](@ref).
+
+    **Ingredients** unknown: one Taylor sequence (U3) · tail: one projected `opnorm`, with
+    ``A``'s tail equal to the identity (T2) · inverse: ``A_K + (I - \Pi)`` (A3) · radius: ``Z_2``
+    is independent of ``R``, so ``R = \infty`` (Z1) · extras: the integral reformulation (M1).
+
+    **Tier 2 of 4** — *sequences as unknowns* · Σ 10 · `taylor` `weighted` `ivp`
+
+### Step 1: Formulation
 
 We start by casting the initial value problem into a corresponding zero-finding problem posed on an infinite-dimensional Banach space.
 
@@ -59,9 +74,11 @@ Consider the fixed-point operator ``T : X_{T, \nu} \to X_{T, \nu}`` defined by
 T(u) \bydef u - A F(u),
 ```
 
-where ``A : X_{T, \nu} \to X_{T, \nu}`` is an operator corresponding to an approximation of ``DF(\bar{u})^{-1}``, for some approximate zero ``\bar{u} \in X_{T, \nu}`` of ``F``.
+where ``A : X_{T, \nu} \to X_{T, \nu}`` is an operator corresponding to an approximation of ``DF(\num)^{-1}``, for some approximate zero ``\num \in X_{T, \nu}`` of ``F``.
 
-### Step 2: Approximate zero (floating-point arithmetic)
+### Step 2: Approximation (floating-point arithmetic)
+
+#### The approximate zero
 
 We numerically compute an approximate zero by performing a finite-dimensional truncation of the problem and iterating Newton's method.
 
@@ -88,9 +105,9 @@ u_bar, newton_success = newton(u -> (F(u), DF(u)), u_guess; verbose = true)
 nothing # hide
 ```
 
-### Step 3: Approximate inverse (floating-point arithmetic)
+#### The approximate inverse
 
-We proceed to construct the approximate inverse ``A \approx DF(\bar{u})^{-1}`` at the numerical approximation `u_bar`.
+We proceed to construct the approximate inverse ``A \approx DF(\num)^{-1}`` at the numerical approximation `u_bar`.
 
 ```@example logistic_ivp
 Π = Projection(Taylor(K))
@@ -102,15 +119,15 @@ A_interval = A_K_interval + A_tail
 nothing # hide
 ```
 
-### Step 4: Estimating the bounds (interval arithmetic)
+### Step 3: Bounds (interval arithmetic)
 
 Let ``R > 0``. Since ``T \in C^2(X_{T, \nu}, X_{T, \nu})`` we use the second-order Radii Polynomial Theorem so that we need to estimate
 
 ```math
 \begin{aligned}
-Y &\ge \|T(\bar{u}) - \bar{u}\|_{X_{T, \nu}}, \\
-Z_1 &\ge \|DT(\bar{u})\|_{\mathscr{L}(X_{T, \nu}, X_{T, \nu})}, \\
-Z_2 &\ge \sup_{u \in B(\bar{u}, R)} \|D^2 T(u)\|_{\mathscr{BL}(X_{T, \nu}, X_{T, \nu})}.
+Y &\ge \|T(\num) - \num\|_{X_{T, \nu}}, \\
+Z_1 &\ge \|DT(\num)\|_{\mathscr{L}(X_{T, \nu}, X_{T, \nu})}, \\
+Z_2 &\ge \sup_{u \in B(\num, R)} \|D^2 T(u)\|_{\mathscr{BL}(X_{T, \nu}, X_{T, \nu})}.
 \end{aligned}
 ```
 
@@ -118,8 +135,8 @@ After some work, we find
 
 ```math
 \begin{aligned}
-Y &= \|\Pi_{\le 2K+1} A \Pi_{\le 2K+1} F(\bar{u})\|_{X_{T, \nu}}, \\
-Z_1 &= \|\Pi_{\le K+1} - \Pi_{\le 2K+1} A \Pi_{\le 2K+1} DF(\bar{u}) \Pi_{\le K+1}\|_{\mathscr{L}(X_{T, \nu}, X_{T, \nu})}, \\
+Y &= \|\Pi_{\le 2K+1} A \Pi_{\le 2K+1} F(\num)\|_{X_{T, \nu}}, \\
+Z_1 &= \|\Pi_{\le K+1} - \Pi_{\le 2K+1} A \Pi_{\le 2K+1} DF(\num) \Pi_{\le K+1}\|_{\mathscr{L}(X_{T, \nu}, X_{T, \nu})}, \\
 Z_2 &= 2 \nu \max\big( \|\Pi_{\le K} A \Pi_{\le K}\|_{\mathscr{L}(X_{T, \nu}, X_{T, \nu})}, 1\big).
 \end{aligned}
 ```
@@ -153,6 +170,10 @@ Z₂ = max(opnorm(A_K_interval, X_T), interval(1)) * ν * interval(2)
 ie, contraction_success = interval_of_existence(Y, Z₁, Z₂, R; verbose = true)
 nothing # hide
 ```
+
+### Step 4: Conclusion
+
+There is a solution of the initial value problem within `inf(ie)` of ``\num`` in the ``X_{T, \nu}`` norm, and it is the only one in that ball. Because ``|u(t)| \le \| u \|_{X_{T, \nu}}`` for ``|t| \le \nu``, the same number bounds the pointwise error on ``[-2, 2]``; and finiteness of the norm means the solution is analytic there.
 
 ```@example logistic_ivp
 inf(ie) # smallest error

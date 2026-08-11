@@ -1,19 +1,13 @@
 ```@contents
 Pages = ["cahn_hilliard_cont.md"]
-Depth = 3
+Depth = 4
 ```
 
 # Parameter continuation for the Cahn-Hilliard equation
 
-In this example, we prove the existence of a two-parameter family of steady-states of the Cahn-Hilliard equation
+The [Cahn-Hilliard](@ref) example proves the existence of a steady-state for a single choice of the parameters ``(c, \beta)``; here we prove the existence of a whole surface of steady-states over a curved region of the parameter plane.
 
-```math
-\Delta u + \beta (u - u^3 - c) = 0, \qquad x \in \mathbb{T},
-```
-
-where ``\mathbb{T}`` is the circle of circumference ``2``. The [Cahn-Hilliard](@ref) example proves the existence of a steady-state for a single choice of the parameters ``(c, \beta)``; here we prove the existence of a whole surface of steady-states over a curved region of the parameter plane.
-
-### Step 1: Problem definition
+### Step 1: Formulation
 
 ```@example cahn_hilliard_cont
 using RadiiPolynomial, LinearAlgebra
@@ -24,7 +18,8 @@ DF(u, c, β) = Laplacian() + Multiplication(β * (exact(1) - exact(3) * u^2))
 nothing # hide
 ```
 
-The parameter region is described by a [Coons patch](https://en.wikipedia.org/wiki/Coons_patch): given four boundary curves ``\gamma_1, \dots, \gamma_4``, the map ``\theta`` interpolates them into a parameterization of the enclosed region by the square ``[-1,1]^2``. This lets us cover a curved region of the ``(c, \beta)`` plane while keeping the Chebyshev machinery on a square.
+The parameter region is described by a [Coons patch](https://en.wikipedia.org/wiki/Coons_patch): given four boundary curves ``\gamma_1, \dots, \gamma_4``, the map ``\theta`` interpolates them into a parameterization of the enclosed region by the square ``[-1,1]^2``.
+This lets us cover a curved region of the ``(c, \beta)`` plane while keeping the Chebyshev machinery on a square.
 
 ```@example cahn_hilliard_cont
 struct BoundaryCurves{T₁,T₂,T₃,T₄}
@@ -48,8 +43,6 @@ end
 nothing # hide
 ```
 
-The four curves below enclose a region of the ``(c, \beta)`` plane which stays clear of the bifurcation from the trivial state at ``c = 0``, ``\beta = 4\pi^2``:
-
 ```@example cahn_hilliard_cont
 γ₁(s) = [ 0.1 * (s - 3) / 4, 39.5 + 150 * (0.1 * (s - 3) / 4)^2]
 γ₂(s) = [ 0.1 * s       / 2, 39.5 + 150 * (0.1 * s       / 2)^2]
@@ -60,19 +53,7 @@ curves = BoundaryCurves(γ₁, γ₂, γ₃, γ₄)
 nothing # hide
 ```
 
-As in the [Cahn-Hilliard](@ref) example, the approximate inverse uses the pseudo-inverse of the Laplacian on the tail:
-
-```@example cahn_hilliard_cont
-struct PseudoInverseLaplacian <: RadiiPolynomial.AbstractDiagonalOperator end
-
-RadiiPolynomial.getcoefficient(::PseudoInverseLaplacian, (codom, i)::Tuple{SymmetricSpace{<:Fourier},Integer}, (dom, j)::Tuple{SymmetricSpace{<:Fourier},Integer}) =
-    (i == j) & !(i == j == 0) ? inv(-(frequency(dom) * exact(i))^2) : zero(frequency(dom))
-nothing # hide
-```
-
-### Step 2: Approximate zero (floating-point arithmetic)
-
-We sample the parameter square at the Chebyshev-Lobatto nodes ``\cos(\pi j / N)``, which is the grid convention of `to_grid` and `to_coef`: the index ``j`` runs from the node ``+1`` down to the node ``-1``.
+### Step 2: Approximation (floating-point arithmetic)
 
 ```@example cahn_hilliard_cont
 N₁, N₂ = 8, 8
@@ -84,8 +65,6 @@ u_grid = Matrix{Sequence}(undef, N₁+1, N₂+1)
 A_finite_grid = Matrix{LinearOperator}(undef, N₁+1, N₂+1)
 nothing # hide
 ```
-
-The continuation starts from the corner ``(s_1, s_2) = (-1,-1)``, which is the *last* index of the grid in this ordering, and sweeps backwards; each Newton solve is started from the approximate zero at the previous parameter (the **predictor**). Only the sweep order is reversed, the grids themselves stay in the node ordering required by `to_coef`.
 
 ```@example cahn_hilliard_cont
 c₀, β₀ = θ_grid[N₁+1,N₂+1]
@@ -111,8 +90,6 @@ end
 maximum(u -> abs(u[K]), u_grid) # the order K is large enough across the whole region
 ```
 
-The grids are turned into Chebyshev interpolants in the parameters. Since `to_coef` accepts a grid of `Sequence`s (resp. `LinearOperator`s), the family ``\bar{u}(s_1,s_2)`` is represented as a single sequence on `Chebyshev(N₁) ⊗ Chebyshev(N₂) ⊗ evensym(Fourier(K, π))`:
-
 ```@example cahn_hilliard_cont
 c_cheb = interval(real(to_coef(getindex.(θ_grid, 1), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
 β_cheb = interval(real(to_coef(getindex.(θ_grid, 2), Chebyshev(N₁) ⊗ Chebyshev(N₂))))
@@ -124,11 +101,38 @@ A_finite_cheb = interval(to_coef(A_finite_grid, Chebyshev(N₁) ⊗ Chebyshev(N�
 space(u_cheb)
 ```
 
-### Step 3: Bounds estimation (interval arithmetic)
+```@example cahn_hilliard_cont
+using CairoMakie
 
-Both bounds are polynomials in ``(s_1, s_2)`` of a degree we know in advance, so we may evaluate them on a *finite* grid and interpolate back **exactly**: no approximation is introduced by resampling. Since ``\bar{u}`` has degree ``N`` in the parameters, ``F(\bar{u})`` has degree ``3N`` and ``A F(\bar{u})`` degree ``4N``; likewise ``A DF(\bar{u})`` has degree ``3N``. Every grid quantity below is interval-valued, so the whole evaluation is rigorous.
+vals = [norm(u_grid[j₁,j₂], 2) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]
 
-The ``\ell^1`` norm of the Chebyshev coefficients bounds the supremum over the parameter square, since ``|T_k| \leq 1``.
+fig = Figure(; size = (900, 400))
+
+ax1 = Axis(fig[1,1]; xlabel = L"c", ylabel = L"\beta", title = "parameter region")
+scatter!(ax1, vec([Point2f(θ_grid[j₁,j₂]) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]); color = :black, markersize = 5)
+
+ax2 = Axis3(fig[1,2]; xlabel = L"c", ylabel = L"\beta", zlabel = L"\|u\|_2",
+    azimuth = -0.7π, title = "proven family")
+surface!(ax2,
+    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    vals; colormap = :viridis)
+wireframe!(ax2,
+    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
+    vals; color = :black, linewidth = 0.5)
+fig
+```
+
+```@example cahn_hilliard_cont
+struct PseudoInverseLaplacian <: AbstractDiagonalOperator end
+
+RadiiPolynomial.getcoefficient(::PseudoInverseLaplacian, (codom, i)::Tuple{SymmetricSpace{<:Fourier},Integer}, (dom, j)::Tuple{SymmetricSpace{<:Fourier},Integer}) =
+    (i == j) & !(i == j == 0) ? inv(-(frequency(dom) * exact(i))^2) : zero(frequency(dom))
+nothing # hide
+```
+
+### Step 3: Bounds (interval arithmetic)
 
 ```@example cahn_hilliard_cont
 #- Y bound
@@ -179,31 +183,8 @@ ie, success_contraction = interval_of_existence(Y, Z₁, Z₂, R; verbose = true
 nothing # hide
 ```
 
+### Step 4: Conclusion
+
 ```@example cahn_hilliard_cont
 inf(ie) # smallest error, uniform over the parameter region
-```
-
-The figure below shows the parameter region covered by the Coons patch, and the ``L^2`` norm of the proven family of steady-states over that region.
-
-```@example cahn_hilliard_cont
-using CairoMakie
-
-vals = [norm(u_grid[j₁,j₂], 2) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]
-
-fig = Figure(; size = (900, 400))
-
-ax1 = Axis(fig[1,1]; xlabel = L"c", ylabel = L"\beta", title = "parameter region")
-scatter!(ax1, vec([Point2f(θ_grid[j₁,j₂]) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]); color = :black, markersize = 5)
-
-ax2 = Axis3(fig[1,2]; xlabel = L"c", ylabel = L"\beta", zlabel = L"\|u\|_2",
-    azimuth = -0.7π, title = "proven family")
-surface!(ax2,
-    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
-    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
-    vals; colormap = :viridis)
-wireframe!(ax2,
-    [θ_grid[j₁,j₂][1] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
-    [θ_grid[j₁,j₂][2] for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1],
-    vals; color = :black, linewidth = 0.5)
-fig
 ```

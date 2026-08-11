@@ -104,3 +104,10 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
         end
     end
 end
+
+#
+
+Base.:+(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence + J.λ)
+Base.:+(J::UniformScalingOperator, A::Multiplication) = Multiplication(J.λ + A.sequence)
+Base.:-(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence - J.λ)
+Base.:-(J::UniformScalingOperator, A::Multiplication) = Multiplication(J.λ - A.sequence)

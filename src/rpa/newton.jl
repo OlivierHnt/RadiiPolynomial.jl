@@ -1,21 +1,85 @@
+"""
+    ConvergenceCriterion
+
+Abstract type for the stopping rules accepted by the `convergence_criterion` keyword of [`newton`](@ref) and [`newton!`](@ref).
+
+A criterion is called as `criterion(nF, nAF, tol, ϵ)`, where `nF` is `norm(F(x), Inf)`, `nAF` is `norm(DF(x) \\ F(x), Inf)`, `tol` is the requested tolerance and `ϵ` is the machine epsilon of the unknown; it returns a tuple `(converged, threshold)`.
+
+See also: [`ResidualTolCriterion`](@ref), [`ResidualCriterion`](@ref),
+[`StepCriterion`](@ref) and [`CombinedCriterion`](@ref).
+"""
 abstract type ConvergenceCriterion end
 
+"""
+    ResidualTolCriterion()
+
+Stop as soon as `norm(F(x), Inf) ≤ tol`. This is the default criterion of [`newton`](@ref).
+
+See also: [`ConvergenceCriterion`](@ref).
+"""
 struct ResidualTolCriterion <: ConvergenceCriterion end
 (res::ResidualTolCriterion)(nF, nAF, tol, ϵ) = (nF ≤ tol, tol)
 Base.show(io::IO, ::ResidualTolCriterion) = print(io, "|F(x)| ≤ tol")
 
+"""
+    ResidualCriterion()
+
+Stop as soon as `norm(F(x), Inf) ≤ max(tol, √ϵ (1 + norm(F(x), Inf)))`, i.e. a residual test that relaxes towards a relative criterion once the residual approaches machine precision.
+
+See also: [`ConvergenceCriterion`](@ref).
+"""
 struct ResidualCriterion <: ConvergenceCriterion end
 (res::ResidualCriterion)(nF, nAF, tol, ϵ) = (z = max(tol, sqrt(ϵ)*(1+nF)); (nF ≤ z, z))
 Base.show(io::IO, ::ResidualCriterion) = print(io, "|F(x)| ≤ max(tol, √ϵ*(1+|F(x)|)")
 
+"""
+    StepCriterion()
+
+Stop as soon as the Newton step satisfies `norm(DF(x) \\ F(x), Inf) ≤ max(tol, √ϵ (1 + norm(DF(x) \\ F(x), Inf)))`. Useful when `F` is badly scaled, so that a small residual is not evidence of convergence.
+
+See also: [`ConvergenceCriterion`](@ref).
+"""
 struct StepCriterion <: ConvergenceCriterion end
 (update::StepCriterion)(nF, nAF, tol, ϵ) = (z = max(tol, sqrt(ϵ)*(1+nAF)); (nAF ≤ z, z))
 Base.show(io::IO, ::StepCriterion) = print(io, "|DF(x)\\F(x)| ≤ max(tol, √ϵ*(1+|DF(x)\\F(x)|)")
 
+"""
+    CombinedCriterion()
+
+Stop only when both [`ResidualCriterion`](@ref) and [`StepCriterion`](@ref) are satisfied.
+
+See also: [`ConvergenceCriterion`](@ref).
+"""
 struct CombinedCriterion <: ConvergenceCriterion end
 (comb::CombinedCriterion)(nF, nAF, tol, ϵ) = (z1 = ResidualCriterion()(nF, nAF, tol, ϵ); z2 = StepCriterion()(nF, nAF, tol, ϵ); (z1[1] & z2[1], min(z1[2], z2[2])))
 Base.show(io::IO, ::CombinedCriterion) = print(io, string(ResidualCriterion(), " && ", StepCriterion()))
 
+"""
+    newton(F_DF, x0; tol = 1e-12, maxiter = 15, convergence_criterion = ResidualTolCriterion(), verbose = false)
+
+Refine the initial guess `x0` with Newton's method and return the tuple `(x, converged)`.
+
+`F_DF` is a single function returning **both** the map and its derivative as a tuple.
+
+`x0` may be a `Number`, an `AbstractVector`, or a [`Sequence`](@ref); `DF(x)` must be whatever `\\` accepts against `F(x)`. The iteration is measured in the `Inf`-norm.
+
+# Keyword arguments
+- `tol`: tolerance passed to the convergence criterion.
+- `maxiter`: maximum number of iterations; `converged` is `false` if it is reached.
+- `convergence_criterion`: a [`ConvergenceCriterion`](@ref).
+- `verbose`: print a per-iteration table of the residual, the step and the ETA.
+
+# Examples
+
+```jldoctest
+julia> x, converged = newton(x -> (x^2 - 2.0, 2x), 1.0);
+
+julia> converged, x ≈ sqrt(2)
+(true, true)
+```
+
+See also: [`newton!`](@ref) and [`ConvergenceCriterion`](@ref).
+"""
 function newton(F_DF, x0; tol::Real = 1e-12, maxiter::Int = 15, convergence_criterion::ConvergenceCriterion = ResidualTolCriterion(), verbose::Bool = false)
     return newton!(copy(x0); tol = tol, maxiter = maxiter, convergence_criterion = convergence_criterion, verbose = verbose) do F, DF, x
         F_, DF_ = F_DF(x)
@@ -36,6 +100,14 @@ function _copy_maybeinplace!(x::LinearOperator, y)
     return x
 end
 
+"""
+    newton!(F_DF!, x0; tol = 1e-12, maxiter = 15, convergence_criterion = ResidualTolCriterion(), verbose = false)
+    newton!(F_DF!, x, F, DF; tol = 1e-12, maxiter = 15, convergence_criterion = ResidualTolCriterion(), verbose = false)
+
+In-place counterpart of [`newton`](@ref), returning the tuple `(x, converged)`.
+
+See also: [`newton`](@ref) and [`ConvergenceCriterion`](@ref).
+"""
 newton!(F_DF!, x0; tol::Real = 1e-12, maxiter::Int = 15, convergence_criterion::ConvergenceCriterion = ResidualTolCriterion(), verbose::Bool = false) =
     newton!(F_DF!, x0, _similar(x0), _similar_linop(x0); tol = tol, maxiter = maxiter, convergence_criterion = convergence_criterion, verbose = verbose)
 

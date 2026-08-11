@@ -180,22 +180,22 @@
             Y1 = [interval(1.0)]
             Z1_ = fill(interval(2.0), 1, 1)
             W1 = zeros(Interval{Float64}, 1, 1, 1)
-            msg1, (rmin1, eta1, success1) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]))
+            msg1, (rmin1, eta1, success1) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true))
             @test occursin("no good set of radii found for inclusion", msg1)
             @test occursin("radii polynomial not negative", msg1)
             @test !occursin("simultaneously", msg1) # confirms the M==1 (singular) branch, not M>1
             @test success1 == false
-            @test isnan(rmin1) && isnan(eta1)
+            @test isempty(rmin1) && isempty(eta1)
 
             # M == 2 (decoupled): exercises "radii polynomials not negative simultaneously"
             Y2 = [interval(1.0), interval(1.0)]
             Z2_ = [interval(2.0) interval(0.0); interval(0.0) interval(2.0)]
             W2 = zeros(Interval{Float64}, 2, 2, 2)
-            msg2, (rmin2, eta2, success2) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]))
+            msg2, (rmin2, eta2, success2) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true))
             @test occursin("no good set of radii found for inclusion", msg2)
             @test occursin("radii polynomials not negative simultaneously", msg2)
             @test success2 == false
-            @test isnan(rmin2) && isnan(eta2)
+            @test isempty(rmin2) && isempty(eta2)
         end
 
         #= reuse the decoupled scalar quadratic Y=0.75, Z₁=0, Z₂=0.5 (root r₁ = 1, contraction
@@ -217,10 +217,10 @@
             @test rmin_ok ≈ [1.0, 1.0] atol = 1e-6 # matches the hand-computed root of Y + 0.25r² - r = 0
 
             # same Y, Z, W but R too small: the elseif branch overturns the provisional success
-            msg_bad, (rmin_bad, eta_bad, success_bad) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]))
+            msg_bad, (rmin_bad, eta_bad, success_bad) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true))
             @test occursin("the set of found radii", msg_bad)
             @test success_bad == false
-            @test isnan(rmin_bad) && isnan(eta_bad)
+            @test isempty(rmin_bad) && isempty(eta_bad)
         end
 
         #= "inclusion found, but no contraction.": using an intentionally asymmetric W (only
@@ -246,11 +246,15 @@
             Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
             W[1, 1, 2] = interval(8.0)
-            msg, (rmin, eta, success) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]))
+            msg, (rmin, eta, success) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true))
             @test occursin("inclusion found, but no contraction.", msg)
             @test occursin("radii polynomials not negative simultaneously", msg) # M>1, ultimately fails
             @test success == false
-            @test isnan(rmin) && isnan(eta)
+            @test isempty(rmin) && isempty(eta)
+
+            # the same call is silent without `verbose`: diagnostics are opt-in
+            msg_quiet, _ = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]))
+            @test isempty(msg_quiet)
         end
     end
 end

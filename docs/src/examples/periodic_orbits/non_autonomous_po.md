@@ -1,29 +1,27 @@
 ```@contents
 Pages = ["non_autonomous_po.md"]
-Depth = 3
+Depth = 4
 ```
 
 # Non-autonomous ODE
 
-In this example, we prove the existence of a ``2\pi``-periodic solution to the non-autonomous ODE
+We prove the existence of a ``2\pi``-periodic solution to the non-autonomous ODE
 
 ```math
-u''(t) + \beta_1 u'(t) + \beta_2 u(t) - u(t)^2 = \beta_3 \cos(t),
+\ddot{u}(t) + \beta_1 \dot{u}(t) + \beta_2 u(t) - u(t)^2 = \beta_3 \cos(t),
 ```
 
 where ``\beta_1 = 1/10``, ``\beta_2 = 4``, ``\beta_3 = 1``.
 
-### Step 1: Problem definition
+### Step 1: Formulation
 
 ```@example non_autonomous_po
 using RadiiPolynomial
 
-struct LOp{T} <: AbstractLinearOperator
+struct LOp{T} <: AbstractDiagonalOperator
     β₁ :: T
     β₂ :: T
 end
-RadiiPolynomial.domain(::LOp, codom::Fourier) = codom
-RadiiPolynomial.codomain(::LOp, dom::Fourier) = dom
 function RadiiPolynomial.getcoefficient(L::LOp, (codom, k)::Tuple{Fourier,Integer}, (dom, j)::Tuple{Fourier,Integer})
     x = inv(-exact(k)^2 + exact(im*k)*L.β₁ + L.β₂)
     return ifelse(k == j, x, zero(x))
@@ -36,7 +34,9 @@ F(u, β, c) = u + LOp(β[1], β[2]) * (-u^2 - β[3] * c)
 DF(u, β) = exact(I) + LOp(β[1], β[2]) * Multiplication(-exact(2) * u)
 ```
 
-### Step 2: Approximate zero (floating-point arithmetic)
+### Step 2: Approximation (floating-point arithmetic)
+
+#### The approximate zero
 
 ```@example non_autonomous_po
 β_approx = [0.1, 4.0, 1.0]
@@ -57,7 +57,7 @@ using CairoMakie
 lines(LinRange(-π, π, 101), t -> real(u_bar(t)))
 ```
 
-### Step 3: Approximate inverse (floating-point arithmetic)
+#### The approximate inverse
 
 ```@example non_autonomous_po
 Π = interval( Projection(Fourier(K, 1.0)) )
@@ -68,7 +68,7 @@ A = A_K + (interval(I) - Π)
 nothing # hide
 ```
 
-### Step 4: Estimating the bounds (interval arithmetic)
+### Step 3: Bounds (interval arithmetic)
 
 ```@example non_autonomous_po
 ν = interval(1.1) # does not have to be exactly 11/10
@@ -83,7 +83,7 @@ u_bar_interval = interval(u_bar)
 Y = norm(A * F(u_bar_interval, β_interval, c_interval), X)
 
 #- Z₁ bound
-@assert K ≥ sup(sqrt(β_interval[2]))
+@assert K ≥ sup(sqrt(β_interval[2])) # |ℓ_k| is increasing beyond this point
 Π_2Kp1 = interval( Projection(Fourier(2K+1, 1.0)) )
 
 Z₁ = opnorm(Π_2Kp1 - A * DF(u_bar_interval, β_interval) * Π_2Kp1, X)
@@ -98,6 +98,8 @@ Z₂ = exact(2) * max(opnorm(A_K, X), interval(1))
 ie, contraction_success = interval_of_existence(Y, Z₁, Z₂, Inf; verbose = true)
 nothing # hide
 ```
+
+### Step 4: Conclusion
 
 ```@example non_autonomous_po
 inf(ie) # smallest error

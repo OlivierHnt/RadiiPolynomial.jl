@@ -44,7 +44,7 @@ include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, total_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
-    export fft_size, grid_size, to_grid, to_grid!, to_coef, to_coef!, set_fft_algorithm
+    export fft_size, grid_size, to_grid, to_grid!, to_coef, to_coef!
 import LinearAlgebra: rmul!, lmul!, rdiv!, ldiv!
 include("sequence_spaces/sequences/arithmetic.jl")
     export codomain, add!, radd!, ladd!, sub!, rsub!, lsub!, rmul!, lmul!,
@@ -102,6 +102,7 @@ include("rpa/interval_existence.jl")
     export interval_of_existence, set_of_radii
 include("rpa/newton.jl")
     export newton, newton!
+    export ConvergenceCriterion, ResidualTolCriterion, ResidualCriterion, StepCriterion, CombinedCriterion
 
 
 

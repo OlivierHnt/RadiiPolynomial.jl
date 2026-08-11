@@ -202,14 +202,14 @@
             Y1, Z1_, W1 = [interval(0.01)], fill(interval(0.1), 1, 1), fill(interval(0.2), 1, 1, 1)
             rmin1, eta1, success1 = RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [10.0])
             @test success1 == true
-            @test eta1 == 1
+            @test eta1 == [1.0]
             @test rmin1[1] ≈ 0.011124862507311817 atol = 1e-12
 
             # same Y, Z, W, but R = 0.005 < r₁ ≈ 0.01112: the found radius is genuinely a root and
             # contracts, yet is overturned by the R check, giving a graceful failure (not a crash)
             rmin1b, eta1b, success1b = RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [0.005])
             @test success1b == false
-            @test isnan(rmin1b) && isnan(eta1b)
+            @test isempty(rmin1b) && isempty(eta1b)
         end
     end
 

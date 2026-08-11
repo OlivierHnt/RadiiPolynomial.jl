@@ -19,9 +19,12 @@ _apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
 """
     fft_size(s::SequenceSpace)
 
-Return the size of the discrete transform underlying `s`, one entry per factor. For `Chebyshev` this counts the *mirrored* grid, so it is larger than [`grid_size`](@ref); elsewhere the two agree.
+Return the size of the discrete transform underlying `s`, one entry per factor.
+For `Chebyshev` this counts the *mirrored* grid, so it is larger than
+[`grid_size`](@ref); elsewhere the two agree.
 
-Prefer [`grid_size`](@ref) when choosing how finely to sample: it is the number of nodes actually required.
+Prefer [`grid_size`](@ref) when choosing how finely to sample: it is the number
+of nodes actually required.
 
 # Examples
 
@@ -45,7 +48,9 @@ _fft_size(s::Chebyshev) = max(2order(s), 1) # the coefficients are mirrored
 """
     grid_size(s::SequenceSpace)
 
-Return, as a tuple with one entry per factor of `s`, the number of sampling nodes that determines `s` exactly. In other words, the smallest grid size on which [`to_grid`](@ref) and [`to_coef`](@ref) are inverse to one another.
+Return, as a tuple with one entry per factor of `s`, the number of sampling
+nodes that determines `s` exactly. In other words, the smallest grid size on
+which [`to_grid`](@ref) and [`to_coef`](@ref) are inverse to one another.
 
 The nodes are:
 - the roots of unity for `Taylor`,
@@ -105,9 +110,12 @@ end
 
 Evaluate `a` at the sampling nodes of its space and return the array of values.
 
-`m` is a tuple of grid sizes, one per discretized axis; an `Integer` is accepted as shorthand for a single axis. Any size from [`grid_size`](@ref) upwards is allowed.
+`m` is a tuple of grid sizes, one per discretized axis; an `Integer` is accepted
+as shorthand for a single axis. Any size from [`grid_size`](@ref) upwards is
+allowed.
 
-Giving fewer sizes than `space(a)` has factors discretizes only the leading factors and returns a grid of `Sequence`s on the remaining ones.
+Giving fewer sizes than `space(a)` has factors discretizes only the leading
+factors and returns a grid of `Sequence`s on the remaining ones.
 
 See also: [`to_coef`](@ref), [`grid_size`](@ref) and [`to_grid!`](@ref).
 """
@@ -260,7 +268,8 @@ end
 
 Interpolate onto `s`, returning a [`Sequence`](@ref).
 
-A grid of `Sequence`s is also accepted, in which case only the leading factors are interpolated.
+A grid of `Sequence`s is also accepted, in which case only the leading factors
+are interpolated.
 
 See also: [`to_grid`](@ref), [`grid_size`](@ref) and [`to_coef!`](@ref).
 """
@@ -292,7 +301,8 @@ _maybe_copy_grid(x_grid::AbstractArray) = x_grid # only read from, no copy neede
 """
     to_coef!(c::Sequence, x_grid)
 
-In-place version of [`to_coef`](@ref), writing the interpolant into `c` and potentially also using `x_grid` as a buffer.
+In-place version of [`to_coef`](@ref), writing the interpolant into `c` and
+potentially also using `x_grid` as a buffer.
 
 See also: [`to_coef`](@ref) and [`to_grid!`](@ref).
 """

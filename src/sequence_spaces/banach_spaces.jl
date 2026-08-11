@@ -237,8 +237,8 @@ Constructors:
 - `Ell1()`: equivalent to `Ell1(IdentityWeight())`
 - `Ell1(weight::Weight...)`: equivalent to `Ell1(weight)`
 
-Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia REPL
-and in many editors.
+Unicode alias [`ℓ¹`](@ref) can be typed by `\\ell<tab>\\^1<tab>` in the Julia
+REPL and in many editors.
 
 See also: [`Ell2`](@ref) and [`EllInf`](@ref).
 
@@ -323,8 +323,8 @@ Constructors:
 - `Ell2()`: equivalent to `Ell2(IdentityWeight())`
 - `Ell2(weight::Weight...)`: equivalent to `Ell2(weight)`
 
-Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia REPL
-and in many editors.
+Unicode alias [`ℓ²`](@ref) can be typed by `\\ell<tab>\\^2<tab>` in the Julia
+REPL and in many editors.
 
 See also: [`Ell1`](@ref) and [`EllInf`](@ref).
 
@@ -409,8 +409,8 @@ Constructors:
 - `EllInf()`: equivalent to `EllInf(IdentityWeight())`
 - `EllInf(weight::Weight...)`: equivalent to `EllInf(weight)`
 
-Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia REPL
-and in many editors.
+Unicode alias [`ℓ∞`](@ref) can be typed by `\\ell<tab>\\infty<tab>` in the Julia
+REPL and in many editors.
 
 See also: [`Ell1`](@ref) and [`Ell2`](@ref).
 

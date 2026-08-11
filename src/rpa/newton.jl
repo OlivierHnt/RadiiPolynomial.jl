@@ -1,9 +1,13 @@
 """
     ConvergenceCriterion
 
-Abstract type for the stopping rules accepted by the `convergence_criterion` keyword of [`newton`](@ref) and [`newton!`](@ref).
+Abstract type for the stopping rules accepted by the `convergence_criterion`
+keyword of [`newton`](@ref) and [`newton!`](@ref).
 
-A criterion is called as `criterion(nF, nAF, tol, ϵ)`, where `nF` is `norm(F(x), Inf)`, `nAF` is `norm(DF(x) \\ F(x), Inf)`, `tol` is the requested tolerance and `ϵ` is the machine epsilon of the unknown; it returns a tuple `(converged, threshold)`.
+A criterion is called as `criterion(nF, nAF, tol, ϵ)`, where `nF` is
+`norm(F(x), Inf)`, `nAF` is `norm(DF(x) \\ F(x), Inf)`, `tol` is the requested
+tolerance and `ϵ` is the machine epsilon of the unknown; it returns a tuple
+`(converged, threshold)`.
 
 See also: [`ResidualTolCriterion`](@ref), [`ResidualCriterion`](@ref),
 [`StepCriterion`](@ref) and [`CombinedCriterion`](@ref).
@@ -24,7 +28,9 @@ Base.show(io::IO, ::ResidualTolCriterion) = print(io, "|F(x)| ≤ tol")
 """
     ResidualCriterion()
 
-Stop as soon as `norm(F(x), Inf) ≤ max(tol, √ϵ (1 + norm(F(x), Inf)))`, i.e. a residual test that relaxes towards a relative criterion once the residual approaches machine precision.
+Stop as soon as `norm(F(x), Inf) ≤ max(tol, √ϵ (1 + norm(F(x), Inf)))`, i.e. a
+residual test that relaxes towards a relative criterion once the residual
+approaches machine precision.
 
 See also: [`ConvergenceCriterion`](@ref).
 """
@@ -35,7 +41,10 @@ Base.show(io::IO, ::ResidualCriterion) = print(io, "|F(x)| ≤ max(tol, √ϵ*(1
 """
     StepCriterion()
 
-Stop as soon as the Newton step satisfies `norm(DF(x) \\ F(x), Inf) ≤ max(tol, √ϵ (1 + norm(DF(x) \\ F(x), Inf)))`. Useful when `F` is badly scaled, so that a small residual is not evidence of convergence.
+Stop as soon as the Newton step satisfies
+`norm(DF(x) \\ F(x), Inf) ≤ max(tol, √ϵ (1 + norm(DF(x) \\ F(x), Inf)))`. Useful
+when `F` is badly scaled, so that a small residual is not evidence of
+convergence.
 
 See also: [`ConvergenceCriterion`](@ref).
 """
@@ -46,7 +55,8 @@ Base.show(io::IO, ::StepCriterion) = print(io, "|DF(x)\\F(x)| ≤ max(tol, √ϵ
 """
     CombinedCriterion()
 
-Stop only when both [`ResidualCriterion`](@ref) and [`StepCriterion`](@ref) are satisfied.
+Stop only when both [`ResidualCriterion`](@ref) and [`StepCriterion`](@ref) are
+satisfied.
 
 See also: [`ConvergenceCriterion`](@ref).
 """
@@ -57,11 +67,15 @@ Base.show(io::IO, ::CombinedCriterion) = print(io, string(ResidualCriterion(), "
 """
     newton(F_DF, x0; tol = 1e-12, maxiter = 15, convergence_criterion = ResidualTolCriterion(), verbose = false)
 
-Refine the initial guess `x0` with Newton's method and return the tuple `(x, converged)`.
+Refine the initial guess `x0` with Newton's method and return the tuple
+`(x, converged)`.
 
-`F_DF` is a single function returning **both** the map and its derivative as a tuple.
+`F_DF` is a single function returning **both** the map and its derivative as a
+    tuple.
 
-`x0` may be a `Number`, an `AbstractVector`, or a [`Sequence`](@ref); `DF(x)` must be whatever `\\` accepts against `F(x)`. The iteration is measured in the `Inf`-norm.
+`x0` may be a `Number`, an `AbstractVector`, or a [`Sequence`](@ref); `DF(x)`
+must be whatever `\\` accepts against `F(x)`. The iteration is measured in the
+`Inf`-norm.
 
 # Keyword arguments
 - `tol`: tolerance passed to the convergence criterion.

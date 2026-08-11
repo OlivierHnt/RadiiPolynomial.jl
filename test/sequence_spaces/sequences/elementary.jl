@@ -382,7 +382,7 @@
             b = exp(a)
             # the error bounds are enclosures, so only their supremum is meaningful;
             # asserting on the infimum would tie the test to how tightly they happen
-            # to be computed (see `set_fft_algorithm`)
+            # to be computed
             @test sup(finite_error(b)) > 0
             @test sup(tail_error(b)) > 0
             @test isequal_interval(total_error(b), finite_error(b) + tail_error(b))

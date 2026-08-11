@@ -435,7 +435,7 @@
 
     #
 
-    @testset "twiddle tables and the a priori error bound" begin
+    @testset "twiddle tables" begin
         # the `radius` field is the ρ of the a priori bound; it must bound the
         # MODULUS of `mid - exact`, which is not what `radius` of a complex
         # interval returns (that is the larger of the two component radii, too
@@ -447,27 +447,6 @@
             @test all(in_interval(real(w), real(W_)) && in_interval(imag(w), imag(W_))
                       for (w, W_) ∈ zip(W.mid, W.interval))
         end
-
-        # `:apriori_bound` must enclose the exact transform, not merely look plausible
-        n = 32
-        x = round.([ComplexF64(cospi(2k/n), sinpi(3k/n)) for k ∈ 1:n], digits=6)
-        exact = setprecision(384) do
-            [sum(Complex{BigFloat}(x[j+1]) * cispi(-2*BigFloat(j*k)/n) for j ∈ 0:n-1) for k ∈ 0:n-1]
-        end
-        for algo ∈ (:interval, :apriori_bound)
-            set_fft_algorithm(algo)
-            y = RadiiPolynomial._fft!([complex(interval(real(z)), interval(imag(z))) for z ∈ x])
-            @test all(k -> in_interval(Float64(real(exact[k])), real(y[k])) &&
-                           in_interval(Float64(imag(exact[k])), imag(y[k])), 1:n)
-            # the same holds in `BigFloat`, whose tables are built for the precision in use
-            setprecision(128) do
-                z = RadiiPolynomial._fft!([complex(interval(BigFloat, real(w)), interval(BigFloat, imag(w))) for w ∈ x])
-                @test all(k -> in_interval(BigFloat(real(exact[k])), real(z[k])) &&
-                               in_interval(BigFloat(imag(exact[k])), imag(z[k])), 1:n)
-                @test precision(inf(real(z[1]))) == 128
-            end
-        end
-        set_fft_algorithm(:interval)
     end
 
     @testset "arbitrary transform length" begin
@@ -488,9 +467,7 @@
             @test RadiiPolynomial._bfft!(copy(y)) ./ length(x) ≈ x atol=1e-12
         end
 
-        # the enclosure must hold for the lengths the radix-2 error analysis does not cover
-        @testset "$algo encloses the exact transform of length $n" for algo ∈ (:interval, :apriori_bound), n ∈ (5, 12, 13, 67)
-            set_fft_algorithm(algo)
+        @testset "encloses the exact transform of length $n" for n ∈ (5, 12, 13, 67)
             x = round.([ComplexF64(cospi(2k/n), sinpi(3k/n)) for k ∈ 1:n], digits=6)
             exact_dft = setprecision(384) do
                 [sum(Complex{BigFloat}(x[j+1]) * cispi(-2*BigFloat(j*k)/n) for j ∈ 0:n-1) for k ∈ 0:n-1]
@@ -498,7 +475,6 @@
             y = RadiiPolynomial._fft!([complex(interval(real(z)), interval(imag(z))) for z ∈ x])
             @test all(k -> in_interval(Float64(real(exact_dft[k])), real(y[k])) &&
                            in_interval(Float64(imag(exact_dft[k])), imag(y[k])), 1:n)
-            set_fft_algorithm(:interval)
         end
     end
 

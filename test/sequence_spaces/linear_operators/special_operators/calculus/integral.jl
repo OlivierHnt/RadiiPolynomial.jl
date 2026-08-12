@@ -169,9 +169,10 @@
 
         # `project` builds the matrix entrywise via `getcoefficient`: n = 0 (identity), and for
         # n = 1 with i = 0 the odd-j ≥ 3 branch (j = 1 is a separate case, and j = 2 already
-        # exercises the even branch above via `a_𝒞`/`a3`)
+        # exercises the even branch above via `a_𝒞`/`a3`); the row i = 0 contains the inexact
+        # entry 2/(1-j²), so the matrix-vector product is only ≈ the recursion (summation order)
         @test project(Integral(0), Chebyshev(2), Chebyshev(2), Float64)(a_int) == Sequence(Chebyshev(2), Float64.(coefficients(a_int)))
-        @test project(∫¹, Chebyshev(3), Chebyshev(4), Float64)(a3) == ∫¹(a3) # i = 0, j = 3 (odd, ≥ 3)
+        @test project(∫¹, Chebyshev(3), Chebyshev(4), Float64)(a3) ≈ ∫¹(a3) # i = 0, j = 3 (odd, ≥ 3)
 
         # n ≥ 2 is an explicit TODO restriction in the source
         @test_throws DomainError integrate(a_𝒞, 2)

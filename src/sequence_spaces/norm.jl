@@ -384,7 +384,7 @@ _opnorm(A::LinearOperator{<:CartesianSpace,ScalarSpace}, X::NormedCartesianSpace
 function norm(a::InfiniteSequence, X::BanachSpace = banachspace(a))
     X == banachspace(a) && return a.full_norm
     _issubspace(banachspace(a), X) || return throw(DomainError((X, banachspace(a)), "X cannot be a smaller Banach space than the one associated to a"))
-    return min(norm(sequence(a), X) + sequence_error(a), a.full_norm)
+    return min(norm(sequence(a), X) + total_error(a), a.full_norm)
 end
 
 _issubspace(::BanachSpace, ::BanachSpace) = false

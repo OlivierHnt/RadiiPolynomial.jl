@@ -499,8 +499,8 @@ function evaluate(a::InfiniteSequence, x::Union{Nothing,Number,Tuple{Vararg{Unio
     return _return_evaluate(evaluate(sequence(a), x), a)
 end
 
-_return_evaluate(c, a::InfiniteSequence) = interval(c, sequence_error(a); format = :midpoint)
-_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(c, banachspace(a); total_error = sequence_error(a))
+_return_evaluate(c, a::InfiniteSequence) = interval(c, total_error(a); format = :midpoint)
+_return_evaluate(c::Sequence, a::InfiniteSequence) = InfiniteSequence(c, banachspace(a); total_error = total_error(a))
 
 #--
 

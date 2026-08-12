@@ -41,7 +41,7 @@ include("sequence_spaces/sequences/sequence.jl")
     export AbstractSequence, Sequence, coefficients, unpack, eachcomponent, component,
         conjugacy_symmetry!, geometricweight, algebraicweight, polish!
 include("sequence_spaces/sequences/infinite_sequence.jl")
-    export InfiniteSequence, sequence_norm, sequence_error, finite_error, tail_error, total_error, banachspace
+    export InfiniteSequence, sequence_norm, finite_error, tail_error, total_error, banachspace
 #- operations
 include("sequence_spaces/sequences/fft.jl")
     export fft_size, grid_size, to_grid, to_grid!, to_coef, to_coef!
@@ -138,7 +138,11 @@ function to_seq!(args...)
     Base.depwarn("`to_seq!` is deprecated and will be removed in a future version, use `to_coef!` instead", :to_seq!; force=true)
     return to_coef!(args...)
 end
+function sequence_error(a)
+    Base.depwarn("`sequence_error` is deprecated and will be removed in a future version, use `total_error` instead", :sequence_error; force=true)
+    return total_error(a)
+end
 
-    export ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!
+    export ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!, sequence_error
 
 end

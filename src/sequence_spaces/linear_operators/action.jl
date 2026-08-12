@@ -48,7 +48,7 @@ end
 
 function Base.:*(A::LinearOperator, b::InfiniteSequence)
     X = banachspace(b)
-    return InfiniteSequence(A * sequence(b), X; total_error = opnorm(A, X) * sequence_error(b))
+    return InfiniteSequence(A * sequence(b), X; total_error = opnorm(A, X) * total_error(b))
 end
 
 mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number) =

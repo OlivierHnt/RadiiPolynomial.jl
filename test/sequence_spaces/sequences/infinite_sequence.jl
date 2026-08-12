@@ -72,10 +72,19 @@
         @test space(ia) == space(a) == 𝒯
         @test coefficients(ia) == coefficients(a)
         @test eltype(ia) == eltype(typeof(ia)) == Float64
-        @test sequence_error(ia) == min(finite_error(ia) + tail_error(ia), total_error(ia)) == 0.1
+        @test sequence(ia) === a
+        @test total_error(ia) == 0.1
 
+        # the constructor normalizes the total error to min(finite + tail, total),
+        # so total_error is always the sharpest bound on the whole sequence
         ii = InfiniteSequence(a, 0.1, 0.2, 0.15, Ell1())
-        @test sequence_error(ii) == min(0.1 + 0.2, 0.15) == 0.15
+        @test total_error(ii) == min(0.1 + 0.2, 0.15) == 0.15
+        ij = InfiniteSequence(a, 0.1, 0.2, 0.5, Ell1())
+        @test total_error(ij) == min(0.1 + 0.2, 0.5) == 0.1 + 0.2
+
+        # a plain Sequence is its own finite part and carries no error
+        @test sequence(a) === a
+        @test finite_error(a) == tail_error(a) == total_error(a) == 0.0
     end
 
     @testset "==" begin

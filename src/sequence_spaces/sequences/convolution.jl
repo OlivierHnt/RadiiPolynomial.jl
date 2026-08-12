@@ -525,9 +525,9 @@ function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     @inbounds view(full_c, indices(space_c)) .= zero(eltype(full_c)) # keep the tail
 
     X = banachspace(a) ∩ banachspace(b)
-    cross_bound = norm(sequence(a), X) * sequence_error(b) +
-                  norm(sequence(b), X) * sequence_error(a) +
-                  sequence_error(a) * sequence_error(b)
+    cross_bound = norm(sequence(a), X) * total_error(b) +
+                  norm(sequence(b), X) * total_error(a) +
+                  total_error(a) * total_error(b)
     spillover = norm(full_c, X)
     new_finite = cross_bound
     new_tail = spillover + cross_bound

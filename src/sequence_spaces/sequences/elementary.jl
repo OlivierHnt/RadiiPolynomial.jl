@@ -26,7 +26,7 @@ function Base.inv(a::InfiniteSequence)
     # TODO: propagate "NG" flag
 
     seq_a = sequence(a)
-    _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(inv, seq_a), banachspace(a))
+    _isconstant(seq_a) & _safe_iszero(total_error(a)) && return InfiniteSequence(_at_value(inv, seq_a), banachspace(a))
 
     seq_approx_a⁻¹ = inv(mid.(seq_a))
 
@@ -66,7 +66,7 @@ function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
 
     seq_a = sequence(a)
     seq_b = sequence(b)
-    _isconstant(seq_b) & _safe_iszero(sequence_error(b)) && return InfiniteSequence(seq_a / seq_b[_findindex_constant(space(seq_b))], banachspace(a))
+    _isconstant(seq_b) & _safe_iszero(total_error(b)) && return InfiniteSequence(seq_a / seq_b[_findindex_constant(space(seq_b))], banachspace(a))
 
     A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
     B = to_grid(mid.(seq_b), _oversampled_grid_size(space_approx))
@@ -121,7 +121,7 @@ function Base.sqrt(a::InfiniteSequence)
     space_approx = _codomain(sqrt, space(a))
 
     seq_a = sequence(a)
-    _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(sqrt, seq_a), banachspace(a))
+    _isconstant(seq_a) & _safe_iszero(total_error(a)) && return InfiniteSequence(_at_value(sqrt, seq_a), banachspace(a))
 
     A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
     sqrtA = sqrt.(A)
@@ -165,7 +165,7 @@ function Base.cbrt(a::InfiniteSequence)
     space_approx = _codomain(cbrt, space(a))
 
     seq_a = sequence(a)
-    _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(cbrt, seq_a), banachspace(a))
+    _isconstant(seq_a) & _safe_iszero(total_error(a)) && return InfiniteSequence(_at_value(cbrt, seq_a), banachspace(a))
 
     A = to_grid(mid.(seq_a), _oversampled_grid_size(space_approx))
     cbrtA = A .^ (1//3)
@@ -263,7 +263,7 @@ end
 
 function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codomain(nl.f, space(a)))
     seq_a = sequence(a)
-    _isconstant(seq_a) & _safe_iszero(sequence_error(a)) && return InfiniteSequence(_at_value(nl.f, seq_a), banachspace(a))
+    _isconstant(seq_a) & _safe_iszero(total_error(a)) && return InfiniteSequence(_at_value(nl.f, seq_a), banachspace(a))
     ν_orig = rate(banachspace(a))
     ν = ν_orig isa Tuple ? ν_orig : (ν_orig,)
 
@@ -285,17 +285,17 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
     tail_err   = C * tail_alias
     total_err  = finite_err + tail_err
 
-    if !_safe_iszero(sequence_error(a))
+    if !_safe_iszero(total_error(a))
         ν̄⁻¹ = inv.(ν̄)
         _tuple_ = tuple(ν̄, ν̄⁻¹)
         _mix_ = Iterators.product(ntuple(i -> getindex.(_tuple_, i), Val(length(ν)))...)
 
-        r_star = exact(1) + sequence_error(a)
+        r_star = exact(1) + total_error(a)
         circle = r_star * cispi(interval(IntervalArithmetic.numtype(r_star), -1, 1))
 
         # Cauchy contour estimate, no support information
         W = maximum(μ -> _contour(nl.f, seq_a + circle, ν), _mix_) * prod((ν̄ .+ ν) ./ (ν̄ .- ν))
-        pert = W * sequence_error(a)
+        pert = W * total_error(a)
         finite_err += pert
         tail_err   += pert
         total_err  += pert
@@ -345,7 +345,7 @@ function __check_branch_cut_poles(a, r::Tuple, poles, branch_cut)
     _apply_boxes!(C, r)
     _fft!(C)
     return all(C) do x
-        y = interval(x, sequence_error(a); format = :midpoint)
+        y = interval(x, total_error(a); format = :midpoint)
         return isdisjoint_interval(y, branch_cut) & all(p -> isdisjoint_interval(y, p), poles)
     end
 end

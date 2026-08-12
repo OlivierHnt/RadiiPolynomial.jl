@@ -99,8 +99,12 @@ sequence_norm(a::InfiniteSequence) = a.sequence_norm
 finite_error(a::InfiniteSequence) = a.finite_error
 tail_error(a::InfiniteSequence) = a.tail_error
 total_error(a::InfiniteSequence) = a.total_error
-sequence_error(a::InfiniteSequence) = min(finite_error(a) + tail_error(a), total_error(a))
 banachspace(a::InfiniteSequence) = a.banachspace
+
+sequence(a::Sequence) = a
+finite_error(a::Sequence) = zero(real(eltype(a)))
+tail_error(a::Sequence) = zero(real(eltype(a)))
+total_error(a::Sequence) = zero(real(eltype(a)))
 
 space(a::InfiniteSequence) = space(sequence(a)) # needed for general methods
 
@@ -112,7 +116,7 @@ Base.eltype(a::InfiniteSequence) = eltype(coefficients(a))
 Base.eltype(::Type{<:InfiniteSequence{<:SequenceSpace,T}}) where {T<:AbstractVector} = eltype(T)
 
 Base.:(==)(a::InfiniteSequence, b::InfiniteSequence) = # by-pass default
-    (sequence(a) == sequence(b)) & iszero(sequence_error(a)) & iszero(sequence_error(b))
+    (sequence(a) == sequence(b)) & iszero(total_error(a)) & iszero(total_error(b))
 
 IntervalArithmetic.interval(::Type{T}, a::InfiniteSequence) where {T<:IntervalArithmetic.NumTypes} =
     InfiniteSequence(interval(T, sequence(a)), interval(T, finite_error(a)), interval(T, tail_error(a)), interval(T, total_error(a)), interval(T, banachspace(a)))

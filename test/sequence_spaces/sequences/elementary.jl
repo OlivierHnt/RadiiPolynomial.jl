@@ -393,7 +393,7 @@
         @testset "Case B: with input error" begin
             a2 = InfiniteSequence(a_seq, X; total_error = interval(1e-8))
             b2 = exp(a2)
-            # the W·sequence_error(a) perturbation term is added once to total,
+            # the W·total_error(a) perturbation term is added once to total,
             # twice to finite_error + tail_error (see the source comment)
             @test sup(total_error(b2)) < sup(finite_error(b2) + tail_error(b2))
             @test sup(finite_error(b2)) > 0

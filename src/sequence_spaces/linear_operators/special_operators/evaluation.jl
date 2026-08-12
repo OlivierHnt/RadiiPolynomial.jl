@@ -55,8 +55,8 @@ getcoefficient(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, (codom, i)::Tupl
 # # ScalarSpace
 
 # domain(::Evaluation{Nothing}, s::ScalarSpace) = s
-# domain(::Evaluation{<:Number}, ::ScalarSpace) = EmptySpace()
-# domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
+domain(::Evaluation{<:Number}, ::ScalarSpace) = EmptySpace()
+domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
 
 # codomain(::Evaluation, ::ScalarSpace) = ScalarSpace()
 

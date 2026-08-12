@@ -319,7 +319,7 @@
             v = [Sequence(Taylor(1), [1.0, 2.0]), Sequence(Taylor(3), [4.0, 5.0, 6.0, 7.0])]
             r = Π * v
             @test r == Sequence(Taylor(2)^2, [1.0, 2.0, 0.0, 4.0, 5.0, 6.0]) # enlarge/shrink each component
-            @test_throws AssertionError Projection(Taylor(2)^3) * v # length(v) ≠ nspaces(Π.space)
+            @test_throws DimensionMismatch Projection(Taylor(2)^3) * v # length(v) ≠ nspaces(Π.space)
         end
 
         @testset "Projection * Matrix{<:LinearOperator}" begin

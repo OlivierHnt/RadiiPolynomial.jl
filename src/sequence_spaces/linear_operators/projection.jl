@@ -298,7 +298,7 @@ _project!(A::LinearOperator, B::ComposedOperator) = mul!(A, B.outer, B.inner, ex
 #
 
 function Base.:*(P::Projection{<:CartesianSpace}, v::Vector)
-    @assert nspaces(P.space) == length(v)
+    nspaces(P.space) == length(v) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, vector has $(length(v)) blocks"))
     u = [Projection(P.space[i], eltype(P)) * vᵢ for (i, vᵢ) ∈ enumerate(v)]
     return Sequence(P.space, vec(mapreduce(coefficients, vcat, u)))
 end
@@ -307,28 +307,50 @@ Base.:*(P::Projection{<:CartesianSpace}, v::LinearAlgebra.Diagonal) = P * Matrix
 Base.:*(v::LinearAlgebra.Diagonal, P::Projection{<:CartesianSpace}) = Matrix(v) * P
 
 function Base.:*(P::Projection{<:CartesianSpace}, v::Matrix)
-    @assert nspaces(P.space) == size(v, 1)
-    u = [Projection(P.space[i], eltype(P)) * v[i,j] for i ∈ axes(v, 1), j ∈ axes(v, 2)]
-    dom = CartesianProduct([reduce(_union, [domain(u[i,j], P.space[i]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)]...)
-    any(sᵢ -> sᵢ isa EmptySpace, dom.spaces) && return u
-    CoefType = reduce(promote_type, [reduce(promote_type, [eltype(u[i,j]) for i ∈ 1:size(v, 1)]) for j ∈ 1:size(v, 2)])
-    u_ = zeros(CoefType, dom, P.space)
-    @inbounds for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
-        project!(component(u_, i, j), u[i,j])
+    nspaces(P.space) == size(v, 1) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, matrix has $(size(v, 1)) rows"))
+    doms = [_lazy_domain(v[i,j], P.space[i]) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
+    any(sᵢ -> sᵢ isa EmptySpace, doms) &&
+        return [Projection(P.space[i], eltype(P)) * v[i,j] for i ∈ axes(v, 1), j ∈ axes(v, 2)]
+    dom = CartesianProduct([reduce(_union, view(doms, :, j)) for j ∈ axes(v, 2)]...)
+    CoefType = reduce(promote_type, [_lazy_coeftype(v[i,j], doms[i,j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)])
+    C = zeros(CoefType, dom, P.space)
+    @inbounds for j ∈ axes(v, 2), i ∈ axes(v, 1)
+        _project_block!(component(C, i, j), v[i,j])
     end
-    return u_
+    return C
 end
+_lazy_domain(A, s::VectorSpace) = domain(A, s)
+_lazy_domain(x::Union{Number,UniformScaling}, s::VectorSpace) = domain(UniformScalingOperator(x), s)
+_lazy_domain(::AbstractMatrix, ::VectorSpace) = EmptySpace()
 
 function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
-    @assert nspaces(P.space) == size(v, 2)
-    u = [v[i,j] * Projection(P.space[j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
-    codom = CartesianProduct([reduce(union, [codomain(u[i,j]) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)]...)
-    CoefType = reduce(promote_type, [reduce(promote_type, [eltype(u[i,j]) for j ∈ 1:size(v, 2)]) for i ∈ 1:size(v, 1)])
-    u_ = zeros(CoefType, P.space, codom)
-    @inbounds for j ∈ 1:size(v, 2), i ∈ 1:size(v, 1)
-        project!(component(u_, i, j), u[i,j])
+    nspaces(P.space) == size(v, 2) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, matrix has $(size(v, 2)) columns"))
+    codoms = [_lazy_codomain(v[i,j], P.space[j]) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
+    codom = CartesianProduct([reduce(union, view(codoms, i, :)) for i ∈ axes(v, 1)]...)
+    CoefType = reduce(promote_type, [_lazy_coeftype(v[i,j], P.space[j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)])
+    C = zeros(CoefType, P.space, codom)
+    @inbounds for j ∈ axes(v, 2), i ∈ axes(v, 1)
+        _project_block!(component(C, i, j), v[i,j])
     end
-    return u_
+    return C
+end
+_lazy_codomain(A, s::VectorSpace) = codomain(A, s)
+_lazy_codomain(x::Union{Number,UniformScaling}, s::VectorSpace) = codomain(UniformScalingOperator(x), s)
+_lazy_codomain(v::AbstractMatrix, s::CartesianSpace) =
+    CartesianProduct([reduce(union, [_lazy_codomain(v[i,j], s[j]) for j ∈ axes(v, 2)]) for i ∈ axes(v, 1)]...)
+
+_lazy_coeftype(A, s::VectorSpace, ::Type{T}) where {T} = _coeftype(A, s, T)
+_lazy_coeftype(x::Union{Number,UniformScaling}, s::VectorSpace, ::Type{T}) where {T} = _coeftype(UniformScalingOperator(x), s, T)
+_lazy_coeftype(v::AbstractMatrix, s::CartesianSpace, ::Type{T}) where {T} =
+    reduce(promote_type, [_lazy_coeftype(v[i,j], s[j], T) for i ∈ axes(v, 1), j ∈ axes(v, 2)])
+
+_project_block!(C::LinearOperator, A) = project!(C, A)
+_project_block!(C::LinearOperator, x::Union{Number,UniformScaling}) = project!(C, UniformScalingOperator(x))
+function _project_block!(C::LinearOperator, v::AbstractMatrix)
+    @inbounds for j ∈ axes(v, 2), i ∈ axes(v, 1)
+        _project_block!(component(C, i, j), v[i,j])
+    end
+    return C
 end
 
 

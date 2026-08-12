@@ -18,10 +18,14 @@ _apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
 
 """
     fft_size(s::SequenceSpace)
+    fft_size(s::CartesianSpace)
 
 Return the size of the discrete transform underlying `s`, one entry per factor.
 For `Chebyshev` this counts the *mirrored* grid, so it is larger than
 [`grid_size`](@ref); elsewhere the two agree.
+
+The components of a [`CartesianSpace`](@ref) are sampled on shared nodes, so a
+single size is reported: the one that fits every component.
 
 Prefer [`grid_size`](@ref) when choosing how finely to sample: it is the number
 of nodes actually required.
@@ -31,6 +35,9 @@ of nodes actually required.
 ```jldoctest
 julia> fft_size(Chebyshev(2)), grid_size(Chebyshev(2))
 ((4,), (3,))
+
+julia> fft_size(Chebyshev(2) × Chebyshev(4)) # the coarser component is oversampled
+(8,)
 ```
 
 See also: [`grid_size`](@ref), [`to_grid`](@ref) and [`to_coef`](@ref).
@@ -38,6 +45,11 @@ See also: [`grid_size`](@ref), [`to_grid`](@ref) and [`to_coef`](@ref).
 fft_size(s::TensorSpace) = map(_fft_size, spaces(s))
 fft_size(s::BaseSpace) = (_fft_size(s),)
 fft_size(s::SymmetricSpace) = fft_size(desymmetrize(s))
+fft_size(s::CartesianPower) = fft_size(space(s))
+fft_size(s::CartesianProduct) = fft_size(_fft_space((s)))
+_fft_space(s) = s
+_fft_space(s::CartesianPower) = _fft_space(space(s))
+_fft_space(s::CartesianProduct) = mapreduce(_fft_space, ∪, spaces(s)) # flattens everything by reducing over ∪
 
 _fft_size(s::Taylor) = order(s)+1 # TODO: really?
 _fft_size(s::Fourier) = 2order(s)+1
@@ -47,6 +59,7 @@ _fft_size(s::Chebyshev) = max(2order(s), 1) # the coefficients are mirrored
 
 """
     grid_size(s::SequenceSpace)
+    grid_size(s::CartesianSpace)
 
 Return, as a tuple with one entry per factor of `s`, the number of sampling
 nodes that determines `s` exactly. In other words, the smallest grid size on
@@ -57,11 +70,17 @@ The nodes are:
 - the equispaced points of the period for `Fourier`,
 - the Chebyshev-Lobatto points for `Chebyshev`, ordered from ``x = 1`` down to ``x = -1``.
 
+The components of a [`CartesianSpace`](@ref) are sampled on shared nodes, so a
+single size is reported: the one that determines every component.
+
 # Examples
 
 ```jldoctest
 julia> grid_size(Taylor(2)), grid_size(Fourier(2, 1.0)), grid_size(Chebyshev(2))
 ((3,), (5,), (3,))
+
+julia> grid_size(Chebyshev(2)^3) # the three components share the nodes
+(3,)
 ```
 
 See also: [`to_grid`](@ref), [`to_coef`](@ref) and [`fft_size`](@ref).
@@ -69,6 +88,8 @@ See also: [`to_grid`](@ref), [`to_coef`](@ref) and [`fft_size`](@ref).
 grid_size(s::TensorSpace) = map(_grid_size, spaces(s))
 grid_size(s::BaseSpace) = (_grid_size(s),)
 grid_size(s::SymmetricSpace) = grid_size(desymmetrize(s))
+grid_size(s::CartesianPower) = grid_size(space(s))
+grid_size(s::CartesianProduct) = grid_size(_fft_space(s))
 
 _grid_size(s::BaseSpace) = _fft_size(s)
 _grid_size(s::Chebyshev) = _fft_size(s)÷2+1 # the mirrored nodes are dropped
@@ -117,10 +138,14 @@ allowed.
 Giving fewer sizes than `space(a)` has factors discretizes only the leading
 factors and returns a grid of `Sequence`s on the remaining ones.
 
+A `Sequence` in a [`CartesianSpace`](@ref) is discretized componentwise, every
+component sharing the nodes; the grid then holds `Sequence`s in the cartesian
+space of the remaining factors.
+
 See also: [`to_coef`](@ref), [`grid_size`](@ref) and [`to_grid!`](@ref).
 """
-to_grid(a::Sequence{<:SequenceSpace}, m::Integer) = to_grid(a, (m,))
-to_grid(a::Sequence{<:SequenceSpace}, m::NTuple{D,Integer} = grid_size(space(a))) where {D} =
+to_grid(a::Sequence{<:Union{SequenceSpace,CartesianSpace}}, m::Integer) = to_grid(a, (m,))
+to_grid(a::Sequence{<:Union{SequenceSpace,CartesianSpace}}, m::NTuple{D,Integer} = grid_size(space(a))) where {D} =
     to_grid!(_grid_buffer(eltype(a), last(_lead_inner(space(a), Val(D))), m), a)
 
 """
@@ -146,6 +171,14 @@ function _fill_grid!(x_grid::AbstractArray{<:Any,D}, C::AbstractMatrix, s_lead::
         for (i, x) ∈ enumerate(x_grid)
             coefficients(x)[j] = nodes[i]
         end
+    end
+    return x_grid
+end
+function to_grid!(x_grid::AbstractArray{<:Sequence,D}, a::Sequence{<:CartesianSpace}) where {D}
+    inner = last(_lead_inner(space(a), Val(D)))
+    all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
+    for (i, aᵢ) ∈ enumerate(eachcomponent(a))
+        to_grid!(component.(x_grid, i), aᵢ)
     end
     return x_grid
 end
@@ -175,7 +208,7 @@ end
 
 _grid_buffer(::Type{T}, ::ScalarSpace, m::Tuple{Vararg{Integer}}) where {T} =
     zeros(complex(float(T)), m)
-_grid_buffer(::Type{T}, inner::SequenceSpace, m::Tuple{Vararg{Integer}}) where {T} =
+_grid_buffer(::Type{T}, inner::VectorSpace, m::Tuple{Vararg{Integer}}) where {T} =
     [Sequence(inner, Vector{complex(float(T))}(undef, dimension(inner))) for _ ∈ CartesianIndices(m)]
 
 # the grid may be an abstractly typed container (e.g. `Matrix{Sequence}`), so the
@@ -196,6 +229,14 @@ _lead_inner(s::TensorSpace{<:NTuple{N,BaseSpace}}, ::Val{N}) where {N} = (s, Sca
 _lead_inner(s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}, ::Val{N}) where {N} = (s, ScalarSpace())
 _lead_inner(s::SequenceSpace, ::Val) =
     throw(ArgumentError("the grid must have at least one axis and at most one axis per factor of $s"))
+function _lead_inner(s::CartesianPower, ::Val{D}) where {D}
+    s_lead, inner = _lead_inner(space(s), Val(D))
+    return s_lead, CartesianPower(inner, nspaces(s))
+end
+function _lead_inner(s::CartesianProduct, ::Val{D}) where {D}
+    v = map(sᵢ -> _lead_inner(sᵢ, Val(D)), spaces(s))
+    return mapreduce(first, ∪, v), CartesianProduct(map(last, v))
+end
 _maybe_tensorspace(t::Tuple{BaseSpace}) = @inbounds t[1]
 _maybe_tensorspace(t::Tuple{Vararg{BaseSpace}}) = TensorSpace(t)
 function _restrict(G::Group{N,T}, ::Val{D}) where {N,T,D}
@@ -269,7 +310,9 @@ end
 Interpolate onto `s`, returning a [`Sequence`](@ref).
 
 A grid of `Sequence`s is also accepted, in which case only the leading factors
-are interpolated.
+are interpolated. If the grid elements live in a [`CartesianSpace`](@ref), each
+of their components is interpolated onto `s`, so that a grid of `Sequence`s in
+`s₁ × s₂` gives back a `Sequence` in `(s ⊗ s₁) × (s ⊗ s₂)`.
 
 See also: [`to_grid`](@ref), [`grid_size`](@ref) and [`to_coef!`](@ref).
 """
@@ -311,6 +354,14 @@ function to_coef!(c::Sequence, x_grid::AbstractArray{<:Sequence,D}) where {D}
     all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
     C = _no_alloc_reshape(coefficients(c), (dimension(s_lead), dimension(inner)))
     _fill_coef!(C, x_grid, s_lead)
+    return c
+end
+function to_coef!(c::Sequence{<:CartesianSpace}, x_grid::AbstractArray{<:Sequence,D}) where {D}
+    inner = last(_lead_inner(space(c), Val(D)))
+    all(x -> space(x) == inner, x_grid) || return throw(ArgumentError("the grid elements must have space $inner"))
+    for (i, cᵢ) ∈ enumerate(eachcomponent(c))
+        to_coef!(cᵢ, component.(x_grid, i))
+    end
     return c
 end
 function _fill_coef!(C::AbstractMatrix, x_grid::AbstractArray{<:Any,D}, s_lead::NoSymSpace) where {D}
@@ -378,6 +429,8 @@ _coef_buffer(x_grid::AbstractArray{<:Sequence}, s::NoSymSpace) =
 
 _combine(s::SequenceSpace, ::ScalarSpace) = s
 _combine(s::SequenceSpace, inner::SequenceSpace) = s ⊗ inner
+_combine(s::SequenceSpace, inner::CartesianPower) = CartesianPower(_combine(s, space(inner)), nspaces(inner))
+_combine(s::SequenceSpace, inner::CartesianProduct) = CartesianProduct(map(sᵢ -> _combine(s, sᵢ), spaces(inner)))
 
 #--
 

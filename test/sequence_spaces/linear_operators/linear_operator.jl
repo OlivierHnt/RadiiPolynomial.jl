@@ -561,4 +561,96 @@
         end
     end
 
+    @testset "grids of LinearOperators on a CartesianSpace" begin
+        s_par = Chebyshev(2)
+        X₀ = RadiiPolynomial._zero_space(s_par)
+        dom, codom = (X₀ ⊗ Taylor(1)) × (X₀ ⊗ Fourier(1, 1.0)), (s_par ⊗ Fourier(1, 1.0)) × (s_par ⊗ Taylor(1))
+        A = LinearOperator(dom, codom, reshape(collect(1.0:dimension(codom)*dimension(dom)), :, dimension(dom)))
+
+        @testset "both sides cartesian: the grid holds the blocks at each node" begin
+            A_grid = to_grid(A, grid_size(s_par))
+            @test size(A_grid) == grid_size(s_par) == (3,)
+            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == Fourier(1, 1.0) × Taylor(1)), A_grid)
+            # each block is sampled as it would be on its own
+            for i ∈ 1:2, j ∈ 1:2
+                ref = to_grid(component(A, i, j), grid_size(s_par))
+                @test all(k -> coefficients(component(A_grid[k], i, j)) == coefficients(ref[k]), eachindex(A_grid))
+            end
+            B = to_coef(A_grid, s_par)
+            @test (domain(B) == dom) & (codomain(B) == codom)
+            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+        end
+
+        @testset "grid elements agree with sequence-wise partial evaluation" begin
+            A_grid = to_grid(A, grid_size(s_par))
+            v = Sequence(Taylor(1) × Fourier(1, 1.0), [1.0, -2.0, 0.5, 1.5, -1.0])
+            v₀ = Sequence(dom, coefficients(v)) # the same `v`, seen as constant in the parameter
+            m = only(grid_size(s_par))
+            for k ∈ 1:m
+                x_k = cospi((k-1)/(m-1))
+                @test real.(coefficients(A_grid[k] * v)) ≈ coefficients(Evaluation(x_k, nothing) * (A * v₀)) atol=1e-9
+            end
+        end
+
+        @testset "only one side cartesian" begin
+            # cartesian codomain, plain domain
+            A_codom = LinearOperator(X₀ ⊗ Taylor(1), codom, reshape(collect(1.0:dimension(codom)*2), :, 2))
+            G = to_grid(A_codom, grid_size(s_par))
+            @test all(X -> (domain(X) == Taylor(1)) & (codomain(X) == Fourier(1, 1.0) × Taylor(1)), G)
+            B = to_coef(G, s_par)
+            @test (domain(B) == X₀ ⊗ Taylor(1)) & (codomain(B) == codom)
+            @test real.(coefficients(B)) ≈ coefficients(A_codom) atol=1e-9
+
+            # cartesian domain, plain codomain
+            A_dom = LinearOperator(dom, s_par ⊗ Fourier(1, 1.0), reshape(collect(1.0:9*dimension(dom)), :, dimension(dom)))
+            G = to_grid(A_dom, grid_size(s_par))
+            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == Fourier(1, 1.0)), G)
+            B = to_coef(G, s_par)
+            @test (domain(B) == dom) & (codomain(B) == s_par ⊗ Fourier(1, 1.0))
+            @test real.(coefficients(B)) ≈ coefficients(A_dom) atol=1e-9
+        end
+
+        @testset "every codomain factor discretized: functionals at each node" begin
+            A_cst = LinearOperator(dom, s_par^2, reshape(collect(1.0:6*dimension(dom)), :, dimension(dom)))
+            G = to_grid(A_cst, grid_size(s_par))
+            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == ScalarSpace()^2), G)
+            B = to_coef(G, s_par)
+            @test (domain(B) == dom) & (codomain(B) == s_par^2)
+            @test real.(coefficients(B)) ≈ coefficients(A_cst) atol=1e-9
+        end
+
+        @testset "in-place entry points" begin
+            ref = to_grid(A, grid_size(s_par))
+            A_grid = to_grid(A, grid_size(s_par))
+            foreach(X -> fill!(coefficients(X), complex(Inf, Inf)), A_grid)
+            @test to_grid!(A_grid, A) === A_grid
+            @test all(k -> coefficients(A_grid[k]) == coefficients(ref[k]), eachindex(A_grid))
+
+            B = zeros(ComplexF64, dom, codom)
+            @test to_coef!(B, ref) === B
+            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+        end
+
+        @testset "interval enclosure round trip" begin
+            A_interval = LinearOperator(dom, codom, interval.(coefficients(A)))
+            B = to_coef(to_grid(A_interval, grid_size(s_par)), s_par)
+            for n ∈ eachindex(coefficients(A_interval))
+                @test issubset_interval(coefficients(A_interval)[n], real(coefficients(B)[n]))
+            end
+        end
+
+        @testset "error paths" begin
+            # the components must be sampled on the same nodes
+            codom_bad = (s_par ⊗ Fourier(1, 1.0)) × (Fourier(1, 1.0) ⊗ Taylor(1))
+            A_bad = LinearOperator(dom, codom_bad, ones(dimension(codom_bad), dimension(dom)))
+            @test_throws MethodError to_grid(A_bad, (3,))
+            # the leading factors of the domain must be the zero space of the parameter
+            dom_bad = (s_par ⊗ Taylor(1)) × (X₀ ⊗ Fourier(1, 1.0))
+            A_bad_dom = LinearOperator(dom_bad, codom, ones(dimension(codom), dimension(dom_bad)))
+            @test_throws ArgumentError to_grid(A_bad_dom, (3,))
+            # mismatched domains/codomains in the grid
+            @test_throws ArgumentError to_coef!(zeros(ComplexF64, dom, s_par ⊗ Fourier(1, 1.0)), to_grid(A, grid_size(s_par)))
+        end
+    end
+
 end

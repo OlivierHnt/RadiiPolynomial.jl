@@ -745,11 +745,140 @@
 
     #
 
+    @testset "grids of Sequences on a CartesianSpace" begin
+        @testset "the components share the nodes, hence a single grid size" begin
+            @test grid_size(Chebyshev(2)^3) == grid_size(Chebyshev(2)) == (3,)
+            @test fft_size(Chebyshev(2)^3) == fft_size(Chebyshev(2)) == (4,)
+            # the finest component sets the size, the others being oversampled
+            @test grid_size(Chebyshev(2) × Chebyshev(4)) == grid_size(Chebyshev(4)) == (5,)
+            @test fft_size(Chebyshev(2) × Chebyshev(4)) == (8,)
+            @test grid_size((Chebyshev(2) ⊗ Fourier(1, 1.0)) × (Chebyshev(4) ⊗ Fourier(2, 1.0))) == (5, 5)
+            # nested cartesian products and symmetries defer to the space underneath
+            @test grid_size((Taylor(1)^2 × Taylor(3))^2) == grid_size(Taylor(3)) == (4,)
+            @test grid_size(evensym(Fourier(2, 1.0))^2) == grid_size(Fourier(2, 1.0)) == (5,)
+        end
+
+        @testset "a scalar family: the grid holds the values of every component" begin
+            s = Chebyshev(2)^3
+            a = Sequence(s, collect(1.0:9))
+            x_grid = to_grid(a)
+            @test x_grid isa Vector
+            @test size(x_grid) == grid_size(s) == (3,)
+            @test all(x -> space(x) == ScalarSpace()^3, x_grid)
+            # each component is sampled as it would be on its own
+            for i ∈ 1:3
+                @test [coefficients(x)[i] for x ∈ x_grid] == to_grid(component(a, i))
+            end
+            b = to_coef(x_grid, Chebyshev(2))
+            @test space(b) == s
+            @test real.(coefficients(b)) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "a product of families: the grid holds Sequences on the inner spaces" begin
+            s_par = Chebyshev(2)
+            fs = (s_par ⊗ Fourier(1, 1.0)) × (s_par ⊗ Taylor(1))
+            a = Sequence(fs, collect(1.0:dimension(fs)))
+            x_grid = to_grid(a, grid_size(s_par))
+            @test all(x -> space(x) == Fourier(1, 1.0) × Taylor(1), x_grid)
+            # grid elements are the partial evaluations at the Chebyshev–Lobatto nodes
+            m = only(grid_size(s_par))
+            for k ∈ 1:m
+                x_k = cospi((k-1)/(m-1))
+                @test real.(coefficients(x_grid[k])) ≈ coefficients(Evaluation(x_k, nothing) * a) atol=1e-9
+            end
+            b = to_coef(x_grid, s_par)
+            @test space(b) == fs
+            @test real.(coefficients(b)) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "cartesian products nest, entirely discretized components included" begin
+            s_par = Chebyshev(1)
+            fs = (s_par ⊗ Fourier(1, 1.0))^2 × s_par
+            a = Sequence(fs, collect(1.0:dimension(fs)))
+            x_grid = to_grid(a, grid_size(s_par))
+            @test all(x -> space(x) == Fourier(1, 1.0)^2 × ScalarSpace(), x_grid)
+            b = to_coef(x_grid, s_par)
+            @test space(b) == fs
+            @test real.(coefficients(b)) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "components of different orders: the coarser one is oversampled" begin
+            s = Chebyshev(2) × Chebyshev(4)
+            a = Sequence(s, collect(1.0:8))
+            x_grid = to_grid(a) # 5 nodes, set by the second component
+            @test size(x_grid) == (5,)
+            b = to_coef(x_grid, Chebyshev(4))
+            @test space(b) == Chebyshev(4)^2 # every component is interpolated onto Chebyshev(4)
+            @test real.(coefficients(project(b, s))) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "symmetric inner space: the components keep their symmetry" begin
+            s_par = Chebyshev(2)
+            inner_sym = evensym(Fourier(2, 1.0))
+            fs = (s_par ⊗ inner_sym)^2
+            a = project(Sequence((s_par ⊗ Fourier(2, 1.0))^2, collect(1.0:30)), fs)
+            x_grid = to_grid(a, grid_size(s_par))
+            @test all(x -> space(x) == inner_sym^2, x_grid)
+            b = to_coef(x_grid, s_par)
+            @test space(b) == fs
+            @test real.(coefficients(b)) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "in-place entry points" begin
+            s_par = Chebyshev(2)
+            fs = (s_par ⊗ Fourier(1, 1.0)) × s_par
+            a = Sequence(fs, collect(1.0:dimension(fs)))
+            ref = to_grid(a, grid_size(s_par))
+
+            x_grid = [Sequence(Fourier(1, 1.0) × ScalarSpace(), fill(complex(Inf, Inf), 4)) for _ ∈ 1:3]
+            @test to_grid!(x_grid, a) === x_grid
+            @test all(i -> coefficients(x_grid[i]) ≈ coefficients(ref[i]), eachindex(x_grid))
+
+            c = Sequence(fs, fill(complex(Inf, Inf), dimension(fs)))
+            @test to_coef!(c, ref) === c
+            @test real.(coefficients(c)) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "resampling via to_coef(::Sequence, ::SequenceSpace)" begin
+            a = Sequence(Chebyshev(2)^3, collect(1.0:9))
+            b = to_coef(a, Chebyshev(4)) # zero-padding to a higher order
+            @test space(b) == Chebyshev(4)^3
+            @test real.(coefficients(project(b, space(a)))) ≈ coefficients(a) atol=1e-9
+        end
+
+        @testset "interval coefficients (enclosure round trip)" begin
+            fs = (Chebyshev(2) ⊗ Fourier(1, 1.0)) × Chebyshev(2)
+            a = Sequence(fs, interval.(collect(1.0:dimension(fs))))
+            b = to_coef(to_grid(a, (3,)), Chebyshev(2))
+            @test space(b) == fs
+            for n ∈ eachindex(coefficients(a))
+                @test issubset_interval(coefficients(a)[n], real(coefficients(b)[n]))
+            end
+        end
+
+        @testset "error paths" begin
+            # the components must be sampled on the same nodes
+            @test_throws MethodError to_grid(Sequence(Chebyshev(2) × Fourier(1, 1.0), ones(6)))
+            @test_throws ArgumentError to_grid(Sequence(Fourier(1, 1.0) × Fourier(1, 2.0), ones(6)), (3,))
+            @test_throws MethodError to_grid(Sequence(Chebyshev(2) × (Chebyshev(2) ⊗ Taylor(1)), ones(9)))
+            # a component with no factor to discretize
+            @test_throws MethodError to_grid(Sequence(Chebyshev(2) × ScalarSpace(), ones(4)))
+            @test_throws MethodError to_grid(Sequence(Chebyshev(2) × ScalarSpace(), ones(4)), (3,))
+            # grid elements on mismatched spaces
+            @test_throws ArgumentError to_grid!(to_grid(Sequence(Chebyshev(2)^3, ones(9))), Sequence(Chebyshev(2)^2, ones(6)))
+            # a grid too coarse for the family
+            @test_throws DimensionMismatch to_grid(Sequence(Chebyshev(2)^2, ones(6)), (2,))
+        end
+    end
+
+    #
+
     @testset "unsupported vector spaces" begin
-        # `to_grid`/`to_coef` are only defined for `Sequence{<:SequenceSpace}`;
-        # `ScalarSpace` and `CartesianSpace` are not `SequenceSpace`s.
+        # `to_grid`/`to_coef` are only defined for `Sequence{<:SequenceSpace}`
+        # and `Sequence{<:CartesianSpace}`; `ScalarSpace` is neither
         @test_throws MethodError to_grid(Sequence(ScalarSpace(), [1.0]))
-        @test_throws MethodError to_grid(Sequence(Taylor(2) × Taylor(2), ones(6)))
+        # a cartesian space of scalars is matched, but has nothing to discretize
+        @test_throws MethodError to_grid(Sequence(ScalarSpace()^2, [1.0, 2.0]))
     end
 
     #

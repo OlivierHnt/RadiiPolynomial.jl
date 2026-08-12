@@ -174,6 +174,7 @@ function Base.:*(A::AbstractLinearOperator, b::Vector)
 end
 _space(s::AbstractSequence) = space(s)
 _space(::Number) = ScalarSpace()
+_space(b::Vector) = CartesianProduct((_space(bᵢ) for bᵢ ∈ b)...) # for nested vectors
 
 Base.:*(A::Matrix, b::Sequence) = (A * Projection(space(b))) * b
 

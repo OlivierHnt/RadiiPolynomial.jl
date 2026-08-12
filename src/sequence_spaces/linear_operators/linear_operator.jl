@@ -530,10 +530,38 @@ function _to_grid(A::LinearOperator, m::NTuple{D,Integer}, ::ScalarSpace) where 
         return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom"))
     return to_grid(Sequence(A), m)
 end
-_to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::SequenceSpace) =
+_to_grid(A::LinearOperator, m::Tuple{Vararg{Integer}}, ::VectorSpace) =
     to_grid!(_grid_buffer(eltype(A), domain(A), codomain(A), m), A)
 
 function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator) where {D}
+    s_lead, inner_dom, inner_codom = _grid_spaces(x_grid, A, Val(D))
+    _check_grid_size(size(x_grid), s_lead)
+    C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
+    return _fill_grid!(x_grid, C, s_lead)
+end
+function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator{<:CartesianSpace,<:CartesianSpace}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for j ∈ Base.OneTo(nspaces(domain(A))), i ∈ Base.OneTo(nspaces(codomain(A)))
+        to_grid!(component.(x_grid, i, j), component(A, i, j))
+    end
+    return x_grid
+end
+function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator{<:CartesianSpace,<:VectorSpace}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for j ∈ Base.OneTo(nspaces(domain(A)))
+        to_grid!(component.(x_grid, j), component(A, j))
+    end
+    return x_grid
+end
+function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator{<:VectorSpace,<:CartesianSpace}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for i ∈ Base.OneTo(nspaces(codomain(A)))
+        to_grid!(component.(x_grid, i), component(A, i))
+    end
+    return x_grid
+end
+
+function _grid_spaces(x_grid, A::LinearOperator, ::Val{D}) where {D}
     s_lead, inner_codom = _lead_inner(codomain(A), Val(D))
     dom_lead, inner_dom = _lead_inner(domain(A), Val(D))
     X₀ = _zero_space(s_lead)
@@ -541,12 +569,10 @@ function to_grid!(x_grid::AbstractArray{<:LinearOperator,D}, A::LinearOperator) 
         return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom_lead"))
     all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), x_grid) ||
         return throw(ArgumentError("the grid elements must be linear operators from $inner_dom to $inner_codom"))
-    _check_grid_size(size(x_grid), s_lead)
-    C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
-    return _fill_grid!(x_grid, C, s_lead)
+    return s_lead, inner_dom, inner_codom
 end
 
-function _grid_buffer(::Type{T}, dom::SequenceSpace, codom::SequenceSpace, m::NTuple{D,Integer}) where {T,D}
+function _grid_buffer(::Type{T}, dom::VectorSpace, codom::VectorSpace, m::NTuple{D,Integer}) where {T,D}
     _, inner_dom = _lead_inner(dom, Val(D))
     _, inner_codom = _lead_inner(codom, Val(D))
     CoefType = complex(float(T))
@@ -556,15 +582,30 @@ end
 #
 
 function to_coef!(A::LinearOperator, x_grid::AbstractArray{<:LinearOperator,D}) where {D}
-    s_lead, inner_codom = _lead_inner(codomain(A), Val(D))
-    dom_lead, inner_dom = _lead_inner(domain(A), Val(D))
-    X₀ = _zero_space(s_lead)
-    dom_lead == X₀ ||
-        return throw(ArgumentError("the leading factors of the domain must be $X₀, got $dom_lead"))
-    all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), x_grid) ||
-        return throw(ArgumentError("the grid elements must be linear operators from $inner_dom to $inner_codom"))
+    s_lead, inner_dom, inner_codom = _grid_spaces(x_grid, A, Val(D))
     C = _no_alloc_reshape(coefficients(A), (dimension(s_lead), dimension(inner_codom)*dimension(inner_dom)))
     _fill_coef!(C, x_grid, s_lead)
+    return A
+end
+function to_coef!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, x_grid::AbstractArray{<:LinearOperator,D}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for j ∈ Base.OneTo(nspaces(domain(A))), i ∈ Base.OneTo(nspaces(codomain(A)))
+        to_coef!(component(A, i, j), component.(x_grid, i, j))
+    end
+    return A
+end
+function to_coef!(A::LinearOperator{<:CartesianSpace,<:VectorSpace}, x_grid::AbstractArray{<:LinearOperator,D}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for j ∈ Base.OneTo(nspaces(domain(A)))
+        to_coef!(component(A, j), component.(x_grid, j))
+    end
+    return A
+end
+function to_coef!(A::LinearOperator{<:VectorSpace,<:CartesianSpace}, x_grid::AbstractArray{<:LinearOperator,D}) where {D}
+    _grid_spaces(x_grid, A, Val(D))
+    for i ∈ Base.OneTo(nspaces(codomain(A)))
+        to_coef!(component(A, i), component.(x_grid, i))
+    end
     return A
 end
 

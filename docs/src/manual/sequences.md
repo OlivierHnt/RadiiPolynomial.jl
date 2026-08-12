@@ -111,6 +111,15 @@ x_grid = to_grid(a, grid_size(Chebyshev(2))) # one Fourier sequence per Chebyshe
 to_coef(x_grid, Chebyshev(2)) # interpolate back
 ```
 
+A [`CartesianSpace`](@ref) is discretized componentwise, every component sharing the nodes, so that `to_grid(a, m)` returns a grid of `Sequence`s in the cartesian space of the remaining factors, and `to_coef(x_grid, s)` distributes `s` over the components.
+The same holds for a [`LinearOperator`](@ref) whose domain or codomain is cartesian, giving a grid of operators between the inner spaces.
+
+```@repl sequences
+a = Sequence((Chebyshev(2) ⊗ Fourier(1, 1.0)) × Chebyshev(2), collect(1:12)) # two families
+x_grid = to_grid(a, grid_size(Chebyshev(2))) # the second component is left with no factor
+to_coef(x_grid, Chebyshev(2)) # interpolate back
+```
+
 ## API
 
 ```@meta

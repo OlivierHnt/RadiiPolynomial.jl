@@ -41,7 +41,7 @@ ie, proved = interval_of_existence(Y, Z₁, Z₂, Inf)
 inf(ie), proved
 ```
 
-That `proved == true` is what distinguishes this from a strandard numerical ODE solver.
+That `proved == true` is what distinguishes this from a standard numerical ODE solver.
 A complete walkthrough of this example is given in [The logistic equation](@ref).
 
 ## Where to go

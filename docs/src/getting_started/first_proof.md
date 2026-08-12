@@ -37,7 +37,7 @@ DF(u) = exact(3) * u^2
 nothing # hide
 ```
 
-`exact(2)` says that the literal `2` is is to be considered an exact value.
+`exact(2)` says that the literal `2` is to be considered an exact value.
 The last experiment at the bottom of this page shows what happens if you forget it.
 
 ### Step 2: Approximation (floating-point arithmetic)
@@ -91,7 +91,7 @@ We now check that ``T`` contracts on a ball:
 ie, proved = interval_of_existence(Y, Z₁, R)
 ```
 
-`success` is `true`, so the Radii Polynomial Theorem applies: there is a genuine real root of ``u^3 - 2 = 0`` within `inf(ie)` of `u_bar`, and it is the only one within `sup(ie)`.
+`proved` is `true`, so the Radii Polynomial Theorem applies: there is a genuine real root of ``u^3 - 2 = 0`` within `inf(ie)` of `u_bar`, and it is the only one within `sup(ie)`.
 
 ```@example first_proof
 inf(ie), sup(ie)

@@ -36,7 +36,7 @@ end
     UndefSpace <: VectorSpace
 
 Sentinel vector space flagging an undetermined space, e.g. as returned by
-[`domain`](@ref) when an operator has no domain on the given space.
+`domain` when an operator has no domain on the given space.
 
 # Example
 

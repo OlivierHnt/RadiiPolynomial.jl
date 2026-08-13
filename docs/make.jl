@@ -13,13 +13,6 @@ const PAGES = [
         "getting_started/cubic_root_cont.md",
         "getting_started/logistic_equation.md"
     ],
-    "Manual" => [
-        "manual/vector_spaces.md",
-        "manual/sequences.md",
-        "manual/linear_operators.md",
-        "manual/norms.md",
-        "manual/special_operators.md"
-    ],
     "Examples" => [
         "examples/index_examples.md",
         "Steady states" => [
@@ -34,6 +27,13 @@ const PAGES = [
             "examples/continuation/cube_root_pa.md",
             "examples/continuation/cahn_hilliard_cont.md"
         ]
+    ],
+    "Manual" => [
+        "manual/vector_spaces.md",
+        "manual/sequences.md",
+        "manual/linear_operators.md",
+        "manual/norms.md",
+        "manual/special_operators.md"
     ]
 ]
 

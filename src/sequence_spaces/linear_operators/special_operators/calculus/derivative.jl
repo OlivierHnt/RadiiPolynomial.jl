@@ -51,7 +51,7 @@ Base.:^(𝒟::Derivative{NTuple{N,Int}}, n::NTuple{N,Integer}) where {N} = Deriv
 
 function domain(D::Derivative{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
     s_out = map((αᵢ, sᵢ) -> domain(Derivative(αᵢ), sᵢ), order(D), spaces(s))
-    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
     return TensorSpace(s_out)
 end
 
@@ -116,7 +116,7 @@ end
 
 # Chebyshev
 
-domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : EmptySpace() # flags an error
+domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : UndefSpace() # flags an error
 
 codomain(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
 

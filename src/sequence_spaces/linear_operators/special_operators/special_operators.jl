@@ -52,13 +52,13 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
         @eval begin
             function domain(A::$S, s::CartesianPower)
                 s_out = domain(A, space(s))
-                s_out isa EmptySpace && return EmptySpace()
+                s_out isa UndefSpace && return UndefSpace()
                 return CartesianPower(s_out, nspaces(s))
             end
 
             function domain(A::$S, s::CartesianProduct)
                 s_out = map(sᵢ -> domain(A, sᵢ), spaces(s))
-                any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+                any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
                 return CartesianProduct(s_out)
             end
 

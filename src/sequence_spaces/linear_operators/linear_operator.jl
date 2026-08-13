@@ -40,7 +40,7 @@ Base.iterate(A::AbstractLinearOperator, i) = iterate(coefficients(A), i)
 #
 
 domain(A::AbstractLinearOperator, s::VectorSpace) = throw(DomainError((A, s), "cannot infer a domain"))
-domain(::AbstractLinearOperator, ::EmptySpace) = EmptySpace()
+domain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
 
 _coeftype(A::AbstractLinearOperator, dom::VectorSpace) = _coeftype(A, dom, Float64)
 
@@ -65,7 +65,7 @@ getcoefficient(A::AbstractLinearOperator, (codom, i)::Tuple{VectorSpace,Any}, (d
 abstract type AbstractDiagonalOperator <: AbstractLinearOperator end
 
 domain(::AbstractDiagonalOperator, s::VectorSpace) = s
-domain(::AbstractDiagonalOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
+domain(::AbstractDiagonalOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 codomain(::AbstractDiagonalOperator, s::VectorSpace) = s
 
@@ -127,7 +127,7 @@ LinearOperator(a::Sequence) = LinearOperator(ScalarSpace(), space(a), reshape(co
 Sequence(A::LinearOperator) = Sequence(codomain(A), vec(coefficients(A)))
 
 domain(A::LinearOperator) = A.domain
-domain(::LinearOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
+domain(::LinearOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 function domain(A::LinearOperator, s::VectorSpace)
     _iscompatible(_promote_space(codomain(A), s)...) || return throw(ArgumentError("spaces must be compatible"))
     return domain(A)
@@ -426,7 +426,7 @@ UniformScalingOperator() = UniformScalingOperator(true)
 UniformScalingOperator(J::UniformScaling) = UniformScalingOperator(J.λ)
 
 domain(::UniformScalingOperator, s::VectorSpace) = s
-domain(::UniformScalingOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
+domain(::UniformScalingOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 domain(J::UniformScaling, s::VectorSpace) = domain(UniformScalingOperator(J), s)
 
 codomain(::UniformScalingOperator, s::VectorSpace) = s
@@ -478,12 +478,12 @@ end
 
 domain(S::Add, s::VectorSpace) = _union(domain(S.A, s), domain(S.B, s))
 domain(S::Negate, s::VectorSpace) = domain(S.A, s)
-domain(::Add, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
-domain(::Negate, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
+domain(::Add, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
+domain(::Negate, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 # same as `union` but propagate empty space
-_union(::EmptySpace, ::VectorSpace) = EmptySpace()
-_union(::VectorSpace, ::EmptySpace) = EmptySpace()
-_union(::EmptySpace, ::EmptySpace) = EmptySpace()
+_union(::UndefSpace, ::VectorSpace) = UndefSpace()
+_union(::VectorSpace, ::UndefSpace) = UndefSpace()
+_union(::UndefSpace, ::UndefSpace) = UndefSpace()
 _union(s₁::VectorSpace, s₂::VectorSpace) = s₁ ∪ s₂
 
 codomain(S::Add, s::VectorSpace) = codomain(S.A, s) ∪ codomain(S.B, s)
@@ -508,7 +508,7 @@ Base.:∘(A::AbstractLinearOperator, J::UniformScaling) = ComposedOperator(A, Un
 Base.:∘(J::UniformScaling, A::AbstractLinearOperator) = ComposedOperator(UniformScalingOperator(J), A)
 
 domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s))
-domain(::ComposedOperator, ::EmptySpace) = EmptySpace() # needed to resolve method ambiguity
+domain(::ComposedOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
 

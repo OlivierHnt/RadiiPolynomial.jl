@@ -9,7 +9,7 @@ struct Laplacian <: AbstractLinearOperator end
 
 function domain(Δ::Laplacian, s::TensorSpace)
     s_out = map(sᵢ -> domain(Δ, sᵢ), spaces(s))
-    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
     return codomain(+, s, TensorSpace(s_out))
 end
 

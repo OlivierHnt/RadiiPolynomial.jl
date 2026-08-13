@@ -36,7 +36,7 @@ value(ℰ::Evaluation) = ℰ.value
 
 # Tensor space
 
-domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = EmptySpace()
+domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = UndefSpace()
 domain(::Evaluation{<:NTuple{N,Nothing}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = s
 
 codomain(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
@@ -55,8 +55,8 @@ getcoefficient(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, (codom, i)::Tupl
 # # ScalarSpace
 
 # domain(::Evaluation{Nothing}, s::ScalarSpace) = s
-domain(::Evaluation{<:Number}, ::ScalarSpace) = EmptySpace()
-domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
+domain(::Evaluation{<:Number}, ::ScalarSpace) = UndefSpace()
+domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = UndefSpace()
 
 # codomain(::Evaluation, ::ScalarSpace) = ScalarSpace()
 
@@ -68,7 +68,7 @@ domain(::Evaluation{<:Tuple{Vararg{Number}}}, ::ScalarSpace) = EmptySpace()
 # Taylor
 
 domain(::Evaluation{Nothing}, s::Taylor) = s
-domain(::Evaluation{<:Number}, ::Taylor) = EmptySpace()
+domain(::Evaluation{<:Number}, ::Taylor) = UndefSpace()
 
 codomain(::Evaluation{Nothing}, s::Taylor) = s
 codomain(::Evaluation{<:Number}, ::Taylor) = Taylor(0)
@@ -90,7 +90,7 @@ end
 # Fourier
 
 domain(::Evaluation{Nothing}, s::Fourier) = s
-domain(::Evaluation{<:Number}, ::Fourier) = EmptySpace()
+domain(::Evaluation{<:Number}, ::Fourier) = UndefSpace()
 
 codomain(::Evaluation{<:Number}, s::Fourier) = Fourier(0, frequency(s))
 codomain(::Evaluation{Nothing}, s::Fourier) = s
@@ -111,7 +111,7 @@ end
 # Chebyshev
 
 domain(::Evaluation{Nothing}, s::Chebyshev) = s
-domain(::Evaluation{<:Number}, ::Chebyshev) = EmptySpace()
+domain(::Evaluation{<:Number}, ::Chebyshev) = UndefSpace()
 
 codomain(::Evaluation{Nothing}, s::Chebyshev) = s
 codomain(::Evaluation{<:Number}, ::Chebyshev) = Chebyshev(0)
@@ -144,8 +144,8 @@ end
 
 domain(::Evaluation{Nothing}, s::SymmetricSpace{<:BaseSpace}) = s
 domain(::Evaluation{<:NTuple{N,Nothing}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = s
-domain(::Evaluation{<:Number}, s::SymmetricSpace{<:BaseSpace}) = EmptySpace()
-domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = EmptySpace()
+domain(::Evaluation{<:Number}, s::SymmetricSpace{<:BaseSpace}) = UndefSpace()
+domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = UndefSpace()
 
 codomain(::Evaluation{Nothing}, s::SymmetricSpace{<:BaseSpace}) = s
 codomain(::Evaluation{<:NTuple{N,Nothing}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = s

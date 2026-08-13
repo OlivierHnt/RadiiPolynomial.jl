@@ -33,33 +33,34 @@ end
 #
 
 """
-    EmptySpace <: VectorSpace
+    UndefSpace <: VectorSpace
 
-Empty vector space.
+Sentinel vector space flagging an undetermined space, e.g. as returned by
+[`domain`](@ref) when an operator has no domain on the given space.
 
 # Example
 
 ```jldoctest
-julia> EmptySpace()
-∅
+julia> UndefSpace()
+undef
 
-julia> LinearOperator(EmptySpace(), EmptySpace(), [;;])
-LinearOperator : ∅ → ∅ with coefficients Matrix{Any}:
+julia> LinearOperator(UndefSpace(), UndefSpace(), [;;])
+LinearOperator : undef → undef with coefficients Matrix{Any}:
 ```
 """
-struct EmptySpace <: VectorSpace end
+struct UndefSpace <: VectorSpace end
 
-Base.:(==)(::EmptySpace, ::EmptySpace) = true
-Base.issubset(::EmptySpace, ::EmptySpace) = true
-Base.intersect(::EmptySpace, ::EmptySpace) = EmptySpace()
-Base.union(::EmptySpace, ::EmptySpace) = EmptySpace()
+Base.:(==)(::UndefSpace, ::UndefSpace) = true
+Base.issubset(::UndefSpace, ::UndefSpace) = true
+Base.intersect(::UndefSpace, ::UndefSpace) = UndefSpace()
+Base.union(::UndefSpace, ::UndefSpace) = UndefSpace()
 
-indices(::EmptySpace) = Base.OneTo(0)
+indices(::UndefSpace) = Base.OneTo(0)
 
-_findposition(i, ::EmptySpace) = i
-_findposition(α::EmptySpace, s::EmptySpace) = _findposition(indices(α), s)
+_findposition(i, ::UndefSpace) = i
+_findposition(α::UndefSpace, s::UndefSpace) = _findposition(indices(α), s)
 
-_prettystring(::EmptySpace, iscompact::Bool) = ifelse(iscompact, "∅", "EmptySpace()")
+_prettystring(::UndefSpace, iscompact::Bool) = ifelse(iscompact, "undef", "UndefSpace()")
 
 #
 

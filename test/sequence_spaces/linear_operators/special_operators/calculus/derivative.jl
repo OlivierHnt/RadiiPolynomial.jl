@@ -122,7 +122,7 @@
         ∂¹ = Derivative(1)
 
         # domain: only the trivial (order 0) derivative has a well-defined domain (comment "flags an error")
-        @test domain(∂¹, Chebyshev(3)) == EmptySpace()
+        @test domain(∂¹, Chebyshev(3)) == UndefSpace()
         @test domain(Derivative(0), Chebyshev(3)) == Chebyshev(3)
         @test codomain(∂¹, Chebyshev(3)) == Chebyshev(2)
         @test codomain(Derivative(2), Chebyshev(3)) == Chebyshev(1)
@@ -185,17 +185,17 @@
         b2 = Sequence(Taylor(1) ⊗ Fourier(1, 1.0), collect(1.0:6.0))
         @test eltype(differentiate(b2, (1, 1))) == ComplexF64
 
-        # a Chebyshev factor with a nonzero order propagates EmptySpace through the whole tensor domain
+        # a Chebyshev factor with a nonzero order propagates UndefSpace through the whole tensor domain
         s2 = Taylor(1) ⊗ Chebyshev(2)
-        @test domain(Derivative((0, 1)), s2) == EmptySpace()
+        @test domain(Derivative((0, 1)), s2) == UndefSpace()
         @test codomain(Derivative((0, 1)), s2) == Taylor(1) ⊗ Chebyshev(1)
 
         # Interval{Float64} coefficients
         a_𝑇i = Sequence(Taylor(1) ⊗ Taylor(1), interval.(collect(1.0:4.0)))
         @test differentiate(a_𝑇i, (1, 1)) == Sequence(Taylor(0) ⊗ Taylor(0), interval.([4.0]))
 
-        # domain for a tensor derivative with no EmptySpace factor: genuine TensorSpace of per-factor
-        # domains (Taylor's domain via Integral is never EmptySpace, unlike Chebyshev's above)
+        # domain for a tensor derivative with no UndefSpace factor: genuine TensorSpace of per-factor
+        # domains (Taylor's domain via Integral is never UndefSpace, unlike Chebyshev's above)
         @test domain(Derivative((1, 2)), Taylor(1) ⊗ Taylor(2)) == Taylor(2) ⊗ Taylor(4)
 
         @testset "non-first factor uses the array-returning `_apply`, not the in-place `_apply!`" begin

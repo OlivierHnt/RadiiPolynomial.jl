@@ -130,7 +130,7 @@
 
         # unlike Fourier, the Chebyshev antiderivative's T₀ row is dense (the constant of
         # integration depends on every input mode), so no finite domain can be inferred
-        @test domain(∫¹, Chebyshev(3)) == EmptySpace()
+        @test domain(∫¹, Chebyshev(3)) == UndefSpace()
         @test domain(Integral(0), Chebyshev(3)) == Chebyshev(3)
         @test codomain(∫¹, Chebyshev(3)) == Chebyshev(4)
 

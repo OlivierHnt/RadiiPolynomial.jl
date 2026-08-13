@@ -12,8 +12,8 @@
         @test !(𝒯 ⊆ 𝒫)
         @test_throws MethodError intersect(𝒫², 𝒯) # CartesianSpace vs SequenceSpace: no specific method
         @test_throws MethodError union(𝒫², 𝒯)
-        @test_throws MethodError intersect(EmptySpace(), 𝒯)
-        @test_throws MethodError union(EmptySpace(), 𝒯)
+        @test_throws MethodError intersect(UndefSpace(), 𝒯)
+        @test_throws MethodError union(UndefSpace(), 𝒯)
         # generic `dimension`/`_firstindex`/`_lastindex` derived from `indices`
         @test dimension(𝒫) == length(indices(𝒫)) == 1
         @test RadiiPolynomial._firstindex(𝒯) == first(indices(𝒯)) == 0
@@ -27,15 +27,15 @@
         @test RadiiPolynomial._checkbounds_indices(Taylor(1), Taylor(2)) == issubset(Taylor(1), Taylor(2)) == true
     end
 
-    @testset "EmptySpace" begin
-        ∅ = EmptySpace()
-        @test ∅ == EmptySpace()
-        @test ∅ ⊆ ∅
-        @test ∅ ∩ ∅ == ∅ ∪ ∅ == ∅
-        @test dimension(∅) == 0
-        @test indices(∅) == Base.OneTo(0)
-        @test RadiiPolynomial._findposition(1, ∅) == 1 # identity map
-        @test RadiiPolynomial._findposition(∅, ∅) == Base.OneTo(0)
+    @testset "UndefSpace" begin
+        s_undef = UndefSpace()
+        @test s_undef == UndefSpace()
+        @test s_undef ⊆ s_undef
+        @test s_undef ∩ s_undef == s_undef ∪ s_undef == s_undef
+        @test dimension(s_undef) == 0
+        @test indices(s_undef) == Base.OneTo(0)
+        @test RadiiPolynomial._findposition(1, s_undef) == 1 # identity map
+        @test RadiiPolynomial._findposition(s_undef, s_undef) == Base.OneTo(0)
     end
 
     @testset "ScalarSpace" begin

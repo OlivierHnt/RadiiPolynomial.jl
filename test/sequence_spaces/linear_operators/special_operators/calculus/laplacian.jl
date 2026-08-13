@@ -134,9 +134,9 @@
     end
 
     @testset "unsupported / restrictions" begin
-        # Chebyshev: Derivative(2)'s domain is EmptySpace as soon as the order is nonzero (not a bug,
+        # Chebyshev: Derivative(2)'s domain is UndefSpace as soon as the order is nonzero (not a bug,
         # an explicit restriction — see the Chebyshev section of the Derivative test file)
-        @test domain(Laplacian(), Chebyshev(3)) == EmptySpace()
+        @test domain(Laplacian(), Chebyshev(3)) == UndefSpace()
 
         # Taylor: Δ reduces to Derivative(2), which now handles order(a) ≥ 2 correctly
         a2 = Sequence(Taylor(3), [1.0, 2.0, 3.0, 4.0]) # 1+2x+3x²+4x³ ⇒ Δ = 6+24x

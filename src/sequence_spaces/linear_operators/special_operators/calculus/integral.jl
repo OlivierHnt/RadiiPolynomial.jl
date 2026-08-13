@@ -51,7 +51,7 @@ Base.:^(ℐ::Integral{NTuple{N,Int}}, n::NTuple{N,Integer}) where {N} = Integral
 
 function domain(I::Integral{NTuple{N,Int}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N}
     s_out = map((αᵢ, sᵢ) -> domain(Integral(αᵢ), sᵢ), order(I), spaces(s))
-    any(sᵢ -> sᵢ isa EmptySpace, s_out) && return EmptySpace()
+    any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
     return TensorSpace(s_out)
 end
 
@@ -116,7 +116,7 @@ end
 
 # Chebyshev
 
-domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : EmptySpace() # flags an error
+domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : UndefSpace() # flags an error
 
 codomain(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
 
@@ -159,7 +159,7 @@ end
 
 function domain(I::Integral, s::SymmetricSpace)
     V = domain(I, desymmetrize(s))
-    V isa EmptySpace && return EmptySpace()
+    V isa UndefSpace && return UndefSpace()
     G = unsafe_group!(Set(_groupelem_antiintegral(I, g, desymmetrize(s))
                   for g ∈ elements(symmetry(s))))
     return SymmetricSpace(V, G)

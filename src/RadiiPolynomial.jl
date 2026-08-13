@@ -19,7 +19,7 @@ import LinearAlgebra, StaticArrays
 
 import LinearAlgebra: ×
 include("sequence_spaces/vector_spaces.jl")
-    export VectorSpace, EmptySpace, ScalarSpace, SequenceSpace, BaseSpace,
+    export VectorSpace, UndefSpace, ScalarSpace, SequenceSpace, BaseSpace,
         TensorSpace, ⊗, TensorIndices, Taylor, Fourier, Chebyshev,
         CartesianSpace, CartesianPower, CartesianProduct, ×,
         order, frequency, space, spaces, dimension, dimensions,
@@ -110,6 +110,10 @@ include("rpa/newton.jl")
 
 # Deprecated functions
 
+function EmptySpace()
+    Base.depwarn("`EmptySpace()` is deprecated and will be removed in a future version, use `UndefSpace()` instead", :EmptySpace; force=true)
+    return UndefSpace()
+end
 function ParameterSpace()
     Base.depwarn("`ParameterSpace()` is deprecated and will be removed in a future version, use `ScalarSpace()` instead", :ParameterSpace; force=true)
     return ScalarSpace()
@@ -143,6 +147,6 @@ function sequence_error(a)
     return total_error(a)
 end
 
-    export ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!, sequence_error
+    export EmptySpace, ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!, sequence_error
 
 end

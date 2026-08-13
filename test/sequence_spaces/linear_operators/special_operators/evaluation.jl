@@ -19,7 +19,7 @@
         ℰ = Evaluation(2.0)
 
         @test domain(Evaluation(nothing), 𝒯) == 𝒯
-        @test domain(ℰ, 𝒯) == EmptySpace()
+        @test domain(ℰ, 𝒯) == UndefSpace()
         @test codomain(Evaluation(nothing), 𝒯) == 𝒯
         @test codomain(ℰ, 𝒯) == Taylor(0)
 
@@ -68,7 +68,7 @@
         ℰ0 = Evaluation(0.0)
 
         @test domain(Evaluation(nothing), ℱ) == ℱ
-        @test domain(ℰ0, ℱ) == EmptySpace()
+        @test domain(ℰ0, ℱ) == UndefSpace()
         @test codomain(Evaluation(nothing), ℱ) == ℱ
         @test codomain(ℰ0, ℱ) == Fourier(0, ω)
 
@@ -122,7 +122,7 @@
         ℰ = Evaluation(0.4)
 
         @test domain(Evaluation(nothing), 𝒞) == 𝒞
-        @test domain(ℰ, 𝒞) == EmptySpace()
+        @test domain(ℰ, 𝒞) == UndefSpace()
         @test codomain(Evaluation(nothing), 𝒞) == 𝒞
         @test codomain(ℰ, 𝒞) == Chebyshev(0)
 
@@ -289,7 +289,7 @@
 
         # a mixed tuple (some `nothing`, some `Number`) has an empty domain on a
         # symmetric tensor space: only the all-`nothing` tuple is handled
-        @test domain(Evaluation((0.3, nothing)), s4) == EmptySpace()
+        @test domain(Evaluation((0.3, nothing)), s4) == UndefSpace()
         @test domain(Evaluation((nothing, nothing)), s4) == s4
     end
 
@@ -363,9 +363,9 @@
     #     @test codomain(Evaluation(nothing), ScalarSpace()) == ScalarSpace()
     #     @test codomain(Evaluation(1.0), ScalarSpace()) == ScalarSpace()
     #
-    #     # `domain` under a `Number` evaluation point is `EmptySpace()`: unlike
+    #     # `domain` under a `Number` evaluation point is `UndefSpace()`: unlike
     #     # `nothing`, this is not meant to be composed with as a plain projection
-    #     @test domain(Evaluation(1.0), ScalarSpace()) == EmptySpace()
+    #     @test domain(Evaluation(1.0), ScalarSpace()) == UndefSpace()
     #
     #     b = Sequence(ScalarSpace(), [5.0])
     #     @test evaluate(b, 2.0) == b

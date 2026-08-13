@@ -15,7 +15,7 @@ end
 Projection(space::VectorSpace, ::Type{T}=Float64) where {T<:Number} = Projection{typeof(space),T}(space)
 
 domain(P::Projection) = P.space # needed for general methods
-function domain(P::Projection, s::EmptySpace) # needed to resolve methods ambiguity
+function domain(P::Projection, s::UndefSpace) # needed to resolve methods ambiguity
     dom = P.space
     _iscompatible(dom, s) || return throw(ArgumentError("spaces must be compatible: projection space is $dom, codomain space is $s"))
     return dom
@@ -70,7 +70,7 @@ Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), pro
 Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 
 _lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
-_lproj(A::AbstractLinearOperator, ::EmptySpace, P::Projection) = ComposedOperator(P, A)
+_lproj(A::AbstractLinearOperator, ::UndefSpace, P::Projection) = ComposedOperator(P, A)
 
 #- also trigger materilization
 
@@ -309,7 +309,7 @@ Base.:*(v::LinearAlgebra.Diagonal, P::Projection{<:CartesianSpace}) = Matrix(v) 
 function Base.:*(P::Projection{<:CartesianSpace}, v::Matrix)
     nspaces(P.space) == size(v, 1) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, matrix has $(size(v, 1)) rows"))
     doms = [_lazy_domain(v[i,j], P.space[i]) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
-    any(sᵢ -> sᵢ isa EmptySpace, doms) &&
+    any(sᵢ -> sᵢ isa UndefSpace, doms) &&
         return [Projection(P.space[i], eltype(P)) * v[i,j] for i ∈ axes(v, 1), j ∈ axes(v, 2)]
     dom = CartesianProduct([reduce(_union, view(doms, :, j)) for j ∈ axes(v, 2)]...)
     CoefType = reduce(promote_type, [_lazy_coeftype(v[i,j], doms[i,j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)])
@@ -321,7 +321,7 @@ function Base.:*(P::Projection{<:CartesianSpace}, v::Matrix)
 end
 _lazy_domain(A, s::VectorSpace) = domain(A, s)
 _lazy_domain(x::Union{Number,UniformScaling}, s::VectorSpace) = domain(UniformScalingOperator(x), s)
-_lazy_domain(::AbstractMatrix, ::VectorSpace) = EmptySpace()
+_lazy_domain(::AbstractMatrix, ::VectorSpace) = UndefSpace()
 
 function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
     nspaces(P.space) == size(v, 2) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, matrix has $(size(v, 2)) columns"))

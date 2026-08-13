@@ -24,7 +24,7 @@
         Πf = Projection(Fourier(2, 1.0))
         @test_throws ArgumentError domain(Πf, Fourier(2, 2.0)) # frequency mismatch
         @test_throws ArgumentError codomain(Πf, Fourier(2, 2.0))
-        @test_throws ArgumentError codomain(Π, EmptySpace()) # Taylor(2) incompatible with ∅
+        @test_throws ArgumentError codomain(Π, UndefSpace()) # Taylor(2) incompatible with UndefSpace()
     end
 
     @testset "coefficients(Projection) materializes the identity" begin
@@ -295,14 +295,14 @@
             @test ∂ * (-Π₂) == -(∂ * Π₂)
         end
 
-        @testset "Projection(∅) * AbstractLinearOperator: lazy ComposedOperator" begin
-            # `domain(A, ∅) = ∅` for any AbstractLinearOperator, so `_lproj` cannot
+        @testset "Projection(UndefSpace()) * AbstractLinearOperator: lazy ComposedOperator" begin
+            # `domain(A, UndefSpace()) = UndefSpace()` for any AbstractLinearOperator, so `_lproj` cannot
             # materialize and instead wraps the pair lazily
-            Π∅ = Projection(EmptySpace())
+            Π_undef = Projection(UndefSpace())
             ∂ = Derivative(1)
-            r = Π∅ * ∂
+            r = Π_undef * ∂
             @test r isa ComposedOperator
-            @test r.outer === Π∅
+            @test r.outer === Π_undef
             @test r.inner === ∂
         end
     end
@@ -360,10 +360,10 @@
     end
 
     #
-    # eltype covariance, interval(P) wrapping, and domain(P, EmptySpace())
+    # eltype covariance, interval(P) wrapping, and domain(P, UndefSpace())
     #
 
-    @testset "eltype covariance, interval wrapping, domain(EmptySpace)" begin
+    @testset "eltype covariance, interval wrapping, domain(UndefSpace)" begin
         # the type-level `eltype` method is declared with the covariant `<:` in front of
         # `Projection{...}` (matching `LinearOperator`'s analogous
         # `Base.eltype(::Type{<:LinearOperator{...}})`), so it matches concrete
@@ -379,10 +379,10 @@
         @test Π_I.space == 𝒯
         @test eltype(Π_I) == Interval{Float64}
 
-        # `domain(P::Projection, ::EmptySpace)` is resolved by a dedicated method
-        # (`domain(P::Projection, s::EmptySpace)`) that checks `_iscompatible` just like
-        # `codomain` does; `Taylor(2)` is incompatible with `∅`, so both throw `ArgumentError`
-        @test_throws ArgumentError domain(Π, EmptySpace())
-        @test_throws ArgumentError codomain(Π, EmptySpace())
+        # `domain(P::Projection, ::UndefSpace)` is resolved by a dedicated method
+        # (`domain(P::Projection, s::UndefSpace)`) that checks `_iscompatible` just like
+        # `codomain` does; `Taylor(2)` is incompatible with `UndefSpace()`, so both throw `ArgumentError`
+        @test_throws ArgumentError domain(Π, UndefSpace())
+        @test_throws ArgumentError codomain(Π, UndefSpace())
     end
 end

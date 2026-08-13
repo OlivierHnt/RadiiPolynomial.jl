@@ -367,8 +367,8 @@
         @testset "UniformScalingOperator" begin
             J = UniformScalingOperator(2.0)
             @test domain(J, 𝒯₂) == 𝒯₂ && codomain(J, 𝒯₂) == 𝒯₂ # acts as the identity space-wise
-            @test domain(J, EmptySpace()) == EmptySpace() # ambiguity-resolving method
-            @test codomain(J, EmptySpace()) == EmptySpace()
+            @test domain(J, UndefSpace()) == UndefSpace() # ambiguity-resolving method
+            @test codomain(J, UndefSpace()) == UndefSpace()
             @test eltype(J) == Float64
             @test zero(J) == UniformScalingOperator(0.0)
             @test one(J) == UniformScalingOperator(1.0)

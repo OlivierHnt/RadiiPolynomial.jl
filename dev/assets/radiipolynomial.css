@@ -81,7 +81,7 @@ html.theme--catppuccin-macchiato .admonition.is-category-theorem,
 html.theme--catppuccin-mocha .admonition.is-category-theorem {
   background-color: rgba(127, 127, 127, 0.1); }
 
-/* "About this proof" admonition
+/* "About this example" admonition
 
    `!!! about "..."` gives every example a machine-readable header: what it proves, what it adds
    over the previous rung, what it assumes, and its position on the ladder. Deliberately quieter

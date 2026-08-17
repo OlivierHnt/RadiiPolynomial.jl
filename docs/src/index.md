@@ -1,6 +1,6 @@
 # RadiiPolynomial.jl
 
-**RadiiPolynomial validates a numerical solution to an equation** by computing rigorously a radius ``r`` such that a true solution exists within a closed ball (and is the only one there) centered at the approximation and of radius ``r``.
+**RadiiPolynomial is a software library to validate a numerical solution to an equation** by computing rigorously a radius ``r`` such that an exact solution exists within a closed ball (and is the only one there) centered at the approximation and of radius ``r``.
 
 Here is a complete computer-assisted proof for the initial value problem
 
@@ -11,7 +11,7 @@ u(0) = 1/2.
 \end{cases}
 ```
 
-It proves that a genuine analytic solution lies within `inf(ie)` of a polynomial approximation.
+It proves that an analytic solution lies within `inf(ie)` of a polynomial approximation.
 
 ```@example index
 using RadiiPolynomial, LinearAlgebra
@@ -50,13 +50,13 @@ A complete walkthrough of this example is given in [The logistic equation](@ref)
 <div class="boxintro-container">
 ```
 
-**[Understand the method](radii_polynomial_approach.md)** -- The Radii Polynomial Theorem, and the five steps every proof on this site follows.
+**[Understand the method](radii_polynomial_approach.md)** -- The Radii Polynomial Theorem, and the five steps every validation on this site follows.
 Start here if the method is new to you.
 
-**[Get started](getting_started/first_proof.md)** -- Four short pages, from a cube root to an infinite-dimensional problem.
+**[Get started](getting_started/first_validation.md)** -- Four short pages, from a cube root to an infinite-dimensional problem.
 Look here if you have never done a computer-assisted proof.
 
-**[See what can be validated](examples/index_examples.md)** -- Worked proofs of steady states, periodic orbits, branches through folds and whole regions of parameter space.
+**[See what can be validated](examples/index_examples.md)** -- Worked validation of steady states, periodic orbits, branches through folds and whole regions of parameter space.
 Look here for a problem shaped like yours.
 
 **[Look something up](manual/vector_spaces.md)** -- The reference for spaces, sequences, operators and norms.

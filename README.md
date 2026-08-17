@@ -18,9 +18,9 @@ Applications to dynamical systems include:
 
 ⚡ Bifurcation diagrams and parameter-dependent solution branches
 
-### 🔎 A complete proof
+### 🔎 A complete validation
 
-Here is a computer-assisted proof for the initial value problem
+Here is a computer-assisted proof of a solution to the initial value problem
 
 ```math
 \begin{cases}
@@ -61,15 +61,16 @@ inf(ie), proved
 (2.232051998824705e-6, true)
 ```
 
-That `proved == true` is what distinguishes this from a standard numerical ODE solver: it is now a theorem that a genuine analytic solution of the initial value problem lies within `inf(ie)` of the polynomial `u_bar`, and that it is the only one within `sup(ie)`. A complete walkthrough of this proof is given in [The logistic equation](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/logistic_equation).
+That `proved == true` is what distinguishes this from a standard numerical ODE solver: it is now a theorem that a genuine analytic solution of the initial value problem lies within `inf(ie)` of the polynomial `u_bar`, and that it is the only one within `sup(ie)`.
+A complete walkthrough of this validation is given in [The logistic equation](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/logistic_equation).
 
 ### 🧭 Documentation
 
-**[The radii polynomial approach](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/radii_polynomial_approach)** -- The Radii Polynomial Theorem, and the five steps every proof follows. Start here if the method is new to you.
+**[The radii polynomial approach](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/radii_polynomial_approach)** -- The Radii Polynomial Theorem, and the five steps every validation follows. Start here if the method is new to you.
 
-**[Getting started](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/first_proof)** -- Four short pages, from a cube root to an infinite-dimensional problem. Look here if you have never done a computer-assisted proof.
+**[Getting started](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/first_validation)** -- Four short pages, from a cube root to an infinite-dimensional problem. Look here if you have never done a computer-assisted proof.
 
-**[Examples](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/examples/index_examples)** -- Worked proofs of steady states, periodic orbits, branches through folds and whole regions of parameter space. Look here for a problem shaped like yours.
+**[Examples](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/examples/index_examples)** -- Worked validations of steady states, periodic orbits, branches through folds and whole regions of parameter space. Look here for a problem shaped like yours.
 
 **[Manual](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/manual/vector_spaces)** -- The reference for spaces, sequences, operators and norms. Look here when you need a particular tool.
 

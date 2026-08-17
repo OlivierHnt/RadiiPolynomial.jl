@@ -3,7 +3,7 @@
 Each page is a complete computer-assisted proof, built from the same five steps as
 [The radii polynomial approach](@ref).
 
-If you are new to the method, work through [Getting started](@ref "A first proof") instead.
+If you are new to the method, work through [Getting started](@ref "A first validation") instead.
 
 ## Find your problem
 

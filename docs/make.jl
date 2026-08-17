@@ -1,4 +1,5 @@
-using Documenter, RadiiPolynomial
+using Documenter, DocumenterCodeBlocks
+using RadiiPolynomial
 using CairoMakie
 CairoMakie.activate!(type = "png", px_per_unit = 2)
 
@@ -8,7 +9,7 @@ const PAGES = [
     "Home" => "index.md",
     "The radii polynomial approach" => "radii_polynomial_approach.md",
     "Getting started" => [
-        "getting_started/first_proof.md",
+        "getting_started/first_validation.md",
         "getting_started/lorenz_equilibria.md",
         "getting_started/cubic_root_cont.md",
         "getting_started/logistic_equation.md"
@@ -55,6 +56,7 @@ makedocs(;
         ))
     ),
     pages = PAGES,
+    plugins = [CodeBlocks()],
     checkdocs = :exports,
     draft = get(ENV, "RP_DOCS_DRAFT", "false") == "true",
     warnonly = [:missing_docs]

@@ -5,7 +5,7 @@ Depth = 4
 
 # Equilibria of the Lorenz system
 
-We prove the existence of the two nontrivial equilibria of the Lorenz system
+We prove the existence of the equilibria of the Lorenz system
 
 ```math
 \begin{aligned}
@@ -18,19 +18,19 @@ We prove the existence of the two nontrivial equilibria of the Lorenz system
 
 The unknowns are a point of ``\mathbb{R}^3`` rather than a number, which is the simplest possible setting in which to meet the library's **cartesian spaces**.
 
-!!! about "About this proof"
-    **Proves** the two nontrivial equilibria ``C^\pm`` of the Lorenz system.
+!!! about "About this example"
+    **Proves** the equilibria of the Lorenz system.
 
     **Compares** the [Radii Polynomial Theorem](@ref radii_polynomial_approach) in its first- and second-order form: three bounds, ``Y``, ``Z_1`` and ``Z_2``.
 
     **Involves** an unknown with components: [`ScalarSpace`](@ref), `^`, [`component`](@ref) and the inner/outer split of [`NormedCartesianSpace`](@ref).
 
-    **Assumes** [A first proof](@ref).
+    **Assumes** [A first validation](@ref).
 
 ### Step 1: Formulation
 
 The equilibria are the zeros of the vector field itself, ``F(u) = 0`` with ``u = (u^{(1)}, u^{(2)}, u^{(3)}) \in \mathbb{R}^3``.
-We take ``X = \mathbb{R}^3`` with the norm ``\|u\|_X = \max\left(|u^{(1)}|, |u^{(2)}|, |u^{(3)}| \right)``.
+We take ``\mathscr{X} = \mathbb{R}^3`` with the norm ``\|u\|_{\mathscr{X}} = \max\left(|u^{(1)}|, |u^{(2)}|, |u^{(3)}| \right)``.
 
 In the library, ``\mathbb{R}^3`` is constructed via `ScalarSpace()^3`: a [`CartesianPower`](@ref) of the space of plain numbers [`ScalarSpace`](@ref).
 A [`Sequence`](@ref) in that space just wraps a 3-coefficient vector and a [`LinearOperator`](@ref) acting on them wraps a 3-by-3 matrix.
@@ -73,7 +73,7 @@ params = (10.0, 28.0, 8/3)
 u_bar, converged = newton(u -> (F(u, params), DF(u, params)), Sequence(X, [8.0, 8.0, 26.0]))
 ```
 
-The components are reachable with [`component`](@ref), which is how you address a block of a cartesian unknown:
+The components are reachable with [`component`](@ref), which is how to retrieve a block of a cartesian unknown:
 
 ```@example lorenz_equilibria
 component(u_bar, 3)
@@ -102,13 +102,13 @@ A_i = interval(A)
 Y = norm(A_i * F(u_i, params_i), X_norm)
 ```
 
-#### A first-order proof
+#### First-order validation
 
 The first-order Radii Polynomial Theorem needs a bound on ``\|I - A DF(u)\|`` over an entire ball.
-As in [A first proof](@ref), interval arithmetic supplies it by making every component an interval of radius ``R`` and evaluate `DF` there.
+As in [A first validation](@ref), interval arithmetic supplies it by making every component an interval of radius ``R`` and evaluate `DF` there.
 
 ```@example lorenz_equilibria
-R = 1.0
+R = 10sup(Y)
 u_R = Sequence(X, interval.(coefficients(u_bar), R; format = :midpoint))
 
 Z₁_R = opnorm(I - A_i * DF(u_R, params_i), X_norm)
@@ -162,14 +162,11 @@ ie, proved = interval_of_existence(Y, Z₁, Z₂, R)
 inf(ie), sup(ie), proved
 ```
 
-The uniqueness radius is ``2\times`` that of the first-order proof.
-
 ### Step 4: Conclusion
 
-There exists an exact equilibrium of the Lorenz system within `inf(ie)` of `u_bar`, and it is the
-only one within `sup(ie)`.
+There exists an exact equilibrium of the Lorenz system within `inf(ie)` of `u_bar`, and it is the only one within `sup(ie)`.
 
-The next table compares the two proofs.
+The next table compares the two validations.
 
 | | error bound `inf(ie)` | uniqueness radius `sup(ie)` | needs |
 |:--|:--|:--|:--|

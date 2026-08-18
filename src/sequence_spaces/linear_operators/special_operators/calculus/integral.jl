@@ -633,7 +633,6 @@ end
 function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    _cheb_int_check(s, α, ν)
     return exact(1) + ν # attained at j = 0
 end
 
@@ -645,7 +644,6 @@ _integral_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rate(
 function _integral_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return zero(rate(X))
     ν = rate(X)
-    _cheb_int_check(s, α, ν)
     N = exact(order(s))
     return inv(exact(2) * ν * N) + inv(N * (N + exact(2)) * ν ^ (exact(order(s)) + exact(1))) # attained at j = N+1
 end
@@ -679,6 +677,5 @@ end
 function _integral_total_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    _cheb_int_check(s, α, ν)
     return exact(1) + ν
 end

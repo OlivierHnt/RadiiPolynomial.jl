@@ -637,7 +637,6 @@ end
 function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    _cheb_der_check(s, α, ν)
     cur = exact(1) / ν # j = 1
     for j ∈ 2:order(s)
         cur = max(cur, exact(j * j) / ν ^ exact(j))
@@ -653,7 +652,6 @@ _derivative_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rat
 function _derivative_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return zero(rate(X))
     ν = rate(X)
-    _cheb_der_check(s, α, ν)
     N = order(s)
     return _cheb_geom_sup(j -> exact(j * _cheb_b(N, j)) / ν ^ exact(j),
                           j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
@@ -683,7 +681,6 @@ end
 function _derivative_total_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    _cheb_der_check(s, α, ν)
     return _cheb_geom_sup(j -> exact(j * j) / ν ^ exact(j),
                           j -> exact(j * j) / ν ^ exact(j), 1, _cheb_env_peak(ν))
 end

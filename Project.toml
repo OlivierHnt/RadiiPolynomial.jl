@@ -1,6 +1,6 @@
 name = "RadiiPolynomial"
 uuid = "f2081a94-c849-46b6-8dc9-07bb90ed72a9"
-version = "0.11.4"
+version = "0.11.5"
 authors = ["Olivier Hénot"]
 
 [deps]

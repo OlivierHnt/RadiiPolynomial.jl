@@ -347,13 +347,14 @@
 
         @testset "Chebyshev: triangular propagation" begin
             #= D is upper triangular in the halved convention, (Du)_i = Σ_{j>i, j-i odd} 2j u_j, so a
-               head column j ≤ N reaches only rows i ≤ N-1 = N' while a tail column j > N reaches head
-               rows too. Support separation fails in the tail → finite direction only, so four
-               separate constants are needed. Each is a restricted column norm, and is checked
-               here against directly measured columns. =#
+               head column j ≤ N reaches only rows i ≤ N' = max(0, N-1) while a tail column j > N
+               reaches head rows too. Support separation fails in the tail → finite direction only, so
+               four separate constants are needed. Each is a restricted column norm, and is checked
+               here against directly measured columns. N = 0 is the degenerate end of the family: the
+               only head column is j = 0, which D annihilates. =#
             ν = 2.0
             Xc = Ell1(GeometricWeight(ν))
-            for N ∈ (1, 3, 8)
+            for N ∈ (0, 1, 3, 8)
                 s = Chebyshev(N)
                 # measure ‖Π• D e_j‖_{Ell1()} / w(j) directly, w(0) = 1, w(k) = 2νᵏ
                 big, J = Chebyshev(80), 80
@@ -373,6 +374,8 @@
 
             # the head and tail row counts of a tail column add up to the full column: b_N(j) + 2⌈(j-N)/2⌉ = j
             @test all(RadiiPolynomial._cheb_b(N, j) + 2*cld(j-N, 2) == j for N ∈ 1:12, j ∈ 13:40 if j > N)
+            # at N = 0 the head is the single row 0, which a tail column reaches exactly when j is odd
+            @test all(RadiiPolynomial._cheb_b(0, j) == isodd(j) for j ∈ 1:40)
 
             # the finite error of the image now sees the tail error of the input
             a_cheb = InfiniteSequence(Sequence(Chebyshev(3), [1.0, 0.5, 0.2, 0.05]), 0.5, 0.25, 0.75, Xc)
@@ -386,12 +389,15 @@
             @test total_error(Da) == min(κo * 0.75, κf * 0.5 + κc * 0.25 + κt * 0.25)
             @test banachspace(Da) == Ell1()
 
-            # α = 0 is the identity; α ≥ 2, ν ≤ 1 and order 0 are out of scope
+            # α = 0 is the identity
             @test RadiiPolynomial._derivative_cross_error(Xc, Chebyshev(2), 0) == 0.0
             @test RadiiPolynomial._derivative_tail_error(Xc, Chebyshev(2), 0) == 1.0
-            @test_throws DomainError RadiiPolynomial._derivative_finite_error(Xc, Chebyshev(2), 2)
+
+            # ν = 1 leaves j²ν^{-j} unbounded, so no factor exists, exactly as for Taylor/Fourier
             @test_throws DomainError RadiiPolynomial._derivative_total_error(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1)
-            @test_throws DomainError RadiiPolynomial._derivative_cross_error(Xc, Chebyshev(0), 1)
+
+            # α ≥ 2 never reaches the error factors: the differentiated sequence is computed first
+            @test_throws DomainError differentiate(a_cheb, 2)
 
             #= Tensor rule. For a *product* row set the column norm factorizes, the finite rows F_{N'}
                are a product and the columns outside the box F_N are the union of the slabs

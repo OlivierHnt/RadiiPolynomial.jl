@@ -644,8 +644,12 @@ _integral_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rate(
 function _integral_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return zero(rate(X))
     ν = rate(X)
-    N = exact(order(s))
-    return inv(exact(2) * ν * N) + inv(N * (N + exact(2)) * ν ^ (exact(order(s)) + exact(1))) # attained at j = N+1
+    #= A tail column j > N of ∫ hits the rows 0, j-1 and j+1, of which the head Chebyshev(N+1)
+       keeps row 0 and, when j ≤ N+2, row j-1; the resulting norm 1/(νʲ(j²-1)) + 1/(2ν(j-1))
+       decreases in j, so it is attained at the first tail column with two head rows. For N = 0
+       that is j = 2, the column j = 1 being the short one whose only head row is row 0. =#
+    j = exact(max(order(s) + 1, 2))
+    return inv(exact(2) * ν * (j - exact(1))) + inv((j - exact(1)) * (j + exact(1)) * ν ^ j)
 end
 
 _integral_cross_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =

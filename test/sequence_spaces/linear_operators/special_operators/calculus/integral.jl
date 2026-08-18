@@ -336,8 +336,10 @@
                column leaks into that head row: support separation fails in the tail → finite
                direction only, so four separate constants are needed. Each has a closed form,
                checked here against directly measured column norms (source and target norms are
-               both weighted by ν, and N' = N + 1). =#
-            for ν ∈ (1.0, 1.5, 2.0), N ∈ (1, 3, 8)
+               both weighted by ν, and N' = N + 1). N = 0 is the degenerate end of the family: its
+               first tail column j = 1 is the short one that misses row j-1, so the cross constant
+               is attained one column later. =#
+            for ν ∈ (1.0, 1.5, 2.0), N ∈ (0, 1, 3, 8)
                 Xc = Ell1(GeometricWeight(ν))
                 s = Chebyshev(N)
                 big, J = Chebyshev(80), 80
@@ -370,12 +372,13 @@
             @test total_error(∫a) == min(κo * 0.75, κf * 0.5 + κc * 0.25 + κt * 0.25)
             @test banachspace(∫a) == Xc
 
-            # unlike the derivative, ν = 1 is admissible; α ≥ 2 and order 0 are not
+            # unlike the derivative, ν = 1 is admissible; α = 0 is the identity
             @test RadiiPolynomial._integral_finite_error(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1) == 2.0
             @test RadiiPolynomial._integral_cross_error(Xc, Chebyshev(2), 0) == 0.0
             @test RadiiPolynomial._integral_tail_error(Xc, Chebyshev(2), 0) == 1.0
-            @test_throws DomainError RadiiPolynomial._integral_finite_error(Xc, Chebyshev(2), 2)
-            @test_throws DomainError RadiiPolynomial._integral_cross_error(Xc, Chebyshev(0), 1)
+
+            # α ≥ 2 never reaches the error factors: the integrated sequence is computed first
+            @test_throws DomainError integrate(a_cheb, 2)
         end
     end
 

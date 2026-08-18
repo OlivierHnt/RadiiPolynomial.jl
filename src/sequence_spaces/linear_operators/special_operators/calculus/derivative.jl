@@ -566,11 +566,18 @@ function _geom_kfact_sup(ν, α::Int, N::Int)
     return cur_max
 end
 
+#= In the halved convention D is upper triangular, (D u)_i = Σ_{j > i, j-i odd} 2j u_j, so with
+   w(0) = 1 and w(k) = 2νᵏ the full column norm is ‖D e_j‖_{Ell1()} / w(j) = j²/νʲ. The codomain
+   Chebyshev(N') with N' = max(0, N-1) splits a tail column j > N into its head rows i ≤ N' and
+   its tail rows i > N', the latter numbering ⌈(j-N'-1)/2⌉, which gives the restricted column
+   norms j·b_N(j)/νʲ and j·(j-b_N(j))/νʲ. =#
+_cheb_b(N::Int, j::Int) = j - 2 * cld(j - max(1, N), 2)
+
 function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
     N = order(s)
-    return _cheb_geom_sup(j -> exact(2j * cld(j - N, 2)) / ν ^ exact(j),
+    return _cheb_geom_sup(j -> exact(j * (j - _cheb_b(N, j))) / ν ^ exact(j),
                           j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
 end
 
@@ -591,7 +598,13 @@ function _cheb_geom_sup(f, env, j₀::Int, peak_upper::Int)
     return throw(DomainError(j₀, "could not certify the supremum of the Chebyshev derivative column norms up to j = $safety"))
 end
 
-_cheb_env_peak(ν) = max(1, ceil(Int, sup(inv(sqrt(ν) - exact(1)))))
+# j²ν^{-j} strictly decreases past j = 1/(√ν - 1); as for `_geom_kfact_sup`, an unbounded
+# envelope at ν = 1 leaves no supremum to certify
+function _cheb_env_peak(ν)
+    inf(ν) > 1 || return throw(DomainError(ν,
+        "_cheb_env_peak requires the geometric rate to satisfy ν > 1"))
+    return max(1, ceil(Int, sup(inv(sqrt(ν) - exact(1)))))
+end
 
 #-
 
@@ -637,8 +650,10 @@ end
 function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
+    N = order(s)
+    N == 0 && return zero(ν) # the only head column is j = 0 and D e_0 = 0
     cur = exact(1) / ν # j = 1
-    for j ∈ 2:order(s)
+    for j ∈ 2:N
         cur = max(cur, exact(j * j) / ν ^ exact(j))
     end
     return cur

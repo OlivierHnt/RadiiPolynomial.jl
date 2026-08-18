@@ -7,14 +7,13 @@
         @test +A == A
         @test -A == LinearOperator(𝒯, 𝒯, [-1.0 -2.0; -3.0 -4.0])
 
-        # `-` on a generic (non-`LinearOperator`) `AbstractLinearOperator` stays lazy: it
-        # wraps its argument in a `Negate`, it does not materialize anything.
+        # `-` on a lazily composed operator stays lazy: nothing is materialized
         B = LinearOperator(𝒯, 𝒯, [5.0 6.0; 7.0 8.0])
-        S = A ∘ B # lazy `ComposedOperator`
+        S = A ∘ B
         @test S isa ComposedOperator
         negS = -S
         @test negS isa Negate
-        @test -negS === S # double negation exactly cancels, `-Negate(S) === S`
+        @test -negS === S # double negation cancels exactly
 
         # materializing `-S` must equal minus the materialized product A*B
         AB_expected = [1.0 2.0; 3.0 4.0] * [5.0 6.0; 7.0 8.0]
@@ -23,8 +22,8 @@
 
     @testset "+ and - between LinearOperators: domain/codomain adaptation" begin
         @testset "Taylor" begin
-            𝒯₁ = Taylor(1) # indices 0,1   (dim 2)
-            𝒯₂ = Taylor(2) # indices 0,1,2 (dim 3)
+            𝒯₁ = Taylor(1)
+            𝒯₂ = Taylor(2)
             A = LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0; 3.0 4.0])
             B = LinearOperator(𝒯₂, 𝒯₁, [1.0 2.0 3.0; 4.0 5.0 6.0]) # bigger domain
 
@@ -50,8 +49,8 @@
         end
 
         @testset "Fourier" begin
-            ℱ₁ = Fourier(1, 1.0) # indices -1,0,1     (dim 3)
-            ℱ₂ = Fourier(2, 1.0) # indices -2,...,2   (dim 5)
+            ℱ₁ = Fourier(1, 1.0)
+            ℱ₂ = Fourier(2, 1.0)
             A = LinearOperator(ℱ₁, ℱ₁, Float64[1 2 3; 4 5 6; 7 8 9])
             B = LinearOperator(ℱ₂, ℱ₁, Float64[1 2 3 4 5; 6 7 8 9 10; 11 12 13 14 15])
 
@@ -68,12 +67,12 @@
             𝒞₂ = Chebyshev(2)
             A = LinearOperator(𝒞₁, 𝒞₁, [1.0 2.0; 3.0 4.0])
             B = LinearOperator(𝒞₂, 𝒞₁, [1.0 2.0 3.0; 4.0 5.0 6.0])
-            @test coefficients(A + B) == [2.0 4.0 3.0; 7.0 9.0 6.0] # identical mechanics to Taylor
+            @test coefficients(A + B) == [2.0 4.0 3.0; 7.0 9.0 6.0]
             @test A + B == A - (-B)
         end
 
         @testset "TensorSpace" begin
-            𝒮 = Taylor(1) ⊗ Chebyshev(1) # dim 4
+            𝒮 = Taylor(1) ⊗ Chebyshev(1)
             A = LinearOperator(𝒮, 𝒮, Float64[1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16])
             B = LinearOperator(𝒮, 𝒮, Matrix{Float64}(I, 4, 4))
             @test coefficients(A + B) == coefficients(A) .+ coefficients(B)
@@ -81,8 +80,8 @@
         end
 
         @testset "SymmetricSpace" begin
-            𝓈₂ = evensym(Taylor(2)) # only even powers survive: indices 0,2 (dim 2)
-            𝓈₁ = evensym(Taylor(1)) # index 0 only (dim 1)
+            𝓈₂ = evensym(Taylor(2)) # only even powers survive: indices 0,2
+            𝓈₁ = evensym(Taylor(1)) # index 0 only
             A = LinearOperator(𝓈₂, 𝓈₂, [1.0 2.0; 3.0 4.0])
             B = LinearOperator(𝓈₂, 𝓈₂, [1.0 0.0; 0.0 1.0])
             @test coefficients(A + B) == [2.0 2.0; 3.0 5.0]
@@ -103,21 +102,19 @@
         expected_div = LinearOperator(𝒯, 𝒯, [0.5 1.0; 1.5 2.0])
         @test A / 2.0 == 2.0 \ A == rdiv!(copy(A), 2.0) == ldiv!(2.0, copy(A)) == expected_div
 
-        # Interval{Float64} coefficients
         Ai = LinearOperator(𝒯, 𝒯, interval.([1.0 2.0; 3.0 4.0]))
         r = 2.0 * Ai
         @test all(isequal_interval.(coefficients(r), interval.([2.0 4.0; 6.0 8.0])))
         @test all(isequal_interval.(coefficients(rmul!(copy(Ai), 2.0)), coefficients(r)))
 
-        # ComplexF64 coefficients
         Ac = LinearOperator(𝒯, 𝒯, ComplexF64[1.0+1.0im 2.0; 3.0 4.0-2.0im])
         @test 2.0 * Ac == Ac * 2.0 == rmul!(copy(Ac), 2.0) == lmul!(2.0, copy(Ac)) ==
             LinearOperator(𝒯, 𝒯, ComplexF64[2.0+2.0im 4.0; 6.0 8.0-4.0im])
     end
 
     @testset "* between LinearOperators: materialized product vs ∘ (lazy composition)" begin
-        𝒯₁ = Taylor(1) # dim 2
-        𝒯₂ = Taylor(2) # dim 3
+        𝒯₁ = Taylor(1)
+        𝒯₂ = Taylor(2)
         A = LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0; 3.0 4.0])
         E = LinearOperator(𝒯₂, 𝒯₂, [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0])
 
@@ -187,7 +184,7 @@
         let n = -2
             @test coefficients(A^n) ≈ inv(Amat) * inv(Amat)
         end
-        let n = 4 # trailing_zeros(4)+1 = 3, so the first squaring `while` loop runs twice
+        let n = 4
             @test coefficients(A^n) ≈ Amat * Amat * Amat * Amat
         end
 
@@ -197,8 +194,8 @@
     end
 
     @testset "A + I, A - I, and UniformScaling(Operator) combinations" begin
-        𝒯₁ = Taylor(1) # dim 2
-        𝒯₂ = Taylor(2) # dim 3
+        𝒯₁ = Taylor(1)
+        𝒯₂ = Taylor(2)
         A = LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0; 3.0 4.0])
         Amat = [1.0 2.0; 3.0 4.0]
         identity2 = [1.0 0.0; 0.0 1.0]
@@ -214,7 +211,7 @@
         @test radd!(copy(A), UniformScalingOperator(1.0)) == radd!(copy(A), I)
         @test radd!(copy(A), UniformScalingOperator(2.0)) == LinearOperator(𝒯₁, 𝒯₁, Amat + 2.0 * identity2)
 
-        # `ScalarSpace`: `A[1,1] += J.λ`
+        # on a scalar space the identity is the single entry
         As = LinearOperator(ScalarSpace(), ScalarSpace(), reshape([3.0], 1, 1))
         @test radd!(copy(As), I) == LinearOperator(ScalarSpace(), ScalarSpace(), reshape([4.0], 1, 1))
 
@@ -224,7 +221,7 @@
         expected_D = [2.0 2.0; 3.0 5.0; 5.0 6.0]
         @test coefficients(radd!(copy(D), I)) == expected_D
 
-        # incompatible domain/codomain *types* (Taylor vs Chebyshev): `_iscompatible` fails
+        # incompatible domain/codomain *types* (Taylor vs Chebyshev)
         Dmix = LinearOperator(𝒯₁, Chebyshev(1), [1.0 2.0; 3.0 4.0])
         @test_throws ArgumentError radd!(copy(Dmix), I)
         @test_throws ArgumentError lsub!(I, copy(Dmix))
@@ -244,13 +241,12 @@
             @test A + 2I == LinearOperator(s, s, Amat + 2.0 * identity2)
         end
 
-        # `ScalarSpace` itself
         As = LinearOperator(ScalarSpace(), ScalarSpace(), reshape([3.0], 1, 1))
         @test As + I == LinearOperator(ScalarSpace(), ScalarSpace(), reshape([4.0], 1, 1))
         @test I - As == LinearOperator(ScalarSpace(), ScalarSpace(), reshape([-2.0], 1, 1))
 
         # nested cartesian spaces recurse block by block
-        s = ScalarSpace()^2 × ScalarSpace() # dim 3
+        s = ScalarSpace()^2 × ScalarSpace()
         Bmat = Float64[1 2 3; 4 5 6; 7 8 9]
         identity3 = Matrix{Float64}(I, 3, 3)
         B = LinearOperator(s, s, copy(Bmat))
@@ -258,7 +254,7 @@
         @test I - B == LinearOperator(s, s, identity3 - Bmat)
 
         # a `SequenceSpace` factor puts the tail back, so the sum stays lazy
-        smix = ScalarSpace() × Taylor(1) # dim 3
+        smix = ScalarSpace() × Taylor(1)
         M = LinearOperator(smix, smix, copy(Bmat))
         @test M + I isa Add
         @test project(M + I, smix, smix) == LinearOperator(smix, smix, Bmat + identity3)
@@ -294,9 +290,9 @@
     end
 
     @testset "add!/sub!/lsub!(C, A, B): every domain/codomain-matching branch" begin
-        𝒯₀ = Taylor(0) # dim 1
-        𝒯₁ = Taylor(1) # dim 2
-        𝒯₂ = Taylor(2) # dim 3
+        𝒯₀ = Taylor(0)
+        𝒯₁ = Taylor(1)
+        𝒯₂ = Taylor(2)
 
         @testset "domain(A) == domain(C) && codomain(A) == codomain(C) (B differs)" begin
             A = LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0; 3.0 4.0])
@@ -363,10 +359,10 @@
     end
 
     @testset "cartesian-block operator arithmetic" begin
-        𝒯₁ = Taylor(1) # dim 2
+        𝒯₁ = Taylor(1)
 
         @testset "CartesianPower: +, -, *, mul! on a matching block structure" begin
-            CP = CartesianPower(𝒯₁, 2) # dim 4, two blocks of Taylor(1)
+            CP = CartesianPower(𝒯₁, 2)
 
             Amat = [1.0 2.0 5.0 6.0; 3.0 4.0 7.0 8.0; 9.0 10.0 13.0 14.0; 11.0 12.0 15.0 16.0]
             Bmat = Matrix{Float64}(I, 4, 4)
@@ -385,20 +381,19 @@
         end
 
         @testset "CartesianPower: mismatched suborders adapt per block" begin
-            𝒯₂ = Taylor(2) # dim 3
-            CPa = CartesianPower(𝒯₁, 2) # dim 4 (two blocks of Taylor(1))
-            CPb = CartesianPower(𝒯₂, 2) # dim 6 (two blocks of Taylor(2))
+            𝒯₂ = Taylor(2)
+            CPa = CartesianPower(𝒯₁, 2)
+            CPb = CartesianPower(𝒯₂, 2)
 
-            # the two diagonal blocks reuse the exact Taylor(1)/Taylor(2) example verified
-            # above (a Taylor(1)→Taylor(1) block plus a Taylor(2)→Taylor(1) block); the
-            # off-diagonal blocks are zero, so the sum is again block-diagonal
+            # each diagonal block pairs a Taylor(1)→Taylor(1) block with a Taylor(2)→Taylor(1)
+            # one; the off-diagonal blocks are zero, so the sum is again block-diagonal
             Ablk = [1.0 2.0; 3.0 4.0]
             Bblk = [1.0 2.0 3.0; 4.0 5.0 6.0]
             Z22, Z23 = zeros(2, 2), zeros(2, 3)
             A = LinearOperator(CPa, CPa, [Ablk Z22; Z22 Ablk])
             B = LinearOperator(CPb, CPa, [Bblk Z23; Z23 Bblk])
 
-            expected_blk = [2.0 4.0 3.0; 7.0 9.0 6.0] # the Taylor(1)+Taylor(2) sum, verified above
+            expected_blk = [2.0 4.0 3.0; 7.0 9.0 6.0] # the Taylor(1) + Taylor(2) block sum
             @test coefficients(A + B) == [expected_blk Z23; Z23 expected_blk]
             @test coefficients(component(A + B, 1, 1)) == expected_blk
             @test all(iszero, coefficients(component(A + B, 1, 2)))
@@ -427,10 +422,10 @@
         end
 
         @testset "mixed VectorSpace/CartesianSpace multiplication branches" begin
-            # a single family of 4 operators exercises every mixed `_mul!` dispatch:
+            # a single family of 4 operators covers every mix of plain and cartesian sides:
             # Bfull: CP → CP (pure cartesian), G: CP → 𝕂 (row functional),
             # K: 𝕂 → CP (column/sequence), H: 𝕂 → 𝕂 (plain scalar)
-            CP = CartesianPower(𝒯₁, 2) # dim 4
+            CP = CartesianPower(𝒯₁, 2)
             S = ScalarSpace()
 
             Bmat = Float64[1 0 2 0; 0 1 0 2; 3 0 1 0; 0 3 0 1]
@@ -457,16 +452,15 @@
             @test mul!(outKG, K, G, true, false) == K * G
         end
 
-        @testset "mixed VectorSpace/CartesianSpace _mul!: mismatched-shape (else) branches" begin
-            # each sub-testset forces one specific mixed `_mul!` method away from its
-            # domain/codomain-matching fast path (`mul!(coefficients(C), ...)`) into its
-            # per-block (`component`) else branch, by giving C (or a sub-space) a different
-            # order than the operand it would otherwise match exactly.
+        @testset "mixed VectorSpace/CartesianSpace multiplication: mismatched shapes" begin
+            # each sub-testset gives C (or one of its sub-spaces) a different order from the
+            # operand it would otherwise match exactly, so the product is assembled block
+            # by block instead of in one go
 
             @testset "codomain(A)/domain(B) both cartesian, C cartesian with mismatched codomain" begin
                 S = Taylor(0)
-                CP = CartesianPower(Taylor(1), 2) # dim 4
-                CPc = CartesianPower(Taylor(0), 2) # dim 2, mismatched codomain(C) vs codomain(A)
+                CP = CartesianPower(Taylor(1), 2)
+                CPc = CartesianPower(Taylor(0), 2) # mismatched codomain(C) vs codomain(A)
                 A = LinearOperator(S, CP, reshape([1.0, 2.0, 3.0, 4.0], 4, 1))
                 B = LinearOperator(CP, S, reshape([10.0, 20.0, 30.0, 40.0], 1, 4))
                 C = LinearOperator(CP, CPc, fill(Inf, 2, 4))
@@ -476,9 +470,9 @@
             end
 
             @testset "domain(C) cartesian mismatched, codomain(A)/domain(B) cartesian match" begin
-                CP_A = CartesianPower(Taylor(1), 2) # dim 4, domain(A) == codomain(B)
+                CP_A = CartesianPower(Taylor(1), 2) # domain(A) == codomain(B)
                 S0 = Taylor(0)
-                CP_C = CartesianPower(Taylor(0), 2) # dim 2, mismatched vs domain(B)
+                CP_C = CartesianPower(Taylor(0), 2) # mismatched vs domain(B)
                 A = LinearOperator(CP_A, S0, [1.0 2.0 3.0 4.0])
                 B = LinearOperator(CP_A, CP_A, Matrix{Float64}(I, 4, 4))
 
@@ -494,9 +488,9 @@
             @testset "domain(A) plain/domain(C) cartesian mismatched, B pure plain" begin
                 S = Taylor(0)
                 A = LinearOperator(S, S, reshape([5.0], 1, 1))
-                CP = CartesianPower(Taylor(1), 2) # dim 4, domain(B) == codomain(A)... actually
+                CP = CartesianPower(Taylor(1), 2)
                 B = LinearOperator(CP, S, [10.0 20.0 30.0 40.0])
-                CPc = CartesianPower(Taylor(0), 2) # dim 2, mismatched vs domain(B)
+                CPc = CartesianPower(Taylor(0), 2) # mismatched vs domain(B)
                 C = LinearOperator(CPc, S, fill(Inf, 1, 2))
                 mul!(C, A, B, 1.0, 0.0)
                 # block j: α * A * B[j-th block, index 0] = 5 * B[block j, 0]
@@ -504,8 +498,8 @@
             end
 
             @testset "domain(A)/codomain(B) cartesian match, domain(C) plain mismatched" begin
-                CP_dom = CartesianPower(Taylor(1), 2) # dim 4, domain(A) == codomain(B)
-                CP_codomA = CartesianPower(Taylor(0), 2) # dim 2, codomain(A) == codomain(C)
+                CP_dom = CartesianPower(Taylor(1), 2) # domain(A) == codomain(B)
+                CP_codomA = CartesianPower(Taylor(0), 2) # codomain(A) == codomain(C)
                 S0 = Taylor(0) # domain(B)
                 S1 = Taylor(1) # domain(C), mismatched vs domain(B)
                 A = LinearOperator(CP_dom, CP_codomA, [1.0 2.0 3.0 4.0; 5.0 6.0 7.0 8.0])
@@ -524,7 +518,7 @@
 
             @testset "codomain(A)/codomain(C) cartesian match, domain(A) plain mismatched vs domain(B)" begin
                 S = Taylor(0)
-                CP = CartesianPower(Taylor(1), 2) # dim 4, codomain(A) == codomain(C)
+                CP = CartesianPower(Taylor(1), 2) # codomain(A) == codomain(C)
                 A = LinearOperator(S, CP, reshape([1.0, 2.0, 3.0, 4.0], 4, 1))
                 B = LinearOperator(S, S, reshape([10.0], 1, 1))
                 C = LinearOperator(Taylor(1), CP, fill(Inf, 4, 2)) # domain(C) ≠ domain(B)
@@ -534,7 +528,7 @@
             end
 
             @testset "domain(A) == codomain(B) (both cartesian), C plain mismatched" begin
-                CP = CartesianPower(Taylor(1), 2) # dim 4, domain(A) == codomain(B)
+                CP = CartesianPower(Taylor(1), 2) # domain(A) == codomain(B)
                 S = Taylor(0)
                 Ta1 = Taylor(1) # domain(C), mismatched vs domain(B)
                 A = LinearOperator(CP, S, [1.0 2.0 3.0 4.0])
@@ -553,8 +547,8 @@
 
             @testset "domain(A) ≠ codomain(B) (both cartesian, mismatched order)" begin
                 S = Taylor(0)
-                domA = CartesianPower(Taylor(0), 2) # dim 2
-                codomB = CartesianPower(Taylor(1), 2) # dim 4, different suborder than domA
+                domA = CartesianPower(Taylor(0), 2)
+                codomB = CartesianPower(Taylor(1), 2) # different suborder than domA
                 A = LinearOperator(domA, S, [2.0 5.0])
                 B = LinearOperator(S, codomB, reshape([10.0, 20.0, 30.0, 40.0], 4, 1))
 
@@ -570,7 +564,7 @@
         end
 
         @testset "radd!/rsub!/ladd!/lsub! between two CartesianSpace LinearOperators" begin
-            CP = CartesianPower(𝒯₁, 2) # dim 4
+            CP = CartesianPower(𝒯₁, 2)
             Amat = [1.0 2.0 3.0 4.0; 5.0 6.0 7.0 8.0; 9.0 10.0 11.0 12.0; 13.0 14.0 15.0 16.0]
             Bmat = Matrix{Float64}(I, 4, 4)
             A = LinearOperator(CP, CP, Amat)
@@ -580,9 +574,7 @@
             @test coefficients(radd!(copy(A), B)) == Amat .+ Bmat
             @test coefficients(rsub!(copy(A), B)) == Amat .- Bmat
 
-            # mismatched suborders (reusing the CPa/CPb block example above): `ladd!`/`lsub!`
-            # fall back to the per-block loop, each block resolved by the plain (non-cartesian)
-            # `_ladd!`/`_lsub!`
+            # with mismatched suborders, `ladd!`/`lsub!` fall back to a per-block loop
             𝒯₂ = Taylor(2)
             CPa = CartesianPower(𝒯₁, 2)
             CPb = CartesianPower(𝒯₂, 2)
@@ -592,7 +584,7 @@
             Acart = LinearOperator(CPa, CPa, [Ablk Z22; Z22 Ablk])
             Bcart = LinearOperator(CPb, CPa, [Bblk Z23; Z23 Bblk])
 
-            expected_ladd_blk = [2.0 4.0 3.0; 7.0 9.0 6.0] # the Taylor(1)+Taylor(2) sum, verified above
+            expected_ladd_blk = [2.0 4.0 3.0; 7.0 9.0 6.0] # the Taylor(1) + Taylor(2) block sum
             @test coefficients(ladd!(copy(Acart), copy(Bcart))) == [expected_ladd_blk Z23; Z23 expected_ladd_blk]
 
             # `lsub!` on a mismatched block: `-Bblk` then Ablk is added back on the shared columns
@@ -601,7 +593,7 @@
         end
 
         @testset "Diagonal{UniformScaling} block identity" begin
-            CP = CartesianPower(𝒯₁, 2) # dim 4
+            CP = CartesianPower(𝒯₁, 2)
             Amat = Float64[1 0 2 0; 0 1 0 2; 3 0 1 0; 0 3 0 1]
             A = LinearOperator(CP, CP, Amat)
 
@@ -615,15 +607,14 @@
         end
 
         @testset "Diagonal{UniformScalingOperator} with a nested CartesianSpace block" begin
-            # domain(A) has 2 top-level blocks: the first is itself a CartesianSpace
-            # (CartesianPower(Taylor(1), 2), dim 4), the second is plain (Taylor(0), dim 1);
-            # `_deep_nspaces` of the whole domain is 2 + 1 = 3, matching `length(J.diag)`
-            dom = CartesianPower(𝒯₁, 2) × Taylor(0) # dim 5
+            # the domain has 2 top-level blocks, the first itself cartesian with 2 sub-blocks:
+            # 3 leaf blocks in all, so the diagonal must list 3 scalings
+            dom = CartesianPower(𝒯₁, 2) × Taylor(0)
             A = LinearOperator(dom, dom, Matrix{Float64}(I, 5, 5))
             J = RadiiPolynomial.LinearAlgebra.Diagonal([UniformScalingOperator(2.0), UniformScalingOperator(3.0), UniformScalingOperator(5.0)])
             r = radd!(copy(A), J)
 
-            # component 1 (the nested CartesianSpace) recurses: its own 2 sub-blocks get
+            # component 1 (the nested cartesian block) recurses: its own 2 sub-blocks get
             # +2I and +3I respectively (indices 1,2 and 3,4); component 2 (Taylor(0)) gets +5I
             expected = Matrix{Float64}(RadiiPolynomial.LinearAlgebra.Diagonal([3.0, 3.0, 4.0, 4.0, 6.0]))
             @test coefficients(r) == expected
@@ -635,7 +626,7 @@
         Amat = [1.0 2.0; 3.0 4.0]
         Bmat = [5.0 6.0; 7.0 8.0]
         A = LinearOperator(𝒯, 𝒯, Amat)
-        Ai = interval(A) # `interval(::LinearOperator)` promotes domain, codomain and coefficients
+        Ai = interval(A) # promotes the domain, the codomain and the coefficients
         Bi = LinearOperator(𝒯, 𝒯, interval.(Bmat))
 
         Si = Ai + Bi
@@ -651,13 +642,11 @@
         mul!(Ci, Ai, Bi, true, false)
         @test all(in_interval.(expected_prod, coefficients(Ci)))
 
-        # ComplexF64 coefficients
         Ac = LinearOperator(𝒯, 𝒯, ComplexF64[1.0+1.0im 2.0; 3.0 4.0-2.0im])
         Bc = LinearOperator(𝒯, 𝒯, ComplexF64[1.0 0.0; 0.0 1.0])
         @test coefficients(Ac + Bc) == ComplexF64[2.0+1.0im 2.0; 3.0 5.0-2.0im]
         @test coefficients(Ac * Bc) == coefficients(Ac) # Bc is the identity
 
-        # Complex{Interval{Float64}} promotion
         Aci = LinearOperator(𝒯, 𝒯, complex.(interval.(Amat)))
         Sci = Aci + Ai
         @test eltype(Sci) == Complex{Interval{Float64}}

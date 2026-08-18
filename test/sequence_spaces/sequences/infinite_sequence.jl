@@ -7,37 +7,33 @@
         # low-level constructor: (sequence, finite_error, tail_error, total_error, banachspace)
         ia = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell1())
         @test sequence(ia) == a
-        @test sequence_norm(ia) == 4.0 # ℓ¹ identity-weighted norm of [1,2,1]
+        @test sequence_norm(ia) == 4.0
         @test finite_error(ia) == 0.0
         @test tail_error(ia) == 0.1
         @test total_error(ia) == 0.1
         @test banachspace(ia) == Ell1()
 
-        # kwarg constructor, no kwargs => all errors zero
         ib = InfiniteSequence(a, Ell1())
         @test finite_error(ib) == tail_error(ib) == total_error(ib) == 0.0
 
-        # kwarg constructor, only tail_error given: finite_error defaults to 0,
-        # total_error defaults to finite_error + tail_error
+        # given only a tail error, the finite error defaults to 0 and the total to their sum
         ic = InfiniteSequence(a, Ell1(); tail_error = 0.2)
         @test finite_error(ic) == 0.0
         @test tail_error(ic) == 0.2
         @test total_error(ic) == 0.2
 
-        # kwarg constructor, only finite_error given
         id = InfiniteSequence(a, Ell1(); finite_error = 0.3)
         @test finite_error(id) == 0.3
         @test tail_error(id) == 0.0
         @test total_error(id) == 0.3
 
-        # kwarg constructor, only total_error given: both finite_error and
-        # tail_error default to total_error itself (not to total_error/2)
+        # given only a total error, both the finite and the tail error default to that
+        # same value, not to half of it
         ie = InfiniteSequence(a, Ell1(); total_error = 0.5)
         @test finite_error(ie) == 0.5
         @test tail_error(ie) == 0.5
         @test total_error(ie) == 0.5
 
-        # `space`/`coefficients`-based constructors, equivalent to wrapping a `Sequence` first
         i_f = InfiniteSequence(𝒯, [1.0, 2.0, 1.0], Ell1())
         @test i_f == ib
         i_g = InfiniteSequence(𝒯, [1.0, 2.0, 1.0], 0.0, 0.1, 0.1, Ell1())
@@ -58,8 +54,27 @@
         @test_throws ArgumentError InfiniteSequence(a, 0.0, 0.0, -0.1, Ell1())
 
         # the banach space must be compatible with the sequence space:
-        # a plain SequenceSpace only accepts (tuples of) Ell1/Ell2/EllInf weights
+        # a plain SequenceSpace only accepts (tuples of) Ell1 weights
         @test_throws ArgumentError InfiniteSequence(a, 0.0, 0.0, 0.0, NormedCartesianSpace(Ell1(), Ell1()))
+
+        @testset "only ℓ¹-type norms: ℓ² and ℓ^∞ are not Banach algebras" begin
+            #= A product of two infinite sequences bounds the result by ‖a‖·‖b‖ in whatever
+               norm the sequences carry, which holds only for ℓ¹-type norms. For the all-ones
+               sequence below ‖a‖₂ ≈ 6.40 and ‖a‖₂² = 41.0 while ‖a*a‖₂ ≈ 214.4, and ‖a‖∞ = 1
+               while ‖a*a‖∞ = 41 — the bound would fall below the norm of the truncated part
+               itself. Admitting those norms is therefore unsound. =#
+            n = 40
+            b = Sequence(Taylor(n), ones(n+1))
+            @test norm(b*b, Ell1())   ≤ norm(b, Ell1())^2   # ℓ¹ is a Banach algebra
+            @test norm(b*b, Ell2())   > norm(b, Ell2())^2   # ℓ² is not
+            @test norm(b*b, EllInf()) > norm(b, EllInf())^2 # ℓ^∞ is not
+
+            @test_throws ArgumentError InfiniteSequence(a, 0.0, 0.0, 0.0, Ell2())
+            @test_throws ArgumentError InfiniteSequence(a, 0.0, 0.0, 0.0, EllInf())
+            d2 = Sequence(Taylor(1) ⊗ Fourier(1, 1.0), zeros(6))
+            @test_throws ArgumentError InfiniteSequence(d2, 0.0, 0.0, 0.0, Ell2((GeometricWeight(1.0), GeometricWeight(1.0))))
+            @test_throws ArgumentError InfiniteSequence(d2, 0.0, 0.0, 0.0, EllInf((GeometricWeight(1.0), GeometricWeight(1.0))))
+        end
 
         # a tensor space needs one weight per factor
         d = Sequence(Taylor(1) ⊗ Fourier(1, 1.0), zeros(6))
@@ -107,15 +122,15 @@
         @test banachspace(z) == banachspace(ia)
 
         o = one(ia)
-        @test sequence(o) == Sequence(𝒯, [1.0, 0.0, 0.0]) # constant mode set to 1
+        @test sequence(o) == Sequence(𝒯, [1.0, 0.0, 0.0])
         @test finite_error(o) == tail_error(o) == total_error(o) == 0.0
     end
 
     @testset "float, complex, real, imag, conj, conj!" begin
         ia = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell1())
         fia = float(ia)
-        # `==` on InfiniteSequence requires zero error on *both* sides (see the "=="
-        # testset), so compare the underlying data/bookkeeping directly instead.
+        # `==` requires zero error on *both* sides, so compare the underlying
+        # data and error bookkeeping directly instead
         @test sequence(fia) == sequence(ia)
         @test finite_error(fia) == 0.0 && tail_error(fia) == 0.1 && total_error(fia) == 0.1
 
@@ -181,19 +196,21 @@
         ia = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell1())
         @test norm(a, Ell1()) == 4.0                    # 1+2+1
         @test norm(ia) == 4.1
-        @test norm(ia, banachspace(ia)) == norm(ia)     # explicit X == banachspace(a)
+        @test norm(ia, banachspace(ia)) == norm(ia)
 
-        ia2 = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell2())
+        # ℓ² and ℓ^∞ remain available on a plain sequence; they are refused only as the
+        # norm an infinite sequence carries, since they are not Banach algebras
         @test norm(a, Ell2()) == sqrt(6.0)              # √(1+4+1)
-        @test norm(ia2) == sqrt(6.0) + 0.1
-
-        ia3 = InfiniteSequence(a, 0.0, 0.1, 0.1, EllInf())
         @test norm(a, EllInf()) == 2.0                  # max(1,2,1)
-        @test norm(ia3) == 2.1
 
-        # a Banach space with no known embedding from the sequence's own one is refused rather
-        # than silently trusted, even when the weights happen to coincide numerically (ν = 1)
-        @test_throws DomainError norm(ia3, EllInf(GeometricWeight(1.0)))
+        # `IdentityWeight` and `GeometricWeight(1.0)` describe the same ℓ¹ norm
+        @test norm(ia, Ell1(GeometricWeight(1.0))) == 4.1
+
+        # a Banach space with no known embedding from the sequence's own one is refused
+        # rather than silently trusted
+        @test_throws DomainError norm(ia, Ell1(GeometricWeight(2.0)))
+        @test_throws DomainError norm(ia, EllInf())
+        @test_throws DomainError norm(ia, Ell2())
     end
 
 end

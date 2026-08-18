@@ -1,9 +1,6 @@
 using Test
 using RadiiPolynomial
 
-# The test tree mirrors src/: each source file has exactly one test file, included
-# in the same order as the `include`s of src/RadiiPolynomial.jl.
-
 @testset verbose = true "RadiiPolynomial" begin
     include("sequence_spaces/vector_spaces.jl")
     include("sequence_spaces/symmetry.jl")
@@ -14,6 +11,7 @@ using RadiiPolynomial
     include("sequence_spaces/sequences/fft.jl")
     include("sequence_spaces/sequences/arithmetic.jl")
     include("sequence_spaces/sequences/convolution.jl")
+    include("sequence_spaces/sequences/refinement.jl")
     include("sequence_spaces/sequences/elementary.jl")
 
     include("sequence_spaces/linear_operators/linear_operator.jl")

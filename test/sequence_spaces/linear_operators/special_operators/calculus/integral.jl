@@ -3,8 +3,7 @@
     @testset "Constructors and algebra" begin
         @test order(Integral(1)) == 1
         @test order(Integral(1, 2)) == (1, 2) == order(Integral((1, 2)))
-        @test Integral(1, 2) == Integral((1, 2)) # varargs constructor
-        # composition and powers
+        @test Integral(1, 2) == Integral((1, 2))
         @test Integral(1) * Integral(1) == Integral(1)^2 == Integral(2)
         @test Integral((1, 2)) * Integral((2, 1)) == Integral((3, 3))
         @test Integral((1, 2))^2 == Integral((2, 4))
@@ -47,7 +46,6 @@
             integrate!(Sequence(Taylor(4), [Inf, Inf, Inf, Inf, Inf]), a_𝒯2, 2) ==
             mul!(Sequence(Taylor(4), [Inf, Inf, Inf, Inf, Inf]), ∫², a_𝒯2) == Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12])
 
-        # composition ∫∘∫ == ∫²
         @test ∫¹(∫¹(a_𝒯2)) == ∫²(a_𝒯2)
 
         # derivative ∘ integral == identity (exact, no information lost)
@@ -56,11 +54,10 @@
         # spaces must match in the in-place forms
         @test_throws ArgumentError integrate!(Sequence(Taylor(1), [Inf, Inf]), a_𝒯2)
 
-        # ComplexF64 coefficients, dyadic denominators
+        # dyadic denominators, so `==` is exact
         a_𝒯c = Sequence(Taylor(2), ComplexF64[2 + 2im, -4.0, 6im])
         @test ∫¹(a_𝒯c) == Sequence(Taylor(3), ComplexF64[0.0, 2 + 2im, -2.0, 2im])
 
-        # Interval{Float64} coefficients
         a_𝒯i = Sequence(Taylor(1), interval.([2.0, 4.0]))
         @test integrate(a_𝒯i) == Sequence(Taylor(2), interval.([0.0, 2.0, 2.0])) # dyadic ⇒ degenerate intervals, `==` is safe
         a_𝒯i2 = Sequence(Taylor(2), interval.([1.0, -1.0, 1.0]))
@@ -104,9 +101,7 @@
         @test ∫³(a_ℱ) == ∫¹(∫²(a_ℱ)) == -Sequence(Fourier(1, 1.0), ComplexF64[0.5im, 0.0, -0.5im])
         @test ∫⁴(a_ℱ) == ∫²(∫²(a_ℱ)) == Sequence(Fourier(1, 1.0), ComplexF64[0.5, 0.0, 0.5])
 
-        # `project` builds the matrix entrywise via `getcoefficient`, which branches on n % 4;
-        # the action calls above only ever exercise n % 4 == 1 (via ∫¹). Cross-check the
-        # remaining residues (and n = 0) against the already-verified action results
+        # the materialized matrix must agree with the action for every residue of n mod 4
         @test project(Integral(0), Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) == integrate(a_ℱ, 0) # n = 0
         @test project(∫², Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) == ∫²(a_ℱ) # n % 4 == 2
         @test project(∫³, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a_ℱ) == ∫³(a_ℱ) # n % 4 == 3
@@ -117,7 +112,6 @@
 
         @test_throws ArgumentError integrate!(Sequence(Fourier(2, 1.0), fill(complex(Inf), 5)), a_ℱ)
 
-        # Interval{Float64}/Complex{Interval{Float64}} coefficients
         a_ℱi = Sequence(Fourier(1, 1.0), interval.([0.5, 0.0, 0.5]))
         c_ℱi = integrate(a_ℱi)
         @test isequal_interval(real(c_ℱi[-1]), interval(0.0)) & isequal_interval(imag(c_ℱi[-1]), interval(0.5))
@@ -152,13 +146,13 @@
             integrate!(Sequence(Chebyshev(2), [Inf, Inf, Inf]), a1) ==
             mul!(Sequence(Chebyshev(2), [Inf, Inf, Inf]), ∫¹, a1) == Sequence(Chebyshev(2), [-0.5, 0.5, 0.75])
 
-        # n = 1, order(a) = 2 (general recursive branch; floating-point summation order ⇒ ≈)
+        # n = 1, order(a) = 2 (the summation order differs, hence ≈)
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
         @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a_𝒞) ≈
             mul!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), ∫¹, a_𝒞) ==
             ∫¹(a_𝒞) == integrate!(Sequence(Chebyshev(3), [Inf, Inf, Inf, Inf]), a_𝒞)
 
-        # n = 1, order(a) = 3 (exercises both loops in the general branch; all dyadic ⇒ exact)
+        # n = 1, order(a) = 3 (all dyadic ⇒ exact)
         a3 = Sequence(Chebyshev(3), [1.0, 2.0, 3.0, 4.0])
         @test ∫¹(a3) == integrate!(Sequence(Chebyshev(4), [Inf, Inf, Inf, Inf, Inf]), a3) ==
             mul!(Sequence(Chebyshev(4), [Inf, Inf, Inf, Inf, Inf]), ∫¹, a3) ==
@@ -167,17 +161,15 @@
         # derivative ∘ integral == identity (exact, no information lost)
         @test differentiate(∫¹(a3)) == a3
 
-        # `project` builds the matrix entrywise via `getcoefficient`: n = 0 (identity), and for
-        # n = 1 with i = 0 the odd-j ≥ 3 branch (j = 1 is a separate case, and j = 2 already
-        # exercises the even branch above via `a_𝒞`/`a3`); the row i = 0 contains the inexact
-        # entry 2/(1-j²), so the matrix-vector product is only ≈ the recursion (summation order)
+        # the row i = 0 of the materialized matrix holds the inexact entries 2/(1-j²), so its
+        # product with a sequence is only ≈ the recursion
         @test project(Integral(0), Chebyshev(2), Chebyshev(2), Float64)(a_int) == Sequence(Chebyshev(2), Float64.(coefficients(a_int)))
         @test project(∫¹, Chebyshev(3), Chebyshev(4), Float64)(a3) ≈ ∫¹(a3) # i = 0, j = 3 (odd, ≥ 3)
 
-        # n ≥ 2 is an explicit TODO restriction in the source
+        # integrals of order ≥ 2 are not supported on a Chebyshev space
         @test_throws DomainError integrate(a_𝒞, 2)
 
-        # ComplexF64 coefficients (exact, dyadic)
+        # dyadic coefficients, so `==` is exact
         a_𝒞c = Sequence(Chebyshev(1), ComplexF64[2 + 2im, 4.0])
         @test ∫¹(a_𝒞c) == Sequence(Chebyshev(2), ComplexF64[0 + 2im, 1 + 1im, 1.0])
 
@@ -201,12 +193,9 @@
         @test_throws DomainError integrate(a_bad2, (1, 0))
 
         @testset "Array-based application per tensor dimension" begin
-            # `_apply!`/`_apply` for Integral on a `TensorSpace` dispatch differently depending on
-            # whether a factor sits at dimension 1 (in-place `_apply!`, hardcoded to dimension 1)
-            # or at a later dimension (functional `_apply`, `Val{D}`). The (1,1,1) case above only
-            # ever exercises n = 1 for whichever factor happens to occupy each dimension; cross-check
-            # `project` (built entrywise via the independent `getcoefficient` code path) against the
-            # action for a spread of factor positions and orders n
+            # a factor at dimension 1 and a factor at a later dimension are integrated through
+            # different paths, so the materialized operator is cross-checked against the action
+            # for a spread of factor positions and orders n
 
             # Taylor at dim 1 (n = 0, n ≥ 2), Fourier at dim 2 (n = 0, odd n ≥ 3, even n ≥ 2),
             # Chebyshev(order 1) at dim 3 (n = 1)
@@ -229,8 +218,8 @@
                 @test project(ℐα, s_𝑇b, codomain(ℐα, s_𝑇b), ComplexF64) * a_𝑇b ≈ integrate(a_𝑇b, α) == ℐα(a_𝑇b)
             end
 
-            # Chebyshev(order 0) at dim 3, n = 1 (the ord == 0 branch, distinct from order 1 and
-            # order ≥ 3 above)
+            # Chebyshev of order 0 at dim 3, n = 1, distinct from the order 1 and order ≥ 3
+            # cases above
             s_𝑇c = Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0)
             a_𝑇c = Sequence(s_𝑇c, collect(1.0:6.0))
             selectdim(a_𝑇c, 2, 0) .= 0.0 # Fourier mean-free
@@ -251,7 +240,7 @@
     end
 
     @testset "Symmetric space" begin
-        # only Fourier's symmetric bookkeeping is implemented (mirrors Derivative)
+        # only Fourier symmetries carry an integral
         sE = evensym(Fourier(3, 1.0))
         sO = oddsym(Fourier(3, 1.0))
         ∫¹ = Integral(1)
@@ -260,8 +249,8 @@
         @test codomain(∫¹, sE) == sO
         @test codomain(Integral(2), sE) == sE # (-1)² = 1: order-2 integral preserves the symmetry
 
-        # `domain(∫, codom)` inverts the group transform; the diagonal mean-free convention makes
-        # the domain well-defined for any Fourier symmetry (validity of a₀ is checked at action time)
+        # the domain inverts the same group transform; the mean-free convention keeps it
+        # well-defined for any Fourier symmetry, the zero mode being checked at action time
         @test domain(∫¹, sE) == sO
         @test domain(∫¹, sO) == sE
         @test domain(Integral(2), sE) == sE
@@ -297,7 +286,7 @@
         @test finite_error(∫a) == 2.0 * 0.5
         @test tail_error(∫a) == 0.5 * 0.25
         @test total_error(∫a) == min(2.0 * 0.5 + 0.5 * 0.25, 2.0 * 0.75)
-        @test banachspace(∫a) == X # unlike `differentiate`, `integrate` does not force `Ell1()`
+        @test banachspace(∫a) == X # the integrated sequence keeps the norm of the input
 
         # guaranteed-zero errors skip the factors: error-free Fourier integration works
         b = InfiniteSequence(Sequence(Fourier(1, 1.0), [0.5im, 0.0, -0.5im]), X)
@@ -305,8 +294,8 @@
         @test sequence(∫b) == integrate(sequence(b))
         @test iszero(total_error(∫b))
 
-        # the skip is genuine: with a weight that has no `_integral_*_error` method at all,
-        # zero errors still integrate successfully because the factor is never computed
+        # the skip is genuine: with a weight for which no error factor is even defined, a
+        # zero-error sequence still integrates, the factor never being needed
         X_id = Ell1(IdentityWeight())
         b_id = InfiniteSequence(Sequence(Fourier(1, 1.0), [0.5im, 0.0, -0.5im]), X_id)
         ∫b_id = integrate(b_id)
@@ -338,12 +327,56 @@
         @test RadiiPolynomial._integral_finite_error(X, Fourier(0, 0.5), 1) == 0.0
         @test RadiiPolynomial._integral_total_error(X, Fourier(0, 0.5), 1) == inv(0.5)
 
-        # Chebyshev error propagation is unconditionally unimplemented (even for α = 0)
-        @test_throws DomainError RadiiPolynomial._integral_finite_error(X, Chebyshev(2), 1)
-        @test_throws DomainError RadiiPolynomial._integral_tail_error(X, Chebyshev(2), 0)
-        @test_throws DomainError RadiiPolynomial._integral_total_error(X, Chebyshev(2), 1)
-        a_cheb = InfiniteSequence(Sequence(Chebyshev(2), [1.0, 1.0, 1.0]), 0.5, 0.25, 0.75, X)
-        @test_throws DomainError integrate(a_cheb)
+        # every Taylor/Fourier operator separates supports, so the cross column vanishes
+        @test RadiiPolynomial._integral_cross_error(X, Taylor(2), 1) == 0.0
+        @test RadiiPolynomial._integral_cross_error(X, Fourier(3, 1.0), 1) == 0.0
+
+        @testset "Chebyshev: triangular propagation" begin
+            #= In the ∫_{-1}^{t} normalization row 0 is minus the band's value at t = -1, so a tail
+               column leaks into that head row: support separation fails in the tail → finite
+               direction only, so four separate constants are needed. Each has a closed form,
+               checked here against directly measured column norms (source and target norms are
+               both weighted by ν, and N' = N + 1). =#
+            for ν ∈ (1.0, 1.5, 2.0), N ∈ (1, 3, 8)
+                Xc = Ell1(GeometricWeight(ν))
+                s = Chebyshev(N)
+                big, J = Chebyshev(80), 80
+                cols = map(0:J-2) do j
+                    e = Sequence(big, zeros(Float64, J+1)); e[j] = 1.0
+                    img = integrate(e)
+                    head = project(img, Chebyshev(N+1))
+                    w = norm(e, Xc)
+                    (norm(head, Xc) / w, (norm(img, Xc) - norm(head, Xc)) / w, norm(img, Xc) / w)
+                end
+                @test RadiiPolynomial._integral_finite_error(Xc, s, 1) ≈ maximum(c[1] for c ∈ cols[1:N+1])   rtol=1e-12
+                @test RadiiPolynomial._integral_cross_error(Xc, s, 1)  ≈ maximum(c[1] for c ∈ cols[N+2:end]) rtol=1e-12
+                @test RadiiPolynomial._integral_tail_error(Xc, s, 1)   ≈ maximum(c[2] for c ∈ cols[N+2:end]) rtol=1e-12
+                @test RadiiPolynomial._integral_total_error(Xc, s, 1)  ≈ maximum(c[3] for c ∈ cols)          rtol=1e-12
+                # κ_fin = κ_tot = 1 + ν, attained at j = 0
+                @test RadiiPolynomial._integral_finite_error(Xc, s, 1) == 1.0 + ν
+                @test RadiiPolynomial._integral_total_error(Xc, s, 1) == 1.0 + ν
+            end
+
+            # the finite error of the image now sees the tail error of the input
+            Xc = Ell1(GeometricWeight(2.0))
+            a_cheb = InfiniteSequence(Sequence(Chebyshev(3), [1.0, 0.5, 0.2, 0.05]), 0.5, 0.25, 0.75, Xc)
+            ∫a = integrate(a_cheb)
+            κf = RadiiPolynomial._integral_finite_error(Xc, Chebyshev(3), 1)
+            κc = RadiiPolynomial._integral_cross_error(Xc, Chebyshev(3), 1)
+            κt = RadiiPolynomial._integral_tail_error(Xc, Chebyshev(3), 1)
+            κo = RadiiPolynomial._integral_total_error(Xc, Chebyshev(3), 1)
+            @test finite_error(∫a) == κf * 0.5 + κc * 0.25
+            @test tail_error(∫a) == κt * 0.25
+            @test total_error(∫a) == min(κo * 0.75, κf * 0.5 + κc * 0.25 + κt * 0.25)
+            @test banachspace(∫a) == Xc
+
+            # unlike the derivative, ν = 1 is admissible; α ≥ 2 and order 0 are not
+            @test RadiiPolynomial._integral_finite_error(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1) == 2.0
+            @test RadiiPolynomial._integral_cross_error(Xc, Chebyshev(2), 0) == 0.0
+            @test RadiiPolynomial._integral_tail_error(Xc, Chebyshev(2), 0) == 1.0
+            @test_throws DomainError RadiiPolynomial._integral_finite_error(Xc, Chebyshev(2), 2)
+            @test_throws DomainError RadiiPolynomial._integral_cross_error(Xc, Chebyshev(0), 1)
+        end
     end
 
 end

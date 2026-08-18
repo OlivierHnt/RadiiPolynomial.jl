@@ -10,7 +10,6 @@
             @test codomain(+, Taylor(3), Taylor(1)) == Taylor(3)
             @test codomain(+, Fourier(3, 1.0), Fourier(1, 1.0)) == Fourier(3, 1.0)
             @test codomain(+, Chebyshev(0), Chebyshev(2)) == Chebyshev(2)
-            # `-` falls back to the same codomain as `+`
             @test codomain(-, Taylor(1), Taylor(3)) == codomain(+, Taylor(1), Taylor(3))
             # Fourier requires equal frequencies to combine
             @test_throws ArgumentError codomain(+, Fourier(1, 1.0), Fourier(1, 2.0))
@@ -22,8 +21,8 @@
         end
 
         @testset "SymmetricSpace" begin
-            # same symmetry group on both sides (both built by `evensym`/`oddsym`/`d4sym`):
-            # codomain is the union of the underlying spaces, group unchanged
+            # same symmetry group on both sides: the codomain is the union of the
+            # underlying spaces, with the group unchanged
             @test codomain(+, evensym(Taylor(2)), evensym(Taylor(3))) == evensym(Taylor(3))
             @test codomain(+, oddsym(Taylor(2)), oddsym(Taylor(3))) == oddsym(Taylor(3))
             d4a = d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
@@ -78,22 +77,18 @@
         expected_div = Sequence(𝒯, [0.5, 1.0, 1.5])
         @test a / 2.0 == 2.0 \ a == rdiv!(copy(a), 2.0) == ldiv!(2.0, copy(a)) == expected_div
 
-        # Fourier with Interval coefficients
         af = Sequence(Fourier(1, 1.0), [interval(1.0), interval(2.0), interval(3.0)])
         r = 2.0 * af
         @test all(isequal_interval.(coefficients(r), interval.([2.0, 4.0, 6.0])))
         @test all(isequal_interval.(coefficients(rmul!(copy(af), 2.0)), coefficients(r)))
 
-        # Chebyshev with ComplexF64 coefficients
         ac = Sequence(Chebyshev(1), ComplexF64[1.0+1.0im, 2.0-1.0im])
         @test 2.0 * ac == ac * 2.0 == rmul!(copy(ac), 2.0) == lmul!(2.0, copy(ac)) ==
             Sequence(Chebyshev(1), ComplexF64[2.0+2.0im, 4.0-2.0im])
 
-        # TensorSpace
         att = Sequence(Taylor(1) ⊗ Fourier(1, 1.0), collect(1.0:6.0))
         @test att * 2.0 == Sequence(Taylor(1) ⊗ Fourier(1, 1.0), collect(2.0:2.0:12.0))
 
-        # CartesianPower
         acart = Sequence(Taylor(1)^2, [1.0, 2.0, 3.0, 4.0])
         @test acart * 2.0 == rmul!(copy(acart), 2.0) == Sequence(Taylor(1)^2, [2.0, 4.0, 6.0, 8.0])
     end
@@ -122,9 +117,7 @@
             small = Sequence(Taylor(1), fill(Inf, 2))
             @test add!(small, a, b) == Sequence(Taylor(1), [11.0, 22.0])
 
-            # sub! with `a` bigger than `b`: c's space matches a's space directly (not b's),
-            # exercising the `space_a == space_c` branch of `_sub!` (distinct from the
-            # `space_b == space_c` branch exercised by `sub!(out2, a, b)` above)
+            # with `a` bigger than `b`, the target space matches a's space rather than b's
             a_big = Sequence(Taylor(3), [1.0, 2.0, 3.0, 4.0])
             b_small = Sequence(Taylor(1), [10.0, 20.0])
             expected_sub_bigsmall = Sequence(Taylor(3), [-9.0, -18.0, 3.0, 4.0]) # b is zero-padded past order 1
@@ -133,8 +126,6 @@
         end
 
         @testset "rsub!/lsub! fast path when a and b already share the same space" begin
-            # exercises the `space_a == space_b` branch of `_rsub!`/`_lsub!` (the mismatched-space
-            # branch is already exercised above via order-mismatched Taylor sequences)
             a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
             b = Sequence(Taylor(2), [10.0, 20.0, 30.0])
             @test rsub!(copy(a), b) == Sequence(Taylor(2), [-9.0, -18.0, -27.0]) # a .-= b, in place
@@ -143,9 +134,7 @@
 
         @testset "TensorSpace: order bigger in one factor, smaller in the other" begin
             # a is bigger in the Taylor factor but smaller in the Fourier factor (and vice
-            # versa for b), so the codomain differs from *both* a's and b's own space; this
-            # exercises the fully-general (`else`) branch of `_sub!` where none of a, b, c
-            # share a space
+            # versa for b), so the codomain differs from *both* a's and b's own space
             a = Sequence(Taylor(2) ⊗ Fourier(0, 1.0), [1.0, 2.0, 3.0]) # a[(i,0)] = i+1
             b = Sequence(Taylor(0) ⊗ Fourier(1, 1.0), [10.0, 20.0, 30.0]) # b[(0,j)]: j=-1,0,1 -> 10,20,30
             sc = Taylor(2) ⊗ Fourier(1, 1.0)
@@ -166,7 +155,7 @@
             out = Sequence(Fourier(2, 1.0), fill(Inf, 5))
             @test a + b == add!(out, a, b) == expected
 
-            c = Sequence(Fourier(1, 2.0), [1.0, 2.0, 3.0]) # different frequency
+            c = Sequence(Fourier(1, 2.0), [1.0, 2.0, 3.0])
             @test_throws ArgumentError a + c
             @test_throws ArgumentError radd!(copy(a), c)
             @test_throws ArgumentError ladd!(a, copy(c))
@@ -217,17 +206,12 @@
             @test a + b == add!(out, a, b) == expected
             # radd! truncates the result back to a's own (smaller) order
             @test radd!(copy(a), b) == Sequence(Taylor(1)^2, [11.0, 22.0, 43.0, 54.0])
-            # ladd!/lsub! write into b's own (bigger) space and recurse component-by-component
-            # (mismatched CartesianPower spaces), exercising the `else` branch of the
-            # CartesianSpace-specific `_lf!` (ladd!/lsub!)
+            # ladd!/lsub! write into b's own (bigger) space, component by component
             @test ladd!(a, copy(b)) == expected
             @test lsub!(a, copy(b)) == Sequence(Taylor(2)^2, [-9.0, -18.0, -30.0, -37.0, -46.0, -60.0])
         end
 
         @testset "CartesianProduct: matching inner spaces (fast path)" begin
-            # 2-component CartesianProduct with a and b already sharing the same space:
-            # exercises the `space(a) == space(b)` fast path of the CartesianProduct-specific
-            # `_add!`/`_sub!` (the mismatched-space branch is already covered above)
             sp = Taylor(1) × Fourier(1, 1.0)
             a = Sequence(sp, [1.0, 2.0, 3.0, 4.0, 5.0])
             b = Sequence(sp, [10.0, 20.0, 30.0, 40.0, 50.0])
@@ -344,9 +328,7 @@
         r = b + [100.0, 200.0, 300.0]
         @test r == Sequence(s2, [101.0, 2.0, 203.0, 4.0, 5.0, 306.0, 7.0])
 
-        # `-` with the vector on the right recurses through `_rsub!`; since s2's first
-        # component is itself a CartesianSpace (CartesianPower), this exercises the
-        # nested-CartesianSpace branch of `_rsub!` (mirroring `_radd!` above but for `-`)
+        # subtraction recurses through the nested component the same way addition does
         rs = b - [100.0, 200.0, 300.0]
         @test rs == Sequence(s2, [-99.0, 2.0, -197.0, 4.0, 5.0, -294.0, 7.0])
 
@@ -370,7 +352,6 @@
         @test eltype(cc) == ComplexF64
         @test cc == Sequence(Taylor(1), ComplexF64[2.0+2.0im, 4.0+4.0im])
 
-        # Complex{Interval{Float64}} promotion
         aci = Sequence(Taylor(1), Complex{Interval{Float64}}[interval(1.0)+interval(1.0)*im, interval(2.0)])
         bci = Sequence(Taylor(1), [1.0, 1.0])
         cci = aci + bci

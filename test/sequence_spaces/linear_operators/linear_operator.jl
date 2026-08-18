@@ -1,8 +1,8 @@
 @testset "LinearOperator" begin
 
     @testset "Construction, accessors, and dimension checks" begin
-        𝒯 = Taylor(1) # dim 2
-        𝒞 = Chebyshev(2) # dim 3
+        𝒯 = Taylor(1)
+        𝒞 = Chebyshev(2)
         M = [1.0 2.0 3.0 ; 4.0 5.0 6.0] # 2×3: codomain dim 2, domain dim 3
         A = LinearOperator(𝒞, 𝒯, M)
 
@@ -15,17 +15,16 @@
         @test size(A, 1) == 2
         @test size(A, 2) == 3
         @test length(A) == 6
-        @test firstindex(A, 1) == 0 && lastindex(A, 1) == 1 # indices(𝒯)
-        @test firstindex(A, 2) == 0 && lastindex(A, 2) == 2 # indices(𝒞)
-        @test firstindex(A, 3) == 1 && lastindex(A, 3) == 1 # fallback for i ∉ {1,2}
-        @test collect(A) == vec(M) # `iterate` forwards to `coefficients`
+        @test firstindex(A, 1) == 0 && lastindex(A, 1) == 1
+        @test firstindex(A, 2) == 0 && lastindex(A, 2) == 2
+        @test firstindex(A, 3) == 1 && lastindex(A, 3) == 1 # any further dimension is trivial
+        @test collect(A) == vec(M)
 
         # codomain and domain dimensions must match the coefficient matrix size
         @test_throws DimensionMismatch LinearOperator(𝒞, 𝒯, zeros(3, 3))
         @test_throws DimensionMismatch LinearOperator(𝒞, 𝒯, zeros(2, 2))
 
-        # `order`/`frequency` forward to domain/codomain when they are cartesian
-        # (a plain `BaseSpace` such as `Taylor` has no 2-argument `order`/`frequency`)
+        # `order`/`frequency` forward to the domain and codomain when both are cartesian
         ℱ = Fourier(1, 1.5)
         B = LinearOperator(ℱ^2, ℱ^3, zeros(9, 6))
         @test order(B) == (order(ℱ^2), order(ℱ^3)) == ([1, 1], [1, 1, 1])
@@ -35,18 +34,15 @@
     end
 
     @testset "Alternate constructors" begin
-        # `LinearOperator(coefficient::Number)`
         s = LinearOperator(5)
         @test domain(s) == codomain(s) == ScalarSpace()
         @test coefficients(s) == [5;;]
 
-        # `LinearOperator(coefficients::AbstractMatrix)` ≡ ScalarSpace()^n → ScalarSpace()^m
         m = LinearOperator([1 2 3 ; 4 5 6])
         @test domain(m) == ScalarSpace()^3
         @test codomain(m) == ScalarSpace()^2
         @test coefficients(m) == [1 2 3 ; 4 5 6]
 
-        # `LinearOperator(a::Sequence)`: column operator ScalarSpace() → space(a)
         𝒯 = Taylor(1)
         a = Sequence(𝒯, [1.0, 2.0])
         Aa = LinearOperator(a)
@@ -54,7 +50,6 @@
         @test codomain(Aa) == 𝒯
         @test coefficients(Aa) == reshape([1.0, 2.0], 2, 1)
 
-        # round-trip `Sequence(::LinearOperator)`
         @test Sequence(Aa) == a
     end
 
@@ -70,22 +65,21 @@
         @test codomain(A, 𝒯₁) == ℱ₁
         @test codomain(A, ScalarSpace()) == ℱ₁
 
-        # incompatible frequency / incompatible space families throw `ArgumentError`
         @test_throws ArgumentError domain(A, Fourier(1, 2.0))
         @test_throws ArgumentError codomain(A, Fourier(1, 3.0))
     end
 
     @testset "getindex / setindex! in numeric index coordinates" begin
-        𝒯₂ = Taylor(2) # indices 0,1,2
-        𝒯₁ = Taylor(1) # indices 0,1
+        𝒯₂ = Taylor(2)
+        𝒯₁ = Taylor(1)
         M = Float64[1 2 3 ; 4 5 6] # rows = codomain (𝒯₁), cols = domain (𝒯₂)
         A = LinearOperator(𝒯₂, 𝒯₁, copy(M))
 
         @test A[0, 0] == 1.0
         @test A[0, 2] == 3.0
         @test A[1, 1] == 5.0
-        @test A[0:1, 0] == [1.0, 4.0] # range × integer
-        @test A[:, 0] == [1.0, 4.0] # colon over the full codomain
+        @test A[0:1, 0] == [1.0, 4.0]
+        @test A[:, 0] == [1.0, 4.0]
         @test A[0, :] == [1.0, 2.0, 3.0]
 
         @test_throws BoundsError A[5, 0] # 5 ∉ indices(domain(A))
@@ -96,17 +90,16 @@
         @test B[1, 2] == 999.0
         @test A[1, 2] == 6.0 # `copy` does not alias
 
-        # `.=` broadcasting uses `dotview`/`view` under the hood
         C = copy(A)
         C[:, 0] .= [10.0, 20.0]
         @test coefficients(C)[:, 1] == [10.0, 20.0]
     end
 
     @testset "space-based getindex / view (sub-block selection)" begin
-        𝒯₃ = Taylor(3) # indices 0,1,2,3
+        𝒯₃ = Taylor(3)
         B = LinearOperator(𝒯₃, 𝒯₃, Float64[10i+j for i ∈ 0:3, j ∈ 0:3]) # B[i,j] = 10i+j
 
-        sub = B[Taylor(1), Taylor(1)] # restrict to indices 0,1 on both sides
+        sub = B[Taylor(1), Taylor(1)]
         @test domain(sub) == codomain(sub) == Taylor(1)
         @test coefficients(sub) == [0.0 1.0 ; 10.0 11.0] # B[i,j], i,j ∈ {0,1}
 
@@ -153,7 +146,6 @@
         U[2, 2][0, 0] = 555.0
         @test A[2, 3] == 555.0
 
-        # ranges and `:` also select components
         cr = component(A, 1:2, 1)
         @test domain(cr) == Taylor(1) && codomain(cr) == CartesianProduct(Taylor(0), Taylor(0))
         cc = component(A, :, 1)
@@ -187,8 +179,8 @@
     end
 
     @testset "copy, zero, one, similar, fill, fill!" begin
-        𝒯₂ = Taylor(2) # dim 3
-        𝒯₃ = Taylor(3) # dim 4
+        𝒯₂ = Taylor(2)
+        𝒯₃ = Taylor(3)
         A = LinearOperator(𝒯₂, 𝒯₃, Float64[1 2 3 ; 4 5 6 ; 7 8 9 ; 10 11 12])
 
         Ac = copy(A)
@@ -217,7 +209,6 @@
         fill!(F, 3.0)
         @test coefficients(F) == [3.0 3.0]
 
-        # type-level `zero`/`one`/`complex`
         T = LinearOperator{Taylor,Taylor,Matrix{Float64}}
         z = zero(T)
         @test domain(z) == codomain(z) == Taylor(0) && coefficients(z) == [0.0;;]
@@ -246,7 +237,6 @@
         conj!(Bconj)
         @test Bconj == conj(B)
 
-        # binary `complex(A, B)`: combines the coefficients elementwise (same domain/codomain)
         D = LinearOperator(Taylor(1), Taylor(0), [10.0 20.0])
         E = LinearOperator(Taylor(1), Taylor(0), [1.0 2.0])
         @test coefficients(complex(D, E)) == ComplexF64[10+1im 20+2im]
@@ -262,7 +252,6 @@
         Ba = adjoint(B)
         @test coefficients(Ba) == reshape(ComplexF64[1-2im, 3+1im], 2, 1)
 
-        # `transpose`/`adjoint` on a `Sequence` go through `LinearOperator(a)` first
         a = Sequence(Taylor(1), [1.0, 2.0])
         at = transpose(a)
         @test domain(at) == Taylor(1) && codomain(at) == ScalarSpace()
@@ -367,7 +356,7 @@
         @testset "UniformScalingOperator" begin
             J = UniformScalingOperator(2.0)
             @test domain(J, 𝒯₂) == 𝒯₂ && codomain(J, 𝒯₂) == 𝒯₂ # acts as the identity space-wise
-            @test domain(J, UndefSpace()) == UndefSpace() # ambiguity-resolving method
+            @test domain(J, UndefSpace()) == UndefSpace()
             @test codomain(J, UndefSpace()) == UndefSpace()
             @test eltype(J) == Float64
             @test zero(J) == UniformScalingOperator(0.0)
@@ -404,20 +393,13 @@
     end
 
     @testset "space+index tuple-coordinate getindex on LinearOperator" begin
-        # `A[(codom,i),(dom,j)]` forwards to `getcoefficient`; a specific method on `LinearOperator`
-        # resolves what would otherwise be an ambiguity with the plain `getindex(A::LinearOperator, α, β)`
-        # method (untyped α, β also match 2-tuples). `RadiiPolynomial.getcoefficient(A, ..., ...)`
-        # (used internally, e.g. by `project!`) is exercised directly in the symmetric-coordinates
-        # tests above.
         A = LinearOperator(Taylor(2), Taylor(2), Float64[1 2 3 ; 4 5 6 ; 7 8 9])
         @test A[(Taylor(2), 0), (Taylor(2), 0)] == 1.0
         @test A[(Taylor(2), 1), (Taylor(2), 2)] == 6.0
 
-        # both index-coordinate forms must agree on a `TensorSpace` domain/codomain, where a plain
-        # index α is itself a tuple of integers (e.g. `(0,0)`) and hence does NOT match the
-        # `Tuple{VectorSpace,Any}` signature (its first element is an `Int`, not a `VectorSpace`):
-        # the two forms dispatch to different methods but must return the same coefficient.
-        𝒮 = Taylor(1) ⊗ Chebyshev(1) # dim 4
+        # on a tensor product a plain index is itself a tuple of integers, so the two
+        # index-coordinate forms below are distinct, and must agree
+        𝒮 = Taylor(1) ⊗ Chebyshev(1)
         M = Matrix{Float64}(reshape(1:16, 4, 4)) # column-major
         B = LinearOperator(𝒮, 𝒮, M)
         @test B[(0, 0), (1, 1)] == 13.0 # plain tuple-of-integers coordinates
@@ -425,7 +407,7 @@
         @test B[(0, 0), (1, 1)] == B[(𝒮, (0, 0)), (𝒮, (1, 1))]
     end
 
-    @testset "grids of LinearOperators (parameter families, cf. sequences/fft.jl)" begin
+    @testset "grids of LinearOperators (parameter families)" begin
         @testset "Chebyshev parameter: to_grid/to_coef round trip" begin
             s_par = Chebyshev(2)
             dom, codom = Taylor(1), Fourier(1, 1.0)

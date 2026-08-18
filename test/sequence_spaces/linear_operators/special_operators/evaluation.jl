@@ -5,10 +5,8 @@
         @test value(Evaluation(1.0)) == 1.0
         @test Evaluation(nothing) isa Evaluation{Nothing}
         @test value(Evaluation(nothing)) === nothing
-        # tuple constructor and varargs constructor coincide
         @test Evaluation(1.0, nothing, 2.0) == Evaluation((1.0, nothing, 2.0))
         @test value(Evaluation(1.0, nothing, 2.0)) == (1.0, nothing, 2.0)
-        # empty tuple is explicitly rejected
         @test_throws ArgumentError Evaluation()
     end
 
@@ -30,10 +28,9 @@
             mul!(Sequence(Taylor(0), [Inf]), project(ℰ, 𝒯, Taylor(0), Float64), a) ==
             c_expected
         @test a(2.0) == evaluate(a, 2.0) == (ℰ * a) == 9.0 == c_expected[0]
-        # in-place vector form
         @test evaluate!([Inf], a, 2.0) == [9.0]
 
-        # p(0) = 1 (hits the `_safe_iszero(x)` short-circuit branch)
+        # p(0) = 1
         @test a(0.0) == 1.0
 
         # row operator: [x^0, x^1, x^2] evaluated at x = 2
@@ -42,14 +39,11 @@
         # x = nothing is the identity
         @test evaluate(a, nothing) == a
 
-        # mismatched output space
         @test_throws ArgumentError evaluate!(Sequence(Taylor(1), [Inf, Inf]), a, 2.0)
 
-        # complex evaluation point
         z = 1.0 + 2.0im
         @test a(z) ≈ 1.0 - 2.0*z + 3.0*z^2
 
-        # ComplexF64 coefficients
         a_c = Sequence(𝒯, ComplexF64[1.0, -2.0, 3.0])
         @test a_c(2.0) == 9.0 + 0.0im
 
@@ -72,7 +66,7 @@
         @test codomain(Evaluation(nothing), ℱ) == ℱ
         @test codomain(ℰ0, ℱ) == Fourier(0, ω)
 
-        # cis(0) = 1 exactly (`_safe_iszero(x)` branch): c₀ = a₋₁ + a₀ + a₁ = (1+i) + 2 + (1-i) = 4
+        # cis(0) = 1 exactly: c₀ = a₋₁ + a₀ + a₁ = (1+i) + 2 + (1-i) = 4
         c_expected = Sequence(Fourier(0, ω), ComplexF64[4.0])
         @test project(ℰ0, ℱ, Fourier(0, ω), ComplexF64)(a) ==
             evaluate!(Sequence(Fourier(0, ω), [complex(Inf)]), a, 0.0) ==
@@ -110,7 +104,6 @@
         a_r = Sequence(ℱ, [0.5, 1.0, 0.5])
         @test a_r(0.3) isa ComplexF64
 
-        # Interval{Float64} coefficients
         a_i = Sequence(ℱ, interval.([1.0, 2.0, 1.0]))
         @test in_interval(4.0 + 0.0im, a_i(interval(0.0)))
     end
@@ -149,13 +142,13 @@
         @test coefficients(project(Evaluation(-1.0), 𝒞, Chebyshev(0), Float64)) == [1.0 -2.0 2.0]
         @test coefficients(project(Evaluation(0.0), 𝒞, Chebyshev(0), Float64)) == [1.0 0.0 -2.0]
 
-        # order-0 and order-1 special-cased Clenshaw paths
+        # order-0 and order-1 sequences
         a0 = Sequence(Chebyshev(0), [5.0])
         @test a0(0.3) == a0(-0.9) == 5.0
         a1 = Sequence(Chebyshev(1), [1.0, 2.0])
         @test a1(0.3) ≈ 1.0 + 2*2*0.3
 
-        # complex evaluation point (still governed by the same Clenshaw recursion)
+        # complex evaluation point
         z = 0.3 + 0.2im
         @test a(z) ≈ a[0] + 2*a[1]*Tk(1, z) + 2*a[2]*Tk(2, z)
 
@@ -187,7 +180,7 @@
         # (nothing, nothing) is the identity
         @test evaluate(a, (nothing, nothing)) == a
 
-        # partial evaluation exercising the Chebyshev array branch
+        # partial evaluation of a Chebyshev factor
         s2 = Taylor(1) ⊗ Chebyshev(2)
         b = Sequence(s2, collect(1.0:6.0))
         # T₁(0.5)=0.5, T₂(0.5)=-0.5; vᵢ = b(i,0) + 2*0.5*b(i,1) - 2*0.5*b(i,2)
@@ -195,8 +188,7 @@
         @test space(c3) == Taylor(1) ⊗ Chebyshev(0)
         @test c3 == Sequence(Taylor(1) ⊗ Chebyshev(0), [-1.0, 0.0])
 
-        # Fourier as the *leading* tensor factor evaluated at x = 0 (exercises the
-        # array-based `_apply!` zero-shortcut branch for the first factor)
+        # Fourier as the *leading* tensor factor, evaluated at x = 0
         s5 = Fourier(1, 1.0) ⊗ Taylor(1)
         d = Sequence(s5, collect(1.0:6.0))
         # d(k,m): d(-1,0)=1, d(0,0)=2, d(1,0)=3, d(-1,1)=4, d(0,1)=5, d(1,1)=6
@@ -205,9 +197,8 @@
         @test space(c5) == Fourier(0, 1.0) ⊗ Taylor(1)
         @test c5 == Sequence(Fourier(0, 1.0) ⊗ Taylor(1), ComplexF64[6.0, 15.0])
 
-        # Chebyshev as a *non-leading* tensor factor: each closed-form shortcut
-        # (x=0, x=-1, x=1) and each low-order special case (ord=0, ord=1) of the
-        # Clenshaw recursion, all reached through the `Val`-dimension array branch
+        # Chebyshev as a *non-leading* tensor factor: the closed forms at x = 0, ±1
+        # and the low-order cases ord = 0, 1
         e0 = Sequence(Taylor(1) ⊗ Chebyshev(2), collect(1.0:6.0))
         # x=0, ord=2: only the i=2 term contributes, 2%4≠0 ⟹ coefficient -2
         # vᵢ = e0(i,0) - 2*e0(i,2): v₀ = 1-2*5 = -9, v₁ = 2-2*6 = -10
@@ -218,7 +209,7 @@
         @test evaluate(e1, (nothing, -1.0)) == Sequence(Taylor(1) ⊗ Chebyshev(0), [-5.0, -6.0])
         # x=1, ord=1: coefficient +2; vᵢ = e1(i,0) + 2*e1(i,1)
         @test evaluate(e1, (nothing, 1.0)) == Sequence(Taylor(1) ⊗ Chebyshev(0), [7.0, 10.0])
-        # generic x, ord=1 special-cased Clenshaw path: vᵢ = e1(i,0) + 2x*e1(i,1)
+        # generic x, ord=1: vᵢ = e1(i,0) + 2x*e1(i,1)
         @test evaluate(e1, (nothing, 0.3)) ≈ Sequence(Taylor(1) ⊗ Chebyshev(0), [1.0 + 2*0.3*3.0, 2.0 + 2*0.3*4.0])
 
         e2 = Sequence(Taylor(1) ⊗ Chebyshev(0), [1.0, 2.0])
@@ -345,16 +336,16 @@
         @test space(evaluate(t, (0.5, nothing))) == Taylor(0) ⊗ Taylor(1)
         @test_throws DomainError evaluate(t, (3.0, 0.5))
 
-        # unimplemented Banach space / sequence space combination
-        Xg = Ell2()
+        # only geometric and identity weights define an evaluation domain, so an
+        # algebraic one is refused outright
+        Xg = Ell1(AlgebraicWeight(2.0))
         g = InfiniteSequence(Sequence(Taylor(2), [1.0, 1.0, 1.0]), Xg)
         @test_throws DomainError evaluate(g, 0.5)
         @test space(evaluate(g, nothing)) == Taylor(2) # `nothing` bypasses the check entirely
     end
 
-    # `Evaluation` on a `ScalarSpace` is commented out in
-    # src/sequence_spaces/linear_operators/special_operators/evaluation.jl, so the
-    # tests below are commented out too; restore them together with the feature
+    # evaluating on a scalar space is not currently supported; restore the tests
+    # below together with the feature
     #
     # @testset "ScalarSpace component" begin
     #     # a scalar component carries no x-dependence: evaluating passes it through

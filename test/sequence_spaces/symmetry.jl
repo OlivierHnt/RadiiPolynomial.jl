@@ -1,126 +1,136 @@
 @testset "Symmetry" begin
 
-    @testset "IndexAction" begin
-        # N = 1: multiplication by a 1×1 matrix
-        A1 = IndexAction([1;;])
-        B1 = IndexAction([-1;;])
+    @testset "LatticeAut" begin
+        A1 = LatticeAut([1;;])
+        B1 = LatticeAut([-1;;])
         @test A1(5) == 5
         @test B1(5) == -5
 
-        # N = 2: 90° rotation matrix [0 -1; 1 0], (k₁,k₂) ↦ (M₁₁k₁+M₁₂k₂, M₂₁k₁+M₂₂k₂)
-        R = IndexAction([0 -1 ; 1 0])
+        # a 90° rotation acts as (k₁, k₂) ↦ (-k₂, k₁)
+        R = LatticeAut([0 -1 ; 1 0])
         @test R((1, 0)) == (0, 1)
         @test R((0, 1)) == (-1, 0)
         @test R((2, 3)) == (-3, 2)
 
-        # N = 3: permutation matrix swapping the first two coordinates (dedicated method)
-        P3 = IndexAction([0 1 0 ; 1 0 0 ; 0 0 1])
+        P3 = LatticeAut([0 1 0 ; 1 0 0 ; 0 0 1])
         @test P3((1, 2, 3)) == (2, 1, 3)
 
-        # N = 4: generic fallback method (only N = 1, 2, 3 have dedicated methods)
-        P4 = IndexAction([0 1 0 0 ; 1 0 0 0 ; 0 0 0 1 ; 0 0 1 0])
+        P4 = LatticeAut([0 1 0 0 ; 1 0 0 0 ; 0 0 0 1 ; 0 0 1 0])
         @test P4((1, 2, 3, 4)) == (2, 1, 4, 3)
 
-        # composition is matrix multiplication; R ∘ R = -I (180° rotation)
-        @test R * R == IndexAction([-1 0 ; 0 -1])
+        @test R * R == LatticeAut([-1 0 ; 0 -1])
         @test (R * R)((1, 0)) == (-1, 0)
 
-        # equality / hash
-        @test A1 == IndexAction([1;;])
+        @test A1 == LatticeAut([1;;])
         @test A1 != B1
-        @test hash(A1) == hash(IndexAction([1;;]))
+        @test hash(A1) == hash(LatticeAut([1;;]))
     end
 
-    @testset "CoefAction" begin
-        # construction reduces the phase mod 2 (a factor of π)
-        @test CoefAction(1, Rational{Int}[3//1]).phase == [1//1]  # 3 mod 2 = 1
-        @test CoefAction(1, Rational{Int}[5//2]).phase == [1//2]  # 5/2 mod 2 = 1/2
-        @test_throws MethodError CoefAction(1, [0.5])  # phase must be a Rational{Int} vector
+    @testset "Cocycle" begin
+        # the phase, in units of π, is reduced mod 2 at construction
+        @test Cocycle(1, Rational{Int}[3//1]).phase == [1//1]
+        @test Cocycle(1, Rational{Int}[5//2]).phase == [1//2]
+        @test_throws MethodError Cocycle(1, [0.5]) # the phase must be rational
 
-        # generic (non-Interval) application: v(k) = amplitude * cispi(phase ⋅ k)
-        v = CoefAction(2, Rational{Int}[1//2])
+        # v(k) = amplitude * cispi(phase ⋅ k)
+        v = Cocycle(2, Rational{Int}[1//2])
         @test v(0) == 2.0 + 0.0im         # cispi(0) = 1
         @test v(1) == 0.0 + 2.0im         # cispi(1/2) = i
         @test v(2) == -2.0 + 0.0im        # cispi(1) = -1
 
-        # Interval-valued amplitude uses the dedicated cispi(interval(...)) branch
-        w = CoefAction(interval(1.0), Rational{Int}[1//1])
+        # an interval amplitude gives enclosures of the same values
+        w = Cocycle(interval(1.0), Rational{Int}[1//1])
         @test isequal_interval(real(w(0)), interval(1.0))   # cispi(0) = 1
         @test isequal_interval(imag(w(0)), interval(0.0))
         @test isequal_interval(real(w(1)), interval(-1.0))  # cispi(1) = -1
         @test isequal_interval(imag(w(1)), interval(0.0))
 
-        # composition multiplies amplitudes and adds phases (mod 2)
-        a = CoefAction(2, Rational{Int}[1//2])
-        b = CoefAction(3, Rational{Int}[1//2])
-        ab = a * b
-        @test ab.amplitude == 6
-        @test ab.phase == [1//1]  # 1/2 + 1/2 = 1
+        a = Cocycle(2, Rational{Int}[1//2])
+        b = Cocycle(3, Rational{Int}[1//2])
 
-        # equality / hash
-        @test a == CoefAction(2, Rational{Int}[1//2])
+        # a cocycle alone does not compose: α_{gh}(k) = α_g(β_h k)·α_h(k) needs the index
+        # action of the second factor, so composition lives on `GroupElement`
+        @test_throws MethodError a * b
+
+        @test a == Cocycle(2, Rational{Int}[1//2])
         @test a != b
-        @test hash(a) == hash(CoefAction(2, Rational{Int}[1//2]))
+        @test hash(a) == hash(Cocycle(2, Rational{Int}[1//2]))
     end
 
     @testset "GroupElement" begin
-        g1 = GroupElement(IndexAction([-1;;]), CoefAction(1, Rational{Int}[0//1]))
-        g2 = GroupElement(IndexAction([-1;;]), CoefAction(-1, Rational{Int}[0//1]))
+        g1 = GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1]))
+        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(-1, Rational{Int}[0//1]))
 
-        # composition combines the index and coefficient actions independently; g1 is an involution
-        @test g1 ∘ g1 == GroupElement(IndexAction([1;;]), CoefAction(1, Rational{Int}[0//1]))
+        @test g1 ∘ g1 == GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1]))
 
-        # equality / hash
         @test g1 == g1
         @test g1 != g2
-        @test hash(g1) == hash(GroupElement(IndexAction([-1;;]), CoefAction(1, Rational{Int}[0//1])))
+        @test hash(g1) == hash(GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1])))
+
+        @testset "∘ reproduces the induced action on coefficients" begin
+            #= A group element acts by (g·a)_k = α_g(k) a_{β_g(k)} with α_g(k) = ρ_g e^{iπ⟨φ_g,k⟩}.
+               Applying g then h,
+                   ((a·g)·h)_k = α_h(k) (a·g)_{β_h k} = α_h(k) α_g(β_h k) a_{β_g β_h k},
+               so the composite carries β_g β_h and phase β_hᵀφ_g + φ_h — the phase of the first
+               factor is transported by the lattice automorphism of the second. Adding the phases is the
+               same thing only when β_hᵀφ_g ≡ φ_g (mod 2), which every shipped symmetry happens
+               to satisfy; the pair below deliberately does not. =#
+            s = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
+            act(g, a) = Sequence(s, [g.cocycle(k) * a[g.lattice_aut(k)] for k ∈ indices(s)])
+
+            g = GroupElement(LatticeAut([1 0 ; 0 1]),  Cocycle(1, Rational{Int}[1//2, 0//1]))
+            h = GroupElement(LatticeAut([0 1 ; 1 0]),  Cocycle(1, Rational{Int}[0//1, 0//1]))
+            @test mod.(h.lattice_aut.matrix' * g.cocycle.phase, 2) != g.cocycle.phase
+
+            a = Sequence(s, ComplexF64[(1 + 0.4im) / (1 + sum(abs, k))^2 for k ∈ indices(s)])
+            @test coefficients(act(h, act(g, a))) ≈ coefficients(act(g ∘ h, a))
+
+            # and the shipped symmetries are unaffected either way
+            for gg ∈ elements(d4sym(s).symmetry), hh ∈ elements(d4sym(s).symmetry)
+                @test mod.(hh.lattice_aut.matrix' * gg.cocycle.phase, 2) == gg.cocycle.phase
+            end
+        end
     end
 
     @testset "Group" begin
-        # a self-inverse generator (reflection) closes into an order-2 group
-        g = GroupElement(IndexAction([-1;;]), CoefAction(1, Rational{Int}[0//1]))
+        g = GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1]))
         G = Group(g)
         @test length(elements(G)) == 2
-        @test GroupElement(IndexAction([1;;]), CoefAction(1, Rational{Int}[0//1])) ∈ elements(G) # identity appears
+        @test GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1])) ∈ elements(G)
 
-        # a 90° rotation generator needs several closure passes to reach the cyclic group of order 4: {I,R,R²,R³}
-        R = GroupElement(IndexAction([0 -1 ; 1 0]), CoefAction(1, Rational{Int}[0//1, 0//1]))
+        # a 90° rotation generator needs several closure passes to reach {I, R, R², R³}
+        R = GroupElement(LatticeAut([0 -1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1]))
         CG = Group(R)
         @test length(elements(CG)) == 4
-        @test Set(h.index_action((1, 0)) for h ∈ elements(CG)) == Set([(1, 0), (0, 1), (-1, 0), (0, -1)])
+        @test Set(h.lattice_aut((1, 0)) for h ∈ elements(CG)) == Set([(1, 0), (0, 1), (-1, 0), (0, -1)])
 
-        # == / issubset
-        g2 = GroupElement(IndexAction([-1;;]), CoefAction(-1, Rational{Int}[0//1]))
+        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(-1, Rational{Int}[0//1]))
         G2 = Group(g2)
-        @test G == Group(g) # rebuilding from the same generator gives the same set of elements
+        @test G == Group(g)
         @test hash(G) == hash(Group(g)) # the hash is precomputed at closure, so it must agree across objects
         @test issubset(G, G)
         @test !issubset(G, G2) # g ∉ G2 since the amplitudes differ
 
-        # union of two order-2 groups differing only in the sign of the amplitude of the reflection
         Gu = union(G, G2)
-        @test length(elements(Gu)) == 4 # closure adds (g ∘ g2): identity index, amplitude 1×(-1) = -1
+        @test length(elements(Gu)) == 4 # closure adds g ∘ g2: identity index, amplitude 1×(-1) = -1
 
-        # intersect keeps only the common (identity) element
         Gi = intersect(G, G2)
         @test length(elements(Gi)) == 1
-        @test Gi == Group(GroupElement(IndexAction([1;;]), CoefAction(1, Rational{Int}[0//1])))
+        @test Gi == Group(GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1])))
 
         # equal groups short-circuit: the input is returned as-is, skipping the closure
-        # (safe since groups are never mutated after construction)
         @test intersect(G, G) === G
         @test union(G, G) === G
         G′ = Group(g) # equal value, distinct object
         @test intersect(G, G′) === G
         @test union(G, G′) === G
 
-        # a group cannot mix `GroupElement`s of different dimension N
-        h2 = GroupElement(IndexAction([1 0 ; 0 1]), CoefAction(1, Rational{Int}[0//1, 0//1]))
+        # a group cannot mix group elements acting on indices of different length
+        h2 = GroupElement(LatticeAut([1 0 ; 0 1]), Cocycle(1, Rational{Int}[0//1, 0//1]))
         @test_throws MethodError Group(g, h2)
     end
 
     @testset "symmetry / desymmetrize on non-symmetric spaces" begin
-        # every BaseSpace / TensorSpace carries the trivial (identity) symmetry group
         for s ∈ (Taylor(2), Fourier(2, 1.0), Chebyshev(2), Taylor(1) ⊗ Fourier(1, 1.0))
             G = symmetry(s)
             @test length(elements(G)) == 1
@@ -135,9 +145,9 @@
 
     @testset "evensym / oddsym — Taylor" begin
         # coefficient-only symmetry: aₖ ↦ (-1)^k aₖ (evensym) or -(-1)^k aₖ (oddsym); index untouched
-        @test indices(evensym(Taylor(4))) == 0:2:4 # even powers only
+        @test indices(evensym(Taylor(4))) == 0:2:4
         @test dimension(evensym(Taylor(4))) == 3
-        @test indices(oddsym(Taylor(4))) == 1:2:3  # odd powers only
+        @test indices(oddsym(Taylor(4))) == 1:2:3
         @test dimension(oddsym(Taylor(4))) == 2
 
         a = Sequence(evensym(Taylor(4)), [1.0, 2.0, 3.0]) # a₀=1, a₂=2, a₄=3
@@ -146,7 +156,7 @@
         b = Sequence(oddsym(Taylor(4)), [7.0, 9.0]) # a₁=7, a₃=9
         @test coefficients(project(b, desymmetrize(space(b)))) == [0.0, 7.0, 0.0, 9.0, 0.0]
 
-        # guard rail: evensym/oddsym are only defined for Taylor, not for a TensorSpace
+        # evensym/oddsym are only defined for a base space, not for a tensor product
         @test_throws MethodError evensym(Taylor(2) ⊗ Fourier(1, 1.0))
         @test_throws MethodError oddsym(Taylor(2) ⊗ Fourier(1, 1.0))
     end
@@ -164,12 +174,11 @@
         b = Sequence(oddsym(Fourier(2, 1.0)), [10.0, 20.0]) # a₁=10, a₂=20
         @test coefficients(project(b, desymmetrize(space(b)))) == [-20.0, -10.0, 0.0, 10.0, 20.0] # a₋ₖ=-aₖ, a₀=0
 
-        # ComplexF64 coefficients expand the same way, entry by entry
         c = Sequence(evensym(Fourier(2, 1.0)), ComplexF64[1.0 + 0im, 2.0 + 1im, 3.0 - 2im])
         @test coefficients(project(c, desymmetrize(space(c)))) ==
             ComplexF64[3.0 - 2.0im, 2.0 + 1.0im, 1.0 + 0.0im, 2.0 + 1.0im, 3.0 - 2.0im]
 
-        # Interval{Float64} coefficients: the known real expansion must lie inside the enclosure
+        # with interval coefficients, the real expansion must lie inside the enclosure
         si = interval(evensym(Fourier(2, 1.0)))
         ai = Sequence(si, interval.([1.0, 2.0, 3.0]))
         full_i = project(ai, desymmetrize(si))
@@ -179,12 +188,12 @@
         # 0 is not a valid orbit representative in oddsym, so indexing it is out of bounds
         @test_throws BoundsError b[0]
 
-        # guard rail: evensym/oddsym are only defined for Fourier, not for a bare TensorSpace
+        # evensym/oddsym are only defined for a base space, not for a tensor product
         @test_throws MethodError evensym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
     end
 
     @testset "evensym / oddsym — Chebyshev" begin
-        # same coefficient-only parity rule as Taylor: Tₖ(-x) = (-1)^k Tₖ(x)
+        # coefficient-only parity rule: Tₖ(-x) = (-1)^k Tₖ(x)
         @test indices(evensym(Chebyshev(4))) == 0:2:4
         @test dimension(evensym(Chebyshev(4))) == 3
         @test indices(oddsym(Chebyshev(4))) == 1:2:3
@@ -211,7 +220,7 @@
         @test full[(1, 0)] == 2.0 && full[(-1, 0)] == 2.0 && full[(0, 1)] == 2.0 && full[(0, -1)] == 2.0
         @test full[(1, 1)] == 3.0 && full[(-1, 1)] == 3.0 && full[(-1, -1)] == 3.0 && full[(1, -1)] == 3.0
 
-        # guard rails: d4sym is only defined for TensorSpace{<:Tuple{Fourier,Fourier}}
+        # d4sym is only defined for a tensor product of two Fourier spaces
         @test_throws MethodError d4sym(Fourier(1, 1.0))
         @test_throws MethodError d4sym(Taylor(1) ⊗ Taylor(1))
         @test_throws MethodError d4sym(Taylor(1) ⊗ Fourier(1, 1.0))
@@ -224,14 +233,13 @@
         @test SymmetricSpace(s) == SymmetricSpace(s, symmetry(s))
         @test indices(SymmetricSpace(s)) == indices(s)
 
-        # idempotent
         ss = evensym(s)
         @test SymmetricSpace(ss) === ss
 
         seven = evensym(s)
         sodd = oddsym(s)
         @test seven == evensym(s)
-        @test issubset(seven, SymmetricSpace(s)) # every symmetric subspace embeds in the unrestricted one
+        @test issubset(seven, SymmetricSpace(s))
 
         # union of spaces intersects the symmetry groups: even ∪ odd removes every non-trivial constraint
         u = union(seven, sodd)
@@ -243,18 +251,17 @@
         i = intersect(seven, sodd)
         @test dimension(i) == 0
 
-        # merging an extra symmetry onto an already-symmetric space unions the two symmetry groups:
-        # `SymmetricSpace(space::SymmetricSpace, sym::Group) = SymmetricSpace(desymmetrize(space), symmetry(space) ∪ sym)`.
-        # Here that union is exactly `union(symmetry(seven), symmetry(sodd))`, the same group `intersect(seven, sodd)`
-        # builds above: closing {id, (k↦-k, amp=1)} ∪ {id, (k↦-k, amp=-1)} under composition adds the identity-index,
-        # amplitude-(-1) element (k↦-k,amp=1) ∘ (k↦-k,amp=-1) = (k↦k,amp=-1), which forces aₖ = -aₖ = 0 for every k
+        # merging an extra symmetry onto an already-symmetric space unions the two symmetry
+        # groups, giving the same group as the intersection of spaces above: closing
+        # {id, (k↦-k, amp=1)} ∪ {id, (k↦-k, amp=-1)} under composition adds the element
+        # (k↦-k, amp=1) ∘ (k↦-k, amp=-1) = (k↦k, amp=-1), forcing aₖ = -aₖ = 0 for every k
         merged = SymmetricSpace(seven, symmetry(sodd))
         @test merged isa SymmetricSpace
         @test length(elements(symmetry(merged))) == 4
         @test dimension(merged) == 0
         @test merged == i
 
-        # guard rail: SymmetricSpace can only wrap a BaseSpace or a TensorSpace, not a ScalarSpace
+        # only a sequence space can be symmetrized, not a scalar space
         @test_throws MethodError SymmetricSpace(ScalarSpace(), symmetry(Fourier(1, 1.0)))
     end
 
@@ -289,7 +296,7 @@
         sE = evensym(Fourier(2, 1.0))
         sO = oddsym(Fourier(2, 1.0))
 
-        # ⊗ tensorizes the symmetry groups: block-diagonal index actions, amplitudes
+        # ⊗ tensorizes the symmetry groups: block-diagonal lattice automorphisms, amplitudes
         # multiply, phases concatenate
         tEE = sE ⊗ sE
         @test tEE isa SymmetricSpace
@@ -345,7 +352,6 @@
         @test RadiiPolynomial._restrict(lifted, Val(1)) == symmetry(sE)
         lifted2 = symmetry(Chebyshev(1) ⊗ (sE ⊗ sO)) # trivial ⊗ (G₁ ⊗ G₂)
         @test RadiiPolynomial._restrict(lifted2, Val(1)) == symmetry(sE ⊗ sO)
-        # restricting past two leading factors
         lifted3 = symmetry((Chebyshev(1) ⊗ Chebyshev(1)) ⊗ sE)
         @test RadiiPolynomial._restrict(lifted3, Val(2)) == symmetry(sE)
 
@@ -355,7 +361,7 @@
     end
 
     @testset "_reps_indices" begin
-        @test RadiiPolynomial._reps_indices(Int[]) === 1:1:0 # empty progression
+        @test RadiiPolynomial._reps_indices(Int[]) === 1:1:0
         @test RadiiPolynomial._reps_indices([5]) === 5:1:5
         @test RadiiPolynomial._reps_indices([1, 2, 3]) === 1:1:3
         @test RadiiPolynomial._reps_indices([2, 4, 6]) === 2:2:6
@@ -363,14 +369,13 @@
         # congruence classes, minus possibly the endpoint 0 fixed by the reflections); anything
         # else means the symmetry group data is inconsistent and must fail loudly
         @test_throws ArgumentError RadiiPolynomial._reps_indices([0, 1, 3])
-        # tuple representatives (tensor spaces) stay as a plain vector
         @test RadiiPolynomial._reps_indices([(0, 0), (1, 0)]) == [(0, 0), (1, 0)]
     end
 
     @testset "canonical construction types" begin
-        # the runtime type parameters are canonical — determined by `(S, G)`, never by the
-        # data — so repeated constructions always yield the same concrete type and dynamic
-        # dispatch downstream stays warm; in 1D the representatives are always a `StepRange`
+        # the runtime type parameters are canonical — determined by the space and the group,
+        # never by the data — so repeated constructions always yield the same concrete type;
+        # in one variable the representatives are always a `StepRange`
         GE = symmetry(evensym(Fourier(4, 1.0)))
         sE = SymmetricSpace(Fourier(4, 1.0), GE)
         @test indices(sE) isa StepRange{Int,Int}
@@ -383,7 +388,6 @@
         @test t == d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
         @test typeof(t) === typeof(d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)))
 
-        # interval symmetry groups carry enclosure-valued actions
         si = SymmetricSpace(Fourier(4, interval(1.0)), interval(GE))
         @test last(first(si.rep_idx_action)) isa Complex{<:Interval}
     end
@@ -414,7 +418,7 @@
         @test desymmetrize(si) == Fourier(2, interval(1.0))
         @test length(elements(symmetry(si))) == length(elements(symmetry(s)))
         g = first(elements(symmetry(si)))
-        @test isequal_interval(g.coef_action.amplitude, interval(1.0))
+        @test isequal_interval(g.cocycle.amplitude, interval(1.0))
 
         siT = interval(Float64, s)
         @test siT isa SymmetricSpace

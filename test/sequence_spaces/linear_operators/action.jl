@@ -25,7 +25,7 @@
         end
 
         @testset "TensorSpace" begin
-            𝒮 = Taylor(1) ⊗ Chebyshev(1) # dim 4
+            𝒮 = Taylor(1) ⊗ Chebyshev(1)
             M = Matrix{Float64}(reshape(1:16, 4, 4)) # column-major
             A = LinearOperator(𝒮, 𝒮, M)
             a = Sequence(𝒮, [1.0, 2.0, 3.0, 4.0])
@@ -49,7 +49,7 @@
     end
 
     @testset "action across mismatched-but-compatible spaces (order adaptation)" begin
-        𝒯₁ = Taylor(1) # dim 2
+        𝒯₁ = Taylor(1)
         A = LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0 ; 3.0 4.0])
 
         # `a` has strictly more coefficients than `domain(A)`: the extra one is discarded
@@ -123,7 +123,7 @@
             M = Float64[1 2 3 ; 4 5 6 ; 7 8 9]
             A = LinearOperator(domA, codomA, M)
 
-            # b has a larger first block than domA: forces the per-component code path
+            # b's first block is larger than the corresponding block of the domain
             b = Sequence(Taylor(2) × Taylor(0), [10.0, 20.0, 30.0, 40.0])
             # effective b (truncated to domA): component1 = [10,20], component2 = [40]
             # codomain component1 (dim1) = A[1,1]*[10,20] + A[1,2]*[40] = (1*10+2*20)+3*40 = 170
@@ -141,7 +141,7 @@
 
         @testset "cartesian domain, plain codomain" begin
             A = LinearOperator(Taylor(0)^2, Taylor(1), [1.0 2.0 ; 3.0 4.0])
-            # b's blocks are not the same spaces as domain(A)'s: forces recursive `_mul!`
+            # b's blocks are not the same spaces as those of the domain
             b = Sequence(Taylor(1) × Taylor(0), [100.0, 200.0, 300.0])
             # component(A,1) (col 1 = [1,3]) meets component(b,1) = Taylor(1) [100,200]:
             #   only the Taylor(0)-part (100) contributes: [1,3]*100 = [100,300]
@@ -155,7 +155,7 @@
             CP1 = CartesianPower(Taylor(1), 2) # dim 4
             Amat = [1.0 2.0 5.0 6.0; 3.0 4.0 7.0 8.0; 9.0 10.0 13.0 14.0; 11.0 12.0 15.0 16.0]
             A = LinearOperator(CP1, CP1, Amat)
-            CP2 = CartesianPower(Taylor(2), 2) # mismatched suborder (dim 6), forces per-block path
+            CP2 = CartesianPower(Taylor(2), 2) # mismatched suborder (dim 6)
             b = Sequence(CP2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
             c = Sequence(CP1, [100.0, 100.0, 100.0, 100.0])
             mul!(c, A, b, 2.0, 3.0)
@@ -239,7 +239,6 @@
         end
 
         @testset "generic 4-argument mul! fallback for non-LinearOperator operators" begin
-            # `mul!(c, S::AbstractLinearOperator, a, α, β) = (b = S*a; c = β*c + α*b)`
             J = UniformScalingOperator(2.0)
             c = Sequence(𝒯₁, [100.0, 200.0])
             mul!(c, J, a, 3.0, 0.5)

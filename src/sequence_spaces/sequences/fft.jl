@@ -244,15 +244,15 @@ function _restrict(G::Group{N,T}, ::Val{D}) where {N,T,D}
     # trailing indices (inverse of `⊗` with a `NoSymSpace`)
     els = Set{GroupElement{N-D,T}}()
     for g ∈ elements(G)
-        A = g.index_action.matrix
-        ϕ = g.coef_action.phase
+        A = g.lattice_aut.matrix
+        ϕ = g.cocycle.phase
         (all(A[i,j] == (i == j) for i ∈ 1:D, j ∈ 1:N) &&
          all(iszero(A[i,j]) for i ∈ D+1:N, j ∈ 1:D) &&
          all(iszero(ϕ[i]) for i ∈ 1:D)) ||
             return throw(ArgumentError("the symmetry group does not act trivially on the leading $D factors"))
         push!(els, GroupElement(
-            IndexAction(StaticArrays.SMatrix{N-D,N-D,Int}(view(A, D+1:N, D+1:N))),
-            CoefAction(g.coef_action.amplitude, StaticArrays.SVector{N-D,Rational{Int}}(view(ϕ, D+1:N)))))
+            LatticeAut(StaticArrays.SMatrix{N-D,N-D,Int}(view(A, D+1:N, D+1:N))),
+            Cocycle(g.cocycle.amplitude, StaticArrays.SVector{N-D,Rational{Int}}(view(ϕ, D+1:N)))))
     end
     return unsafe_group!(els)
 end

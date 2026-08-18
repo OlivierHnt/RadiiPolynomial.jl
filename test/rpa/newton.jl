@@ -133,7 +133,7 @@
     end
 
     @testset "Internal helpers: _similar / _similar_linop" begin
-        @test RadiiPolynomial._similar(3.0) === 0.0 # zero(3.0)
+        @test RadiiPolynomial._similar(3.0) === 0.0
         v = [1.0, 2.0, 3.0]
         sv = RadiiPolynomial._similar(v)
         @test sv isa Vector{Float64} && length(sv) == 3
@@ -149,10 +149,9 @@
         @test size(coefficients(La)) == (2, 2)
     end
 
-    #= _copy_maybeinplace! is what lets the non-bang `newton` wrapper accept a user
-       F_DF(x) that returns a Sequence/LinearOperator of a *different* (typically larger,
-       e.g. grown by convolution) space than x: it projects the result down onto the
-       buffer's space. Exercised directly here with hand-picked coefficients. =#
+    #= The non-bang `newton` accepts an `F_DF(x)` returning a Sequence/LinearOperator on a
+       *different* (typically larger, e.g. grown by convolution) space than x: the result is
+       projected down onto the buffer's space. That step is exercised directly here. =#
     @testset "Internal helpers: _copy_maybeinplace!" begin
         @test RadiiPolynomial._copy_maybeinplace!(0.0, 5.0) == 5.0 # Number: just returns y
 

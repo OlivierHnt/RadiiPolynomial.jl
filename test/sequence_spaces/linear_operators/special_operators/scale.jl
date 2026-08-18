@@ -32,7 +32,7 @@
         @test scale(a, γ) == 𝒮(a) == project(𝒮, Taylor(3), Taylor(3), Float64)(a) ==
             scale!(copy(out), a, γ) == mul!(out, 𝒮, a) == expected
 
-        # isone(γ) branch: identity, no rescaling
+        # γ = 1 is the identity
         @test scale(a, 1.0) == a
 
         # γ > 1: growth
@@ -55,7 +55,7 @@
         @test scale(a, γ) == 𝒮(a) == project(𝒮, Fourier(1, 1.0), Fourier(2, 1.0), Float64)(a) ==
             scale!(copy(out), a, γ) == mul!(out, 𝒮, a) == expected
 
-        # isone(γ) branch: identity, no decimation
+        # γ = 1 is the identity
         @test scale(a, 1) == a
 
         # non-integer γ is explicitly guarded
@@ -89,8 +89,7 @@
 
         @test_throws DomainError scale(a, 2.0)
 
-        # `getcoefficient` also guards γ ≠ 1 when building the projected matrix
-        # representation
+        # the same guard applies when materializing the operator
         @test_throws DomainError project(Scale(2.0), Chebyshev(2), Chebyshev(2), Float64)
     end
 
@@ -116,14 +115,13 @@
         expected3 = Sequence(Taylor(1) ⊗ Fourier(2, 1.0), [1.0, 2.0, 0.0, 0.0, 3.0, 4.0, 0.0, 0.0, 5.0, 6.0])
         @test scale(a3, (1, 2)) == expected3
 
-        # Taylor as the *trailing* tensor factor with γ = 1: exercises the plain
-        # copy branch of the array-based `_apply!` for the last factor
+        # Taylor as the *trailing* tensor factor with γ = 1
         s4 = Chebyshev(1) ⊗ Taylor(1)
         a4 = Sequence(s4, [1.0, 2.0, 3.0, 4.0])
         @test scale(a4, (1.0, 1.0)) == a4
 
-        # Fourier as the *trailing* tensor factor with γ = 1 (plain copy branch),
-        # composed with a genuine rescaling of the leading Taylor factor
+        # Fourier as the *trailing* tensor factor with γ = 1, composed with a genuine
+        # rescaling of the leading Taylor factor
         s5 = Taylor(1) ⊗ Fourier(1, 1.0)
         a5 = Sequence(s5, collect(1.0:6.0))
         # only the Taylor factor is rescaled (cᵢ = aᵢ 2ⁱ); Fourier (γ=1) is untouched
@@ -136,8 +134,7 @@
         @test_throws DomainError scale(a6, (1.0, 2.0))
 
         # Fourier as the *trailing* tensor factor with negative γ (time reversal),
-        # composed with a leading Taylor factor left as identity (γ=1): exercises
-        # the array-based `_apply!` for the last factor with signed division
+        # composed with a leading Taylor factor left as identity (γ=1)
         s7 = Taylor(0) ⊗ Fourier(1, 1.0)
         a7 = Sequence(s7, [10.0, 20.0, 30.0])
         expected7 = Sequence(s7, [30.0, 20.0, 10.0])

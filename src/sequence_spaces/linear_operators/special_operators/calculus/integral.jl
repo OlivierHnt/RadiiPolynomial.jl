@@ -166,10 +166,10 @@ function domain(I::Integral, s::SymmetricSpace)
 end
 
 function _groupelem_antiintegral(I::Integral, g::GroupElement, ::Fourier)
-    c = g.index_action.matrix[1]^order(I)
-    new_va = CoefAction(g.coef_action.amplitude / exact(c),
-                      g.coef_action.phase)
-    return GroupElement(g.index_action, new_va)
+    c = g.lattice_aut.matrix[1]^order(I)
+    new_va = Cocycle(g.cocycle.amplitude / exact(c),
+                     g.cocycle.phase)
+    return GroupElement(g.lattice_aut, new_va)
 end
 
 function codomain(I::Integral, s::SymmetricSpace)
@@ -179,10 +179,10 @@ function codomain(I::Integral, s::SymmetricSpace)
 end
 
 function _groupelem_integral(I::Integral, g::GroupElement, ::Fourier)
-    c = g.index_action.matrix[1]^order(I)
-    new_va = CoefAction(g.coef_action.amplitude * exact(c),
-                      g.coef_action.phase)
-    return GroupElement(g.index_action, new_va)
+    c = g.lattice_aut.matrix[1]^order(I)
+    new_va = Cocycle(g.cocycle.amplitude * exact(c),
+                     g.cocycle.phase)
+    return GroupElement(g.lattice_aut, new_va)
 end
 
 _coeftype(I::Integral, s::SymmetricSpace, ::Type{T}) where {T} =
@@ -562,21 +562,25 @@ end
 function integrate(a::InfiniteSequence, α::Union{Int,Tuple{Vararg{Int}}}=1)
     c = integrate(sequence(a), α)
     X = banachspace(a)
+    s = space(a)
     fe = finite_error(a)
     te = tail_error(a)
     to = total_error(a)
-    new_finite = _safe_iszero(fe) ? fe : _integral_finite_error(X, space(a), α) * fe
-    new_tail   = _safe_iszero(te) ? te : _integral_tail_error(X, space(a), α)   * te
-    new_total  = _safe_iszero(to) ? to : _integral_total_error(X, space(a), α)  * to
+    new_finite = (_safe_iszero(fe) ? zero(fe) : _integral_finite_error(X, s, α) * fe) +
+                 (_safe_iszero(te) ? zero(te) : _integral_cross_error(X, s, α)  * te)
+    new_tail   = _safe_iszero(te) ? te : _integral_tail_error(X, s, α) * te
+    new_total  = _safe_iszero(to) ? to : _integral_total_error(X, s, α) * to
+    # the constructor already stores min(new_finite + new_tail, new_total) as the total error
     return InfiniteSequence(c, new_finite, new_tail, new_total, X)
 end
 
 #-
 
 function _integral_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N}
-    tails  = map((wᵢ, sᵢ, αᵢ) -> _integral_tail_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
-    totals = map((wᵢ, sᵢ, αᵢ) -> _integral_total_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
-    return _box_complement_factor(tails, totals)
+    tails   = map((wᵢ, sᵢ, αᵢ) -> _integral_tail_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    crosses = map((wᵢ, sᵢ, αᵢ) -> _integral_cross_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    totals  = map((wᵢ, sᵢ, αᵢ) -> _integral_total_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    return _box_complement_factor(tails .+ crosses, totals)
 end
 
 function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
@@ -596,8 +600,13 @@ function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     return inv(ω * exact(order(s) + 1)) ^ exact(α)
 end
 
-_integral_tail_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
-    throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
+function _integral_tail_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    N = exact(order(s))
+    return max(ν / (exact(2) * (N + exact(2))),
+               ν / (exact(2) * (N + exact(4))) + inv(exact(2) * ν * (N + exact(2))))
+end
 
 #-
 
@@ -621,8 +630,30 @@ function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     return inv(ω) ^ exact(α)
 end
 
-_integral_finite_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
-    throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
+function _integral_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    _cheb_int_check(s, α, ν)
+    return exact(1) + ν # attained at j = 0
+end
+
+#-
+
+_integral_cross_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Int) = zero(rate(X))
+_integral_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rate(X))
+
+function _integral_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return zero(rate(X))
+    ν = rate(X)
+    _cheb_int_check(s, α, ν)
+    N = exact(order(s))
+    return inv(exact(2) * ν * N) + inv(N * (N + exact(2)) * ν ^ (exact(order(s)) + exact(1))) # attained at j = N+1
+end
+
+_integral_cross_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    _box_complement_factor(map((wᵢ, sᵢ, αᵢ) -> _integral_cross_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α),
+                           map((wᵢ, sᵢ, αᵢ) -> max(_integral_finite_error(Ell1(wᵢ), sᵢ, αᵢ),
+                                                   _integral_cross_error(Ell1(wᵢ), sᵢ, αᵢ)), weight(X), spaces(s), α))
 
 #-
 
@@ -645,5 +676,9 @@ function _integral_total_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     return inv(ω) ^ exact(α)
 end
 
-_integral_total_error(::Ell1{<:GeometricWeight}, ::Chebyshev, ::Int) =
-    throw(DomainError(Chebyshev, "integral error on Chebyshev InfiniteSequence is not implemented"))
+function _integral_total_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    _cheb_int_check(s, α, ν)
+    return exact(1) + ν
+end

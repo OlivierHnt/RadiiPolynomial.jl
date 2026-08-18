@@ -323,7 +323,7 @@ end
 # Sequence spaces
 
 _sym_with_cst_coef(s::Group{N,T}) where {N,T} =
-    unsafe_group!(Set{GroupElement{N,T}}(g for g ∈ elements(s) if isone(g.coef_action.amplitude)))
+    unsafe_group!(Set{GroupElement{N,T}}(g for g ∈ elements(s) if isone(g.cocycle.amplitude)))
 
 function Base.:+(a::Sequence{<:NoSymSpace}, b::Number)
     CoefType = promote_type(eltype(a), typeof(b))

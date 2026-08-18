@@ -1,6 +1,6 @@
 @testset "FFT" begin
-    # small local helper: minimal AbstractVector with non-1-based axes, used
-    # only to exercise the "offset arrays are not supported" guard clauses.
+    # a minimal vector type with non-1-based axes, used to check that such
+    # arrays are rejected
     struct _OffsetVec{T} <: AbstractVector{T}
         data :: Vector{T}
     end
@@ -22,7 +22,7 @@
             @test fft_size(Fourier(0, 1.0)) == (1,)
             @test fft_size(Fourier(1, 1.0)) == (3,)
             @test fft_size(Fourier(3, 1.0)) == (7,)
-            @test fft_size(Fourier(2, 3.5)) == fft_size(Fourier(2, 1.0)) # frequency does not affect the grid size
+            @test fft_size(Fourier(2, 3.5)) == fft_size(Fourier(2, 1.0))
         end
 
         @testset "Chebyshev: 2order, the coefficients being mirrored" begin
@@ -61,7 +61,7 @@
             @test to_coef(expected_grid, Taylor(1)) == Sequence(Taylor(1), ComplexF64[1, 2])
             seeded = Sequence(Taylor(1), ComplexF64[Inf, Inf])
             @test to_coef!(seeded, copy(expected_grid)) == Sequence(Taylor(1), ComplexF64[1, 2]) == seeded
-            # the four-point grid of the previous convention is still accepted
+            # a larger grid may be requested explicitly
             @test to_grid(a, 4) == ComplexF64[3, 1+2im, -1, 1-2im]
         end
 
@@ -126,9 +126,7 @@
 
         @testset "resampling to a different space via to_coef(::Sequence, ::SequenceSpace)" begin
             a = Sequence(Taylor(1), [1.0, 2.0])
-            # zero-padding to a higher order
             @test to_coef(a, Taylor(3)) == Sequence(Taylor(3), ComplexF64[1, 2, 0, 0])
-            # truncating to a lower order
             @test to_coef(a, Taylor(0)) == Sequence(Taylor(0), ComplexF64[1])
         end
     end
@@ -187,7 +185,7 @@
             @test to_grid(a) == ComplexF64[7]
             b = to_coef(to_grid(a), s)
             @test b == Sequence(s, ComplexF64[7])
-            # an oversized grid also works, confirming the default grid size agrees
+            # an oversized grid also works
             b_ok = to_coef(to_grid(a, 2), s)
             @test b_ok == Sequence(s, ComplexF64[7])
             @test to_coef(_ -> 7.0, s) == Sequence(s, ComplexF64[7])
@@ -309,7 +307,7 @@
             a = Sequence(s, [1.0, 3.0])
             full = Projection(desymmetrize(s)) * a
             @test coefficients(full) == [1.0, 0.0, 3.0, 0.0] # odd orders forced to 0 by the symmetry
-            @test to_grid(a) == to_grid(full) # `to_grid!` on a SymmetricSpace projects first, then delegates
+            @test to_grid(a) == to_grid(full)
             c = Sequence(s, ComplexF64[Inf, Inf])
             to_coef!(c, to_grid(a))
             @test real.(coefficients(c)) ≈ coefficients(a) atol=1e-9
@@ -362,9 +360,8 @@
         end
 
         @testset "Chebyshev (note: interior modes carry an implicit factor 2)" begin
-            # RadiiPolynomial's Chebyshev sequences satisfy f(x) = c0·T0(x) + 2·Σ_{k≥1} ck·Tk(x),
-            # matching the halving of the Nyquist mode in `_postprocess_to_coef!`.
-            # Hence interpolating f(x) = x = T1(x) gives c1 = 0.5, not 1.
+            # a Chebyshev sequence satisfies f(x) = c0·T0(x) + 2·Σ_{k≥1} ck·Tk(x),
+            # so interpolating f(x) = x = T1(x) gives c1 = 0.5, not 1
             b1 = to_coef(x -> x, Chebyshev(1))
             @test real.(coefficients(b1)) ≈ [0.0, 0.5] atol=1e-9
             # f(x) = 2x²-1 = T2(x) gives c2 = 0.5
@@ -436,10 +433,10 @@
     #
 
     @testset "twiddle tables" begin
-        # the `radius` field is the ρ of the a priori bound; it must bound the
-        # MODULUS of `mid - exact`, which is not what `radius` of a complex
-        # interval returns (that is the larger of the two component radii, too
-        # small by up to √2), and would be 0 if read off the midpoints
+        # the tabulated radius must bound the MODULUS of the error between the stored
+        # midpoint and the exact root of unity; the radius of a complex interval is not
+        # that quantity (it is the larger of the two component radii, too small by up
+        # to √2), and reading it off the midpoints alone would give 0
         for T ∈ (Float64, Float32), len ∈ (4, 64)
             W = RadiiPolynomial._roots_of_unity(T, len)
             @test W.radius > 0
@@ -452,8 +449,8 @@
     @testset "arbitrary transform length" begin
         naive_dft(x) = [sum(x[j+1] * cispi(-2*(j*k)/length(x)) for j ∈ 0:length(x)-1) for k ∈ 0:length(x)-1]
 
-        # radix-2 (16), decimation (12 = 2·6, 105 = 3·5·7), direct sum (13),
-        # Bluestein (67 > RadiiPolynomial.NAIVE_DFT_MAX)
+        # lengths chosen to cover radix-2 (16), decimation (12 = 2·6, 105 = 3·5·7),
+        # a naive direct sum (13) and Bluestein's algorithm (67)
         @testset "forward transform of length $n" for n ∈ (1, 2, 3, 5, 12, 13, 16, 67, 105)
             x = [ComplexF64(cospi(2k/n), sinpi(3k/(n+1))) for k ∈ 0:n-1]
             @test RadiiPolynomial._fft!(copy(x)) ≈ naive_dft(x) rtol=1e-12 # the reference rounds too
@@ -841,7 +838,7 @@
 
         @testset "resampling via to_coef(::Sequence, ::SequenceSpace)" begin
             a = Sequence(Chebyshev(2)^3, collect(1.0:9))
-            b = to_coef(a, Chebyshev(4)) # zero-padding to a higher order
+            b = to_coef(a, Chebyshev(4))
             @test space(b) == Chebyshev(4)^3
             @test real.(coefficients(project(b, space(a)))) ≈ coefficients(a) atol=1e-9
         end
@@ -874,8 +871,7 @@
     #
 
     @testset "unsupported vector spaces" begin
-        # `to_grid`/`to_coef` are only defined for `Sequence{<:SequenceSpace}`
-        # and `Sequence{<:CartesianSpace}`; `ScalarSpace` is neither
+        # a scalar space carries nothing to discretize
         @test_throws MethodError to_grid(Sequence(ScalarSpace(), [1.0]))
         # a cartesian space of scalars is matched, but has nothing to discretize
         @test_throws MethodError to_grid(Sequence(ScalarSpace()^2, [1.0, 2.0]))

@@ -37,20 +37,17 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test space(a) == 𝒯
         @test coefficients(a) == [1, 2]
 
-        # dimension mismatch: Taylor(1) has dimension 2
         @test_throws DimensionMismatch Sequence(𝒯, [1])
         @test_throws DimensionMismatch Sequence(𝒯, [1, 2, 3])
 
-        # offset vectors (eachindex != Base.OneTo) are rejected
+        # a coefficient vector whose indices are not 1-based is rejected
         @test_throws ArgumentError Sequence(𝒯, _OffsetVector([1, 2]))
 
-        # scalar / plain vector convenience constructors
         @test Sequence(3) == Sequence(ScalarSpace(), [3])
         @test Sequence([1, 2, 3]) == Sequence(ScalarSpace()^3, [1, 2, 3])
     end
 
     @testset "getindex, view, setindex!" begin
-        # Taylor: indices 0:order
         a = Sequence(Taylor(2), [1, 2, 3])
         @test a[0] == 1 && a[1] == 2 && a[2] == 3
         @test_throws BoundsError a[3]
@@ -63,7 +60,6 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         b[[0, 2]] = [100, 300]
         @test coefficients(b) == [100, 2, 300]
 
-        # Fourier: negative indices, indices -order:order
         f = Sequence(Fourier(2, 1.0), [1, 2, 3, 4, 5])
         @test f[-2] == 1 && f[-1] == 2 && f[0] == 3 && f[1] == 4 && f[2] == 5
         @test_throws BoundsError f[-3]
@@ -72,21 +68,18 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         g[-1] = 20
         @test coefficients(g) == [1, 20, 3, 4, 5]
 
-        # Chebyshev: indices 0:order, same index convention as Taylor
         c = Sequence(Chebyshev(2), [1, 2, 3])
         @test c[0] == 1 && c[1] == 2 && c[2] == 3
 
-        # TensorSpace: multi-index tuples.
-        # For Taylor(1) ⊗ Fourier(1, 1.0), coefficient position(i, j) = (i + 1) + 2*(j + 1)
-        # (Taylor varies fastest), so coefficients 1:6 sit at
-        # (0,-1)->1 (1,-1)->2 (0,0)->3 (1,0)->4 (0,1)->5 (1,1)->6.
+        # for Taylor(1) ⊗ Fourier(1, 1.0) the position of (i, j) is (i + 1) + 2*(j + 1)
+        # (the Taylor index varies fastest), so coefficients 1:6 sit at
+        # (0,-1)->1 (1,-1)->2 (0,0)->3 (1,0)->4 (0,1)->5 (1,1)->6
         t = Sequence(𝒯 ⊗ ℱ, collect(1:6))
         @test t[(0, -1)] == 1 && t[(1, -1)] == 2
         @test t[(0, 0)] == 3 && t[(1, 0)] == 4
         @test t[(0, 1)] == 5 && t[(1, 1)] == 6
         @test_throws BoundsError t[(0, -2)]
 
-        # colon / range forms on tensor indices
         @test t[(:, 0)] == [3, 4]
         @test t[(0, :)] == [1, 3, 5]
         @test t[TensorIndices((0:1, -1:0))] == [1, 2, 3, 4]
@@ -98,18 +91,15 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         t3[TensorIndices((0:1, -1:0))] = [11, 22, 33, 44]
         @test coefficients(t3) == [11, 22, 33, 44, 5, 6]
 
-        # a[:] returns a copy of the whole coefficient vector
         @test a[:] == coefficients(a)
         @test a[:] !== coefficients(a)
 
-        # view(a, α) aliases the parent, getindex(a, α) does not.
-        # view returns a plain array view with its own 1-based indexing,
-        # so v[2] corresponds to Taylor index 1, i.e. coefficients(a)[2].
+        # a view aliases the parent and has its own 1-based indexing, so v[2]
+        # corresponds to Taylor index 1, i.e. coefficients(a)[2]
         v = view(a, 0:1)
         v[2] = -7
         @test coefficients(a)[2] == -7
 
-        # getindex/view with a VectorSpace subspace
         a2 = Sequence(Taylor(3), [1.0, 2.0, 3.0, 4.0])
         p = a2[Taylor(1)]
         @test p == Sequence(Taylor(1), [1.0, 2.0])
@@ -180,7 +170,6 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test imag(z) == Sequence(Taylor(1), [2, -1])
         @test conj(z) == Sequence(Taylor(1), [1 - 2im, 3 + 1im])
 
-        # complex(a, b) combines two real sequences into a complex one
         re = Sequence(Taylor(1), [1, 3])
         im_ = Sequence(Taylor(1), [1.0, 2.0])
         @test complex(re, im_) == Sequence(Taylor(1), [1 + 1im, 3 + 2im])
@@ -188,7 +177,7 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
     end
 
     @testset "component, eachcomponent, unpack" begin
-        𝕊 = Taylor(1)^2 # CartesianPower
+        𝕊 = Taylor(1)^2
         b = Sequence(𝕊, [1.0, 2.0, 3.0, 4.0])
 
         c1 = component(b, 1)
@@ -207,7 +196,6 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
 
         @test collect(eachcomponent(b)) == unpack(b)
 
-        # CartesianProduct of mixed spaces
         𝕋 = 𝒯 × ℱ
         d = Sequence(𝕋, [1.0, 2.0, 3.0, 4.0, 5.0])
         @test component(d, 1) == Sequence(𝒯, [1.0, 2.0])
@@ -218,11 +206,11 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
     end
 
     @testset "conjugacy_symmetry!" begin
-        # ScalarSpace: keep only the real part
+        # on a scalar only the real part survives
         a = Sequence(ScalarSpace(), [1.0 + 2.0im])
         @test conjugacy_symmetry!(copy(a)) == Sequence(ScalarSpace(), [1.0 + 0.0im])
 
-        # Fourier: A .= (A .+ conj.(reverse(A))) ./ 2
+        # on Fourier the rule is a .= (a .+ conj.(reverse(a))) ./ 2
         f = Fourier(2, 1.0)
         b = Sequence(f, ComplexF64[1+1im, 2+2im, 3+0im, 4-1im, 5+3im])
         # reverse(A) = [5+3im, 4-1im, 3+0im, 2+2im, 1+1im]; conj(reverse(A)) = [5-3im, 4+1im, 3, 2-2im, 1-1im]
@@ -230,24 +218,21 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         expected_b = ComplexF64[3-1im, 3+1.5im, 3+0im, 3-1.5im, 3+1im]
         @test coefficients(conjugacy_symmetry!(copy(b))) == expected_b
 
-        # TensorSpace of two Fourier factors: same rule on the reshaped array.
-        # Values 1:25 are real, so entry k pairs with entry 26-k giving (k+(26-k))/2 = 13 everywhere.
+        # on two Fourier factors the same rule applies to the reshaped array: values 1:25 are
+        # real, so entry k pairs with entry 26-k giving (k+(26-k))/2 = 13 everywhere
         ff = f ⊗ f
         cplx = Sequence(ff, ComplexF64.(collect(1:25)))
         @test all(==(13.0 + 0.0im), coefficients(conjugacy_symmetry!(copy(cplx))))
 
-        # CartesianSpace: applied component-wise.
-        # Each block 1:5 (resp. 6:10) is real and palindromic-summing to 6 (resp. 16),
-        # so every entry becomes 6/2=3 (resp. 16/2=8).
+        # on a cartesian space the rule is applied component-wise: each block 1:5 (resp. 6:10)
+        # is real and pairs up to 6 (resp. 16), so every entry becomes 6/2=3 (resp. 16/2=8)
         dpow = Sequence(f^2, ComplexF64.(vcat(1:5, 6:10)))
         @test coefficients(conjugacy_symmetry!(copy(dpow))) == ComplexF64[3, 3, 3, 3, 3, 8, 8, 8, 8, 8]
 
-        # CartesianProduct with a single factor
         dprod = Sequence(CartesianProduct((f,)), ComplexF64.(1:5))
         @test coefficients(conjugacy_symmetry!(copy(dprod))) == ComplexF64[3, 3, 3, 3, 3]
 
-        # error path: `_conjugacy_symmetry!(::Sequence)` is only implemented
-        # for ScalarSpace / Fourier / TensorSpace{<:Fourier...} / CartesianSpace
+        # only scalar, Fourier and cartesian spaces carry a conjugacy symmetry
         @test_throws DomainError conjugacy_symmetry!(Sequence(Taylor(2), [1.0, 2.0, 3.0]))
         @test_throws DomainError conjugacy_symmetry!(Sequence(Chebyshev(2), [1.0, 2.0, 3.0]))
         @test_throws DomainError conjugacy_symmetry!(Sequence(Taylor(1) ⊗ Chebyshev(1), [1.0, 2.0, 3.0, 4.0]))
@@ -274,45 +259,19 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test rates_d[2] ≈ 3 rtol=1e-8
     end
 
-    @testset "polish!" begin
-        # Clean geometric decay 2^{-i}, i = 0..4, plus a wild outlier at the last index (i=5).
-        # The regression correctly identifies rate ≈ 2 from indices 0..4 (ord = 4) and,
-        # since |a[5]| = 1000 vastly exceeds norm(a,1)/2^5 ≈ 31.3, that single entry is zeroed.
-        a = Sequence(Taylor(5), [1.0, 0.5, 0.25, 0.125, 0.0625, 1000.0])
-        pa = polish!(copy(a))
-        @test coefficients(pa) == [1.0, 0.5, 0.25, 0.125, 0.0625, 0.0]
-
-        # Same decay without any outlier: nothing exceeds the fitted model, so polish! is a no-op.
-        b = Sequence(Taylor(5), [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125])
-        @test polish!(copy(b)) == b
-
-        # CartesianSpace: polish! acts component-wise.
-        𝕊 = Taylor(5)^2
-        c = Sequence(𝕊, vcat([1.0, 0.5, 0.25, 0.125, 0.0625, 1000.0], [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125]))
-        pc = polish!(copy(c))
-        @test coefficients(pc) == vcat([1.0, 0.5, 0.25, 0.125, 0.0625, 0.0], [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125])
-
-        # no-ops by definition
-        s = Sequence(3.0)
-        @test polish!(s) === s
-        t = Sequence(𝒯 ⊗ ℱ, collect(1.0:6.0))
-        @test polish!(t) === t
-    end
-
     @testset "symmetric spaces (getcoefficient)" begin
-        # evensym(Taylor(4)): only even-order monomials survive, indices [0, 2, 4]
         se = evensym(Taylor(4))
         @test collect(indices(se)) == [0, 2, 4]
         a = Sequence(se, [1.0, 2.0, 3.0])
         @test a[0] == 1.0 && a[2] == 2.0 && a[4] == 3.0
         @test RadiiPolynomial.getcoefficient(a, (se, 0)) == 1.0
-        # desymmetrized (plain Taylor(4)) view: odd indices are forced to zero
+        # read on the full space, the odd indices are zero
         @test RadiiPolynomial.getcoefficient(a, (Taylor(4), 0)) == 1.0 + 0.0im
         @test RadiiPolynomial.getcoefficient(a, (Taylor(4), 1)) == 0.0 + 0.0im
         @test RadiiPolynomial.getcoefficient(a, (Taylor(4), 2)) == 2.0 + 0.0im
 
-        # oddsym(Fourier(3, 1.0)): only positive indices are representatives (index 0 is
-        # excluded since an odd function vanishes there), indices [1, 2, 3]
+        # only positive indices are representatives, index 0 being excluded since an odd
+        # function vanishes there
         so = oddsym(Fourier(3, 1.0))
         @test collect(indices(so)) == [1, 2, 3]
         b = Sequence(so, [10.0, 20.0, 30.0])
@@ -321,14 +280,14 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test RadiiPolynomial.getcoefficient(b, (fo, -1)) == -10.0 + 0.0im # odd: a[-k] = -a[k]
         @test RadiiPolynomial.getcoefficient(b, (fo, 0)) == 0.0 + 0.0im    # odd function vanishes at 0
 
-        # d4sym(Fourier ⊗ Fourier): the square symmetry identifies (i,j) with (j,i)
+        # the square symmetry identifies (i, j) with (j, i)
         sd = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
         @test collect(indices(sd)) == [(0, 0), (1, 0), (2, 0), (1, 1), (2, 1), (2, 2)]
         c = Sequence(sd, collect(1.0:6.0))
         fd = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
         @test RadiiPolynomial.getcoefficient(c, (fd, (1, 0))) == RadiiPolynomial.getcoefficient(c, (fd, (0, 1))) == 2.0 + 0.0im
 
-        # symmetry mismatch is a guarded error
+        # reading through a different symmetry than the sequence carries is an error
         se2 = oddsym(Taylor(4))
         @test_throws DomainError RadiiPolynomial.getcoefficient(a, (se2, 0))
     end
@@ -338,10 +297,10 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test isequal_interval(a[0], interval(1))
         @test in_interval(2, a[1])
         @test isequal_interval.(coefficients(zero(a)), interval(0)) |> all
-        @test a == Sequence(Taylor(2), interval.([1, 2, 3])) # thin intervals: Sequence == is safe
+        @test a == Sequence(Taylor(2), interval.([1, 2, 3])) # the intervals are thin, so `==` is safe
 
         parent = Sequence((Taylor(2))^1, interval.([1, 2, 3]))
-        b = component(parent, 1) # component still aliases with interval coefficients
+        b = component(parent, 1)
         @test isequal_interval(b[0], interval(1))
         b[0] = interval(9)
         @test isequal_interval(component(parent, 1)[0], interval(9))
@@ -365,7 +324,6 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test reverse(a) == Sequence(Taylor(2), [3, 2, 1])
         @test reverse!(copy(a)) == Sequence(Taylor(2), [3, 2, 1])
 
-        # permuting the two tensor factors swaps the index tuples
         d = Sequence(𝒯 ⊗ ℱ, collect(1:6))
         dp = permutedims(d, [2, 1])
         @test space(dp) == ℱ ⊗ 𝒯

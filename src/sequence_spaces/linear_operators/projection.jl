@@ -359,10 +359,6 @@ end
 
 #
 
-# bound on |aₖ| given ‖a‖_X ≤ err and the weight wₖ at the index k
-_coefficient_bound(::Union{Ell1,EllInf}, err, w) = err / w
-_coefficient_bound(::Ell2, err, w) = sqrt(err^exact(2) / w) # ‖a‖² = √(∑ |aₖ|² wₖ)
-
 function project!(c::Sequence, a::InfiniteSequence)
     project!(c, sequence(a))
     X = banachspace(a)
@@ -377,9 +373,9 @@ function project!(c::Sequence, a::InfiniteSequence)
     @inbounds for k ∈ indices(space_c)
         w_k = _getindex(weight(X), space_c, k)
         if any(abs.(k) .> ord_a)
-            c[k] = _to_interval(CoefType, sup(_coefficient_bound(X, in_tail_bound, w_k)))
+            c[k] = _envelope_box(CoefType, _coefficient_bound(X, in_tail_bound, w_k))
         elseif !iszero(in_finite_bound)
-            c[k] += _to_interval(CoefType, sup(_coefficient_bound(X, in_finite_bound, w_k)))
+            c[k] += _envelope_box(CoefType, _coefficient_bound(X, in_finite_bound, w_k))
         end
     end
     return c

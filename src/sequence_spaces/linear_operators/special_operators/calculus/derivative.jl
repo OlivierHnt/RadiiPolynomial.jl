@@ -143,10 +143,10 @@ function domain(D::Derivative, s::SymmetricSpace)
 end
 
 function _groupelem_antiderivative(D::Derivative, g::GroupElement, ::Fourier)
-    c = g.index_action.matrix[1]^order(D)
-    new_va = CoefAction(g.coef_action.amplitude / exact(c),
-                      g.coef_action.phase)
-    return GroupElement(g.index_action, new_va)
+    c = g.lattice_aut.matrix[1]^order(D)
+    new_va = Cocycle(g.cocycle.amplitude / exact(c),
+                     g.cocycle.phase)
+    return GroupElement(g.lattice_aut, new_va)
 end
 
 function codomain(D::Derivative, s::SymmetricSpace)
@@ -156,10 +156,10 @@ function codomain(D::Derivative, s::SymmetricSpace)
 end
 
 function _groupelem_derivative(D::Derivative, g::GroupElement, ::Fourier)
-    c = g.index_action.matrix[1]^order(D)
-    new_va = CoefAction(g.coef_action.amplitude * exact(c),
-                      g.coef_action.phase)
-    return GroupElement(g.index_action, new_va)
+    c = g.lattice_aut.matrix[1]^order(D)
+    new_va = Cocycle(g.cocycle.amplitude * exact(c),
+                     g.cocycle.phase)
+    return GroupElement(g.lattice_aut, new_va)
 end
 
 _coeftype(D::Derivative, s::SymmetricSpace, ::Type{T}) where {T} =
@@ -483,13 +483,25 @@ end
 function differentiate(a::InfiniteSequence, α::Union{Int,Tuple{Vararg{Int}}}=1)
     c = differentiate(sequence(a), α)
     X = banachspace(a)
+    s = space(a)
     fe = finite_error(a)
     te = tail_error(a)
     to = total_error(a)
-    new_finite = _safe_iszero(fe) ? fe : _derivative_finite_error(X, space(a), α) * fe
-    new_tail   = _safe_iszero(te) ? te : _derivative_tail_error(X, space(a), α)   * te
-    new_total  = _safe_iszero(to) ? to : _derivative_total_error(X, space(a), α)  * to
+    new_finite = (_safe_iszero(fe) ? zero(fe) : _derivative_finite_error(X, s, α) * fe) +
+                 (_safe_iszero(te) ? zero(te) : _derivative_cross_error(X, s, α)  * te)
+    new_tail   = _safe_iszero(te) ? te : _derivative_tail_error(X, s, α) * te
+    new_total  = _safe_iszero(to) ? to : _derivative_total_error(X, s, α) * to
+    # the constructor already stores min(new_finite + new_tail, new_total) as the total error
     return InfiniteSequence(c, new_finite, new_tail, new_total, Ell1())
+end
+
+#-
+
+function _derivative_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N}
+    tails   = map((wᵢ, sᵢ, αᵢ) -> _derivative_tail_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    crosses = map((wᵢ, sᵢ, αᵢ) -> _derivative_cross_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    totals  = map((wᵢ, sᵢ, αᵢ) -> _derivative_total_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
+    return _box_complement_factor(tails .+ crosses, totals)
 end
 
 _box_complement_factor(tails::NTuple{N,Any}, totals::NTuple{N,Any}) where {N} =
@@ -497,12 +509,6 @@ _box_complement_factor(tails::NTuple{N,Any}, totals::NTuple{N,Any}) where {N} =
 
 _prod_except(t::NTuple{N,Any}, i::Int) where {N} =
     prod(ntuple(l -> ifelse(l == i, one(t[l]), t[l]), Val(N)))
-
-function _derivative_tail_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N}
-    tails  = map((wᵢ, sᵢ, αᵢ) -> _derivative_tail_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
-    totals = map((wᵢ, sᵢ, αᵢ) -> _derivative_total_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α)
-    return _box_complement_factor(tails, totals)
-end
 
 function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Taylor, α::Int)
     α == 0 && return one(rate(X))
@@ -560,8 +566,32 @@ function _geom_kfact_sup(ν, α::Int, N::Int)
     return cur_max
 end
 
-_derivative_tail_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
-    throw(DomainError(s, "derivative error on Chebyshev InfiniteSequence is not implemented"))
+function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    N = order(s)
+    return _cheb_geom_sup(j -> exact(2j * cld(j - N, 2)) / ν ^ exact(j),
+                          j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
+end
+
+function _cheb_geom_sup(f, env, j₀::Int, peak_upper::Int)
+    j = j₀
+    cur = f(j)
+    safety = max(j₀, peak_upper) + 100
+    while j < safety
+        j += 1
+        fⱼ = f(j)
+        if sup(fⱼ) > sup(cur)
+            cur = fⱼ
+        end
+        if j > peak_upper && sup(env(j)) < inf(cur)
+            return cur
+        end
+    end
+    return throw(DomainError(j₀, "could not certify the supremum of the Chebyshev derivative column norms up to j = $safety"))
+end
+
+_cheb_env_peak(ν) = max(1, ceil(Int, sup(inv(sqrt(ν) - exact(1)))))
 
 #-
 
@@ -604,8 +634,35 @@ function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::In
     return cur
 end
 
-_derivative_finite_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
-    throw(DomainError(s, "derivative error on Chebyshev InfiniteSequence is not implemented"))
+function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    _cheb_der_check(s, α, ν)
+    cur = exact(1) / ν # j = 1
+    for j ∈ 2:order(s)
+        cur = max(cur, exact(j * j) / ν ^ exact(j))
+    end
+    return cur
+end
+
+#-
+
+_derivative_cross_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Int) = zero(rate(X))
+_derivative_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rate(X))
+
+function _derivative_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return zero(rate(X))
+    ν = rate(X)
+    _cheb_der_check(s, α, ν)
+    N = order(s)
+    return _cheb_geom_sup(j -> exact(j * _cheb_b(N, j)) / ν ^ exact(j),
+                          j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
+end
+
+_derivative_cross_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    _box_complement_factor(map((wᵢ, sᵢ, αᵢ) -> _derivative_cross_error(Ell1(wᵢ), sᵢ, αᵢ), weight(X), spaces(s), α),
+                           map((wᵢ, sᵢ, αᵢ) -> max(_derivative_finite_error(Ell1(wᵢ), sᵢ, αᵢ),
+                                                   _derivative_cross_error(Ell1(wᵢ), sᵢ, αᵢ)), weight(X), spaces(s), α))
 
 #-
 
@@ -623,5 +680,10 @@ function _derivative_total_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int
     return ω * _geom_kfact_sup(ν, 1, 0)
 end
 
-_derivative_total_error(::Ell1{<:GeometricWeight}, s::Chebyshev, ::Int) =
-    throw(DomainError(s, "derivative error on Chebyshev InfiniteSequence is not implemented"))
+function _derivative_total_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
+    α == 0 && return one(rate(X))
+    ν = rate(X)
+    _cheb_der_check(s, α, ν)
+    return _cheb_geom_sup(j -> exact(j * j) / ν ^ exact(j),
+                          j -> exact(j * j) / ν ^ exact(j), 1, _cheb_env_peak(ν))
+end

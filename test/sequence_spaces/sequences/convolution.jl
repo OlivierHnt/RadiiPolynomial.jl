@@ -42,9 +42,8 @@
         @test_throws DomainError pow_bar(a, -1)
 
         @testset "codomain(pow_bar, s, n): recursive branch for n ≥ 3" begin
-            # mul_bar's codomain is `intersect`, and intersect(𝒯₁,𝒯₁) = 𝒯₁ is idempotent,
-            # so codomain(pow_bar, 𝒯₁, n) == 𝒯₁ for every n ≥ 1; n ≥ 3 exercises the
-            # recursive case `codomain(mul_bar, s², codomain(pow_bar, s, n-2))`
+            # the codomain of mul_bar is an intersection, and intersect(𝒯₁, 𝒯₁) = 𝒯₁ is
+            # idempotent, so the codomain stays 𝒯₁ for every n ≥ 1
             @test codomain(pow_bar, 𝒯₁, 3) == 𝒯₁
             @test codomain(pow_bar, 𝒯₁, 4) == 𝒯₁
             @test codomain(pow_bar, 𝒯₁, 5) == 𝒯₁
@@ -94,7 +93,7 @@
         # a² : z⁻²=1 ; z⁻¹=2·(1·2)=4 ; z⁰=2·(1·3)+2²=10 ; z¹=2·(2·3)=12 ; z²=3²=9
         @test a^2 == a * a == Sequence(Fourier(2, 1.0), [1.0, 4.0, 10.0, 12.0, 9.0])
         @test a^0 == one(a) == Sequence(ℱ₁, [0.0, 1.0, 0.0])
-        n = -1 # see the Taylor testset above for why `n` cannot be a literal
+        n = -1 # a literal exponent would be intercepted before reaching the guard
         @test_throws DomainError a^n
 
         # mul_bar truncates back down to intersect(ℱ₁,ℱ₁) = Fourier(1)
@@ -122,8 +121,8 @@
         a = Sequence(𝒞₁, [1.0, 2.0]) # a₀=1, a₁=2
         b = Sequence(𝒞₂, [1.0, 2.0, 3.0]) # b₀=1, b₁=2, b₂=3
 
-        # Chebyshev sequences are stored so that {a₀,2a₁,…,2aₙ} are the true Tₖ coefficients
-        # (see the manual); * extends a, b to negative indices via a₋ₖ=aₖ and computes
+        # Chebyshev sequences are stored so that {a₀,2a₁,…,2aₙ} are the true Tₖ coefficients;
+        # the product extends a, b to negative indices via a₋ₖ=aₖ and computes
         # c[k] = Σⱼ a[|k-j|]·b[|j|] for j ∈ [max(k-order(a),-order(b)), min(k+order(a),order(b))]
         # k=0, j∈{-1,0,1}: a[1]b[1] + a[0]b[0] + a[1]b[1] = 2·2+1·1+2·2 = 9
         # k=1, j∈{0,1,2}: a[1]b[0] + a[0]b[1] + a[1]b[2] = 2·1+1·2+2·3 = 10
@@ -133,7 +132,7 @@
         # a² : k=0: a[1]²+a[0]²+a[1]² = 4+1+4 = 9 ; k=1: 2·(a[1]a[0]) = 4 ; k=2: a[1]² = 4
         @test a^2 == a * a == Sequence(𝒞₂, [9.0, 4.0, 4.0])
         @test a^0 == one(a) == Sequence(𝒞₁, [1.0, 0.0])
-        n = -1 # see the Taylor testset above for why `n` cannot be a literal
+        n = -1 # a literal exponent would be intercepted before reaching the guard
         @test_throws DomainError a^n
 
         # mul_bar truncates down to intersect(𝒞₁,𝒞₂) = Chebyshev(1)
@@ -229,10 +228,8 @@
         end
 
         @testset "products under :fft exercise _maybe_desym / _maybe_sym on SymmetricSpace" begin
-            # under :fft, `*` must first project a SymmetricSpace sequence down to its
-            # desymmetrized space (`_maybe_desym`) before calling the FFT, then re-project
-            # the result back onto the symmetric codomain (`_maybe_sym`); neither branch is
-            # exercised by the plain (:loop) SymmetricSpace tests above
+            # under :fft a symmetric sequence must first be expanded onto its full space,
+            # then the result projected back onto the symmetric codomain
             try
                 a_sym = Sequence(evensym(Taylor(2)), [1.0, 3.0]) # 1 + 3x² (even)
                 b_sym = Sequence(evensym(Taylor(2)), [2.0, 4.0]) # 2 + 4x² (even)
@@ -293,209 +290,202 @@
         finally
             set_conv_algorithm(:loop) # restore the default
         end
+    end
 
-        @testset "sparse supports (_enforce_zeros! / _pow_enforce_zeros! aliasing cleanup)" begin
-            # Regression: for Chebyshev with overlapping supports, TᵢTᵢ contributes to T₀,
-            # and the FFT cleanup must not zero those coefficients.
-            try
-                cheb_a = Sequence(Chebyshev(3), [0.0, 0.0, 1.0, 1.0])
-                cheb_b = Sequence(Chebyshev(3), [0.0, 0.0, 0.0, 1.0])
-                tay_a  = Sequence(Taylor(3), [0.0, 0.0, 1.0, 1.0])
-                tay_b  = Sequence(Taylor(3), [0.0, 0.0, 0.0, 1.0])
-                fou_a  = Sequence(Fourier(3, 1.0), [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0])
-                fou_b  = Sequence(Fourier(3, 1.0), [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-                ten_a  = zeros(Taylor(2) ⊗ Chebyshev(3)); ten_a[(0, 2)] = 1.0; ten_a[(0, 3)] = 1.0
-                ten_b  = zeros(Taylor(2) ⊗ Chebyshev(3)); ten_b[(0, 3)] = 1.0
+    @testset "sparse supports (_enforce_zeros! / _pow_enforce_zeros! aliasing cleanup)" begin
+        # Regression: for Chebyshev with overlapping supports, TᵢTᵢ contributes to T₀,
+        # and the FFT cleanup must not zero those coefficients.
+        try
+            cheb_a = Sequence(Chebyshev(3), [0.0, 0.0, 1.0, 1.0])
+            cheb_b = Sequence(Chebyshev(3), [0.0, 0.0, 0.0, 1.0])
+            tay_a  = Sequence(Taylor(3), [0.0, 0.0, 1.0, 1.0])
+            tay_b  = Sequence(Taylor(3), [0.0, 0.0, 0.0, 1.0])
+            fou_a  = Sequence(Fourier(3, 1.0), [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0])
+            fou_b  = Sequence(Fourier(3, 1.0), [0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+            ten_a  = zeros(Taylor(2) ⊗ Chebyshev(3)); ten_a[(0, 2)] = 1.0; ten_a[(0, 3)] = 1.0
+            ten_b  = zeros(Taylor(2) ⊗ Chebyshev(3)); ten_b[(0, 3)] = 1.0
 
-                for (x, y) ∈ ((cheb_a, cheb_b), (tay_a, tay_b), (fou_a, fou_b), (ten_a, ten_b))
-                    set_conv_algorithm(:loop)
-                    xy_sum, sq_sum, cb_sum = x * y, x^2, x^3
-                    set_conv_algorithm(:fft)
-                    xy_fft, sq_fft, cb_fft = x * y, x^2, x^3
-                    @test coefficients(xy_fft) ≈ coefficients(xy_sum) atol=1e-12
-                    @test coefficients(sq_fft) ≈ coefficients(sq_sum) atol=1e-12
-                    @test coefficients(cb_fft) ≈ coefficients(cb_sum) atol=1e-12
-                end
-            finally
+            for (x, y) ∈ ((cheb_a, cheb_b), (tay_a, tay_b), (fou_a, fou_b), (ten_a, ten_b))
                 set_conv_algorithm(:loop)
-            end
-        end
-
-        @testset "banach_rounding!: genuine geometric decay triggers the non-trivial branch" begin
-            # every :fft test above uses coefficients with no particular decay, so
-            # weight(a) (fitted by least-squares regression) always has rate ≤ 1 and
-            # `banach_rounding_order` takes its early `typemax(Int)` exit; here
-            # a[i] = 16⁻ⁱ has a clean fitted GeometricWeight rate ≈ 16 (> 1), so the
-            # bound/eps/order arithmetic actually runs and the tail gets rounded
-            try
-                base = 16.0
-                ord = 10
-                a = Sequence(Taylor(ord), [inv(base^i) for i ∈ 0:ord])
-                b = Sequence(Taylor(ord), [inv(base^i) for i ∈ 0:ord])
-                @test RadiiPolynomial.weight(a) isa RadiiPolynomial.GeometricWeight
-                @test rate(RadiiPolynomial.weight(a)) > 1
-
-                set_conv_algorithm(:loop)
-                ab_sum, pow_sum, mb_sum, pb_sum = a * b, a^3, mul_bar(a, b), pow_bar(a, 3)
+                xy_sum, sq_sum, cb_sum = x * y, x^2, x^3
                 set_conv_algorithm(:fft)
-                ab_fft, pow_fft, mb_fft, pb_fft = a * b, a^3, mul_bar(a, b), pow_bar(a, 3)
-
-                @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
-                @test coefficients(pow_fft) ≈ coefficients(pow_sum) atol=1e-9
-                @test coefficients(mb_fft) ≈ coefficients(mb_sum) atol=1e-9
-                @test coefficients(pb_fft) ≈ coefficients(pb_sum) atol=1e-9
-
-                # c[k] = Σⱼ a[k-j]a[j] = (#valid j)·16⁻ᵏ; c[0] has a single term (=1)
-                # and is well below the rounding order, so it is untouched
-                @test ab_fft[0] == 1.0
-                # the fitted rounding_order here is 15 (< the full order 20): banach_rounding!
-                # overwrites c[k], k ≥ 15, with the Banach-algebra tail bound; for plain
-                # Float64 coefficients that bound collapses to exactly 0.0 (`_to_interval`'s
-                # generic fallback), even though the true value (computed exactly by :loop,
-                # 6·16⁻¹⁵ = 3/2⁵⁹) is tiny but nonzero
-                @test ab_fft[15] == 0.0
-                @test ab_sum[15] ≈ 6 * base^(-15.0)
-                @test ab_sum[15] > 0
-            finally
-                set_conv_algorithm(:loop)
+                xy_fft, sq_fft, cb_fft = x * y, x^2, x^3
+                @test coefficients(xy_fft) ≈ coefficients(xy_sum) atol=1e-12
+                @test coefficients(sq_fft) ≈ coefficients(sq_sum) atol=1e-12
+                @test coefficients(cb_fft) ≈ coefficients(cb_sum) atol=1e-12
             end
+        finally
+            set_conv_algorithm(:loop)
         end
+    end
 
-        @testset "banach_rounding!: algebraic decay branch" begin
-            # a[i] = (1+i)⁻²⁰ decays algebraically; the least-squares fit picks
-            # AlgebraicWeight over GeometricWeight here (lower regression error),
-            # exercising the `Ell1{AlgebraicWeight}` method of `banach_rounding_order`
-            try
-                p = 20.0
-                ord = 10
-                a = Sequence(Taylor(ord), [inv((1.0 + i)^p) for i ∈ 0:ord])
-                b = Sequence(Taylor(ord), [inv((1.0 + i)^p) for i ∈ 0:ord])
-                @test RadiiPolynomial.weight(a) isa RadiiPolynomial.AlgebraicWeight
-
-                set_conv_algorithm(:loop)
-                ab_sum = a * b
-                set_conv_algorithm(:fft)
-                ab_fft = a * b
-
-                @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
-                # rounding_order = 7 here (< the full order 20): c[7] is snapped to 0.0
-                # although the true value (a sum of strictly positive terms) is > 0
-                @test ab_fft[7] == 0.0
-                @test ab_sum[7] > 0
-            finally
-                set_conv_algorithm(:loop)
-            end
-        end
-
-        @testset "banach_rounding!: Fourier tail write via _write_symmetric!" begin
-            # on Fourier, `_write_symmetric!` sets c[i] and c[-i] together from a single
-            # loop iteration; a[i] = 16⁻|ⁱ| makes both ±16 fall in the rounded tail
-            try
-                base = 16.0
-                ord = 10
-                af = Sequence(Fourier(ord, 1.0), [inv(base^abs(i)) for i ∈ -ord:ord])
-                bf = Sequence(Fourier(ord, 1.0), [inv(base^abs(i)) for i ∈ -ord:ord])
-
-                set_conv_algorithm(:loop)
-                ab_sum = af * bf
-                set_conv_algorithm(:fft)
-                ab_fft = af * bf
-
-                @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
-                @test ab_fft[16] == 0.0 == ab_fft[-16] # both set by the same _write_symmetric! call
-                @test ab_sum[16] > 0
-                @test ab_sum[-16] > 0
-            finally
-                set_conv_algorithm(:loop)
-            end
-        end
-
-        @testset "banach_rounding!: TensorSpace NTuple rounding_order branch" begin
-            # a[(i,k)] = 16⁻ⁱ·16⁻|ᵏ| on Taylor(6)⊗Fourier(6): the per-axis fitted
-            # rounding_order is (17,17); at the tensor corner (12,12) (in the full
-            # Taylor(12)⊗Fourier(12) codomain) the mapreduce condition 12/17+12/17 ≥ 1
-            # holds, triggering the tensor-specific rounding branch (lines 125-127)
-            try
-                base = 16.0
-                ordT = 6
-                ordF = 6
-                s = Taylor(ordT) ⊗ Fourier(ordF, 1.0)
-                a = zeros(s)
-                b = zeros(s)
-                for i ∈ indices(Taylor(ordT)), k ∈ indices(Fourier(ordF, 1.0))
-                    a[(i, k)] = b[(i, k)] = inv(base^i) * inv(base^abs(k))
-                end
-
-                set_conv_algorithm(:loop)
-                ab_sum = a * b
-                set_conv_algorithm(:fft)
-                ab_fft = a * b
-
-                @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
-                @test ab_fft[(12, 12)] == 0.0
-                @test ab_sum[(12, 12)] > 0
-                # a corner well inside the rounding order is untouched by rounding
-                @test ab_fft[(0, 0)] ≈ ab_sum[(0, 0)] atol=1e-9
-            finally
-                set_conv_algorithm(:loop)
-            end
-        end
-
-        @testset "banach_rounding!: rigorous Interval / Complex{Interval} tail enclosure" begin
-            # with Interval (resp. Complex{Interval}) coefficients, `bound` is itself an
-            # Interval, so `banach_rounding_order` dispatches to the generic
-            # `Ell1{<:GeometricWeight}` wrapper (promoting via `sup`) instead of the
-            # T<:AbstractFloat method directly; and `_to_interval` now returns a genuine
-            # rigorous enclosure (not 0.0) for the rounded tail
+    @testset "banach_rounding!: genuine geometric decay triggers the non-trivial branch" begin
+        # coefficients with no particular decay fit a rate ≤ 1, for which no rounding
+        # order is finite and the tail is never rounded; a[i] = 16⁻ⁱ instead fits a
+        # clean geometric rate ≈ 16, so the tail does get rounded
+        try
             base = 16.0
-            base_big = big(16) # exact integer base, used for the independent Rational ground truth
             ord = 10
-            # exact ground truth: a[i] = 16⁻ⁱ = 2⁻⁴ⁱ is exactly representable, so the true
-            # convolution coefficients are exact dyadic rationals we can compute independently
-            aQ = [Rational{BigInt}(1, base_big^i) for i ∈ 0:ord]
-            conv_taylor(k) = sum(aQ[k-j+1] * aQ[j+1] for j ∈ max(k - ord, 0):min(k, ord))
+            a = Sequence(Taylor(ord), [inv(base^i) for i ∈ 0:ord])
+            b = Sequence(Taylor(ord), [inv(base^i) for i ∈ 0:ord])
+            @test RadiiPolynomial.weight(a) isa RadiiPolynomial.GeometricWeight
+            @test rate(RadiiPolynomial.weight(a)) > 1
 
-            try
-                a = Sequence(Taylor(ord), [interval(inv(base^i)) for i ∈ 0:ord])
-                b = Sequence(Taylor(ord), [interval(inv(base^i)) for i ∈ 0:ord])
+            set_conv_algorithm(:loop)
+            ab_sum, pow_sum, mb_sum, pb_sum = a * b, a^3, mul_bar(a, b), pow_bar(a, 3)
+            set_conv_algorithm(:fft)
+            ab_fft, pow_fft, mb_fft, pb_fft = a * b, a^3, mul_bar(a, b), pow_bar(a, 3)
 
-                set_conv_algorithm(:fft)
-                ab_fft = a * b
-                set_conv_algorithm(:loop)
-                ab_sum = a * b
+            @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
+            @test coefficients(pow_fft) ≈ coefficients(pow_sum) atol=1e-9
+            @test coefficients(mb_fft) ≈ coefficients(mb_sum) atol=1e-9
+            @test coefficients(pb_fft) ≈ coefficients(pb_sum) atol=1e-9
 
-                @test in_interval(1, ab_fft[0]) # c[0] = 1, well below the rounding order
-                exact15 = conv_taylor(15)
-                @test in_interval(exact15, ab_fft[15]) # rigorous enclosure from _to_interval
-                @test in_interval(exact15, ab_sum[15])
-            finally
-                set_conv_algorithm(:loop)
+            # c[k] = Σⱼ a[k-j]a[j] = (#valid j)·16⁻ᵏ; c[0] has a single term (=1)
+            # and is well below the rounding order, so it is untouched
+            @test ab_fft[0] == 1.0
+            # the fitted rounding order here is 15 (< the full order 20): every c[k] with
+            # k ≥ 15 is overwritten by the Banach-algebra tail bound, which for plain
+            # Float64 coefficients collapses to exactly 0.0, even though the true value
+            # (computed exactly by :loop, 6·16⁻¹⁵ = 3/2⁵⁹) is tiny but nonzero
+            @test ab_fft[15] == 0.0
+            @test ab_sum[15] ≈ 6 * base^(-15.0)
+            @test ab_sum[15] > 0
+        finally
+            set_conv_algorithm(:loop)
+        end
+    end
+
+    @testset "banach_rounding!: algebraic decay branch" begin
+        # a[i] = (1+i)⁻²⁰ decays algebraically, so the fit picks an algebraic weight
+        # over a geometric one and the rounding order is derived from that weight
+        try
+            p = 20.0
+            ord = 10
+            a = Sequence(Taylor(ord), [inv((1.0 + i)^p) for i ∈ 0:ord])
+            b = Sequence(Taylor(ord), [inv((1.0 + i)^p) for i ∈ 0:ord])
+            @test RadiiPolynomial.weight(a) isa RadiiPolynomial.AlgebraicWeight
+
+            set_conv_algorithm(:loop)
+            ab_sum = a * b
+            set_conv_algorithm(:fft)
+            ab_fft = a * b
+
+            @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
+            # rounding_order = 7 here (< the full order 20): c[7] is snapped to 0.0
+            # although the true value (a sum of strictly positive terms) is > 0
+            @test ab_fft[7] == 0.0
+            @test ab_sum[7] > 0
+        finally
+            set_conv_algorithm(:loop)
+        end
+    end
+
+    @testset "banach_rounding!: Fourier tail write via _write_symmetric!" begin
+        # on Fourier the rounded tail is written symmetrically, c[i] and c[-i] at
+        # once; a[i] = 16⁻|ⁱ| makes both ±16 fall in that tail
+        try
+            base = 16.0
+            ord = 10
+            af = Sequence(Fourier(ord, 1.0), [inv(base^abs(i)) for i ∈ -ord:ord])
+            bf = Sequence(Fourier(ord, 1.0), [inv(base^abs(i)) for i ∈ -ord:ord])
+
+            set_conv_algorithm(:loop)
+            ab_sum = af * bf
+            set_conv_algorithm(:fft)
+            ab_fft = af * bf
+
+            @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
+            @test ab_fft[16] == 0.0 == ab_fft[-16]
+            @test ab_sum[16] > 0
+            @test ab_sum[-16] > 0
+        finally
+            set_conv_algorithm(:loop)
+        end
+    end
+
+    @testset "banach_rounding!: TensorSpace NTuple rounding_order branch" begin
+        # a[(i,k)] = 16⁻ⁱ·16⁻|ᵏ| on Taylor(6)⊗Fourier(6) fits a rounding order of
+        # (17,17); the corner (12,12) of the full Taylor(12)⊗Fourier(12) codomain
+        # satisfies 12/17 + 12/17 ≥ 1, so it belongs to the rounded tail
+        try
+            base = 16.0
+            ordT = 6
+            ordF = 6
+            s = Taylor(ordT) ⊗ Fourier(ordF, 1.0)
+            a = zeros(s)
+            b = zeros(s)
+            for i ∈ indices(Taylor(ordT)), k ∈ indices(Fourier(ordF, 1.0))
+                a[(i, k)] = b[(i, k)] = inv(base^i) * inv(base^abs(k))
             end
 
-            aQf = Dict(i => Rational{BigInt}(1, base_big^abs(i)) for i ∈ -ord:ord)
-            conv_fourier(k) = sum(aQf[k-j] * aQf[j] for j ∈ max(k - ord, -ord):min(k + ord, ord))
+            set_conv_algorithm(:loop)
+            ab_sum = a * b
+            set_conv_algorithm(:fft)
+            ab_fft = a * b
 
-            try
-                acf = Sequence(Fourier(ord, 1.0), [complex(interval(inv(base^abs(i))), interval(0.0)) for i ∈ -ord:ord])
-                bcf = Sequence(Fourier(ord, 1.0), [complex(interval(inv(base^abs(i))), interval(0.0)) for i ∈ -ord:ord])
+            @test coefficients(ab_fft) ≈ coefficients(ab_sum) atol=1e-9
+            @test ab_fft[(12, 12)] == 0.0
+            @test ab_sum[(12, 12)] > 0
+            # a corner well inside the rounding order is untouched by rounding
+            @test ab_fft[(0, 0)] ≈ ab_sum[(0, 0)] atol=1e-9
+        finally
+            set_conv_algorithm(:loop)
+        end
+    end
 
-                set_conv_algorithm(:fft)
-                abcf_fft = acf * bcf
-                set_conv_algorithm(:loop)
-                abcf_sum = acf * bcf
+    @testset "banach_rounding!: rigorous Interval / Complex{Interval} tail enclosure" begin
+        # with interval (resp. complex interval) coefficients the tail bound is itself
+        # an interval, and the rounded tail holds a genuine rigorous enclosure of the
+        # true coefficients rather than 0.0
+        base = 16.0
+        base_big = big(16) # exact integer base, used for the independent Rational ground truth
+        ord = 10
+        # exact ground truth: a[i] = 16⁻ⁱ = 2⁻⁴ⁱ is exactly representable, so the true
+        # convolution coefficients are exact dyadic rationals we can compute independently
+        aQ = [Rational{BigInt}(1, base_big^i) for i ∈ 0:ord]
+        conv_taylor(k) = sum(aQ[k-j+1] * aQ[j+1] for j ∈ max(k - ord, 0):min(k, ord))
 
-                # note: unlike the one-sided Taylor case above, a[k-j]a[j] = 16⁻|k-j|16⁻|j|
-                # is *not* independent of j here (Fourier decays in |i|, not i), so c[0] is
-                # not simply 1; conv_fourier computes the exact value directly instead
-                exact0 = conv_fourier(0)
-                @test in_interval(exact0, real(abcf_fft[0])) # well below the rounding order
-                @test in_interval(0, imag(abcf_fft[0]))
-                exact16 = conv_fourier(16)
-                @test in_interval(exact16, real(abcf_fft[16]))
-                @test in_interval(exact16, real(abcf_sum[16]))
-            finally
-                set_conv_algorithm(:loop)
-            end
+        try
+            a = Sequence(Taylor(ord), [interval(inv(base^i)) for i ∈ 0:ord])
+            b = Sequence(Taylor(ord), [interval(inv(base^i)) for i ∈ 0:ord])
+
+            set_conv_algorithm(:fft)
+            ab_fft = a * b
+            set_conv_algorithm(:loop)
+            ab_sum = a * b
+
+            @test in_interval(1, ab_fft[0]) # c[0] = 1, well below the rounding order
+            exact15 = conv_taylor(15)
+            @test in_interval(exact15, ab_fft[15]) # rigorous enclosure of the rounded tail
+            @test in_interval(exact15, ab_sum[15])
+        finally
+            set_conv_algorithm(:loop)
+        end
+
+        aQf = Dict(i => Rational{BigInt}(1, base_big^abs(i)) for i ∈ -ord:ord)
+        conv_fourier(k) = sum(aQf[k-j] * aQf[j] for j ∈ max(k - ord, -ord):min(k + ord, ord))
+
+        try
+            acf = Sequence(Fourier(ord, 1.0), [complex(interval(inv(base^abs(i))), interval(0.0)) for i ∈ -ord:ord])
+            bcf = Sequence(Fourier(ord, 1.0), [complex(interval(inv(base^abs(i))), interval(0.0)) for i ∈ -ord:ord])
+
+            set_conv_algorithm(:fft)
+            abcf_fft = acf * bcf
+            set_conv_algorithm(:loop)
+            abcf_sum = acf * bcf
+
+            # note: unlike the one-sided Taylor case above, a[k-j]a[j] = 16⁻|k-j|16⁻|j|
+            # is *not* independent of j here (Fourier decays in |i|, not i), so c[0] is
+            # not simply 1; conv_fourier computes the exact value directly instead
+            exact0 = conv_fourier(0)
+            @test in_interval(exact0, real(abcf_fft[0])) # well below the rounding order
+            @test in_interval(0, imag(abcf_fft[0]))
+            exact16 = conv_fourier(16)
+            @test in_interval(exact16, real(abcf_fft[16]))
+            @test in_interval(exact16, real(abcf_sum[16]))
+        finally
+            set_conv_algorithm(:loop)
         end
     end
 
@@ -510,9 +500,8 @@
             # (1+2x)³ = 1+6x+12x²+8x³ truncated to Taylor(1) by InfiniteSequence's `*`
             @test sequence(r3) == Sequence(Taylor(1), [1.0, 6.0])
 
-            # the internal power-by-squaring algorithm computes a^3 as a*(a*a); for n=3 the
-            # `cross_bound` formula is symmetric in its two operands so this reference
-            # (built independently from already-tested `*`) matches r3 in *every* field
+            # a^3 is computed as a*(a*a), and for n = 3 the error bound is symmetric in its
+            # two operands, so this reference built from `*` alone matches r3 in every field
             ref = a * (a * a)
             @test sequence(r3) == sequence(ref)
             @test finite_error(r3) == finite_error(ref)
@@ -527,9 +516,8 @@
             # (1+2x)⁶ = ... + 12x + ...; coefficient of x¹ is C(6,1)·2¹ = 12
             @test sequence(r6) == Sequence(Taylor(1), [1.0, 12.0])
 
-            # the algorithm computes a^6 as a² * (a²)² = a² * a⁴; this reference, built from
-            # already-tested `*` calls independent of the `^` implementation, matches r6
-            # exactly in every field (sequence, all three errors, norm, and full_norm)
+            # a^6 is computed as a² * (a²)² = a² * a⁴; this reference, built from `*` alone,
+            # matches r6 exactly in every field
             a2 = a * a
             a4 = a2 * a2
             ref = a2 * a4

@@ -606,31 +606,3 @@ function _weight(a::Sequence{<:SequenceSpace})
     geo_err ≤ alg_err && return GeometricWeight.(geo_rate), j
     return AlgebraicWeight.(alg_rate), j
 end
-
-#
-
-polish!(a::Sequence{ScalarSpace}) = a
-
-polish!(a::Sequence{<:TensorSpace}) = a
-
-function polish!(a::Sequence{<:BaseSpace})
-    w, ord = _weight(a)
-    s = space(a)
-    norm_a = norm(a, 1)
-    for i ∈ indices(s)
-        if abs(i) > ord
-            val = norm_a / _getindex(w, s, i)
-            if abs(a[i]) > val
-                a[i] = 0
-            end
-        end
-    end
-    return a
-end
-
-function polish!(a::Sequence{<:CartesianSpace})
-    for i ∈ 1:nspaces(space(a))
-        polish!(component(a, i))
-    end
-    return a
-end

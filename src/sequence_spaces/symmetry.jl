@@ -1,95 +1,114 @@
 """
-    IndexAction(a::AbstractMatrix{Int})
+    LatticeAut(a::AbstractMatrix{Int})
 
-The action of a symmetry on the indices, given by an integer matrix. Callable on
-an index or a tuple of indices.
+The automorphism of the index lattice induced by a symmetry, given by an integer
+matrix. Callable on an index or a tuple of indices.
 
-See also: [`CoefAction`](@ref) and [`GroupElement`](@ref).
+See also: [`Cocycle`](@ref) and [`GroupElement`](@ref).
 """
-struct IndexAction{N}
+struct LatticeAut{N}
     matrix :: StaticArrays.SMatrix{N,N,Int}
 end
 
-IndexAction(a::AbstractMatrix{Int}) = IndexAction(StaticArrays.SMatrix{size(a)...,Int}(a))
+LatticeAut(a::AbstractMatrix{Int}) = LatticeAut(StaticArrays.SMatrix{size(a)...,Int}(a))
 
-(A::IndexAction{1})(k::Integer) = A.matrix[1] * k
-(A::IndexAction{2})(k::NTuple{2,Integer}) =
+(A::LatticeAut{1})(k::Integer) = A.matrix[1] * k
+(A::LatticeAut{2})(k::NTuple{2,Integer}) =
     (A.matrix[1,1]*k[1] + A.matrix[1,2]*k[2],
      A.matrix[2,1]*k[1] + A.matrix[2,2]*k[2])
-(A::IndexAction{3})(k::NTuple{3,Integer}) =
+(A::LatticeAut{3})(k::NTuple{3,Integer}) =
     (A.matrix[1,1]*k[1] + A.matrix[1,2]*k[2] + A.matrix[1,3]*k[3],
      A.matrix[2,1]*k[1] + A.matrix[2,2]*k[2] + A.matrix[2,3]*k[3],
-     A.matrix[3,1]*k[1] + A.matrix[3,2]*k[2] + A.matrix[3,3]*k[3],)
-function (A::IndexAction{N})(k::NTuple{N,Integer}) where {N}
+     A.matrix[3,1]*k[1] + A.matrix[3,2]*k[2] + A.matrix[3,3]*k[3])
+function (A::LatticeAut{N})(k::NTuple{N,Integer}) where {N}
     l = A.matrix * StaticArrays.SVector{N}(k)
     return ntuple(i -> l[i], Val(N))
 end
 
-Base.:*(A::IndexAction, B::IndexAction) = IndexAction(A.matrix * B.matrix)
+Base.:*(A::LatticeAut, B::LatticeAut) = LatticeAut(A.matrix * B.matrix)
 
-Base.:(==)(A::IndexAction, B::IndexAction) = A.matrix == B.matrix
+Base.:(==)(A::LatticeAut, B::LatticeAut) = A.matrix == B.matrix
 
-Base.hash(A::IndexAction, h::UInt) = hash(A.matrix, h)
+Base.hash(A::LatticeAut, h::UInt) = hash(A.matrix, h)
 
 #
 
 """
-    CoefAction(amplitude::Number, phase::AbstractVector{Rational{Int}})
+    Cocycle(amplitude::Number, phase::AbstractVector{Rational{Int}})
 
-The action of a symmetry on a coefficient: multiplication by `amplitude`,
-together with a `phase` measured in units of ``\\pi`` and stored modulo `2`.
+The factor ``\\alpha_g(k) = \\rho e^{i\\pi\\langle\\varphi,k\\rangle}`` given by
+an `amplitude` ``\\rho`` and a phase ``\\varphi`` (measured in units of ``\\pi``
+and stored modulo 2).
+
+Together with a [`LatticeAut`](@ref) ``\\beta_g`` it defines the right action
+
+```math
+(g \\cdot a)_k = \\alpha_g(k) \\, a_{\\beta_g(k)},
+```
+
+under which ``\\alpha`` is not itself a group action but a 1-cocycle:
+``\\alpha_{gh}(k) = \\alpha_g(\\beta_h(k))\\,\\alpha_h(k)``. Since a finite
+group forces ``\\alpha_g(k)^{|G|} = 1``, `amplitude` should be a root of unity.
 
 Fields:
 - `amplitude :: T`
 - `phase :: SVector{N,Rational{Int}}`
 
-See also: [`IndexAction`](@ref) and [`GroupElement`](@ref).
+See also: [`LatticeAut`](@ref) and [`GroupElement`](@ref).
 """
-struct CoefAction{N,T<:Number}
+struct Cocycle{N,T<:Number}
     amplitude :: T
     phase     :: StaticArrays.SVector{N,Rational{Int}} # factor of π
-    CoefAction{N,T}(amplitude::T, phase::StaticArrays.SVector{N,Rational{Int}}) where {T<:Number,N} = new{N,T}(amplitude, mod.(phase, 2))
+    Cocycle{N,T}(amplitude::T, phase::StaticArrays.SVector{N,Rational{Int}}) where {T<:Number,N} = new{N,T}(amplitude, mod.(phase, 2))
 end
 
-CoefAction(amplitude::T, phase::StaticArrays.SVector{N,Rational{Int}}) where {T<:Number,N} = CoefAction{N,T}(amplitude, phase)
+Cocycle(amplitude::T, phase::StaticArrays.SVector{N,Rational{Int}}) where {T<:Number,N} = Cocycle{N,T}(amplitude, phase)
 
-CoefAction(amplitude::Number, phase::AbstractVector{Rational{Int}}) = CoefAction(amplitude, StaticArrays.SVector{length(phase),Rational{Int}}(phase))
+Cocycle(amplitude::Number, phase::AbstractVector{Rational{Int}}) = Cocycle(amplitude, StaticArrays.SVector{length(phase),Rational{Int}}(phase))
 
-(v::CoefAction{1,<:Interval})(k::Integer) = v.amplitude * cispi(interval(exact(v.phase[1]) * exact(k)))
-(v::CoefAction{N,<:Interval})(k::NTuple{N,Integer}) where {N} = v.amplitude * cispi(interval(mapreduce(*, +, exact.(v.phase), exact.(k))))
-(v::CoefAction)(k) = v.amplitude * cispi(mapreduce(*, +, v.phase, k))
+(v::Cocycle{1,<:Interval})(k::Integer) = v.amplitude * cispi(interval(exact(v.phase[1]) * exact(k)))
+(v::Cocycle{N,<:Interval})(k::NTuple{N,Integer}) where {N} = v.amplitude * cispi(interval(mapreduce(*, +, exact.(v.phase), exact.(k))))
+(v::Cocycle)(k) = v.amplitude * cispi(mapreduce(*, +, v.phase, k))
 
-Base.:*(v::CoefAction, w::CoefAction) = CoefAction(
-    v.amplitude * w.amplitude,
-    mod.(v.phase + w.phase, 2))
+Base.:(==)(v::Cocycle, w::Cocycle) = (v.amplitude == w.amplitude) & (v.phase == w.phase)
 
-Base.:(==)(v::CoefAction, w::CoefAction) = (v.amplitude == w.amplitude) & (v.phase == w.phase)
-
-Base.hash(v::CoefAction, h::UInt) = hash(v.amplitude, hash(v.phase, h))
+Base.hash(v::Cocycle, h::UInt) = hash(v.amplitude, hash(v.phase, h))
 
 #
 
 """
-    GroupElement(index_action::IndexAction, coef_action::CoefAction)
+    GroupElement(lattice_aut::LatticeAut, cocycle::Cocycle)
 
-Combine an [`IndexAction`](@ref) together with the [`CoefAction`](@ref) applied
-to the corresponding coefficient. Elements compose with `∘`.
+Combine a [`LatticeAut`](@ref) ``\\beta_g`` with the [`Cocycle`](@ref)
+``\\alpha_g`` so that `g` defines the right action on a sequence
+
+```math
+(g \\cdot a)_k = \\alpha_g(k) \\, a_{\\beta_g(k)}.
+```
+
+Elements compose with `∘`.
 
 Fields:
-- `index_action :: IndexAction{N}`
-- `coef_action :: CoefAction{N,T}`
+- `lattice_aut :: LatticeAut{N}`
+- `cocycle :: Cocycle{N,T}`
 
-See also: [`Group`](@ref) and [`SymmetricSpace`](@ref).
+See also: [`LatticeAut`](@ref), [`Cocycle`](@ref), [`Group`](@ref) and
+[`SymmetricSpace`](@ref).
 """
 struct GroupElement{N,T<:Number}
-    index_action :: IndexAction{N}
-    coef_action  :: CoefAction{N,T}
+    lattice_aut :: LatticeAut{N}
+    cocycle     :: Cocycle{N,T}
 end
 
-Base.:∘(g::GroupElement, h::GroupElement) = GroupElement(g.index_action * h.index_action, g.coef_action * h.coef_action)
+# (h·(g·a))_k = α_h(k) (g·a)_{β_h k} = α_h(k) α_g(β_h k) a_{β_g β_h k},
+# and ⟨φ_g, β_h k⟩ = ⟨β_hᵀφ_g, k⟩
+Base.:∘(g::GroupElement, h::GroupElement) = GroupElement(
+    g.lattice_aut * h.lattice_aut,
+    Cocycle(g.cocycle.amplitude * h.cocycle.amplitude,
+            h.lattice_aut.matrix' * g.cocycle.phase + h.cocycle.phase))
 
-Base.:(==)(g::GroupElement, h::GroupElement) = (g.index_action == h.index_action) & (g.coef_action == h.coef_action)
-Base.hash(g::GroupElement, h::UInt) = hash(g.index_action, hash(g.coef_action, h))
+Base.:(==)(g::GroupElement, h::GroupElement) = (g.lattice_aut == h.lattice_aut) & (g.cocycle == h.cocycle)
+Base.hash(g::GroupElement, h::UInt) = hash(g.lattice_aut, hash(g.cocycle, h))
 
 #
 
@@ -150,8 +169,8 @@ end
 
 Base.hash(g::Group, h::UInt) = hash(g.hash, h)
 
-_orbit(sym::Group{1}, k::T) where {T<:Integer} = Set{T}(g.index_action(k) for g ∈ elements(sym))
-_orbit(sym::Group{N}, k::NTuple{N,T}) where {N,T<:Integer} = Set{NTuple{N,T}}(g.index_action(k) for g ∈ elements(sym))
+_orbit(sym::Group{1}, k::T) where {T<:Integer} = Set{T}(g.lattice_aut(k) for g ∈ elements(sym))
+_orbit(sym::Group{N}, k::NTuple{N,T}) where {N,T<:Integer} = Set{NTuple{N,T}}(g.lattice_aut(k) for g ∈ elements(sym))
 
 function _orbit_representatives(sym::Group, inds) # slow
     sym_elements = elements(sym)
@@ -160,7 +179,7 @@ function _orbit_representatives(sym::Group, inds) # slow
     for (i, k) ∈ enumerate(inds)
         k_rep = k
         for g ∈ sym_elements
-            k_g = g.index_action(k)
+            k_g = g.lattice_aut(k)
             if k_g > k_rep
                 k_rep = k_g
             end
@@ -181,7 +200,7 @@ function _filter_valid_representatives(sym::Group, k_reps)
 
         is_valid_orbit = true # if `k` maps to itself and has a conflicting phase, then it is not a valid orbit
         for g ∈ sym_elements
-            if g.index_action(k_rep) == k_rep && g.coef_action(k_rep) != 1
+            if g.lattice_aut(k_rep) == k_rep && g.cocycle(k_rep) != 1
                 is_valid_orbit = false
                 break
             end
@@ -199,10 +218,12 @@ _sort_representatives!(reps::Vector{<:NTuple{N,Integer}}) where {N} = sort!(reps
 function _compute_action_map(sym::Group, inds, k_reps)
     sym_elements = elements(sym)
     return map(enumerate(inds)) do (i, k)
+        # invariance under `g` reads a_k = α_g(k) a_{β_g(k)}, so the element to look for is the
+        # one carrying `k` onto its representative, and the factor is its cocycle *at k*
         k_rep = k_reps[i]
         for g ∈ sym_elements
-            if g.index_action(k_rep) == k
-                return (k_rep, g.coef_action(k_rep))
+            if g.lattice_aut(k) == k_rep
+                return (k_rep, g.cocycle(k))
             end
         end
         return throw(ArgumentError("Symmetry group consistency error"))
@@ -222,7 +243,7 @@ const _orbit_cache_lock = ReentrantLock()
 _indices_type(::Type{<:BaseSpace}) = StepRange{Int,Int}
 _indices_type(::Type{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = Vector{NTuple{N,Int}}
 _rep_idx_action_type(::Type{S}, ::Type{Group{N,T}}) where {S<:NoSymSpace,N,T} =
-    Tuple{eltype(_indices_type(S)),Base.promote_op((v, k) -> v(k), CoefAction{N,T}, eltype(_indices_type(S)))}
+    Tuple{eltype(_indices_type(S)),Base.promote_op((v, k) -> v(k), Cocycle{N,T}, eltype(_indices_type(S)))}
 
 """
     SymmetricSpace(space::SequenceSpace, sym::Group)
@@ -316,11 +337,11 @@ See also: [`SymmetricSpace`](@ref), [`desymmetrize`](@ref) and
 """
 symmetry(s::SymmetricSpace) = s.symmetry
 symmetry(::BaseSpace) = # identity
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(0//1))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(1)),
+                       Cocycle(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(0//1))))
 symmetry(::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = # identity
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{N,N,Int}(I)),
-                       CoefAction(exact(1//1), StaticArrays.SVector{N,Rational{Int}}(ntuple(_ -> 0//1, Val(N))))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{N,N,Int}(I)),
+                       Cocycle(exact(1//1), StaticArrays.SVector{N,Rational{Int}}(ntuple(_ -> 0//1, Val(N))))))
 
 indices(s::SymmetricSpace) = s.indices
 
@@ -367,16 +388,16 @@ IntervalArithmetic.interval(s::SymmetricSpace) = SymmetricSpace(interval(desymme
 #     SymmetricSpace(IntervalArithmetic._interval_infsup(T, desymmetrize(s₁), desymmetrize(s₂), d), intersect(interval(symmetry(s₁)), interval(symmetry(s₂))))
 
 IntervalArithmetic.interval(g::Group) = unsafe_group!(Set(interval(h) for h in elements(g)))
-IntervalArithmetic.interval(g::GroupElement) = GroupElement(g.index_action, interval(g.coef_action))
-IntervalArithmetic.interval(g::CoefAction) = CoefAction(interval(g.amplitude), g.phase)
+IntervalArithmetic.interval(g::GroupElement) = GroupElement(g.lattice_aut, interval(g.cocycle))
+IntervalArithmetic.interval(g::Cocycle) = Cocycle(interval(g.amplitude), g.phase)
 
 # tensor product
 
 ⊗(g₁::GroupElement{N₁}, g₂::GroupElement{N₂}) where {N₁,N₂} = GroupElement(
-    IndexAction(hcat(vcat(g₁.index_action.matrix, zero(StaticArrays.SMatrix{N₂,N₁,Int})),
-                     vcat(zero(StaticArrays.SMatrix{N₁,N₂,Int}), g₂.index_action.matrix))),
-    CoefAction(g₁.coef_action.amplitude * g₂.coef_action.amplitude,
-               vcat(g₁.coef_action.phase, g₂.coef_action.phase)))
+    LatticeAut(hcat(vcat(g₁.lattice_aut.matrix, zero(StaticArrays.SMatrix{N₂,N₁,Int})),
+                     vcat(zero(StaticArrays.SMatrix{N₁,N₂,Int}), g₂.lattice_aut.matrix))),
+    Cocycle(g₁.cocycle.amplitude * g₂.cocycle.amplitude,
+               vcat(g₁.cocycle.phase, g₂.cocycle.phase)))
 
 ⊗(G₁::Group, G₂::Group) = unsafe_group!(Set(g₁ ⊗ g₂ for g₁ ∈ elements(G₁), g₂ ∈ elements(G₂)))
 
@@ -422,14 +443,14 @@ julia> collect(indices(evensym(Taylor(4))))
 See also: [`oddsym`](@ref), [`d4sym`](@ref) and [`SymmetricSpace`](@ref).
 """
 evensym(s::Taylor) = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(1)),
+                       Cocycle(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
 evensym(s::Fourier) = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(-1)),
-                       CoefAction(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(0//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(-1)),
+                       Cocycle(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(0//1)))))
 evensym(s::Chebyshev) = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(1)),
+                       Cocycle(exact(1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
 
 """
     oddsym(s::BaseSpace)
@@ -457,14 +478,14 @@ julia> collect(indices(oddsym(Taylor(4))))
 See also: [`evensym`](@ref), [`d4sym`](@ref) and [`SymmetricSpace`](@ref).
 """
 oddsym(s::Taylor)  = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(1)),
+                       Cocycle(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
 oddsym(s::Fourier)  = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(-1)),
-                       CoefAction(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(0//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(-1)),
+                       Cocycle(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(0//1)))))
 oddsym(s::Chebyshev)  = SymmetricSpace(s,
-    Group(GroupElement(IndexAction(StaticArrays.SMatrix{1,1,Int}(1)),
-                       CoefAction(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
+    Group(GroupElement(LatticeAut(StaticArrays.SMatrix{1,1,Int}(1)),
+                       Cocycle(exact(-1//1), StaticArrays.SVector{1,Rational{Int}}(1//1)))))
 
 #
 
@@ -495,7 +516,7 @@ See also: [`evensym`](@ref), [`oddsym`](@ref) and [`SymmetricSpace`](@ref).
 """
 d4sym(s::TensorSpace{T}) where {T<:Tuple{<:Fourier,<:Fourier}} = SymmetricSpace(s,
     Group(
-        GroupElement(IndexAction(StaticArrays.SMatrix{2,2,Int}([0 -1 ; 1 0])),
-                       CoefAction(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1))),
-        GroupElement(IndexAction(StaticArrays.SMatrix{2,2,Int}([0  1 ; 1 0])),
-                       CoefAction(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1)))))
+        GroupElement(LatticeAut(StaticArrays.SMatrix{2,2,Int}([0 -1 ; 1 0])),
+                       Cocycle(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1))),
+        GroupElement(LatticeAut(StaticArrays.SMatrix{2,2,Int}([0  1 ; 1 0])),
+                       Cocycle(exact(1//1), StaticArrays.SVector{2,Rational{Int}}(0//1, 0//1)))))

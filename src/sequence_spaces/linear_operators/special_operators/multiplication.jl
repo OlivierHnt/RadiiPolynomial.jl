@@ -58,8 +58,9 @@ function _domain_convolution_symmetry(G::Group{N,T}, G_prod::Group{N,T}) where {
         haskey(idx_prod, key) || continue
         vals_prod = idx_prod[key]
         for v ∈ vals, v_prod ∈ vals_prod
+            # convolution identity e^{iπ⟨φ,j⟩} e^{iπ⟨φ,k−j⟩} = e^{iπ⟨φ,k⟩}
             if v.phase == v_prod.phase
-                new_coeff = CoefAction{N,T}(v_prod.amplitude / v.amplitude, -v.phase)
+                new_coeff = Cocycle{N,T}(v_prod.amplitude / v.amplitude, v.phase)
                 push!(elems, GroupElement{N,T}(key, new_coeff))
             end
         end

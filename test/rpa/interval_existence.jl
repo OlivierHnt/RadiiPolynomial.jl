@@ -153,10 +153,8 @@
         @test sup(iv) < 0.1 # never unsoundly reports the naive (rounded-up) float vertex
     end
 
-    #= set_of_radii (M-dimensional): branches not exercised in test/rpa/proofs.jl. A local
-       stdout-capturing helper lets us both silence the diagnostic `println`s and assert that the
-       expected branch actually fired (mirrors the `capture_stdout` pattern used in
-       test/rpa/newton.jl). =#
+    #= The local helper below captures stdout, which both silences the diagnostic printing
+       and lets each test assert that the expected diagnostic was actually emitted. =#
     @testset "set_of_radii (M-dimensional): uncovered branches" begin
         function capture_stdout(f)
             old = stdout
@@ -174,9 +172,8 @@
            the radii-search loop is skipped entirely (partialsuccess stays false), so the final
            "radii polynomial(s) not negative (simultaneously)" failure path is taken. =#
         @testset "Newton failure and the M==1 / M>1 \"not negative (simultaneously)\" paths" begin
-            # M == 1: exercises "radii polynomial not negative" (singular). partialsuccess never
-            # becomes true here, so the `Mat(rmin)[1,1]` contraction check (hand-verified in
-            # proofs.jl) is never reached — this is a genuinely different failure path.
+            # M == 1 gives the singular wording "radii polynomial not negative"; since the
+            # search never even starts, the contraction check is never reached
             Y1 = [interval(1.0)]
             Z1_ = fill(interval(2.0), 1, 1)
             W1 = zeros(Interval{Float64}, 1, 1, 1)
@@ -198,11 +195,10 @@
             @test isempty(rmin2) && isempty(eta2)
         end
 
-        #= reuse the decoupled scalar quadratic Y=0.75, Z₁=0, Z₂=0.5 (root r₁ = 1, contraction
-           holds there, see the 3-arg success testset above for the hand-computed root) but with
-           R below the found radius: success is provisionally true (partialsuccess and the
-           Collatz–Wielandt contraction test both hold) yet gets overturned because rmin ≈ 1
-           exceeds R = 0.5. With R large enough (5) the very same Y, Z, W do succeed. =#
+        #= The decoupled scalar quadratic Y = 0.75, Z₁ = 0, Z₂ = 0.5 has root r₁ = 1, where the
+           contraction holds. Taking R below that radius, success is provisionally true (the
+           radii are found and the Collatz–Wielandt contraction test holds) yet gets overturned
+           because rmin ≈ 1 exceeds R = 0.5. With R large enough (5) the same data succeeds. =#
         @testset "success overturned because rᵢ ≥ Rᵢ" begin
             Y = [interval(0.75), interval(0.75)]
             Z = zeros(Interval{Float64}, 2, 2)

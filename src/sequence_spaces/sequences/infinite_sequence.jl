@@ -86,13 +86,10 @@ InfiniteSequence(space::SequenceSpace, coefficients::AbstractVector, banachspace
 InfiniteSequence(space::SequenceSpace, coefficients::AbstractVector, finite_error::Real, tail_error::Real, total_error::Real, banachspace::BanachSpace) =
     InfiniteSequence(Sequence(space, coefficients), finite_error, tail_error, total_error, banachspace)
 
+# requires X to be a Banach algebra under convolution: ℓ¹-type norms only
 _iscompatbanachspace(::SequenceSpace, ::BanachSpace) = false
 _iscompatbanachspace(::SequenceSpace, ::Ell1{<:Weight}) = true
-_iscompatbanachspace(::SequenceSpace, ::Ell2{<:Weight}) = true
-_iscompatbanachspace(::SequenceSpace, ::EllInf{<:Weight}) = true
 _iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::Ell1{<:NTuple{N,Weight}}) where {N} = true
-_iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::Ell2{<:NTuple{N,Weight}}) where {N} = true
-_iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::EllInf{<:NTuple{N,Weight}}) where {N} = true
 
 sequence(a::InfiniteSequence) = a.sequence
 sequence_norm(a::InfiniteSequence) = a.sequence_norm

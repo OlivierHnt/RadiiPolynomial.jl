@@ -3,8 +3,7 @@
     @testset "Constructors and algebra" begin
         @test order(Derivative(1)) == 1
         @test order(Derivative(1, 2)) == (1, 2) == order(Derivative((1, 2)))
-        @test Derivative(1, 2) == Derivative((1, 2)) # varargs constructor
-        # composition and powers
+        @test Derivative(1, 2) == Derivative((1, 2))
         @test Derivative(1) * Derivative(1) == Derivative(1)^2 == Derivative(2)
         @test Derivative(2) * Derivative(3) == Derivative(5)
         @test Derivative((1, 2)) * Derivative((3, 1)) == Derivative((4, 3))
@@ -47,18 +46,15 @@
             differentiate!(Sequence(Taylor(0), [Inf]), a_𝒯, 4) ==
             mul!(Sequence(Taylor(0), [Inf]), ∂⁴, a_𝒯) == Sequence(Taylor(0), [0.0])
 
-        # composition ∂∘∂ (each application uses only order 1, so it avoids the order-≥2 bug below):
-        # d/dx(-1+2x) = 2
+        # composition of two first-order derivatives: d/dx(-1+2x) = 2
         @test ∂¹(∂¹(a_𝒯)) == Sequence(Taylor(0), [2.0])
 
         # spaces must match in the in-place forms
         @test_throws ArgumentError differentiate!(Sequence(Taylor(5), zeros(6)), a_𝒯)
 
-        # ComplexF64 coefficients (coefficient type preserved for Taylor)
         a_𝒯c = Sequence(Taylor(2), ComplexF64[1 + 1im, -1.0, 2im])
         @test ∂¹(a_𝒯c) == Sequence(Taylor(1), ComplexF64[-1.0, 4im])
 
-        # Interval{Float64} coefficients
         a_𝒯i = Sequence(Taylor(2), interval.([1.0, -1.0, 1.0]))
         @test ∂¹(a_𝒯i) == Sequence(Taylor(1), interval.([-1.0, 2.0]))
 
@@ -97,19 +93,18 @@
             mul!(Sequence(Fourier(2, ω), fill(complex(Inf), 5)), ∂², a_ℱ) ==
             Sequence(Fourier(2, ω), ComplexF64[-9.0, -4.5, 0.0, 4.5, -4.5])
 
-        # materializing via `project` exercises `getcoefficient`'s residue branches r = n%4 = 3 and r = 0 (n ≠ 0)
+        # n = 3 and n = 4 complete the i^n cycle
         @test ∂³(a_ℱ) == project(∂³, Fourier(2, ω), Fourier(2, ω), ComplexF64)(a_ℱ) ==
             Sequence(Fourier(2, ω), ComplexF64[27.0im, 6.75im, 0.0, 6.75im, -13.5im])
 
         @test ∂⁴(a_ℱ) == project(∂⁴, Fourier(2, ω), Fourier(2, ω), ComplexF64)(a_ℱ) ==
             Sequence(Fourier(2, ω), ComplexF64[81.0, 10.125, 0.0, -10.125, 40.5])
 
-        # composition ∂∘∂ == ∂²
         @test ∂¹(∂¹(a_ℱ)) == ∂²(a_ℱ)
 
         @test_throws ArgumentError differentiate!(Sequence(Fourier(1, ω), fill(complex(Inf), 3)), a_ℱ)
 
-        # Interval{Float64}/Complex{Interval{Float64}} coefficients (1/3 is not exactly representable)
+        # 1/3 is not exactly representable, hence the enclosure checks
         x = interval(1) / interval(3)
         a_ℱi = Sequence(Fourier(1, 1.0), [complex(x), complex(interval(0.0)), complex(x)])
         d_ℱi = ∂¹(a_ℱi)
@@ -121,7 +116,7 @@
     @testset "Chebyshev" begin
         ∂¹ = Derivative(1)
 
-        # domain: only the trivial (order 0) derivative has a well-defined domain (comment "flags an error")
+        # only the order-0 derivative has a well-defined domain on a Chebyshev space
         @test domain(∂¹, Chebyshev(3)) == UndefSpace()
         @test domain(Derivative(0), Chebyshev(3)) == Chebyshev(3)
         @test codomain(∂¹, Chebyshev(3)) == Chebyshev(2)
@@ -139,35 +134,33 @@
             differentiate!(Sequence(Chebyshev(2), [Inf, Inf, Inf]), a_𝒞) ==
             mul!(Sequence(Chebyshev(2), [Inf, Inf, Inf]), ∂¹, a_𝒞) == Sequence(Chebyshev(2), [28.0, 12.0, 24.0])
 
-        # simple case from special_operators.jl: T0 + T1/2 + T2/2, order(a) < ord ⇒ single loop
+        # T₀ + T₁/2 + T₂/2
         a_𝒞2 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
         @test ∂¹(a_𝒞2) == Sequence(Chebyshev(1), [1.0, 2.0])
 
         @test_throws ArgumentError differentiate!(Sequence(Chebyshev(5), zeros(6)), a_𝒞)
 
-        # ComplexF64 / Interval{Float64} coefficients
         a_𝒞c = Sequence(Chebyshev(3), ComplexF64[1 + 1im, 2.0, 3.0, 4im])
         @test ∂¹(a_𝒞c) == Sequence(Chebyshev(2), ComplexF64[4 + 24im, 12.0, 24.0im])
         a_𝒞i = Sequence(Chebyshev(2), interval.([1.0, 0.5, 0.5]))
         @test ∂¹(a_𝒞i) == Sequence(Chebyshev(1), interval.([1.0, 2.0]))
 
-        # n = 0 via `project` materialization exercises `getcoefficient`'s own identity branch
-        # (as opposed to the Sequence-level shortcut `coefficients(c) .= coefficients(a)`)
+        # the order-0 derivative materializes to the identity
         @test project(Derivative(0), Chebyshev(3), Chebyshev(3), Float64)(a_𝒞) == a_𝒞
 
         # order(a) < n = 1 ⇒ the lone coefficient is the zero constant
         a_𝒞0 = Sequence(Chebyshev(0), [5.0])
         @test differentiate(a_𝒞0, 1) == Sequence(Chebyshev(0), [0.0])
 
-        # n ≥ 2 is an explicit TODO restriction in the source
+        # derivatives of order ≥ 2 are not supported on a Chebyshev space
         @test_throws DomainError differentiate(a_𝒞2, 2)
 
-        # the same restriction applies to `getcoefficient` itself (the path `project` uses)
+        # the same restriction applies when materializing the operator
         @test_throws DomainError project(Derivative(2), Chebyshev(3), Chebyshev(1), Float64)
     end
 
     @testset "Tensor space" begin
-        # all orders = 1 (safe w.r.t. the Taylor order-≥2 bug): ∂ₓ∂ᵧ∂_z of a monomial x^i e^{iωjy} T_k(z)
+        # all orders = 1: ∂ₓ∂ᵧ∂_z of a monomial x^i e^{iωjy} T_k(z)
         # only survives terms with i=1 (Taylor), j≠0 (Fourier, else the mode vanishes) and k=1 (Chebyshev)
         s = Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1)
         a_𝑇 = Sequence(s, collect(1.0:12.0))
@@ -190,28 +183,25 @@
         @test domain(Derivative((0, 1)), s2) == UndefSpace()
         @test codomain(Derivative((0, 1)), s2) == Taylor(1) ⊗ Chebyshev(1)
 
-        # Interval{Float64} coefficients
         a_𝑇i = Sequence(Taylor(1) ⊗ Taylor(1), interval.(collect(1.0:4.0)))
         @test differentiate(a_𝑇i, (1, 1)) == Sequence(Taylor(0) ⊗ Taylor(0), interval.([4.0]))
 
-        # domain for a tensor derivative with no UndefSpace factor: genuine TensorSpace of per-factor
-        # domains (Taylor's domain via Integral is never UndefSpace, unlike Chebyshev's above)
+        # with no undefined factor, the domain is the tensor product of the per-factor domains
         @test domain(Derivative((1, 2)), Taylor(1) ⊗ Taylor(2)) == Taylor(2) ⊗ Taylor(4)
 
         @testset "non-first factor uses the array-returning `_apply`, not the in-place `_apply!`" begin
-            # only the FIRST factor of a TensorSpace is processed by the in-place `_apply!`;
-            # every other factor recurses through the array-returning `_apply` (Taylor/Fourier/Chebyshev)
+            # the first factor of a tensor product is differentiated in place, every other
+            # factor through a separate path
 
-            # Taylor, order 0 for the non-first factor ⇒ `_apply`'s n == 0 branch (plain copy)
+            # a non-first Taylor factor of order 0 is copied through
             b1t = Sequence(Taylor(1) ⊗ Taylor(2), collect(1.0:6.0))
             @test differentiate(b1t, (1, 0)) == Sequence(Taylor(0) ⊗ Taylor(2), [2.0, 4.0, 6.0])
 
-            # Taylor, own order (0) < derivative order (1) for the non-first factor ⇒ `_apply`'s ord < n branch (zero)
+            # a non-first Taylor factor whose own order is below the derivative order gives zero
             b2t = Sequence(Taylor(1) ⊗ Taylor(0), collect(1.0:2.0))
             @test differentiate(b2t, (1, 1)) == Sequence(Taylor(0) ⊗ Taylor(0), [0.0])
 
-            # Fourier as the FIRST factor exercises the array in-place `_apply!` (n = 1, then odd n ≥ 3);
-            # same j = -2,...,2 values and derivatives as the "Fourier" testset above
+            # Fourier as the first factor, n = 1 then odd n ≥ 3, on the same j = -2,...,2 values
             ω = 1.5
             vals = ComplexF64[1.0, 2.0, 3.0, -2.0, 0.5]
             sF1 = Fourier(2, ω) ⊗ Taylor(0)
@@ -220,28 +210,28 @@
             @test differentiate(Sequence(sF1, vals), (3, 0)) ==
                 Sequence(sF1, ComplexF64[27.0im, 6.75im, 0.0, 6.75im, -13.5im])
 
-            # Fourier as a non-first factor, odd n ≥ 3, exercises the array-returning `_apply`'s isodd branch
+            # Fourier as a non-first factor, odd n ≥ 3
             sF2 = Taylor(0) ⊗ Fourier(2, ω)
             @test differentiate(Sequence(sF2, vals), (0, 3)) ==
                 Sequence(sF2, ComplexF64[27.0im, 6.75im, 0.0, 6.75im, -13.5im])
 
-            # Chebyshev as a non-first factor, own order (0) < derivative order (1) ⇒ `_apply`'s ord < n branch
+            # a non-first Chebyshev factor whose own order is below the derivative order gives zero
             sC1 = Taylor(0) ⊗ Chebyshev(0)
             @test differentiate(Sequence(sC1, [3.0]), (0, 1)) == Sequence(sC1, [0.0])
         end
 
         @testset "Taylor order ≥ 2 through tensor recursion" begin
-            # Taylor order ≥ 2 as the FIRST factor (array in-place `_apply!`)
+            # Taylor order ≥ 2 as the first factor
             sT1 = Taylor(3) ⊗ Fourier(1, 1.0)
             aT1 = Sequence(sT1, collect(1.0:12.0))
             D1 = Derivative((2, 0))
             codom1 = codomain(D1, sT1)
-            expectedT1 = project(D1, sT1, codom1, ComplexF64)(aT1) # cross-check via the tuple-based getcoefficient
+            expectedT1 = project(D1, sT1, codom1, ComplexF64)(aT1) # cross-check via materialization
             @test differentiate(aT1, (2, 0)) ==
                 mul!(Sequence(codom1, fill(complex(Inf), dimension(codom1))), D1, aT1) ==
                 expectedT1 == Sequence(codom1, ComplexF64[6.0, 24.0, 14.0, 48.0, 22.0, 72.0])
 
-            # Taylor order ≥ 2 as a non-first factor (array-returning `_apply`)
+            # Taylor order ≥ 2 as a non-first factor
             sT2 = Fourier(1, 1.0) ⊗ Taylor(3)
             aT2 = Sequence(sT2, collect(1.0:12.0))
             D2 = Derivative((0, 2))
@@ -250,7 +240,7 @@
             @test differentiate(aT2, (0, 2)) == expectedT2 ==
                 Sequence(codom2, ComplexF64[14.0, 16.0, 18.0, 60.0, 66.0, 72.0])
 
-            # Chebyshev order ≥ 2 as a non-first factor is an explicit TODO restriction in the source
+            # Chebyshev order ≥ 2 as a non-first factor is not supported either
             sC2 = Taylor(0) ⊗ Chebyshev(3)
             aC2 = Sequence(sC2, collect(1.0:4.0))
             @test_throws DomainError differentiate(aC2, (0, 2))
@@ -269,20 +259,20 @@
         @test component(c, 1) == differentiate(component(a, 1))
         @test component(c, 3) == differentiate(component(a, 3))
 
-        # domain/codomain adaptation for CartesianPower/CartesianProduct (per-component, cf. Taylor domain above)
+        # the domain and codomain adapt component by component
         @test domain(∂¹, Taylor(2)^2) == Taylor(3)^2
         @test codomain(∂¹, Taylor(2)^2) == Taylor(1)^2
         @test codomain(∂¹, Taylor(2) × Fourier(1, 1.0)) == Taylor(1) × Fourier(1, 1.0)
     end
 
     @testset "Symmetric space" begin
-        # only Fourier's symmetric bookkeeping is implemented (see `_groupelem_derivative`)
+        # only Fourier symmetries carry a derivative
         sE = evensym(Fourier(2, 1.0))
         sO = oddsym(Fourier(2, 1.0))
         ∂¹ = Derivative(1)
 
         # ∂ maps evensym Fourier to oddsym Fourier: the group generator's amplitude picks up a
-        # factor (-1)^order(∂) since the index action matrix is [-1] for both symmetries
+        # factor (-1)^order(∂) since the lattice automorphism matrix is [-1] for both symmetries
         @test codomain(∂¹, sE) == sO
         @test domain(∂¹, sO) == sE
         @test codomain(Derivative(2), sE) == sE # (-1)² = 1: order-2 derivative preserves the symmetry
@@ -308,7 +298,7 @@
         @test finite_error(Dc) == 0.5
         @test tail_error(Dc) == 0.375
         @test total_error(Dc) == min(0.5 + 0.375, 0.5 * 2.0)
-        @test banachspace(Dc) == Ell1() # unlike `integrate`, `differentiate` always forces plain Ell1()
+        @test banachspace(Dc) == Ell1() # the differentiated sequence always carries the unweighted norm
 
         # α = 0 is the identity factor for every base space
         @test RadiiPolynomial._derivative_finite_error(X, Taylor(3), 0) == 1.0
@@ -345,18 +335,85 @@
         @test tail_error(Da²) == 0.375 * 0.5
         @test sequence(Da²) == Sequence(Taylor(1) ⊗ Taylor(1), [1.0, 2.0, 2.0, 4.0]) # ∂ₓ∂ᵧ Σxⁱyʲ, i,j∈0:2
 
-        # guarded errors: Fourier only supports α ≤ 1, Chebyshev is unconditionally unimplemented
+        # guarded errors: Fourier only supports α ≤ 1
         @test_throws DomainError RadiiPolynomial._derivative_tail_error(X, Fourier(3, 1.0), 2)
-        @test_throws DomainError RadiiPolynomial._derivative_finite_error(X, Chebyshev(2), 1)
-        @test_throws DomainError RadiiPolynomial._derivative_tail_error(X, Chebyshev(2), 0)
-        @test_throws DomainError RadiiPolynomial._derivative_total_error(X, Chebyshev(2), 1)
-        a_cheb = InfiniteSequence(Sequence(Chebyshev(2), [1.0, 1.0, 1.0]), 0.5, 0.25, 0.75, X)
-        @test_throws DomainError differentiate(a_cheb)
 
-        # `_geom_kfact_sup` (shared by the Taylor/Fourier factors above) requires a genuine geometric rate ν > 1
+        # every Taylor/Fourier operator separates supports, so the cross column vanishes and the
+        # triangular scheme collapses to the diagonal one
+        @test RadiiPolynomial._derivative_cross_error(X, Taylor(2), 1) == 0.0
+        @test RadiiPolynomial._derivative_cross_error(X, Fourier(3, 1.0), 1) == 0.0
+        @test RadiiPolynomial._derivative_cross_error(Ell1((GeometricWeight(2.0), GeometricWeight(2.0))),
+                                                      Taylor(2) ⊗ Taylor(2), (1, 1)) == 0.0
+
+        @testset "Chebyshev: triangular propagation" begin
+            #= D is upper triangular in the halved convention, (Du)_i = Σ_{j>i, j-i odd} 2j u_j, so a
+               head column j ≤ N reaches only rows i ≤ N-1 = N' while a tail column j > N reaches head
+               rows too. Support separation fails in the tail → finite direction only, so four
+               separate constants are needed. Each is a restricted column norm, and is checked
+               here against directly measured columns. =#
+            ν = 2.0
+            Xc = Ell1(GeometricWeight(ν))
+            for N ∈ (1, 3, 8)
+                s = Chebyshev(N)
+                # measure ‖Π• D e_j‖_{Ell1()} / w(j) directly, w(0) = 1, w(k) = 2νᵏ
+                big, J = Chebyshev(80), 80
+                col(j) = begin
+                    e = Sequence(big, zeros(Float64, J+1)); e[j] = 1.0
+                    img = differentiate(e)
+                    head = project(img, Chebyshev(max(0, N-1)))
+                    w = norm(e, Xc)
+                    (norm(head, Ell1()) / w, (norm(img, Ell1()) - norm(head, Ell1())) / w, norm(img, Ell1()) / w)
+                end
+                cols = [col(j) for j ∈ 0:J-2]
+                @test RadiiPolynomial._derivative_finite_error(Xc, s, 1) ≈ maximum(c[1] for c ∈ cols[1:N+1])   rtol=1e-12
+                @test RadiiPolynomial._derivative_cross_error(Xc, s, 1)  ≈ maximum(c[1] for c ∈ cols[N+2:end]) rtol=1e-12
+                @test RadiiPolynomial._derivative_tail_error(Xc, s, 1)   ≈ maximum(c[2] for c ∈ cols[N+2:end]) rtol=1e-12
+                @test RadiiPolynomial._derivative_total_error(Xc, s, 1)  ≈ maximum(c[3] for c ∈ cols)          rtol=1e-12
+            end
+
+            # the head and tail row counts of a tail column add up to the full column: b_N(j) + 2⌈(j-N)/2⌉ = j
+            @test all(RadiiPolynomial._cheb_b(N, j) + 2*cld(j-N, 2) == j for N ∈ 1:12, j ∈ 13:40 if j > N)
+
+            # the finite error of the image now sees the tail error of the input
+            a_cheb = InfiniteSequence(Sequence(Chebyshev(3), [1.0, 0.5, 0.2, 0.05]), 0.5, 0.25, 0.75, Xc)
+            Da = differentiate(a_cheb)
+            κf = RadiiPolynomial._derivative_finite_error(Xc, Chebyshev(3), 1)
+            κc = RadiiPolynomial._derivative_cross_error(Xc, Chebyshev(3), 1)
+            κt = RadiiPolynomial._derivative_tail_error(Xc, Chebyshev(3), 1)
+            κo = RadiiPolynomial._derivative_total_error(Xc, Chebyshev(3), 1)
+            @test finite_error(Da) == κf * 0.5 + κc * 0.25
+            @test tail_error(Da) == κt * 0.25
+            @test total_error(Da) == min(κo * 0.75, κf * 0.5 + κc * 0.25 + κt * 0.25)
+            @test banachspace(Da) == Ell1()
+
+            # α = 0 is the identity; α ≥ 2, ν ≤ 1 and order 0 are out of scope
+            @test RadiiPolynomial._derivative_cross_error(Xc, Chebyshev(2), 0) == 0.0
+            @test RadiiPolynomial._derivative_tail_error(Xc, Chebyshev(2), 0) == 1.0
+            @test_throws DomainError RadiiPolynomial._derivative_finite_error(Xc, Chebyshev(2), 2)
+            @test_throws DomainError RadiiPolynomial._derivative_total_error(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1)
+            @test_throws DomainError RadiiPolynomial._derivative_cross_error(Xc, Chebyshev(0), 1)
+
+            #= Tensor rule. For a *product* row set the column norm factorizes, the finite rows F_{N'}
+               are a product and the columns outside the box F_N are the union of the slabs
+               Aᵢ = {j : jᵢ > Nᵢ}, whence
+                   κ_cross = max_i ( κ_cross^{(i)} ∏_{l≠i} max(κ_fin^{(l)}, κ_cross^{(l)}) ),
+               the inner max being a sup over *all* j_l. Checked against measured columns below. =#
+            X2 = Ell1((GeometricWeight(ν), GeometricWeight(ν)))
+            for N ∈ (2, 4)
+                s1 = Chebyshev(N)
+                hfin = map(0:40) do j
+                    e = Sequence(Chebyshev(60), zeros(Float64, 61)); e[j] = 1.0
+                    norm(project(differentiate(e), Chebyshev(max(0, N-1))), Ell1()) / norm(e, Ell1(GeometricWeight(ν)))
+                end
+                meas = maximum(hfin[j1+1] * hfin[j2+1] for j1 ∈ 0:40, j2 ∈ 0:40 if j1 > N || j2 > N)
+                @test RadiiPolynomial._derivative_cross_error(X2, s1 ⊗ s1, (1, 1)) ≈ meas rtol=1e-12
+            end
+        end
+
+        # the shared Taylor/Fourier factor requires a genuine geometric rate ν > 1
         @test_throws DomainError RadiiPolynomial._geom_kfact_sup(1.0, 1, 3)
 
-        # `_geom_kfact_sup`'s running-max loop: f(k) = k!/(k-α)!·ν^{-k} peaks near k* = (να-ν+1)/(ν-1);
+        # f(k) = k!/(k-α)!·ν^{-k} peaks near k* = (να-ν+1)/(ν-1);
         # starting well below k* (here k* ≈ 8) forces several strict ascents (running max updates) before
         # the certified decrease, unlike the α = 1 cases above which peak (or decrease) immediately
         @test RadiiPolynomial._geom_kfact_sup(1.5, 3, 0) == (8*7*6)/1.5^8 # f(8) is the running max (f(9) does not exceed it)

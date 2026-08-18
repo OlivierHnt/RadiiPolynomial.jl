@@ -149,7 +149,6 @@ Norms account for the multiplicity of each orbit, so a norm computed in the symm
 The common restrictions have shorthands:
 - [`evensym`](@ref) corresponds to the invariance ``u(-t) = u(t)``.
 - [`oddsym`](@ref) corresponds to the invariance ``-u(-t) = u(t)``.
-- [`oddsym`](@ref) corresponds to the invariance ``-u(-t) = u(t)``.
 - [`d4sym`](@ref) imposes the symmetries of the square on ``u(x, y)``, with ``u`` a periodic function.
 
 For [`Fourier`](@ref), [`evensym`](@ref) yields cosine series and [`oddsym`](@ref) yields sine series:
@@ -175,7 +174,7 @@ desymmetrize(evensym(Fourier(3, 1.0)))
 ```
 
 !!! note
-    Arbitrary symmetries are available by building a [`Group`](@ref) out of the generators, each represented by a [`GroupElement`](@ref) that pairs an [`IndexAction`](@ref) on the indices with a [`CoefAction`](@ref) on the coefficients.
+    Arbitrary symmetries are available by building a [`Group`](@ref) out of the generators, each represented by a [`GroupElement`](@ref) that pairs a [`LatticeAut`](@ref) ``\beta_g`` on the indices with a [`Cocycle`](@ref) ``\alpha_g`` on the coefficients, acting by ``(g \cdot a)_k = \alpha_g(k) a_{\beta_g(k)}``.
 
 ## API
 

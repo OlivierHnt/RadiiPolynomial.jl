@@ -25,7 +25,7 @@ include("sequence_spaces/vector_spaces.jl")
         order, frequency, space, spaces, dimension, dimensions,
         indices, nspaces
 include("sequence_spaces/symmetry.jl")
-    export IndexAction, CoefAction, GroupElement, Group, elements, SymmetricSpace, symmetry, desymmetrize,
+    export LatticeAut, Cocycle, GroupElement, Group, elements, SymmetricSpace, symmetry, desymmetrize,
         evensym, oddsym, d4sym
 include("sequence_spaces/banach_spaces.jl")
     export Weight, IdentityWeight, GeometricWeight, AlgebraicWeight, BesselWeight, rate,
@@ -39,7 +39,7 @@ include("sequence_spaces/banach_spaces.jl")
 
 include("sequence_spaces/sequences/sequence.jl")
     export AbstractSequence, Sequence, coefficients, unpack, eachcomponent, component,
-        conjugacy_symmetry!, geometricweight, algebraicweight, polish!
+        conjugacy_symmetry!, geometricweight, algebraicweight
 include("sequence_spaces/sequences/infinite_sequence.jl")
     export InfiniteSequence, sequence_norm, finite_error, tail_error, total_error, banachspace
 #- operations
@@ -51,6 +51,8 @@ include("sequence_spaces/sequences/arithmetic.jl")
         rdiv!, ldiv!
 include("sequence_spaces/sequences/convolution.jl")
     export set_conv_algorithm, mul_bar, pow_bar
+include("sequence_spaces/sequences/refinement.jl")
+    export polish!
 include("sequence_spaces/sequences/elementary.jl")
 
 
@@ -146,7 +148,15 @@ function sequence_error(a)
     Base.depwarn("`sequence_error` is deprecated and will be removed in a future version, use `total_error` instead", :sequence_error; force=true)
     return total_error(a)
 end
+function CoefAction(args...)
+    Base.depwarn("`CoefAction` is deprecated and will be removed in a future version, use `Cocycle` instead", :CoefAction; force=true)
+    return Cocycle(args...)
+end
+function IndexAction(args...)
+    Base.depwarn("`IndexAction` is deprecated and will be removed in a future version, use `LatticeAut` instead", :IndexAction; force=true)
+    return LatticeAut(args...)
+end
 
-    export EmptySpace, ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!, sequence_error
+    export EmptySpace, ParameterSpace, CosFourier, SinFourier, to_seq, to_seq!, sequence_error, CoefAction, IndexAction
 
 end

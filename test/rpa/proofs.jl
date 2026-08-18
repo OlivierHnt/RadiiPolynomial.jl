@@ -1,9 +1,5 @@
 @testset "Radii polynomial approach" begin
 
-    #
-    # newton.jl
-    #
-
     @testset "newton" begin
 
         @testset "convergence criteria" begin
@@ -81,15 +77,11 @@
             @test sb
             @test xb ≈ sqrt(2)
 
-            # verbose path must run without error (exercises the printing helpers)
+            # the verbose path must run without error
             xc, sc = redirect_stdout(() -> newton(x -> (x^2 - 2, 2x), 1.0; verbose = true), devnull)
             @test sc
         end
     end
-
-    #
-    # interval_existence.jl
-    #
 
     @testset "interval_of_existence" begin
 
@@ -213,10 +205,6 @@
         end
     end
 
-    #
-    # End-to-end proofs (docs/AGENT.md recipe)
-    #
-
     @testset "Proof: cube root of 2 (scalar, second-order theorem)" begin
         # Step 1: F(x) = x³ - 2, whose only real zero is 2^(1/3); DF(x) = 3x², D²F(x) = 6x.
         f(x) = x^3 - exact(2)
@@ -259,8 +247,8 @@
     end
 
     @testset "Proof: logistic initial value problem (Taylor, second-order theorem)" begin
-        # Step 1: cast u' = u(1-u), u(0) = 1/2 as a zero-finding problem on Taylor coefficients,
-        # F(u) = u - 1/2 - ∫₀ᵗ u(s)(1-u(s)) ds, following docs/src/examples/ivp/logistic_ivp.md.
+        # Step 1: cast u' = u(1-u), u(0) = 1/2 as a zero-finding problem on Taylor
+        # coefficients, F(u) = u - 1/2 - ∫₀ᵗ u(s)(1-u(s)) ds
         F(u) = u - exact(0.5) - Integral(1) * (u * (exact(1) - u))
         DF(u) = exact(I) - Integral(1) * Multiplication(exact(1) - exact(2) * u)
 

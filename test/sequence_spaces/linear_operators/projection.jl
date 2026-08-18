@@ -3,12 +3,8 @@
     𝒯 = Taylor(2)
     ℱ = Fourier(2, 1.0)
 
-    #
-    # Projection: construction, domain/codomain, eltype, coefficients, interval
-    #
-
     @testset "construction, domain, codomain" begin
-        Π = Projection(𝒯) # default coefficient type is Float64
+        Π = Projection(𝒯)
         @test Π isa Projection{Taylor,Float64}
         @test domain(Π) == codomain(Π) == 𝒯
         @test eltype(Π) == Float64
@@ -16,20 +12,19 @@
         ΠC = Projection(𝒯, ComplexF64)
         @test eltype(ΠC) == ComplexF64
 
-        # domain(Π, s) / codomain(Π, s) return Π.space itself whenever `s` is
-        # compatible with it, and throw otherwise
+        # `domain`/`codomain` return the projected space itself whenever the space
+        # they are queried with is compatible with it, and throw otherwise
         @test domain(Π, Taylor(5)) == 𝒯
         @test codomain(Π, Taylor(0)) == 𝒯
 
         Πf = Projection(Fourier(2, 1.0))
-        @test_throws ArgumentError domain(Πf, Fourier(2, 2.0)) # frequency mismatch
+        @test_throws ArgumentError domain(Πf, Fourier(2, 2.0))
         @test_throws ArgumentError codomain(Πf, Fourier(2, 2.0))
-        @test_throws ArgumentError codomain(Π, UndefSpace()) # Taylor(2) incompatible with UndefSpace()
+        @test_throws ArgumentError codomain(Π, UndefSpace())
     end
 
     @testset "coefficients(Projection) materializes the identity" begin
         Π = Projection(𝒯)
-        # `coefficients` is defined as `project(I, 𝒯, 𝒯)`, i.e. the 3×3 identity
         @test coefficients(Π) == LinearOperator(𝒯, 𝒯, [1.0 0.0 0.0 ; 0.0 1.0 0.0 ; 0.0 0.0 1.0])
     end
 
@@ -45,10 +40,6 @@
         @test eltype(Πf_T) == Interval{Float64}
     end
 
-    #
-    # project / project! of Sequence: enlarging (zero-padding) and shrinking (truncation)
-    #
-
     @testset "project/project! (Sequence)" begin
 
         @testset "Taylor" begin
@@ -57,7 +48,7 @@
             @test project(a, Taylor(3)) == Sequence(Taylor(3), [1.0, 2.0, 0.0, 0.0]) # enlarge: zero-pad
             @test project(a, Taylor(0)) == Sequence(Taylor(0), [1.0]) # shrink: truncate
 
-            c = Sequence(Taylor(3), fill(Inf, 4)) # Inf-seed: catches unwritten entries
+            c = Sequence(Taylor(3), fill(Inf, 4))
             project!(c, a)
             @test c == Sequence(Taylor(3), [1.0, 2.0, 0.0, 0.0])
         end
@@ -66,7 +57,7 @@
             b = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0]) # b₋₁ = 1, b₀ = 2, b₁ = 3
             @test project(b, Fourier(2, 1.0)) == Sequence(Fourier(2, 1.0), [0.0, 1.0, 2.0, 3.0, 0.0])
             @test project(b, Fourier(0, 1.0)) == Sequence(Fourier(0, 1.0), [2.0])
-            @test_throws ArgumentError project(b, Fourier(1, 2.0)) # frequency mismatch
+            @test_throws ArgumentError project(b, Fourier(1, 2.0))
         end
 
         @testset "Chebyshev" begin
@@ -85,9 +76,9 @@
         @testset "CartesianPower / CartesianProduct" begin
             a = Sequence(Taylor(1)^2, [1.0, 2.0, 3.0, 4.0]) # component 1 = [1,2], component 2 = [3,4]
             @test project(a, Taylor(2)^2) == Sequence(Taylor(2)^2, [1.0, 2.0, 0.0, 3.0, 4.0, 0.0])
-            @test_throws ArgumentError project(a, Taylor(1)^3) # mismatched number of cartesian products
+            @test_throws ArgumentError project(a, Taylor(1)^3)
 
-            # legacy regression (test/special_operators.jl): ScalarSpace × (Taylor ⊗ Fourier ⊗ Chebyshev)^1
+            # a scalar block next to a one-component power of a three-factor tensor space
             s1 = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
             s2 = ScalarSpace() × (Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1))^1
             s3 = ScalarSpace() × (Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0))^1
@@ -100,23 +91,21 @@
         end
 
         @testset "SymmetricSpace" begin
-            # evensym(Taylor(n)) keeps only even-order coefficients: indices {0,2,4,...}
             𝒯e2, 𝒯e4 = evensym(Taylor(2)), evensym(Taylor(4))
             @test indices(𝒯e2) == 0:2:2
             @test indices(𝒯e4) == 0:2:4
             ae = Sequence(𝒯e2, [1.0, 2.0]) # a₀ = 1, a₂ = 2
             be = project(ae, 𝒯e4)
             @test be == Sequence(𝒯e4, [1.0, 2.0, 0.0]) # enlarge: zero-pad a₄
-            @test project(be, 𝒯e2) == ae # shrink back down
+            @test project(be, 𝒯e2) == ae
 
-            # evensym(Fourier(n, ν)) keeps only the |k| representatives: a cosine series
+            # an even Fourier space keeps only the |k| representatives: a cosine series
             ℱe1, ℱe3 = evensym(Fourier(1, 1.0)), evensym(Fourier(3, 1.0))
             af = Sequence(ℱe1, [1.0, 2.0])
             @test project(af, ℱe3) == Sequence(ℱe3, [1.0, 2.0, 0.0, 0.0])
             @test project(project(af, ℱe3), ℱe1) == af
 
-            # projecting between incompatible symmetry groups (evensym vs oddsym) throws:
-            # `getcoefficient` requires `symmetry(space(a)) == symmetry(s)`
+            # projecting between different symmetry groups is an error
             𝒯o2 = oddsym(Taylor(2))
             ao = Sequence(𝒯o2, [10.0])
             @test_throws DomainError project(ao, 𝒯e4)
@@ -137,23 +126,19 @@
         @testset "Interval{Float64} and ComplexF64 coefficients" begin
             a = Sequence(Taylor(1), interval.([1.0, 2.0]))
             b = project(a, Taylor(3), Interval{Float64})
-            # `Sequence == Sequence` is interval-safe (uses `isequal_interval` internally)
+            # `Sequence == Sequence` compares interval bounds, so it is safe here
             @test b == Sequence(Taylor(3), interval.([1.0, 2.0, 0.0, 0.0]))
             @test all(isguaranteed, coefficients(b))
 
             ac = Sequence(Taylor(1), ComplexF64[1.0 + 1.0im, 2.0 - 1.0im])
             @test project(ac, Taylor(3)) == Sequence(Taylor(3), ComplexF64[1.0 + 1.0im, 2.0 - 1.0im, 0.0, 0.0])
 
-            # the Projection type itself carries the coefficient type via `eltype(P)`
+            # a projection carries its own coefficient type
             Π = Projection(Taylor(2), Complex{Interval{Float64}})
             r = Π * a
             @test eltype(r) == Complex{Interval{Float64}}
         end
     end
-
-    #
-    # project / project! of AbstractLinearOperator / LinearOperator into a LinearOperator
-    #
 
     @testset "project/project! (LinearOperator / AbstractLinearOperator)" begin
 
@@ -163,7 +148,7 @@
             expected = LinearOperator(Taylor(2), Taylor(1), [0.0 1.0 0.0 ; 0.0 0.0 2.0])
             @test project(∂, Taylor(2), Taylor(1), Float64) == expected
 
-            C = LinearOperator(Taylor(2), Taylor(1), fill(Inf, 2, 3)) # Inf-seed
+            C = LinearOperator(Taylor(2), Taylor(1), fill(Inf, 2, 3))
             project!(C, ∂)
             @test C == expected
         end
@@ -173,7 +158,7 @@
             enlarged = LinearOperator(Taylor(2), Taylor(2), [1.0 2.0 0.0 ; 3.0 4.0 0.0 ; 0.0 0.0 0.0])
             @test project(A, Taylor(2), Taylor(2)) == enlarged
 
-            C = LinearOperator(Taylor(2), Taylor(2), fill(Inf, 3, 3)) # Inf-seed
+            C = LinearOperator(Taylor(2), Taylor(2), fill(Inf, 3, 3))
             project!(C, A)
             @test C == enlarged
 
@@ -192,12 +177,30 @@
                  0.0 0.0 0.0 7.0 8.0 0.0
                  0.0 0.0 0.0 0.0 0.0 0.0])
             @test B == expected
-            @test_throws ArgumentError project(A, Taylor(1)^3, Taylor(1)^2) # mismatched number of components
+            @test_throws ArgumentError project(A, Taylor(1)^3, Taylor(1)^2)
+        end
+
+        @testset "custom AbstractLinearOperator: the three documented methods suffice" begin
+            #= A custom operator needs only `domain`, `codomain` and `getcoefficient`:
+               materialization goes through `getcoefficient` and never consults
+               `Base.getindex`, so defining the latter instead is a MethodError. =#
+            struct _MyDiagOp <: AbstractLinearOperator end
+            RadiiPolynomial.domain(A::_MyDiagOp, codom::Taylor) = codom
+            RadiiPolynomial.codomain(A::_MyDiagOp, dom::Taylor) = dom
+            RadiiPolynomial.getcoefficient(A::_MyDiagOp, (codom, i)::Tuple{Taylor,Integer}, (dom, j)::Tuple{Taylor,Integer}) =
+                i == j ? inv(1.0+i) : 0.0
+
+            A = _MyDiagOp()
+            expected = LinearOperator(Taylor(2), Taylor(2), [1.0 0.0 0.0 ; 0.0 0.5 0.0 ; 0.0 0.0 1/3])
+            @test A * Projection(Taylor(2)) == expected
+            @test Projection(Taylor(2)) * A == expected
+            @test project(A, Taylor(2), Taylor(2)) == expected
+            # the 3-argument form is enough: the generic 4-argument method forwards to it
+            @test RadiiPolynomial.getcoefficient(A, (Taylor(2), 1), (Taylor(2), 1), Float64) == 0.5
         end
 
         @testset "AbstractDiagonalOperator: only domain ∩ codomain indices are written" begin
-            # minimal custom AbstractDiagonalOperator, per the extension mechanism
-            # documented in CLAUDE.md ("Defining a custom AbstractLinearOperator")
+            # a minimal custom diagonal operator, defined through `getcoefficient` alone
             struct _ScalarDiag{T<:Number} <: RadiiPolynomial.AbstractDiagonalOperator
                 λ :: T
             end
@@ -206,13 +209,13 @@
 
             D = _ScalarDiag(2.0)
 
-            C = LinearOperator(Taylor(2), Taylor(2), fill(Inf, 3, 3)) # Inf-seed
+            C = LinearOperator(Taylor(2), Taylor(2), fill(Inf, 3, 3))
             project!(C, D)
             @test C == LinearOperator(Taylor(2), Taylor(2), [2.0 0.0 0.0 ; 0.0 2.0 0.0 ; 0.0 0.0 2.0])
 
             # codomain bigger than domain: only the domain ∩ codomain = Taylor(2) indices
             # {0,1,2} get the diagonal value, the extra rows {3,4} stay zero
-            C2 = LinearOperator(Taylor(2), Taylor(4), fill(Inf, 5, 3)) # Inf-seed
+            C2 = LinearOperator(Taylor(2), Taylor(4), fill(Inf, 5, 3))
             project!(C2, D)
             @test C2 == LinearOperator(Taylor(2), Taylor(4),
                 [2.0 0.0 0.0 ; 0.0 2.0 0.0 ; 0.0 0.0 2.0 ; 0.0 0.0 0.0 ; 0.0 0.0 0.0])
@@ -220,21 +223,16 @@
 
         @testset "Sequence <-> LinearOperator(ScalarSpace, ·) round trip" begin
             a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-            A = project(a, ScalarSpace(), Taylor(2)) # represent `a` as a LinearOperator(𝕂, Taylor(2))
+            A = project(a, ScalarSpace(), Taylor(2))
             @test A isa LinearOperator{ScalarSpace,Taylor}
             @test coefficients(A) == reshape([1.0, 2.0, 3.0], 3, 1)
-            @test project(A, Taylor(2)) == a # and back
+            @test project(A, Taylor(2)) == a
 
-            C = LinearOperator(ScalarSpace(), Taylor(2), fill(Inf, 3, 1)) # Inf-seed
+            C = LinearOperator(ScalarSpace(), Taylor(2), fill(Inf, 3, 1))
             project!(C, a)
             @test C == A
         end
     end
-
-    #
-    # Projection: action on Sequence, arithmetic/composition with (Abstract)LinearOperator,
-    # and materialization of an AbstractLinearOperator (the CLAUDE.md-documented pattern)
-    #
 
     @testset "action, composition and materialization" begin
         Π₂ = Projection(Taylor(2))
@@ -243,7 +241,6 @@
         @testset "Projection * Sequence (action = project)" begin
             a = Sequence(Taylor(1), [1.0, 2.0])
             @test Π₄ * a == project(a, Taylor(4))
-            # eltype promotion: Projection carries its own coefficient type
             @test eltype(Projection(Taylor(1), ComplexF64) * a) == ComplexF64
         end
 
@@ -296,8 +293,8 @@
         end
 
         @testset "Projection(UndefSpace()) * AbstractLinearOperator: lazy ComposedOperator" begin
-            # `domain(A, UndefSpace()) = UndefSpace()` for any AbstractLinearOperator, so `_lproj` cannot
-            # materialize and instead wraps the pair lazily
+            # the domain over an undefined space is itself undefined, so there is nothing
+            # to materialize and the pair is wrapped lazily instead
             Π_undef = Projection(UndefSpace())
             ∂ = Derivative(1)
             r = Π_undef * ∂
@@ -307,11 +304,6 @@
         end
     end
 
-    #
-    # Projection{<:CartesianSpace} * Vector/Matrix/Diagonal (and the mirrored Matrix/Diagonal * Projection):
-    # assemble a Sequence/LinearOperator on a cartesian space out of components
-    #
-
     @testset "Projection{<:CartesianSpace} * Vector/Matrix/Diagonal" begin
 
         @testset "Projection * Vector{<:Sequence}" begin
@@ -319,7 +311,7 @@
             v = [Sequence(Taylor(1), [1.0, 2.0]), Sequence(Taylor(3), [4.0, 5.0, 6.0, 7.0])]
             r = Π * v
             @test r == Sequence(Taylor(2)^2, [1.0, 2.0, 0.0, 4.0, 5.0, 6.0]) # enlarge/shrink each component
-            @test_throws DimensionMismatch Projection(Taylor(2)^3) * v # length(v) ≠ nspaces(Π.space)
+            @test_throws DimensionMismatch Projection(Taylor(2)^3) * v # one component too few
         end
 
         @testset "Projection * Matrix{<:LinearOperator}" begin
@@ -359,29 +351,18 @@
         end
     end
 
-    #
-    # eltype covariance, interval(P) wrapping, and domain(P, UndefSpace())
-    #
-
     @testset "eltype covariance, interval wrapping, domain(UndefSpace)" begin
-        # the type-level `eltype` method is declared with the covariant `<:` in front of
-        # `Projection{...}` (matching `LinearOperator`'s analogous
-        # `Base.eltype(::Type{<:LinearOperator{...}})`), so it matches concrete
-        # instantiations like `Projection{Taylor,Float64}`, not just the literal
-        # UnionAll `Projection{<:VectorSpace,S}`
+        # the type-level `eltype` matches a concrete instantiation, not just the UnionAll
         @test eltype(Projection{Taylor,Float64}) == Float64
 
-        # `IntervalArithmetic.interval(P::Projection)` (no-arg) wraps `eltype(P)` in an
-        # `Interval`, consistent with the two-argument `interval(T, P)` and with
-        # `interval(::Sequence)` / `interval(::LinearOperator)`
+        # the one-argument `interval` wraps the coefficient type of the projection
         Π = Projection(𝒯)
         Π_I = interval(Π)
         @test Π_I.space == 𝒯
         @test eltype(Π_I) == Interval{Float64}
 
-        # `domain(P::Projection, ::UndefSpace)` is resolved by a dedicated method
-        # (`domain(P::Projection, s::UndefSpace)`) that checks `_iscompatible` just like
-        # `codomain` does; `Taylor(2)` is incompatible with `UndefSpace()`, so both throw `ArgumentError`
+        # both sides check compatibility, and `Taylor(2)` is incompatible with an
+        # undefined space
         @test_throws ArgumentError domain(Π, UndefSpace())
         @test_throws ArgumentError codomain(Π, UndefSpace())
     end

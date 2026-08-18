@@ -55,7 +55,7 @@
             ℳ = Multiplication(a)
             # direct discrete (folded) convolution: cₖ = Σⱼ a_{|k-j|} a_{|j|}, e.g.
             # c₀ = a₀a₀ + 2a₁a₁ + 2a₂a₂ = 1 + 2(0.25) + 2(0.25) = 2
-            # c₁ = 2a₀a₁ + 2a₁a₀ ... (verified against the source's convolution formula)
+            # c₁ = 2a₀a₁ + 2a₁a₂ = 1 + 0.5 = 1.5
             expected = Sequence(Chebyshev(4), [2.0, 1.5, 1.25, 0.5, 0.25])
             out = Sequence(Chebyshev(4), fill(Inf, 5))
             @test ℳ(a) == a*a == mul!(out, ℳ, a) == expected
@@ -107,10 +107,45 @@
     @testset "cartesian space (not supported)" begin
         a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         ℳ = Multiplication(a)
-        # Multiplication is deliberately excluded from the shared CartesianSpace
-        # block in special_operators.jl; the generic fallback in linear_operator.jl
-        # reports that it cannot infer a domain for a CartesianSpace codomain.
+        # a multiplication operator has no cartesian counterpart, so no domain can be
+        # inferred from a cartesian codomain
         @test_throws DomainError domain(ℳ, Taylor(2)^2)
+    end
+
+    @testset "domain symmetry keeps the multiplier's phase" begin
+        #= For a common lattice automorphism β, if a_k = α_a(k) a_{βk} and b_k = α_b(k) b_{βk}, then
+           (a*b)_k = α_a(k)α_b(k)(a*b)_{βk} *only* when the two phases agree. So the domain
+           factor must carry φ, not −φ. Every shipped symmetry has φ ∈ {0,1}^N, where −φ ≡ φ
+           (mod 2), hence
+           the need for the group below: β of order 3 with φ = (2/3,2/3,2/3), which satisfies
+           βᵀφ ≡ φ (so the group is a faithful representation) while 2φ ≢ 0 (so −φ ≠ φ). =#
+        P = RadiiPolynomial.StaticArrays.SMatrix{3,3,Int}([0 0 1; 1 0 0; 0 1 0])
+        φ = RadiiPolynomial.StaticArrays.SVector{3,Rational{Int}}(2//3, 2//3, 2//3)
+        G = Group(GroupElement(LatticeAut(P), Cocycle(1//1, φ)))
+        @test length(elements(G)) == 3
+
+        G_dom = RadiiPolynomial._domain_convolution_symmetry(G, G)
+        # multiplier in Fix(G) times domain in Fix(G_dom) must land back in Fix(G)
+        @test RadiiPolynomial._codomain_convolution_symmetry(G, G_dom) == G
+        @test G_dom == G # with ρ ≡ 1 and G_prod = G, the domain group is G itself
+
+        V = Fourier(2, 1.0) ⊗ Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
+        sG = SymmetricSpace(V, G)
+        @test RadiiPolynomial.symmetry(RadiiPolynomial._domain(*, sG, sG)) == G
+
+        # and the invariance really holds on coefficients
+        coeffs(s) = ComplexF64[(1 + 0.3im) / (1 + sum(abs, k))^2 for k ∈ indices(s)]
+        a = Projection(V) * Sequence(sG, coeffs(sG))
+        b = Projection(V) * Sequence(SymmetricSpace(V, G_dom), coeffs(SymmetricSpace(V, G_dom)))
+        c = a * b
+        worst = maximum(elements(G)) do g
+            maximum(indices(space(c))) do k
+                βk = g.lattice_aut(k) # invariance reads c_k = α_g(k) c_{β_g(k)}
+                all(abs.(βk) .≤ order(space(c))) || return 0.0
+                abs(c[k] - g.cocycle(k) * c[βk])
+            end
+        end
+        @test worst < 1e-12
     end
 
     @testset "ComplexF64 coefficients" begin

@@ -8,7 +8,7 @@
         ac = Sequence(ScalarSpace(), [3.0 + 4.0im])
         @test norm(ac, Ell1()) == norm(ac, Ell2()) == norm(ac, EllInf()) == abs(3.0 + 4.0im) == 5.0
 
-        # opnorm of a functional ScalarSpace → ScalarSpace uses the same `abs(a[1])`
+        # on a scalar space the operator norm is the modulus of the single entry
         A = LinearOperator(ScalarSpace(), ScalarSpace(), fill(-7.0, 1, 1))
         @test opnorm(A, Ell1()) == opnorm(A, Ell2()) == opnorm(A, EllInf()) ==
             opnorm(A, 1) == opnorm(A, 2) == opnorm(A, Inf) == opnorm(A) == 7.0
@@ -132,8 +132,8 @@
 
     @testset "SymmetricSpace" begin
         @testset "evensym/oddsym Fourier" begin
-            # `evensym(Fourier)` folds ±k together: the orbit of k≠0 has 2 elements, so the
-            # weight of every nonzero mode is doubled (analogous to the old `CosFourier`)
+            # an even Fourier space folds ±k together: the orbit of k≠0 has 2 elements,
+            # so the weight of every nonzero mode is doubled
             s = evensym(Fourier(3, 1.0))
             @test collect(indices(s)) == [0, 1, 2, 3]
             a = Sequence(s, [1.0, 2.0, 3.0, 4.0])
@@ -148,8 +148,8 @@
         end
 
         @testset "evensym/oddsym Taylor" begin
-            # index action is trivial for Taylor's sym ⇒ orbit length 1; only the parity of
-            # the order is restricted (even/odd), the weight itself is untouched
+            # the lattice automorphism is trivial here, so every orbit has length 1: only the parity
+            # of the order is restricted, the weight itself is untouched
             s = evensym(Taylor(5))
             @test collect(indices(s)) == [0, 2, 4]
             a = Sequence(s, [1.0, 2.0, 3.0])
@@ -160,8 +160,8 @@
         end
 
         @testset "evensym/oddsym Chebyshev" begin
-            # orbit length is again 1 (trivial index action), but Chebyshev's own doubling
-            # of nonzero order still applies on top of the parity restriction
+            # every orbit again has length 1, but the Chebyshev doubling of nonzero orders
+            # still applies on top of the parity restriction
             s = evensym(Chebyshev(5))
             @test collect(indices(s)) == [0, 2, 4]
             a = Sequence(s, [1.0, 2.0, 3.0])
@@ -234,7 +234,6 @@
         end
 
         @testset "Ell2 outer on CartesianProduct" begin
-            # 2-factor CartesianProduct
             dom = ScalarSpace() × Taylor(1)
             b = Sequence(dom, [2.0, -5.0, 3.0])
             expected = sqrt(norm(component(b, 1), Ell1())^2 + norm(component(b, 2), Ell1())^2)
@@ -259,14 +258,13 @@
     @testset "opnorm(::LinearOperator, ::BanachSpace, ::BanachSpace)" begin
         A = LinearOperator(Taylor(1), Taylor(1), [1.0 -2.0 ; 3.0 4.0])
 
-        # opnorm(A,X,Y) computes, for each column j, its Y-norm v_j = ‖A eⱼ‖_Y, then returns
-        # the X-dual-norm of the vector v (see `_norm_dual`)
+        # for each column j, its Y-norm v_j = ‖A eⱼ‖_Y is computed, and the result is the
+        # X-dual-norm of the vector v
         @test opnorm(A, Ell1(), EllInf()) == 4.0    # v=(max(1,3),max(2,4))=(3,4); dual-Ell1(v)=max(3,4)=4
         @test opnorm(A, EllInf(), Ell1()) == 10.0   # v=(|1|+|3|,|-2|+|4|)=(4,6); dual-EllInf(v)=4+6=10
         @test opnorm(A, Ell1(), Ell1()) == opnorm(A, Ell1()) == 6.0     # max column ℓ¹-sum
         @test opnorm(A, Ell2(), Ell2()) == opnorm(A, Ell2()) ≈ sqrt(30.0)
 
-        # opnorm(::Multiplication, X) == norm(sequence, X)
         s = Sequence(Taylor(2), [1.0, -2.0, 3.0])
         ℳ = Multiplication(s)
         @test opnorm(ℳ, Ell1()) == norm(s, Ell1()) == 6.0
@@ -326,8 +324,8 @@
             # rate one is the identity weight in disguise, so it is admissible
             @test norm(b, Ell1(GeometricWeight(1.0))) == norm(b, Ell1()) == norm(b)
 
-            # reachable without ever constructing an `Ell1()` sequence by hand, since
-            # `differentiate` collapses the weight of its argument to `IdentityWeight`
+            # the same situation arises on its own, since `differentiate` collapses the
+            # weight of its argument to the identity
             d = differentiate(a)
             @test banachspace(d) == Ell1()
             @test_throws DomainError norm(d, Ell1(GeometricWeight(2.0)))

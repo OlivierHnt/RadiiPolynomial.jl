@@ -63,8 +63,8 @@ include("sequence_spaces/sequences/elementary.jl")
 
 import LinearAlgebra: UniformScaling, I
 include("sequence_spaces/linear_operators/linear_operator.jl")
-    export AbstractLinearOperator, AbstractDiagonalOperator, LinearOperator, domain,
-        transpose, adjoint,
+    export AbstractLinearOperator, AbstractDiagonalOperator, AbstractFunctional,
+        LinearOperator, domain, transpose, adjoint,
         Add, Negate, ComposedOperator, UniformScalingOperator
     export UniformScaling, I
 include("sequence_spaces/linear_operators/projection.jl")

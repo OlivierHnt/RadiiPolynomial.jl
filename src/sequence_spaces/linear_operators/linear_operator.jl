@@ -69,6 +69,16 @@ domain(::AbstractDiagonalOperator, ::UndefSpace) = UndefSpace() # needed to reso
 
 codomain(::AbstractDiagonalOperator, s::VectorSpace) = s
 
+#
+
+abstract type AbstractFunctional <: AbstractLinearOperator end
+
+domain(::AbstractFunctional, ::VectorSpace) = UndefSpace()
+
+codomain(::AbstractFunctional, s::VectorSpace) = _zero_space(s)
+
+#
+
 """
     LinearOperator{T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} <: AbstractLinearOperator
 

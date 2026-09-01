@@ -50,7 +50,8 @@ domain(::Laplacian, s::SymmetricSpace{<:BaseSpace}) = domain(Derivative(2), s)
 
 codomain(::Laplacian, s::SymmetricSpace{<:BaseSpace}) = codomain(Derivative(2), s)
 
-_coeftype(::Laplacian, s::SymmetricSpace{<:BaseSpace}, ::Type{T}) where {T} = _coeftype(Derivative(2), s, T)
+_coeftype(::Laplacian, s::SymmetricSpace{<:BaseSpace}, ::Type{T}) where {T} =
+    promote_type(real(_coeftype(Derivative(2), s, T)), T)
 
 function _check_laplacian_symmetry(s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
     w2 = map(ω -> ω*ω, frequency(s))

@@ -24,6 +24,14 @@
         @test A1 == LatticeAut([1;;])
         @test A1 != B1
         @test hash(A1) == hash(LatticeAut([1;;]))
+
+        # the matrix is stored with its concrete `SMatrix{N,N,Int,L}` type, so that applying the
+        # automorphism is inferable and allocation-free
+        @test isconcretetype(typeof(R))
+        @test isconcretetype(fieldtype(typeof(R), :matrix))
+        @test @inferred(R((2, 3))) == (-3, 2)
+        @test @inferred(P3((1, 2, 3))) == (2, 1, 3)
+        @test @inferred(P4((1, 2, 3, 4))) == (2, 1, 4, 3)
     end
 
     @testset "Cocycle" begin
@@ -103,6 +111,9 @@
         CG = Group(R)
         @test length(elements(CG)) == 4
         @test Set(h.lattice_aut((1, 0)) for h ∈ elements(CG)) == Set([(1, 0), (0, 1), (-1, 0), (0, -1)])
+        # the elements are concretely typed down to the lattice automorphism
+        @test isconcretetype(eltype(elements(CG)))
+        @test isconcretetype(fieldtype(eltype(elements(CG)), :lattice_aut))
 
         g2 = GroupElement(LatticeAut([-1;;]), Cocycle(-1, Rational{Int}[0//1]))
         G2 = Group(g2)
@@ -392,14 +403,35 @@
         @test last(first(si.rep_idx_action)) isa Complex{<:Interval}
     end
 
-    @testset "_orbit" begin
+    @testset "_orbit_length / _stabilizer_length" begin
+        # the orbit is never materialized: |Orb(k)| = |G| / |Stab(k)|
         G = symmetry(evensym(Fourier(2, 1.0)))
-        @test RadiiPolynomial._orbit(G, 1) == Set([1, -1])
-        @test RadiiPolynomial._orbit(G, 0) == Set([0])
+        @test RadiiPolynomial._stabilizer_length(G, 1) == 1
+        @test RadiiPolynomial._orbit_length(G, 1) == 2 # {1, -1}
+        @test RadiiPolynomial._stabilizer_length(G, 0) == 2
+        @test RadiiPolynomial._orbit_length(G, 0) == 1 # {0}
 
-        Gd = symmetry(d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)))
-        @test RadiiPolynomial._orbit(Gd, (1, 0)) == Set([(1, 0), (0, 1), (-1, 0), (0, -1)])
-        @test RadiiPolynomial._orbit(Gd, (0, 0)) == Set([(0, 0)])
+        Gd = symmetry(d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0)))
+        @test RadiiPolynomial._orbit_length(Gd, (1, 0)) == 4 # {(1, 0), (0, 1), (-1, 0), (0, -1)}
+        @test RadiiPolynomial._orbit_length(Gd, (1, 1)) == 4 # the diagonal reflection fixes (1, 1)
+        @test RadiiPolynomial._orbit_length(Gd, (2, 1)) == 8 # trivial stabilizer
+        @test RadiiPolynomial._orbit_length(Gd, (0, 0)) == 1
+        for k ∈ indices(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+            @test RadiiPolynomial._orbit_length(Gd, k) == length(Set(g.lattice_aut(k) for g ∈ elements(Gd)))
+        end
+        @test @allocated(RadiiPolynomial._orbit_length(Gd, (2, 1))) == 0
+    end
+
+    @testset "_checkbounds_indices" begin
+        # bisection on the representatives instead of a linear search
+        s = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+        @test all(k -> RadiiPolynomial._checkbounds_indices(k, s), indices(s))
+        @test !RadiiPolynomial._checkbounds_indices((0, 1), s) # in the orbit of (1, 0), not a representative
+        @test !RadiiPolynomial._checkbounds_indices((3, 0), s) # outside the truncation
+        a = Sequence(s, zeros(dimension(s)))
+        @test_throws BoundsError a[(0, 1)]
+        @test_throws BoundsError a[(3, 0)]
+        @test a[(1, 0)] == 0.0
     end
 
     @testset "_findindex_constant / _iscompatible" begin

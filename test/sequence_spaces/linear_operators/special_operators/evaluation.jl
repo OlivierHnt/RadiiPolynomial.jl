@@ -278,10 +278,75 @@
         @test desymmetrize(cs4) == Fourier(0, 1.0) ⊗ Fourier(0, 1.0)
         @test indices(cs4) == [(0, 0)]
 
-        # a mixed tuple (some `nothing`, some `Number`) has an empty domain on a
-        # symmetric tensor space: only the all-`nothing` tuple is handled
+        # the domain of a mixed tuple (some `nothing`, some `Number`) is undefined on a
+        # symmetric tensor space; only the all-`nothing` tuple has one
         @test domain(Evaluation((0.3, nothing)), s4) == UndefSpace()
         @test domain(Evaluation((nothing, nothing)), s4) == s4
+
+        # mixed tuples on symmetric tensor spaces: the evaluation is computed on the symmetric
+        # representation and must agree with the evaluation of the desymmetrized sequence,
+        # including the coefficients reconstructed from the symmetry of the codomain
+        function _check_sym_evaluate(a, x)
+            full = Projection(desymmetrize(space(a))) * a
+            c = evaluate(a, x)
+            cfull = evaluate(full, x)
+            @test desymmetrize(space(c)) == space(cfull)
+            @test all(k -> isapprox(c[k], cfull[k]; atol = 1e-12), indices(space(c)))
+            @test all(k -> isapprox(RadiiPolynomial.getcoefficient(c, (space(cfull), k)), cfull[k]; atol = 1e-12), indices(space(cfull)))
+            return c
+        end
+        s5 = Chebyshev(3) ⊗ Chebyshev(2) ⊗ evensym(Fourier(2, 1.0))
+        a5 = Sequence(s5, [sin(k) for k ∈ 1:dimension(s5)])
+        full5 = Projection(desymmetrize(s5)) * a5
+        for x ∈ ((0.3, -0.4, nothing), (0.3, nothing, nothing), (nothing, -0.4, nothing),
+                 (nothing, nothing, 0.7), (0.3, nothing, 0.7), (nothing, -0.4, 0.7))
+            _check_sym_evaluate(a5, x)
+        end
+        @test a5(0.3, -0.4, 0.7) ≈ full5(0.3, -0.4, 0.7)
+        # the all-`nothing` tuple is the identity
+        @test evaluate(a5, (nothing, nothing, nothing)) == a5
+        # so is evaluating a variable whose space has order 0 (T₀ ≡ 1)
+        s6 = Chebyshev(0) ⊗ evensym(Fourier(2, 1.0))
+        a6 = Sequence(s6, [1.0, 2.0, 3.0])
+        @test evaluate(a6, (0.3, nothing)) == a6
+        # the sign carried by an odd symmetry is applied along the orbit
+        s7 = oddsym(Chebyshev(3)) ⊗ evensym(Fourier(2, 1.0))
+        a7 = Sequence(s7, ComplexF64[1.0, 2.0im, 3.0, 4.0im, 5.0, 6.0im])
+        full7 = Projection(desymmetrize(s7)) * a7
+        _check_sym_evaluate(a7, (0.5, nothing))
+        _check_sym_evaluate(a7, (nothing, 0.4))
+        @test a7(0.5, 0.4) ≈ full7(0.5, 0.4)
+        # the codomain only inherits the symmetries acting trivially on the evaluated variables
+        # (identity block, no mixing, no phase): the amplitude is irrelevant, so an odd symmetry
+        # in the remaining variable is kept ...
+        s9 = Chebyshev(2) ⊗ oddsym(Fourier(2, 1.0))
+        a9 = Sequence(s9, ComplexF64[1.0, 2.0im, 3.0, 4.0im, 5.0, 6.0im])
+        c9 = _check_sym_evaluate(a9, (0.3, nothing))
+        @test indices(space(c9)) == [(0, 1), (0, 2)]
+        # ... while an element carrying a phase on the evaluated variable is not: here the
+        # element (id, phase (1, 0)) ⊗ (reflection) has amplitude 1 but would wrongly declare
+        # the result even in `y`; the (amplitude -1) reflection alone gives the odd symmetry
+        s10 = oddsym(Chebyshev(3)) ⊗ oddsym(Fourier(2, 1.0))
+        a10 = Sequence(s10, ComplexF64[1.0, 2.0im, 3.0, 4.0im])
+        c10 = _check_sym_evaluate(a10, (0.5, nothing))
+        @test indices(space(c10)) == [(0, 1), (0, 2)]
+        c10′ = _check_sym_evaluate(a10, (nothing, 0.4))
+        @test indices(space(c10′)) == [(1, 0), (3, 0)]
+        # d4sym: the rotations and the diagonal reflection mix the variables and are dropped,
+        # the axis reflection is kept
+        s11 = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+        a11 = Sequence(s11, ComplexF64[(1 + 0.4im) / (1 + sum(abs, k))^2 for k ∈ indices(s11)])
+        c11 = _check_sym_evaluate(a11, (0.3, nothing))
+        @test indices(space(c11)) == [(0, 0), (0, 1), (0, 2)]
+        c11′ = _check_sym_evaluate(a11, (nothing, 0.3))
+        @test indices(space(c11′)) == [(0, 0), (1, 0), (2, 0)]
+        # intervals: the enclosures contain the evaluation of the desymmetrized sequence
+        aI = Sequence(interval(s5), interval.(coefficients(a5)))
+        vI = aI(interval(0.3), interval(-0.4), interval(0.7))
+        @test in_interval(real(full5(0.3, -0.4, 0.7)), real(vI))
+        cI = evaluate(aI, (interval(0.3), nothing, interval(0.7)))
+        c5 = evaluate(a5, (0.3, nothing, 0.7))
+        @test all(k -> in_interval(real(c5[k]), real(cI[k])), indices(space(cI)))
     end
 
     @testset "InfiniteSequence / domain checks" begin

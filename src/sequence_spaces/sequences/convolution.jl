@@ -119,17 +119,17 @@ function codomain(::typeof(*), s₁::SymmetricSpace, s₂::SymmetricSpace)
     return SymmetricSpace(V, G)
 end
 
-function _codomain_convolution_symmetry(G₁::Group{N,T}, G₂::Group{N,T}) where {N,T<:Number}
+function _codomain_convolution_symmetry(G₁::Group{N,T,L}, G₂::Group{N,T,L}) where {N,T<:Number,L}
     idx1 = _by_idx_action(G₁)
     idx2 = _by_idx_action(G₂)
 
-    elems = Set{GroupElement{N,T}}()
+    elems = Set{GroupElement{N,T,L}}()
     for (key, vals1) ∈ idx1
         haskey(idx2, key) || continue
         vals2 = idx2[key]
         for v1 ∈ vals1, v2 ∈ vals2
             if v1.phase == v2.phase
-                push!(elems, GroupElement{N,T}(key, Cocycle{N,T}(v1.amplitude * v2.amplitude, v1.phase)))
+                push!(elems, GroupElement(key, Cocycle{N,T}(v1.amplitude * v2.amplitude, v1.phase)))
             end
         end
     end
@@ -137,8 +137,8 @@ function _codomain_convolution_symmetry(G₁::Group{N,T}, G₂::Group{N,T}) wher
     return unsafe_group!(elems)
 end
 
-function _by_idx_action(G::Group{N,T}) where {N,T<:Number}
-    idx = Dict{LatticeAut{N},Vector{Cocycle{N,T}}}()
+function _by_idx_action(G::Group{N,T,L}) where {N,T<:Number,L}
+    idx = Dict{LatticeAut{N,L},Vector{Cocycle{N,T}}}()
     # e = GroupElement(LatticeAut(StaticArrays.SMatrix{N,N,Int}(I)), Cocycle(exact(1), StaticArrays.SVector{N,Rational{Int}}(ntuple(_ -> 0//1, Val(N)))))
     for g ∈ elements(G)
         # g == e && continue

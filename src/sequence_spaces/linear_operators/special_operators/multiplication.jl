@@ -49,11 +49,11 @@ function _domain(::typeof(*), s::SymmetricSpace, s_prod::SymmetricSpace)
     G = _domain_convolution_symmetry(symmetry(s), symmetry(s_prod))
     return SymmetricSpace(V, G)
 end
-function _domain_convolution_symmetry(G::Group{N,T}, G_prod::Group{N,T}) where {N,T<:Number}
+function _domain_convolution_symmetry(G::Group{N,T,L}, G_prod::Group{N,T,L}) where {N,T<:Number,L}
     idx = _by_idx_action(G)
     idx_prod = _by_idx_action(G_prod)
 
-    elems = Set{GroupElement{N,T}}()
+    elems = Set{GroupElement{N,T,L}}()
     for (key, vals) ∈ idx
         haskey(idx_prod, key) || continue
         vals_prod = idx_prod[key]
@@ -61,7 +61,7 @@ function _domain_convolution_symmetry(G::Group{N,T}, G_prod::Group{N,T}) where {
             # convolution identity e^{iπ⟨φ,j⟩} e^{iπ⟨φ,k−j⟩} = e^{iπ⟨φ,k⟩}
             if v.phase == v_prod.phase
                 new_coeff = Cocycle{N,T}(v_prod.amplitude / v.amplitude, v.phase)
-                push!(elems, GroupElement{N,T}(key, new_coeff))
+                push!(elems, GroupElement(key, new_coeff))
             end
         end
     end

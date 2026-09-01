@@ -242,7 +242,7 @@ _maybe_tensorspace(t::Tuple{Vararg{BaseSpace}}) = TensorSpace(t)
 function _restrict(G::Group{N,T}, ::Val{D}) where {N,T,D}
     # restrict a symmetry group acting trivially on the first `D` indices to the
     # trailing indices (inverse of `⊗` with a `NoSymSpace`)
-    els = Set{GroupElement{N-D,T}}()
+    els = Set{GroupElement{N-D,T,(N-D)^2}}()
     for g ∈ elements(G)
         A = g.lattice_aut.matrix
         ϕ = g.cocycle.phase

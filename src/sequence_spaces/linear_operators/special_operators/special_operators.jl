@@ -22,17 +22,22 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
 
         function _sym_getcoefficient(A::$S, dom::SymmetricSpace, codom::SymmetricSpace, α, β, ::Type{T}) where {T}
             v = zero(T)
-            orbit_α = _orbit(symmetry(codom), α)
-            for l ∈ _orbit(symmetry(dom), β)
+            G_dom = elements(symmetry(dom))
+            G_codom = elements(symmetry(codom))
+            for g ∈ G_dom
+                l = g.lattice_aut(β)
                 _checkbounds_indices(l, desymmetrize(dom)) || continue
                 _, factor_l = _unsafe_get_representative_and_action(dom, l)
-                for k ∈ orbit_α
+                for h ∈ G_codom
+                    k = h.lattice_aut(α)
                     _checkbounds_indices(k, desymmetrize(codom)) || continue
                     _, factor_k = _unsafe_get_representative_and_action(codom, k)
                     v += factor_l * getcoefficient(A, (desymmetrize(codom), k), (desymmetrize(dom), l), T) / factor_k
                 end
             end
-            return convert(T, v / exact(length(orbit_α)))
+            # each point of an orbit is reached |Stab| times and the sum is averaged over the orbit of α,
+            # hence the normalization |Stab(β)| |Stab(α)| |Orb(α)| = |Stab(β)| |G_codom|
+            return convert(T, v / exact(_stabilizer_length(symmetry(dom), β) * length(G_codom)))
         end
 
         function _apply!(c::Sequence{<:SymmetricSpace}, A::$S, a::Sequence{<:SymmetricSpace})

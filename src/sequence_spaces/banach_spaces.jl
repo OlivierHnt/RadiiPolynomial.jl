@@ -17,8 +17,10 @@ _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::N
 _getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
     @inbounds _getindex(weight[1], s[1], α[1])
 
-_getindex(weight::Weight, s::SymmetricSpace, k) =
-    exact(length(_orbit(symmetry(s), k))) * _getindex(weight, desymmetrize(s), k)
+# the weight of a representative accounts for the multiplicity of its orbit (the weight is
+# assumed to be invariant under the symmetry, e.g. equal weights in dimensions mixed by it)
+_getindex(weight::Union{Weight,Tuple{Vararg{Weight}}}, s::SymmetricSpace, k) =
+    exact(_orbit_length(symmetry(s), k)) * _getindex(weight, desymmetrize(s), k)
 
 """
     IdentityWeight <: Weight

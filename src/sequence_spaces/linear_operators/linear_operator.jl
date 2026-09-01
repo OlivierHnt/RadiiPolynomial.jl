@@ -314,15 +314,22 @@ getcoefficient(A::LinearOperator{<:NoSymSpace,<:NoSymSpace}, (codom, α)::Tuple{
 
 function _sym_getcoefficient(A::LinearOperator, dom::SymmetricSpace, codom::SymmetricSpace, α, β)
     v = zero(eltype(A))
-    orbit_α = _orbit(symmetry(codom), α)
-    for l ∈ _orbit(symmetry(dom), β), k ∈ orbit_α
-        _checkbounds_indices(k, desymmetrize(codom)) || continue
-        _, factor_k = _unsafe_get_representative_and_action(codom, k)
+    G_dom = elements(symmetry(dom))
+    G_codom = elements(symmetry(codom))
+    for g ∈ G_dom
+        l = g.lattice_aut(β)
         _checkbounds_indices(l, desymmetrize(dom)) || continue
         _, factor_l = _unsafe_get_representative_and_action(dom, l)
-        v += factor_l * (A[k,l] / factor_k) / exact(length(orbit_α))
+        for h ∈ G_codom
+            k = h.lattice_aut(α)
+            _checkbounds_indices(k, desymmetrize(codom)) || continue
+            _, factor_k = _unsafe_get_representative_and_action(codom, k)
+            v += factor_l * (A[k,l] / factor_k)
+        end
     end
-    return v
+    # each point of an orbit is reached |Stab| times and the sum is averaged over the orbit of α,
+    # hence the normalization |Stab(β)| |Stab(α)| |Orb(α)| = |Stab(β)| |G_codom|
+    return v / exact(_stabilizer_length(symmetry(dom), β) * length(G_codom))
 end
 
 getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
@@ -334,7 +341,7 @@ function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpa
     k0, factor_α = _unsafe_get_representative_and_action(codomain(A), α)
     l0, factor_β = _unsafe_get_representative_and_action(domain(A), β)
     _checkbounds_indices(k0, codomain(A)) & _checkbounds_indices(l0, domain(A)) || return zero(CoefType)
-    return @inbounds convert(CoefType, factor_α * (A[k0,l0] / factor_β) / exact(length(_orbit(symmetry(domain(A)), l0))))
+    return @inbounds convert(CoefType, factor_α * (A[k0,l0] / factor_β) / exact(_orbit_length(symmetry(domain(A)), l0)))
 end
 
 getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{VectorSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
@@ -345,7 +352,7 @@ function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}
     _checkbounds_indices(α, codomain(A)) & _checkbounds_indices(β, desymmetrize(domain(A))) || return zero(CoefType)
     l0, factor_β = _unsafe_get_representative_and_action(domain(A), β)
     _checkbounds_indices(l0, domain(A)) || return zero(CoefType)
-    return @inbounds convert(CoefType, (A[α,l0] / factor_β) / exact(length(_orbit(symmetry(domain(A)), l0))))
+    return @inbounds convert(CoefType, (A[α,l0] / factor_β) / exact(_orbit_length(symmetry(domain(A)), l0)))
 end
 
 getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{VectorSpace,Any}) =

@@ -181,6 +181,20 @@
             @test collect(indices(s)) == [(0, 0), (1, 0), (1, 1)]
             a = Sequence(s, [1.0, 2.0, 3.0])
             @test norm(a, Ell1()) == 21.0   # 1·1 + 2·4 + 3·4
+            # per-dimension weights (equal in the dimensions mixed by the symmetry): the norm of
+            # the symmetric sequence is the norm of its desymmetrization
+            X = Ell1((GeometricWeight(1.5), GeometricWeight(1.5)))
+            @test norm(a, X) ≈ 1.0 + 2.0 * 4 * 1.5 + 3.0 * 4 * 1.5^2   # 1·1 + 2·4·1.5¹ + 3·4·1.5²
+            @test norm(a, X) ≈ norm(Projection(desymmetrize(s)) * a, X)
+        end
+
+        @testset "tensor product with a symmetric factor" begin
+            s = Chebyshev(2) ⊗ Chebyshev(2) ⊗ evensym(Fourier(2, 1.0))
+            a = Sequence(s, [sin(k) for k ∈ 1:dimension(s)])
+            full = Projection(desymmetrize(s)) * a
+            @test norm(a, Ell1()) ≈ norm(full, Ell1())
+            X = Ell1((GeometricWeight(1.1), GeometricWeight(1.2), GeometricWeight(1.3)))
+            @test norm(a, X) ≈ norm(full, X)
         end
     end
 

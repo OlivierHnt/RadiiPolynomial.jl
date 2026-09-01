@@ -150,7 +150,26 @@ domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<:Tens
 codomain(::Evaluation{Nothing}, s::SymmetricSpace{<:BaseSpace}) = s
 codomain(::Evaluation{<:NTuple{N,Nothing}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = s
 codomain(ℰ::Evaluation{<:Number}, s::SymmetricSpace{<:BaseSpace}) = SymmetricSpace(codomain(ℰ, desymmetrize(s)), _sym_with_cst_coef(symmetry(s)))
-codomain(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = SymmetricSpace(codomain(ℰ, desymmetrize(s)), _sym_with_cst_coef(symmetry(s)))
+codomain(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = SymmetricSpace(codomain(ℰ, desymmetrize(s)), _restrict_symmetry(symmetry(s), value(ℰ)))
+
+# the partially evaluated function inherits the symmetries acting trivially on the evaluated
+# variables: identity block, no mixing with the other variables and no phase on these variables
+_restrict_symmetry(G::Group{N,T,L}, x::NTuple{N,Union{Nothing,Number}}) where {N,T,L} =
+    unsafe_group!(Set{GroupElement{N,T,L}}(g for g ∈ elements(G) if _acts_trivially(g, x)))
+
+function _acts_trivially(g::GroupElement{N}, x::NTuple{N,Union{Nothing,Number}}) where {N}
+    A = g.lattice_aut.matrix
+    ϕ = g.cocycle.phase
+    @inbounds for i ∈ 1:N
+        x[i] === nothing && continue
+        (A[i,i] == 1) & iszero(ϕ[i]) || return false
+        for j ∈ 1:N
+            j == i && continue
+            iszero(A[i,j]) & iszero(A[j,i]) || return false
+        end
+    end
+    return true
+end
 
 _coeftype(ℰ::Evaluation, s::SymmetricSpace, ::Type{T}) where {T} = _coeftype(ℰ, desymmetrize(s), T)
 

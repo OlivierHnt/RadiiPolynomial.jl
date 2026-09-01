@@ -142,6 +142,13 @@
         @test IdentityWeight()[(d4, (0, 2))] == 4
         @test IdentityWeight()[(d4, (1, 2))] == 8
         @test BesselWeight(1.0)[(d4, (1, 2))] == 48.0 # 8 ⋅ (1 + 1 + 4)
+        # per-dimension weights on a symmetric tensor space: orbit length times the tensor weight
+        @test RadiiPolynomial._getindex((GeometricWeight(2.0), GeometricWeight(2.0)), d4, (1, 2)) == 64.0 # 8 ⋅ 2¹ ⋅ 2²
+        @test RadiiPolynomial._getindex((IdentityWeight(), GeometricWeight(3.0)), d4, (0, 2)) == 36.0 # 4 ⋅ 1 ⋅ 3²
+        s3 = Chebyshev(2) ⊗ Chebyshev(2) ⊗ evensym(Fourier(2, 1.0))
+        w3 = (GeometricWeight(2.0), IdentityWeight(), GeometricWeight(3.0))
+        @test RadiiPolynomial._getindex(w3, s3, (1, 2, 2)) == 2 * RadiiPolynomial._getindex(w3, desymmetrize(s3), (1, 2, 2)) # orbit {(1, 2, ±2)}
+        @test RadiiPolynomial._getindex(w3, s3, (1, 2, 0)) == RadiiPolynomial._getindex(w3, desymmetrize(s3), (1, 2, 0)) # orbit {(1, 2, 0)}
         # non-Fourier bases: evensym orbits have length 1 (each index maps to itself)
         @test IdentityWeight()[(evensym(𝒞), 2)] == 2 # 1 ⋅ 2 (Chebyshev doubling)
         @test GeometricWeight(3.0)[(evensym(Taylor(4)), 2)] == 9.0 # 1 ⋅ 3²

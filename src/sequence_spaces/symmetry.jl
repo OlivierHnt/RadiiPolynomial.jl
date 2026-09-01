@@ -6,24 +6,14 @@ matrix. Callable on an index or a tuple of indices.
 
 See also: [`Cocycle`](@ref) and [`GroupElement`](@ref).
 """
-struct LatticeAut{N}
-    matrix :: StaticArrays.SMatrix{N,N,Int}
+struct LatticeAut{N,L}
+    matrix :: StaticArrays.SMatrix{N,N,Int,L} # `L = N^2` is needed for the field to be concretely typed
 end
 
 LatticeAut(a::AbstractMatrix{Int}) = LatticeAut(StaticArrays.SMatrix{size(a)...,Int}(a))
 
 (A::LatticeAut{1})(k::Integer) = A.matrix[1] * k
-(A::LatticeAut{2})(k::NTuple{2,Integer}) =
-    (A.matrix[1,1]*k[1] + A.matrix[1,2]*k[2],
-     A.matrix[2,1]*k[1] + A.matrix[2,2]*k[2])
-(A::LatticeAut{3})(k::NTuple{3,Integer}) =
-    (A.matrix[1,1]*k[1] + A.matrix[1,2]*k[2] + A.matrix[1,3]*k[3],
-     A.matrix[2,1]*k[1] + A.matrix[2,2]*k[2] + A.matrix[2,3]*k[3],
-     A.matrix[3,1]*k[1] + A.matrix[3,2]*k[2] + A.matrix[3,3]*k[3])
-function (A::LatticeAut{N})(k::NTuple{N,Integer}) where {N}
-    l = A.matrix * StaticArrays.SVector{N}(k)
-    return ntuple(i -> l[i], Val(N))
-end
+(A::LatticeAut{N})(k::NTuple{N,Integer}) where {N} = Tuple(A.matrix * StaticArrays.SVector{N}(k))
 
 Base.:*(A::LatticeAut, B::LatticeAut) = LatticeAut(A.matrix * B.matrix)
 
@@ -89,14 +79,14 @@ Combine a [`LatticeAut`](@ref) ``\\beta_g`` with the [`Cocycle`](@ref)
 Elements compose with `∘`.
 
 Fields:
-- `lattice_aut :: LatticeAut{N}`
+- `lattice_aut :: LatticeAut{N,L}`
 - `cocycle :: Cocycle{N,T}`
 
 See also: [`LatticeAut`](@ref), [`Cocycle`](@ref), [`Group`](@ref) and
 [`SymmetricSpace`](@ref).
 """
-struct GroupElement{N,T<:Number}
-    lattice_aut :: LatticeAut{N}
+struct GroupElement{N,T<:Number,L}
+    lattice_aut :: LatticeAut{N,L}
     cocycle     :: Cocycle{N,T}
 end
 
@@ -121,12 +111,12 @@ generators.
 
 See also: [`GroupElement`](@ref) and [`SymmetricSpace`](@ref).
 """
-struct Group{N,T<:Number}
-    elements :: Set{GroupElement{N,T}}
+struct Group{N,T<:Number,L}
+    elements :: Set{GroupElement{N,T,L}}
     # a `Group` is never mutated once closed, so its hash is computed once here
     # storing the hash helps with every lookup in `_orbit_cache` when constructing symmetric spaces
     hash     :: UInt
-    global function unsafe_group!(elements::Set{GroupElement{N,T}}) where {N,T<:Number}
+    global function unsafe_group!(elements::Set{GroupElement{N,T,L}}) where {N,T<:Number,L}
         # modify in-place the input set of group elements until it is closed under composition (O(|G|²))
         changed = true
         while changed
@@ -139,11 +129,11 @@ struct Group{N,T<:Number}
                 end
             end
         end
-        return new{N,T}(elements, hash(elements))
+        return new{N,T,L}(elements, hash(elements))
     end
 end
 
-Group(g::GroupElement{N,T}, h::GroupElement{N,T}...) where {N,T<:Number} = unsafe_group!(Set{GroupElement{N,T}}((g, h...)))
+Group(g::GroupElement{N,T,L}, h::GroupElement{N,T,L}...) where {N,T<:Number,L} = unsafe_group!(Set{GroupElement{N,T,L}}((g, h...)))
 
 """
     elements(g::Group)
@@ -169,8 +159,17 @@ end
 
 Base.hash(g::Group, h::UInt) = hash(g.hash, h)
 
-_orbit(sym::Group{1}, k::T) where {T<:Integer} = Set{T}(g.lattice_aut(k) for g ∈ elements(sym))
-_orbit(sym::Group{N}, k::NTuple{N,T}) where {N,T<:Integer} = Set{NTuple{N,T}}(g.lattice_aut(k) for g ∈ elements(sym))
+# the orbit of `k` is never materialized: by the orbit-stabilizer theorem |Orb(k)| = |G| / |Stab(k)|,
+# and a sum over the orbit is a sum over the group elements divided by |Stab(k)| since each point
+# of the orbit is reached exactly |Stab(k)| times
+function _stabilizer_length(sym::Group, k)
+    n = 0
+    for g ∈ elements(sym)
+        n += g.lattice_aut(k) == k
+    end
+    return n
+end
+_orbit_length(sym::Group, k) = length(elements(sym)) ÷ _stabilizer_length(sym, k)
 
 function _orbit_representatives(sym::Group, inds) # slow
     sym_elements = elements(sym)
@@ -242,7 +241,7 @@ const _orbit_cache_lock = ReentrantLock()
 # helper functions for type inference
 _indices_type(::Type{<:BaseSpace}) = StepRange{Int,Int}
 _indices_type(::Type{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = Vector{NTuple{N,Int}}
-_rep_idx_action_type(::Type{S}, ::Type{Group{N,T}}) where {S<:NoSymSpace,N,T} =
+_rep_idx_action_type(::Type{S}, ::Type{Group{N,T,L}}) where {S<:NoSymSpace,N,T,L} =
     Tuple{eltype(_indices_type(S)),Base.promote_op((v, k) -> v(k), Cocycle{N,T}, eltype(_indices_type(S)))}
 
 """
@@ -376,6 +375,10 @@ end
 _findposition(u::AbstractRange, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(u::AbstractVector, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::SymmetricSpace) = c
+
+# bisection instead of the linear search `k ∈ indices(s)` on the vector of representatives
+_checkbounds_indices(k::NTuple{N,Integer}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} =
+    _findposition(k, s) !== nothing
 
 _iscompatible(s₁::SymmetricSpace, s₂::SymmetricSpace) = _iscompatible(desymmetrize(s₁), desymmetrize(s₂)) # & (symmetry(s₁) == symmetry(s₂))
 _iscompatible(s₁::SymmetricSpace, s₂::NoSymSpace) = _iscompatible(desymmetrize(s₁), s₂)

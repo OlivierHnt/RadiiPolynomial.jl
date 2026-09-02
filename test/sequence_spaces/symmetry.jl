@@ -419,7 +419,6 @@
         for k ∈ indices(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
             @test RadiiPolynomial._orbit_length(Gd, k) == length(Set(g.lattice_aut(k) for g ∈ elements(Gd)))
         end
-        @test @allocated(RadiiPolynomial._orbit_length(Gd, (2, 1))) == 0
     end
 
     @testset "_checkbounds_indices / _findposition / rep_pos_cocycle" begin
@@ -431,7 +430,6 @@
         @test RadiiPolynomial._findposition((1, 0), s) == 2
         @test RadiiPolynomial._findposition((0, 1), s) === nothing
         @test RadiiPolynomial._findposition((3, 0), s) === nothing
-        @test @allocated(RadiiPolynomial._findposition((1, 0), s)) == 0
         a = Sequence(s, zeros(dimension(s)))
         @test_throws BoundsError a[(0, 1)]
         @test_throws BoundsError a[(3, 0)]

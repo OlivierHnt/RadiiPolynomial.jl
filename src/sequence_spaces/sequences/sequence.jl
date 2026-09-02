@@ -263,13 +263,16 @@ getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{NoSymSpace,Any}) = 
 function _desym_getcoefficient(a::Sequence{<:SymmetricSpace}, α)
     CoefType = complex(eltype(a))
     _checkbounds_indices(α, desymmetrize(space(a))) || return zero(CoefType)
-    k0, factor = _unsafe_get_representative_and_action(space(a), α)
-    _checkbounds_indices(k0, space(a)) || return zero(CoefType)
-    return @inbounds convert(CoefType, factor * a[k0])
+    q, factor = _unsafe_rep_pos_cocycle(space(a), α)
+    q == 0 && return zero(CoefType)
+    return @inbounds convert(CoefType, factor * coefficients(a)[q])
 end
 
-_unsafe_get_representative_and_action(::NoSymSpace, k) = k, exact(true)
-_unsafe_get_representative_and_action(s::SymmetricSpace, k) = @inbounds s.rep_idx_action[_findposition(k, desymmetrize(s))]
+# position `q` in the storage of the representative of `k` (0 if the orbit of `k` is invalid or its
+# representative lies outside the truncation) and the cocycle factor with `a_k = factor * coefficients(a)[q]`
+# `k` is assumed to be an index of `desymmetrize(s)` (no bounds check)
+_unsafe_rep_pos_cocycle(s::NoSymSpace, k) = (_checkbounds_indices(k, s) ? _findposition(k, s) : 0), exact(true)
+_unsafe_rep_pos_cocycle(s::SymmetricSpace, k) = @inbounds s.rep_pos_cocycle[_findposition(k, desymmetrize(s))]
 
 #
 

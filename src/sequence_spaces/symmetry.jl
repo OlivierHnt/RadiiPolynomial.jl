@@ -214,15 +214,17 @@ end
 _sort_representatives!(reps::Vector{<:Integer}) = sort!(reps)
 _sort_representatives!(reps::Vector{<:NTuple{N,Integer}}) where {N} = sort!(reps; by = reverse)
 
-function _compute_action_map(sym::Group, inds, k_reps)
+function _compute_rep_pos_cocycle(sym::Group, inds, k_reps, reps)
     sym_elements = elements(sym)
+    positions = Dict{eltype(k_reps),Int}(k => i for (i, k) ∈ enumerate(reps)) # storage position of each valid representative
     return map(enumerate(inds)) do (i, k)
         # invariance under `g` reads a_k = α_g(k) a_{β_g(k)}, so the element to look for is the
         # one carrying `k` onto its representative, and the factor is its cocycle *at k*
         k_rep = k_reps[i]
+        q = get(positions, k_rep, 0) # 0: invalid orbit, or representative outside the truncation
         for g ∈ sym_elements
             if g.lattice_aut(k) == k_rep
-                return (k_rep, g.cocycle(k))
+                return (q, g.cocycle(k))
             end
         end
         return throw(ArgumentError("Symmetry group consistency error"))
@@ -241,8 +243,8 @@ const _orbit_cache_lock = ReentrantLock()
 # helper functions for type inference
 _indices_type(::Type{<:BaseSpace}) = StepRange{Int,Int}
 _indices_type(::Type{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} = Vector{NTuple{N,Int}}
-_rep_idx_action_type(::Type{S}, ::Type{Group{N,T,L}}) where {S<:NoSymSpace,N,T,L} =
-    Tuple{eltype(_indices_type(S)),Base.promote_op((v, k) -> v(k), Cocycle{N,T}, eltype(_indices_type(S)))}
+_rep_pos_cocycle_type(::Type{S}, ::Type{Group{N,T,L}}) where {S<:NoSymSpace,N,T,L} =
+    Tuple{Int,Base.promote_op((v, k) -> v(k), Cocycle{N,T}, eltype(_indices_type(S)))}
 
 """
     SymmetricSpace(space::SequenceSpace, sym::Group)
@@ -266,20 +268,22 @@ struct SymmetricSpace{S<:NoSymSpace,G<:Group,I,R} <: SequenceSpace
     space    :: S
     symmetry :: G
     indices  :: I
-    rep_idx_action :: Vector{R}
+    # for each index `k` of `space` (at its position in `space`): the position in the storage of the
+    # representative of `k` (0 if it is not stored) and the cocycle factor `α` such that `a_k = α a_rep`
+    rep_pos_cocycle :: Vector{R}
     function SymmetricSpace(space::S, sym::G) where {S<:NoSymSpace,G<:Group}
         inds = indices(space)
-        inds2, rep_idx_action = lock(_orbit_cache_lock) do
+        reps, rep_pos_cocycle = lock(_orbit_cache_lock) do
             get!(_orbit_cache, (inds, sym)) do
                 k_reps = _orbit_representatives(sym, inds)
-                reps = _filter_valid_representatives(sym, k_reps)
-                (_reps_indices(reps), _compute_action_map(sym, inds, k_reps))
+                reps = _reps_indices(_filter_valid_representatives(sym, k_reps))
+                (reps, _compute_rep_pos_cocycle(sym, inds, k_reps, reps))
             end
         end
         TI = _indices_type(S)
-        TR = _rep_idx_action_type(S, G)
-        isconcretetype(TR) && return new{S,G,TI,TR}(space, sym, inds2::TI, rep_idx_action::Vector{TR})
-        return new{S,G,TI,eltype(rep_idx_action)}(space, sym, inds2::TI, rep_idx_action)
+        TR = _rep_pos_cocycle_type(S, G)
+        isconcretetype(TR) && return new{S,G,TI,TR}(space, sym, reps::TI, rep_pos_cocycle::Vector{TR})
+        return new{S,G,TI,eltype(rep_pos_cocycle)}(space, sym, reps::TI, rep_pos_cocycle)
     end
 end
 
@@ -356,7 +360,7 @@ Base.hash(s::SymmetricSpace, h::UInt) = hash(s.space, hash(s.symmetry, h))
 
 function _findindex_constant(s::SymmetricSpace)
     k0 = _findindex_constant(desymmetrize(s))
-    k0 ∈ indices(s) && return k0
+    _checkbounds_indices(k0, s) && return k0
     return nothing
 end
 
@@ -367,16 +371,16 @@ function _findposition(k::Integer, s::SymmetricSpace{<:BaseSpace})
     return iszero(rem) & (0 ≤ i < length(r)) ? i+1 : nothing
 end
 function _findposition(k::NTuple{N,Integer}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N}
-    # representative located by bisection on the vector of a `TensorSpace`
-    inds = indices(s)
-    i = searchsortedfirst(inds, k; by = reverse)
-    return (i ≤ length(inds)) && (@inbounds inds[i] == k) ? i : nothing
+    # O(1): the stored position of the representative of `k` is the position of `k` only if `k` is stored
+    _checkbounds_indices(k, desymmetrize(s)) || return nothing
+    q, _ = _unsafe_rep_pos_cocycle(s, k)
+    return (q != 0) && (@inbounds indices(s)[q] == k) ? q : nothing
 end
 _findposition(u::AbstractRange, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(u::AbstractVector, s::SymmetricSpace) = map(i -> _findposition(i, s), u)
 _findposition(c::Colon, ::SymmetricSpace) = c
 
-# bisection instead of the linear search `k ∈ indices(s)` on the vector of representatives
+# O(1) through the stored position of the representative, instead of the linear search `k ∈ indices(s)`
 _checkbounds_indices(k::NTuple{N,Integer}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N} =
     _findposition(k, s) !== nothing
 

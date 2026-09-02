@@ -319,11 +319,11 @@ function _sym_getcoefficient(A::LinearOperator, dom::SymmetricSpace, codom::Symm
     for g ∈ G_dom
         l = g.lattice_aut(β)
         _checkbounds_indices(l, desymmetrize(dom)) || continue
-        _, factor_l = _unsafe_get_representative_and_action(dom, l)
+        _, factor_l = _unsafe_rep_pos_cocycle(dom, l)
         for h ∈ G_codom
             k = h.lattice_aut(α)
             _checkbounds_indices(k, desymmetrize(codom)) || continue
-            _, factor_k = _unsafe_get_representative_and_action(codom, k)
+            _, factor_k = _unsafe_rep_pos_cocycle(codom, k)
             v += factor_l * (A[k,l] / factor_k)
         end
     end
@@ -338,10 +338,10 @@ getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, (codom, α)
 function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, α, β)
     CoefType = complex(eltype(A))
     _checkbounds_indices(α, desymmetrize(codomain(A))) & _checkbounds_indices(β, desymmetrize(domain(A))) || return zero(CoefType)
-    k0, factor_α = _unsafe_get_representative_and_action(codomain(A), α)
-    l0, factor_β = _unsafe_get_representative_and_action(domain(A), β)
-    _checkbounds_indices(k0, codomain(A)) & _checkbounds_indices(l0, domain(A)) || return zero(CoefType)
-    return @inbounds convert(CoefType, factor_α * (A[k0,l0] / factor_β) / exact(_orbit_length(symmetry(domain(A)), l0)))
+    qα, factor_α = _unsafe_rep_pos_cocycle(codomain(A), α)
+    qβ, factor_β = _unsafe_rep_pos_cocycle(domain(A), β)
+    (qα != 0) & (qβ != 0) || return zero(CoefType)
+    return @inbounds convert(CoefType, factor_α * (coefficients(A)[qα,qβ] / factor_β) / exact(_orbit_length(symmetry(domain(A)), β)))
 end
 
 getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{VectorSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
@@ -350,9 +350,9 @@ getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::T
 function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, α, β)
     CoefType = complex(eltype(A))
     _checkbounds_indices(α, codomain(A)) & _checkbounds_indices(β, desymmetrize(domain(A))) || return zero(CoefType)
-    l0, factor_β = _unsafe_get_representative_and_action(domain(A), β)
-    _checkbounds_indices(l0, domain(A)) || return zero(CoefType)
-    return @inbounds convert(CoefType, (A[α,l0] / factor_β) / exact(_orbit_length(symmetry(domain(A)), l0)))
+    qβ, factor_β = _unsafe_rep_pos_cocycle(domain(A), β)
+    qβ == 0 && return zero(CoefType)
+    return @inbounds convert(CoefType, (coefficients(A)[_findposition(α, codomain(A)),qβ] / factor_β) / exact(_orbit_length(symmetry(domain(A)), β)))
 end
 
 getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{VectorSpace,Any}) =
@@ -361,9 +361,9 @@ getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::T
 function _desym_getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, α, β)
     CoefType = complex(eltype(A))
     _checkbounds_indices(α, desymmetrize(codomain(A))) & _checkbounds_indices(β, domain(A)) || return zero(CoefType)
-    k0, factor_α = _unsafe_get_representative_and_action(codomain(A), α)
-    _checkbounds_indices(k0, codomain(A)) || return zero(CoefType)
-    return @inbounds convert(CoefType, factor_α * A[k0,β])
+    qα, factor_α = _unsafe_rep_pos_cocycle(codomain(A), α)
+    qα == 0 && return zero(CoefType)
+    return @inbounds convert(CoefType, factor_α * coefficients(A)[qα,_findposition(β, domain(A))])
 end
 
 #

@@ -280,20 +280,20 @@
         # spaces sharing the `(indices, symmetry)` key reuse the memoized orbit data; the
         # frequency does not enter the orbit computation, so it does not split the key
         s = evensym(Fourier(4, 1.0))
-        @test s.rep_idx_action === evensym(Fourier(4, 2.0)).rep_idx_action
+        @test s.rep_pos_cocycle === evensym(Fourier(4, 2.0)).rep_pos_cocycle
 
         t = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
         t′ = d4sym(Fourier(2, 3.0) ⊗ Fourier(2, 3.0))
-        @test t.rep_idx_action === t′.rep_idx_action
+        @test t.rep_pos_cocycle === t′.rep_pos_cocycle
         @test indices(t) === indices(t′)
 
         # a different group on the same indices is a distinct entry
-        @test s.rep_idx_action !== oddsym(Fourier(4, 1.0)).rep_idx_action
+        @test s.rep_pos_cocycle !== oddsym(Fourier(4, 1.0)).rep_pos_cocycle
 
         # the interval symmetry group is a distinct entry: coefficient actions must stay enclosures
         si = interval(s)
-        @test si.rep_idx_action !== s.rep_idx_action
-        @test last(first(si.rep_idx_action)) isa Complex{<:Interval}
+        @test si.rep_pos_cocycle !== s.rep_pos_cocycle
+        @test last(first(si.rep_pos_cocycle)) isa Complex{<:Interval}
     end
 
     @testset "order / frequency / dimension / indices" begin
@@ -351,7 +351,7 @@
 
         # interval symmetry groups tensorize with enclosure amplitudes
         tI = interval(sE) ⊗ interval(sE)
-        @test last(first(tI.rep_idx_action)) isa Complex{<:Interval}
+        @test last(first(tI.rep_pos_cocycle)) isa Complex{<:Interval}
     end
 
     @testset "_restrict: inverse of lifting through ⊗ with a NoSymSpace" begin
@@ -400,7 +400,7 @@
         @test typeof(t) === typeof(d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)))
 
         si = SymmetricSpace(Fourier(4, interval(1.0)), interval(GE))
-        @test last(first(si.rep_idx_action)) isa Complex{<:Interval}
+        @test last(first(si.rep_pos_cocycle)) isa Complex{<:Interval}
     end
 
     @testset "_orbit_length / _stabilizer_length" begin
@@ -422,16 +422,29 @@
         @test @allocated(RadiiPolynomial._orbit_length(Gd, (2, 1))) == 0
     end
 
-    @testset "_checkbounds_indices" begin
-        # bisection on the representatives instead of a linear search
+    @testset "_checkbounds_indices / _findposition / rep_pos_cocycle" begin
+        # O(1) through the stored position of the representative, instead of a bisection
         s = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
         @test all(k -> RadiiPolynomial._checkbounds_indices(k, s), indices(s))
         @test !RadiiPolynomial._checkbounds_indices((0, 1), s) # in the orbit of (1, 0), not a representative
         @test !RadiiPolynomial._checkbounds_indices((3, 0), s) # outside the truncation
+        @test RadiiPolynomial._findposition((1, 0), s) == 2
+        @test RadiiPolynomial._findposition((0, 1), s) === nothing
+        @test RadiiPolynomial._findposition((3, 0), s) === nothing
+        @test @allocated(RadiiPolynomial._findposition((1, 0), s)) == 0
         a = Sequence(s, zeros(dimension(s)))
         @test_throws BoundsError a[(0, 1)]
         @test_throws BoundsError a[(3, 0)]
         @test a[(1, 0)] == 0.0
+        # the table maps every index `k` of the full space to the storage position of its
+        # representative (0 for an invalid orbit) and the cocycle factor: a_k = factor * a[q]
+        e = evensym(Fourier(2, 1.0)) # indices -2:2, representatives 0:2
+        @test first.(e.rep_pos_cocycle) == [3, 2, 1, 2, 3]
+        @test all(isone, last.(e.rep_pos_cocycle))
+        o = oddsym(Fourier(2, 1.0)) # representatives 1:2, the orbit {0} is invalid
+        @test first.(o.rep_pos_cocycle) == [2, 1, 0, 1, 2]
+        @test last.(o.rep_pos_cocycle)[[1, 2, 4, 5]] == [-1, -1, 1, 1]
+        @test first(RadiiPolynomial._unsafe_rep_pos_cocycle(s, (0, -1))) == 2 # representative (1, 0)
     end
 
     @testset "_findindex_constant / _iscompatible" begin

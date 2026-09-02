@@ -104,6 +104,38 @@
         @test P*a == expected
     end
 
+    @testset "symmetric domain with a non-trivial cocycle" begin
+        # the column of a representative `t` collects Σ_{β ∈ Orb(t)} factor(β) a_{α-β} with x_β = factor(β) x_t;
+        # the reference is the product of the desymmetrized sequences, which uses no symmetric code
+        function _check_projected_multiplication(a, x, ::Type{T}) where {T}
+            ax = a * x
+            M = project(Multiplication(a), space(x), space(ax), T)
+            @test M * x ≈ ax
+            full = (Projection(desymmetrize(space(a))) * a) * (Projection(desymmetrize(space(x))) * x)
+            @test all(k -> isapprox(RadiiPolynomial.getcoefficient(M * x, (space(full), k)), full[k]; atol = 1e-12), indices(space(full)))
+            return M
+        end
+        # odd (sine) domain: x₋₁ = -x₁, so (a*x)₁ = (a₀ - a₂) x₁ and not (a₀ + a₂) x₁
+        a = Sequence(evensym(Fourier(2, 1.0)), [1.0, 0.0, 1.0])
+        x = Sequence(oddsym(Fourier(1, 1.0)), [1.0im])
+        M = _check_projected_multiplication(a, x, ComplexF64)
+        @test coefficients(M) == [0.0; 0.0; 1.0;;]
+        # phase group a_k = iᵏ a₋ₖ: the factors are ±i, the projected matrix must be complex
+        Gp = Group(GroupElement(LatticeAut([-1;;]), Cocycle(exact(1//1), Rational{Int}[1//2])))
+        sp = SymmetricSpace(Fourier(1, 1.0), Gp)
+        ap = Sequence(sp, ComplexF64[1.0, 1.0])
+        xp = Sequence(sp, ComplexF64[0.0, 1.0])
+        _check_projected_multiplication(ap, xp, ComplexF64)
+        @test ap * xp == Sequence(SymmetricSpace(Fourier(2, 1.0), Gp), ComplexF64[-2.0im, 1.0, 1.0])
+        # with intervalized spaces the cocycle factors are thin intervals: the guarantee is kept
+        sI1 = interval(evensym(Fourier(1, 1.0)))
+        sI2 = interval(evensym(Fourier(2, 1.0)))
+        aI = Sequence(sI1, interval.([0.0, 0.5]))
+        PI = project(Multiplication(aI), sI1, sI2, Interval{Float64})
+        @test all(isguaranteed, coefficients(PI))
+        @test all(in_interval.([0.5, 0.0, 0.25], coefficients(PI * aI))) # cos²(t) = 1/2 + 1/2 cos(2t)
+    end
+
     @testset "cartesian space (not supported)" begin
         a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         ℳ = Multiplication(a)

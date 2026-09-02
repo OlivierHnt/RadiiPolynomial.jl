@@ -27,11 +27,11 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
             for g ∈ G_dom
                 l = g.lattice_aut(β)
                 _checkbounds_indices(l, desymmetrize(dom)) || continue
-                _, factor_l = _unsafe_get_representative_and_action(dom, l)
+                _, factor_l = _unsafe_rep_pos_cocycle(dom, l)
                 for h ∈ G_codom
                     k = h.lattice_aut(α)
                     _checkbounds_indices(k, desymmetrize(codom)) || continue
-                    _, factor_k = _unsafe_get_representative_and_action(codom, k)
+                    _, factor_k = _unsafe_rep_pos_cocycle(codom, k)
                     v += factor_l * getcoefficient(A, (desymmetrize(codom), k), (desymmetrize(dom), l), T) / factor_k
                 end
             end

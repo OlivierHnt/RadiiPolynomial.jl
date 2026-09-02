@@ -83,12 +83,16 @@ function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Mult
     ds = desymmetrize(space_ℳ)
     for β ∈ _mult_domain_indices(desymmetrize(dom))
         β_valid = _extract_valid_index(desymmetrize(dom), β)
-        t, _ = _unsafe_get_representative_and_action(dom, β_valid)
-        if _checkbounds_indices(t, dom)
-            for α ∈ indices(codom)
+        # `x_β = factor * x_rep`: the contribution of `β` goes to the column `q` of its representative
+        # weighted by the cocycle factor, so that (a*x)_α = Σ_rep x_rep Σ_{β ∈ Orb(rep)} factor(β) a_{α-β}
+        q, factor = _unsafe_rep_pos_cocycle(dom, β_valid)
+        if q != 0
+            one_factor = _safe_isone(factor) # skip the product by 1 (keeps interval guarantees when the domain is not intervalized)
+            for (i, α) ∈ enumerate(indices(codom))
                 l = _extract_valid_index(ds, α, β)
                 if _checkbounds_indices(l, ds)
-                    @inbounds C[α,t] += getcoefficient(sequence(ℳ), (ds, l))
+                    v = getcoefficient(sequence(ℳ), (ds, l))
+                    @inbounds coefficients(C)[i,q] += one_factor ? v : factor * v
                 end
             end
         end

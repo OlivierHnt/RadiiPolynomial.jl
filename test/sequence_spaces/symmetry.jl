@@ -235,6 +235,11 @@
         @test_throws MethodError d4sym(Fourier(1, 1.0))
         @test_throws MethodError d4sym(Taylor(1) ⊗ Taylor(1))
         @test_throws MethodError d4sym(Taylor(1) ⊗ Fourier(1, 1.0))
+
+        # with unequal orders the quarter turn carries an index outside the truncation, whichever
+        # factor is the larger one (in the second case every representative still lies inside)
+        @test_throws ArgumentError d4sym(Fourier(1, 1.0) ⊗ Fourier(2, 1.0)) # (0, 2) ↦ (-2, 0)
+        @test_throws ArgumentError d4sym(Fourier(2, 1.0) ⊗ Fourier(1, 1.0)) # (2, 0) ↦ (0, 2)
     end
 
     @testset "SymmetricSpace construction / equality / subset / intersect / union" begin
@@ -274,6 +279,17 @@
 
         # only a sequence space can be symmetrized, not a scalar space
         @test_throws MethodError SymmetricSpace(ScalarSpace(), symmetry(Fourier(1, 1.0)))
+
+        # the indices must be invariant under the group, otherwise an orbit is only partially stored
+        swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1])))
+        @test SymmetricSpace(Taylor(2) ⊗ Taylor(2), swap) isa SymmetricSpace
+        @test_throws ArgumentError SymmetricSpace(Taylor(1) ⊗ Taylor(2), swap) # (0, 2) ↦ (2, 0)
+        # a sign flip leaves the nonnegative Taylor indices
+        Gd = symmetry(d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)))
+        @test_throws ArgumentError SymmetricSpace(Taylor(1) ⊗ Taylor(1), Gd) # (0, 1) ↦ (-1, 0)
+        # intersecting can break the invariance: the order (2, 1) box is not invariant under D₄
+        t = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+        @test_throws ArgumentError intersect(t, SymmetricSpace(Fourier(3, 1.0) ⊗ Fourier(1, 1.0)))
     end
 
     @testset "orbit cache" begin

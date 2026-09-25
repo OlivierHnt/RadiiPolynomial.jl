@@ -64,9 +64,9 @@ See also: [`opnorm(::LinearOperator, ::Real=Inf)`](@ref),
 [`opnorm(::LinearOperator{<:VectorSpace,ScalarSpace}, ::BanachSpace)`](@ref).
 """
 function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
-    codomain_A = codomain(A)
+    column_norm = _column_norm(codomain(A), Y)
     A_ = coefficients(A)
-    @inbounds v₁ = norm(Sequence(codomain_A, view(A_, :, 1)), Y)
+    @inbounds v₁ = column_norm(view(A_, :, 1))
     T = typeof(v₁)
     sz = size(A_, 2)
     v = Vector{T}(undef, sz)
@@ -76,10 +76,15 @@ function opnorm(A::LinearOperator, X::BanachSpace, Y::BanachSpace)
         if all(z -> _safe_isequal(z, zero(z)), A_view)
             v[i] = zero(T)
         else
-            v[i] = norm(Sequence(codomain_A, A_view), Y)
+            v[i] = column_norm(A_view)
         end
     end
     return opnorm(LinearOperator(domain(A), ScalarSpace(), transpose(v)), X)
+end
+_column_norm(s::VectorSpace, Y::BanachSpace) = A_col -> norm(Sequence(s, A_col), Y)
+function _column_norm(s::SequenceSpace, Y::Union{Ell1,Ell2,EllInf})
+    weights = _weights(Y, s)
+    return A_col -> _norm(A_col, weights, Y)
 end
 
 """
@@ -143,68 +148,54 @@ _norm_dual(a::Sequence{ScalarSpace}, ::EllInf{IdentityWeight}) = @inbounds abs(a
 
 # SequenceSpace
 
-function _norm(a::Sequence{<:SequenceSpace}, X::Ell1)
-    space_a = space(a)
-    A = coefficients(a)
+_norm(a::Sequence{<:SequenceSpace}, X::Union{Ell1,Ell2,EllInf}) = _norm(coefficients(a), _weights(X, space(a)), X)
+
+_norm_dual(a::Sequence{<:SequenceSpace}, X::Union{Ell1,Ell2,EllInf}) = _norm_dual(coefficients(a), _weights(X, space(a)), X)
+
+function _norm(A::AbstractVector, weights, ::Ell1)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s += abs(A[i]) * w
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s += abs(Aᵢ) * w
     end
     return s
 end
 
-function _norm_dual(a::Sequence{<:SequenceSpace}, X::Ell1)
-    space_a = space(a)
-    A = coefficients(a)
+function _norm_dual(A::AbstractVector, weights, ::Ell1)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s = max(s, abs(A[i]) / w)
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s = max(s, abs(Aᵢ) / w)
     end
     return s
 end
 
-function _norm(a::Sequence{<:SequenceSpace}, X::Ell2)
-    space_a = space(a)
-    A = coefficients(a)
+function _norm(A::AbstractVector, weights, ::Ell2)
     s = abs2(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s += abs2(A[i]) * w
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s += abs2(Aᵢ) * w
     end
     return sqrt(s)
 end
 
-function _norm_dual(a::Sequence{<:SequenceSpace}, X::Ell2)
-    space_a = space(a)
-    A = coefficients(a)
+function _norm_dual(A::AbstractVector, weights, ::Ell2)
     s = abs2(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s += abs2(A[i]) / w
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s += abs2(Aᵢ) / w
     end
     return sqrt(s)
 end
 
-function _norm(a::Sequence{<:SequenceSpace}, X::EllInf)
-    space_a = space(a)
-    A = coefficients(a)
+function _norm(A::AbstractVector, weights, ::EllInf)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s = max(s, abs(A[i]) * w)
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s = max(s, abs(Aᵢ) * w)
     end
     return s
 end
 
-function _norm_dual(a::Sequence{<:SequenceSpace}, X::EllInf)
-    space_a = space(a)
-    A = coefficients(a)
+function _norm_dual(A::AbstractVector, weights, ::EllInf)
     s = abs(zero(eltype(A)))
-    @inbounds for (i, k) ∈ enumerate(indices(space_a))
-        w = _getindex(weight(X), space_a, k)
-        s += abs(A[i]) / w
+    for (Aᵢ, w) ∈ zip(A, weights)
+        s += abs(Aᵢ) / w
     end
     return s
 end

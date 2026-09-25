@@ -128,7 +128,7 @@
     @testset "weights on symmetric spaces" begin
         even = evensym(ℱ)
         odd = oddsym(ℱ)
-        # weight is multiplied by the orbit length: {k, -k} for k ≠ 0, {0} for k = 0
+        # weight is summed over the orbit: {k, -k} for k ≠ 0, {0} for k = 0
         @test IdentityWeight()[(even, 0)] == 1
         @test IdentityWeight()[(even, 2)] == 2
         @test GeometricWeight(2.0)[(even, 0)] == 1.0
@@ -142,9 +142,9 @@
         @test IdentityWeight()[(d4, (0, 2))] == 4
         @test IdentityWeight()[(d4, (1, 2))] == 8
         @test BesselWeight(1.0)[(d4, (1, 2))] == 48.0 # 8 ⋅ (1 + 1 + 4)
-        # per-dimension weights on a symmetric tensor space: orbit length times the tensor weight
+        # per-dimension weights on a symmetric tensor space: sum of the tensor weight over the orbit
         @test RadiiPolynomial._getindex((GeometricWeight(2.0), GeometricWeight(2.0)), d4, (1, 2)) == 64.0 # 8 ⋅ 2¹ ⋅ 2²
-        @test RadiiPolynomial._getindex((IdentityWeight(), GeometricWeight(3.0)), d4, (0, 2)) == 36.0 # 4 ⋅ 1 ⋅ 3²
+        @test RadiiPolynomial._getindex((IdentityWeight(), GeometricWeight(3.0)), d4, (0, 2)) == 20.0 # 2 ⋅ 3⁰ + 2 ⋅ 3² over {(±2, 0), (0, ±2)}
         s3 = Chebyshev(2) ⊗ Chebyshev(2) ⊗ evensym(Fourier(2, 1.0))
         w3 = (GeometricWeight(2.0), IdentityWeight(), GeometricWeight(3.0))
         @test RadiiPolynomial._getindex(w3, s3, (1, 2, 2)) == 2 * RadiiPolynomial._getindex(w3, desymmetrize(s3), (1, 2, 2)) # orbit {(1, 2, ±2)}
@@ -155,6 +155,19 @@
         # interval rate through a symmetric space: exact enclosure of 2 ⋅ 2² = 8
         v = RadiiPolynomial._getindex(interval(GeometricWeight(2.0)), even, 2)
         @test isguaranteed(v) & in_interval(8, v)
+        # a weight constant on the orbits is carried by the orbit length, which agrees with the sum over the orbit
+        @test RadiiPolynomial._isinvariant(GeometricWeight(2.0), even)
+        @test RadiiPolynomial._isinvariant(BesselWeight(1.0), d4)
+        @test RadiiPolynomial._isinvariant((GeometricWeight(2.0), GeometricWeight(2.0)), d4)
+        @test RadiiPolynomial._isinvariant((IdentityWeight(), GeometricWeight(1.0)), d4) # both equal to the identity
+        @test RadiiPolynomial._isinvariant((AlgebraicWeight(0.0), BesselWeight(0.0)), d4) # both equal to the identity
+        @test RadiiPolynomial._isinvariant((AlgebraicWeight(1.0), AlgebraicWeight(1.0)), d4)
+        @test RadiiPolynomial._isinvariant(w3, s3) # the symmetry does not mix the dimensions
+        @test !RadiiPolynomial._isinvariant((GeometricWeight(2.0), GeometricWeight(3.0)), d4)
+        for (X, s) ∈ ((Ell1(GeometricWeight(2.0)), even), (Ell1((GeometricWeight(2.0), GeometricWeight(2.0))), d4),
+                      (Ell2(BesselWeight(1.0)), d4), (Ell1((IdentityWeight(), GeometricWeight(1.0))), d4), (Ell1(w3), s3))
+            @test RadiiPolynomial._weights(X, s) ≈ [RadiiPolynomial._getindex(weight(X), s, k) for k ∈ indices(s)]
+        end
     end
 
     @testset "min of mixed weight types" begin

@@ -1,3 +1,8 @@
+# a weight on `Fourier` which is not even in the index, equal to itself
+struct _OddWeight <: Weight end
+RadiiPolynomial._getindex(::_OddWeight, ::Fourier, i::Int) = 2.0^i
+Base.:(==)(::_OddWeight, ::_OddWeight) = true
+
 @testset "Norm" begin
 
     @testset "ScalarSpace" begin
@@ -186,6 +191,57 @@
             X = Ell1((GeometricWeight(1.5), GeometricWeight(1.5)))
             @test norm(a, X) ≈ 1.0 + 2.0 * 4 * 1.5 + 3.0 * 4 * 1.5^2   # 1·1 + 2·4·1.5¹ + 3·4·1.5²
             @test norm(a, X) ≈ norm(Projection(desymmetrize(s)) * a, X)
+            # any weight: a representative carries the sum (ℓ¹, ℓ²) or the maximum (ℓ∞) of the weight over its orbit
+            @test norm(a, EllInf()) == 3.0   # max(1, 2, 3), the orbit length does not enter
+            for X ∈ (Ell1((GeometricWeight(2.0), GeometricWeight(3.0))), Ell2((GeometricWeight(2.0), GeometricWeight(3.0))),
+                     EllInf((GeometricWeight(2.0), GeometricWeight(3.0))), EllInf(), EllInf(BesselWeight(1.0)),
+                     Ell1((IdentityWeight(), GeometricWeight(1.0))), Ell1((AlgebraicWeight(1.0), AlgebraicWeight(1.0))),
+                     Ell2((BesselWeight(1.0), BesselWeight(1.0))), Ell1((AlgebraicWeight(0.0), IdentityWeight())))
+                @test norm(a, X) ≈ norm(Projection(desymmetrize(s)) * a, X)
+            end
+        end
+
+        @testset "weight not even in the index" begin
+            # the sign flips of the symmetry do not preserve the weight, which must take the sum over the orbit
+            s = evensym(Fourier(2, 1.0))
+            @test !RadiiPolynomial._isinvariant(_OddWeight(), s)
+            a = Sequence(s, [1.0, 2.0, 3.0])
+            @test norm(a, Ell1(_OddWeight())) ≈ norm(Projection(desymmetrize(s)) * a, Ell1(_OddWeight()))
+            t = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+            @test !RadiiPolynomial._isinvariant((_OddWeight(), _OddWeight()), t)
+            b = Sequence(t, collect(1.0:dimension(t)))
+            for X ∈ (Ell1((_OddWeight(), _OddWeight())), EllInf((_OddWeight(), _OddWeight())))
+                @test norm(b, X) ≈ norm(Projection(desymmetrize(t)) * b, X)
+            end
+        end
+
+        @testset "dual norm and operator norm" begin
+            # the dual norms and the operator norm on ℓ¹ are attained at the basis vectors, whose norms are
+            # those of their desymmetrization
+            s = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+            n = dimension(s)
+            e = [Sequence(s, Float64.(1:n .== i)) for i ∈ 1:n]
+            full(x) = Projection(desymmetrize(s)) * x
+            c = [1.0, -2.0, 0.5, 3.0, -1.0, 2.0]
+            φ = LinearOperator(s, ScalarSpace(), transpose(c))
+            A = LinearOperator(s, s, reshape(sin.(1:n^2), n, n))
+            X₁ = Ell1((GeometricWeight(2.0), GeometricWeight(3.0)))
+            X∞ = EllInf((GeometricWeight(2.0), GeometricWeight(3.0)))
+            @test opnorm(φ, X₁) ≈ maximum(i -> abs(c[i]) / norm(full(e[i]), X₁), 1:n)
+            @test opnorm(φ, X∞) ≈ sum(i -> abs(c[i]) / norm(full(e[i]), X∞), 1:n)
+            @test opnorm(A, X₁) ≈ maximum(i -> norm(full(A * e[i]), X₁) / norm(full(e[i]), X₁), 1:n)
+        end
+
+        @testset "weight not constant on the orbits" begin
+            # swapping the indices of `Taylor` and `Chebyshev`: the identity weight doubles the nonzero
+            # Chebyshev indices only
+            swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1])))
+            s = SymmetricSpace(Taylor(2) ⊗ Chebyshev(2), swap)
+            @test !RadiiPolynomial._isinvariant((IdentityWeight(), IdentityWeight()), s)
+            a = Sequence(s, [sin(k) for k ∈ 1:dimension(s)])
+            for X ∈ (Ell1((IdentityWeight(), IdentityWeight())), EllInf((IdentityWeight(), IdentityWeight())))
+                @test norm(a, X) ≈ norm(Projection(desymmetrize(s)) * a, X)
+            end
         end
 
         @testset "tensor product with a symmetric factor" begin

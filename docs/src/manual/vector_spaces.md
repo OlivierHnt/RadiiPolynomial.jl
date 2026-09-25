@@ -144,7 +144,7 @@ indices(𝒫_times_𝒯)
 ## Symmetric space
 
 A [`SymmetricSpace`](@ref) restricts a [`SequenceSpace`](@ref) to the subspace invariant under a group of symmetries, storing one coefficient per orbit rather than one per index.
-Norms account for the multiplicity of each orbit, so a norm computed in the symmetric space agrees with the norm of the same function written out in full.
+Norms account for every index of each orbit, so a norm computed in the symmetric space agrees with the norm of the same function written out in full.
 
 The common restrictions have shorthands:
 - [`evensym`](@ref) corresponds to the invariance ``u(-t) = u(t)``.

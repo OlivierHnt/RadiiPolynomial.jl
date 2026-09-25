@@ -258,10 +258,9 @@ coefficient per orbit. With no group given, the trivial one is used. The indices
 of `space` must be invariant under `sym`, so that every orbit lies entirely
 inside the truncation, otherwise an `ArgumentError` is thrown.
 
-`indices` returns the orbit representatives, so `dimension` shrinks accordingly,
-and norms account for the multiplicity of each orbit. Some symmetries are
-available through [`evensym`](@ref), [`oddsym`](@ref) and [`d4sym`](@ref); build
-a [`Group`](@ref) directly for anything else.
+`indices` returns the orbit representatives, so `dimension` shrinks accordingly.
+Some symmetries are available through [`evensym`](@ref), [`oddsym`](@ref) and
+[`d4sym`](@ref); build a [`Group`](@ref) directly for anything else.
 
 Fields:
 - `space :: S`

@@ -17,10 +17,10 @@ _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::N
 _getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
     @inbounds _getindex(weight[1], s[1], α[1])
 
-# the weight of a representative accounts for the multiplicity of its orbit (the weight is
-# assumed to be invariant under the symmetry, e.g. equal weights in dimensions mixed by it)
+# the coefficients of an orbit share their modulus, so a representative carries the sum of the weight over
+# its orbit, i.e. the sum over the group divided by |Stab(k)| (see `_weights` for the norms)
 _getindex(weight::Union{Weight,Tuple{Vararg{Weight}}}, s::SymmetricSpace, k) =
-    exact(_orbit_length(symmetry(s), k)) * _getindex(weight, desymmetrize(s), k)
+    sum(g -> _getindex(weight, desymmetrize(s), g.lattice_aut(k)), elements(symmetry(s))) / exact(_stabilizer_length(symmetry(s), k))
 
 """
     IdentityWeight <: Weight
@@ -482,6 +482,58 @@ julia> ℓ∞(GeometricWeight(1.0), AlgebraicWeight(2.0))
 ```
 """
 const ℓ∞ = EllInf
+
+# weights of the indices
+
+# the weight of every index of `s` in the norm of `X`
+_weights(X::Union{Ell1,Ell2,EllInf}, s::NoSymSpace) = (_getindex(weight(X), s, k) for k ∈ indices(s))
+
+# the coefficients of an orbit share their modulus, so a representative carries the sum (ℓ¹ and ℓ²) or the
+# maximum (ℓ∞) of the weight over its orbit, which is the orbit length times the weight (ℓ¹ and ℓ²) or the
+# weight (ℓ∞) of the representative if the weight is constant on the orbits
+function _weights(X::Union{Ell1,Ell2}, s::SymmetricSpace)
+    _isinvariant(weight(X), s) && return map(k -> exact(_orbit_length(symmetry(s), k)) * _getindex(weight(X), desymmetrize(s), k), indices(s))
+    return map(k -> _getindex(weight(X), s, k), indices(s))
+end
+function _weights(X::EllInf, s::SymmetricSpace)
+    _isinvariant(weight(X), s) && return map(k -> _getindex(weight(X), desymmetrize(s), k), indices(s))
+    return map(k -> mapreduce(g -> _getindex(weight(X), desymmetrize(s), g.lattice_aut(k)), _max, elements(symmetry(s))), indices(s))
+end
+
+_max(x, y) = max(x, y)
+_max(x::IntervalArithmetic.ExactReal, y::IntervalArithmetic.ExactReal) =
+    exact(max(x.value, y.value)) # `ExactReal` cannot be compared
+
+# sufficient condition for `weight` to be constant on the orbits of `s`, checked once for all the indices
+_isinvariant(::Union{IdentityWeight,GeometricWeight,AlgebraicWeight,BesselWeight}, ::SymmetricSpace{<:BaseSpace}) = true # `β_g = ±1`, and `β_g = 1` for `Taylor` and `Chebyshev`
+_isinvariant(::IdentityWeight, ::SymmetricSpace{<:TensorSpace}) = true # constant
+_isinvariant(::BesselWeight, s::SymmetricSpace{<:TensorSpace}) = # depends on the Euclidean norm of the index only
+    all(g -> _issignedperm(g.lattice_aut.matrix), elements(symmetry(s)))
+function _isinvariant(weight::NTuple{N,Weight}, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N}
+    V = desymmetrize(s)
+    return all(elements(symmetry(s))) do g
+        A = g.lattice_aut.matrix
+        # `A[i,j] ≠ 0` if and only if `β_g` carries the j-th index onto the i-th one, up to a sign
+        return _issignedperm(A) &&
+            all(((i, j),) -> iszero(A[i,j]) || _isequal_weight(weight[i], V[i], weight[j], V[j]), Iterators.product(1:N, 1:N))
+    end
+end
+_isinvariant(::Union{Weight,Tuple{Vararg{Weight}}}, ::SymmetricSpace) = false
+
+# a lattice automorphism is invertible, so it is a signed permutation if every column has a single nonzero entry ±1
+_issignedperm(A) = all(col -> (count(!iszero, col) == 1) & all(x -> abs(x) ≤ 1, col), eachcol(A))
+
+# `w₁` on `s₁` and `w₂` on `s₂` agree on every index, up to a sign
+_isequal_weight(::Weight, ::BaseSpace, ::Weight, ::BaseSpace) = false
+_isequal_weight(w₁::Union{IdentityWeight,GeometricWeight,AlgebraicWeight,BesselWeight}, s₁::BaseSpace, w₂::Union{IdentityWeight,GeometricWeight,AlgebraicWeight,BesselWeight}, s₂::BaseSpace) =
+    _iscompatible(s₁, s₂) & ((w₁ == w₂) | (_is_identity_weight(w₁) & _is_identity_weight(w₂)))
+
+# weights equal to `IdentityWeight()`
+_is_identity_weight(::Weight) = false
+_is_identity_weight(::IdentityWeight) = true
+_is_identity_weight(weight::GeometricWeight) = _safe_isone(rate(weight))
+_is_identity_weight(weight::AlgebraicWeight) = _safe_iszero(rate(weight))
+_is_identity_weight(weight::BesselWeight) = _safe_iszero(rate(weight))
 
 # normed cartesian space
 

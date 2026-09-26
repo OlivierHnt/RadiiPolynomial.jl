@@ -268,7 +268,7 @@ end
 
 function (nl::Nonlinearity)(a::Sequence{<:SequenceSpace}; codomain::SequenceSpace = _codomain(nl.f, space(a)))
     _isconstant(a) && return _at_value(nl.f, a)
-    return _image_coefficients(nl.f, a, codomain, eltype(a))
+    return _call_to_coef!(nl.f.(to_grid(a, _oversampled_grid_size(codomain))), codomain, eltype(a))
 end
 
 function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codomain(nl.f, space(a)))
@@ -286,7 +286,7 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
             "the image of the ν = $(ν) contour intersects a branch cut or contains at least one pole: analyticity violated" :
             "the input error cannot be propagated: the Cauchy estimate needs f analytic on the disc of radius r⋆ = 1 + total_error(a) = $(ρ) around the image of the ν = $(ν) contour, and that disc meets a branch cut or a pole"))
 
-    c = _image_coefficients(nl.f, seq_a, codomain, eltype(a))
+    c = _call_to_coef!(nl.f.(to_grid(seq_a, _oversampled_grid_size(codomain))), codomain, eltype(a))
 
     ν̄ = _maybe_interval.(eltype(a), _optimize_decay(nl, c, a, ρ))
 
@@ -317,11 +317,6 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::SequenceSpace = _codo
         tail_error   = tail_err,
         total_error  = total_err)
 end
-
-#-
-
-_image_coefficients(f, a::Sequence, codomain::SequenceSpace, ::Type{T}) where {T} =
-    _call_to_coef!(f.(to_grid(a, _oversampled_grid_size(codomain))), codomain, T)
 
 #-
 

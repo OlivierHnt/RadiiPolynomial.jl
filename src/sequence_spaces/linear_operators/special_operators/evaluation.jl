@@ -52,7 +52,7 @@ getcoefficient(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, (codom, i)::T
 getcoefficient(ℰ::Evaluation{<:Tuple{Union{Nothing,Number}}}, (codom, i)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, (dom, j)::Tuple{TensorSpace{<:Tuple{BaseSpace}},Tuple{Integer}}, ::Type{T}) where {T} =
     @inbounds getcoefficient(Evaluation(value(ℰ)[1]), (codom[1], i[1]), (dom[1], j[1]), T)
 
-# # ScalarSpace
+# ScalarSpace
 
 # domain(::Evaluation{Nothing}, s::ScalarSpace) = s
 domain(::Evaluation{<:Number}, ::ScalarSpace) = UndefSpace()

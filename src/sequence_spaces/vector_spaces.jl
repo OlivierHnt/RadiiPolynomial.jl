@@ -35,8 +35,9 @@ end
 """
     UndefSpace <: VectorSpace
 
-Sentinel vector space flagging an undetermined space, e.g. as returned by
-`domain` when an operator has no domain on the given space.
+Vector space flagging an undetermined space, e.g. as returned by `domain`
+(resp. `codomain`) when an operator has no finite domain (resp. codomain)
+over the given space.
 
 # Example
 

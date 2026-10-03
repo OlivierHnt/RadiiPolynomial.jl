@@ -197,6 +197,72 @@
             @test project(A, Taylor(2), Taylor(2)) == expected
             # the 3-argument form is enough: the generic 4-argument method forwards to it
             @test RadiiPolynomial.getcoefficient(A, (Taylor(2), 1), (Taylor(2), 1), Float64) == 0.5
+            # the entries are assumed to be representable in the requested type, `Float64` by default
+            @test eltype(project(A, Taylor(2), Taylor(2))) == Float64
+            @test eltype(Projection(Taylor(2), ComplexF64) * A) == ComplexF64
+            @test eltype(project(A, Taylor(2), Taylor(2), ComplexF64)) == ComplexF64
+        end
+
+        @testset "custom AbstractLinearOperator with an undefined codomain" begin
+            #= `A = (I - S/2)⁻¹ = Σₖ Sᵏ/2ᵏ` with `S` the shift `xʲ ↦ xʲ⁺¹`: every column is
+               infinite, so `codomain` returns `UndefSpace()` and the operator can only be
+               materialized once a codomain truncation is supplied (mirror of an undefined
+               `domain`, which is materialized once a domain truncation is supplied). =#
+            struct _MyResolvent <: AbstractLinearOperator end
+            RadiiPolynomial.domain(::_MyResolvent, codom::SequenceSpace) = codom
+            RadiiPolynomial.codomain(::_MyResolvent, ::SequenceSpace) = UndefSpace()
+            RadiiPolynomial.getcoefficient(::_MyResolvent, (codom, i)::Tuple{Taylor,Integer}, (dom, j)::Tuple{Taylor,Integer}) =
+                i ≥ j ? 2.0^(j-i) : 0.0
+
+            A = _MyResolvent()
+            𝒯₁ = Taylor(1)
+            𝒯₂ = Taylor(2)
+            Π₁ = Projection(𝒯₁)
+            Π₂ = Projection(𝒯₂)
+            expected = LinearOperator(𝒯₁, 𝒯₂, [1.0 0.0 ; 0.5 1.0 ; 0.25 0.5])
+
+            # the generic `project!` takes the supplied codomain as the truncation and checks
+            # the compatibility of the truncations through the domain instead
+            @test project(A, 𝒯₁, 𝒯₂) == expected
+            @test_throws ArgumentError project(A, Fourier(1, 1.0), 𝒯₂)
+            @test Π₂ * A * Π₁ == expected
+            # a left projection infers the domain from the codomain
+            @test Π₂ * A == LinearOperator(𝒯₂, 𝒯₂, [1.0 0.0 0.0 ; 0.5 1.0 0.0 ; 0.25 0.5 1.0])
+            # a right projection alone has nothing to materialize: the pair is wrapped lazily
+            r = A * Π₁
+            @test r isa ComposedOperator
+            @test r.outer === A
+            @test r.inner === Π₁
+            @test Π₂ * r == expected
+            # hence the action on a sequence needs a codomain
+            a = Sequence(𝒯₁, [1.0, 2.0])
+            @test_throws ArgumentError A * a
+            @test Π₂ * A * a == expected * a == Sequence(𝒯₂, [1.0, 2.5, 1.25])
+
+            # lazy arithmetic propagates the undefined codomain
+            M = Multiplication(Sequence(Taylor(0), [2.0]))
+            S = I - A * M
+            @test codomain(S, 𝒯₁) == UndefSpace()
+            @test domain(S, 𝒯₂) == 𝒯₂
+            expected_S = LinearOperator(𝒯₁, 𝒯₂, [1.0 0.0 ; 0.0 1.0 ; 0.0 0.0] - 2coefficients(expected))
+            @test project(S, 𝒯₁, 𝒯₂) == expected_S
+            @test Π₂ * S * Π₁ == expected_S
+            # composing on either side: the intermediate truncation is the codomain of the inner
+            # operator, or the domain of the outer operator when the former is undefined
+            @test project(A ∘ M, 𝒯₁, 𝒯₂) == project(M ∘ A, 𝒯₁, 𝒯₂) == 2expected
+            # the type of the outer operator is still inferred when the intermediate space is undefined
+            Mc = Multiplication(Sequence(Taylor(0), [2.0im]))
+            @test eltype(project(Mc ∘ A, 𝒯₁, 𝒯₂)) == ComplexF64
+            @test M * A isa ComposedOperator
+            @test project(M * project(A, 𝒯₁, 𝒯₂), 𝒯₁, 𝒯₂) == 2expected
+            # both truncations undefined: nothing can be materialized
+            ℰ = Evaluation(0.5)
+            @test_throws ArgumentError project(ℰ ∘ A, 𝒯₁, Taylor(0))
+
+            # a block with an undefined codomain makes the matrix product elementwise
+            v = [A 2.0] * Projection(𝒯₁ × 𝒯₁)
+            @test v[1,1] isa ComposedOperator
+            @test v[1,2] == LinearOperator(𝒯₁, 𝒯₁, [2.0 0.0 ; 0.0 2.0])
         end
 
         @testset "AbstractDiagonalOperator: only domain ∩ codomain indices are written" begin
@@ -301,6 +367,16 @@
             @test r isa ComposedOperator
             @test r.outer === Π_undef
             @test r.inner === ∂
+        end
+
+        @testset "AbstractLinearOperator * Projection(UndefSpace()): lazy ComposedOperator" begin
+            # mirror: the codomain over an undefined space is itself undefined
+            Π_undef = Projection(UndefSpace())
+            ∂ = Derivative(1)
+            r = ∂ * Π_undef
+            @test r isa ComposedOperator
+            @test r.outer === ∂
+            @test r.inner === Π_undef
         end
     end
 

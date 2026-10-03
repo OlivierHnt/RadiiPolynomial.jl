@@ -1,5 +1,9 @@
 (S::AbstractLinearOperator)(b::AbstractSequence) = *(S, b)
-Base.:*(A::AbstractLinearOperator, b::AbstractSequence) = (A * Projection(space(b), eltype(b))) * b
+function Base.:*(A::AbstractLinearOperator, b::AbstractSequence)
+    space_b = space(b)
+    codomain(A, space_b) isa UndefSpace && return throw(ArgumentError("the codomain of the operator over $space_b is undefined: the result cannot be represented as a sequence, truncate it with a projection first, e.g. `Projection(codomain) * A * b`"))
+    return (A * Projection(space_b, eltype(b))) * b
+end
 # Base.:*(S::AbstractLinearOperator, b::Sequence) = (S * Projection(space(b))) * b # each operator should provide their own method
 Base.:*(J::UniformScalingOperator, b::AbstractSequence) = J.λ * b
 Base.:*(J::UniformScaling, b::AbstractSequence) = UniformScalingOperator(J) * b

@@ -42,11 +42,20 @@ function Base.:*(A::LinearOperator, S::AbstractLinearOperator)
     domain(S, domain(A)) isa UndefSpace && return ComposedOperator(A, S)
     return A * (Projection(domain(A), eltype(A)) * S)
 end
-Base.:*(S::AbstractLinearOperator, A::LinearOperator) = (S * Projection(codomain(A), eltype(A))) * A
+function Base.:*(S::AbstractLinearOperator, A::LinearOperator)
+    codomain(S, codomain(A)) isa UndefSpace && return ComposedOperator(S, A)
+    return (S * Projection(codomain(A), eltype(A))) * A
+end
 
 function mul!(C::LinearOperator, S₁::AbstractLinearOperator, S₂::AbstractLinearOperator, α::Number, β::Number)
     domain_C = domain(C)
-    return mul!(C, S₁, project(S₂, domain_C, codomain(S₂, domain_C), eltype(C)), α, β)
+    mid = codomain(S₂, domain_C)
+    mid isa UndefSpace || return mul!(C, S₁, project(S₂, domain_C, mid, eltype(C)), α, β)
+    # the inner operator has no finite codomain: truncate through the domain of the outer operator instead
+    codomain_C = codomain(C)
+    mid = domain(S₁, codomain_C)
+    mid isa UndefSpace || return mul!(C, project(S₁, mid, codomain_C, eltype(C)), S₂, α, β)
+    return throw(ArgumentError("cannot materialize the composition: the inner operator has an undefined codomain over $domain_C and the outer operator has an undefined domain over $codomain_C"))
 end
 mul!(C::LinearOperator, S::AbstractLinearOperator, A::LinearOperator, α::Number, β::Number) =
     mul!(C, project(S, codomain(A), codomain(C), eltype(C)), A, α, β)

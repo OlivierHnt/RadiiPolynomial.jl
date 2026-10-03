@@ -41,16 +41,12 @@ Base.iterate(A::AbstractLinearOperator, i) = iterate(coefficients(A), i)
 
 domain(A::AbstractLinearOperator, s::VectorSpace) = throw(DomainError((A, s), "cannot infer a domain"))
 domain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
+codomain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
 
+# an operator declares the type of its entries by extending `_coeftype`: by default, the entries
+# are assumed to be representable in the requested type
 _coeftype(A::AbstractLinearOperator, dom::VectorSpace) = _coeftype(A, dom, Float64)
-
-function _coeftype(A::AbstractLinearOperator, dom::VectorSpace, ::Type{T}) where {T}
-    codom = codomain(A, dom)
-    i, j = first(indices(codom)), first(indices(dom))
-    x = getcoefficient(A, (codom, i), (dom, j), T)
-    CoefType = typeof(x)
-    return promote_type(CoefType, T)
-end
+_coeftype(::AbstractLinearOperator, ::VectorSpace, ::Type{T}) where {T} = T
 
 #
 
@@ -68,14 +64,17 @@ domain(::AbstractDiagonalOperator, s::VectorSpace) = s
 domain(::AbstractDiagonalOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 codomain(::AbstractDiagonalOperator, s::VectorSpace) = s
+codomain(::AbstractDiagonalOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 #
 
 abstract type AbstractFunctional <: AbstractLinearOperator end
 
 domain(::AbstractFunctional, ::VectorSpace) = UndefSpace()
+domain(::AbstractFunctional, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 codomain(::AbstractFunctional, s::VectorSpace) = _zero_space(s)
+codomain(::AbstractFunctional, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 #
 
@@ -144,6 +143,7 @@ function domain(A::LinearOperator, s::VectorSpace)
 end
 
 codomain(A::LinearOperator) = A.codomain
+codomain(::LinearOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 function codomain(A::LinearOperator, s::VectorSpace)
     _iscompatible(_promote_space(domain(A), s)...) || return throw(ArgumentError("spaces must be compatible"))
     return codomain(A)
@@ -447,6 +447,7 @@ domain(::UniformScalingOperator, ::UndefSpace) = UndefSpace() # needed to resolv
 domain(J::UniformScaling, s::VectorSpace) = domain(UniformScalingOperator(J), s)
 
 codomain(::UniformScalingOperator, s::VectorSpace) = s
+codomain(::UniformScalingOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 codomain(J::UniformScaling, s::VectorSpace) = codomain(UniformScalingOperator(J), s)
 
 Base.eltype(::UniformScalingOperator{T}) where {T<:Number} = T
@@ -503,8 +504,10 @@ _union(::VectorSpace, ::UndefSpace) = UndefSpace()
 _union(::UndefSpace, ::UndefSpace) = UndefSpace()
 _union(s₁::VectorSpace, s₂::VectorSpace) = s₁ ∪ s₂
 
-codomain(S::Add, s::VectorSpace) = codomain(S.A, s) ∪ codomain(S.B, s)
+codomain(S::Add, s::VectorSpace) = _union(codomain(S.A, s), codomain(S.B, s))
 codomain(S::Negate, s::VectorSpace) = codomain(S.A, s)
+codomain(::Add, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
+codomain(::Negate, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 _coeftype(S::Add, s::VectorSpace, ::Type{T}) where {T} = promote_type(_coeftype(S.A, s, T), _coeftype(S.B, s, T))
 _coeftype(S::Negate, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.A, s, T)
@@ -528,8 +531,13 @@ domain(A::ComposedOperator, s::VectorSpace) = domain(A.inner, domain(A.outer, s)
 domain(::ComposedOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
 codomain(A::ComposedOperator, s::VectorSpace) = codomain(A.outer, codomain(A.inner, s))
+codomain(::ComposedOperator, ::UndefSpace) = UndefSpace() # needed to resolve method ambiguity
 
-_coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(S.outer, codomain(S.inner, s), _coeftype(S.inner, s, T))
+function _coeftype(S::ComposedOperator, s::VectorSpace, ::Type{T}) where {T}
+    mid = codomain(S.inner, s)
+    mid isa UndefSpace && (mid = s) # the outer operator is queried on the domain itself when the intermediate space is undefined
+    return _coeftype(S.outer, mid, _coeftype(S.inner, s, T))
+end
 
 
 

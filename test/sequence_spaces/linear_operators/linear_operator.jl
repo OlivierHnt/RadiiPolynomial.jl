@@ -370,6 +370,9 @@
             N = Negate(A)
             @test domain(N, Taylor(5)) == domain(A, Taylor(5)) == 𝒯₂
             @test codomain(N, 𝒯₂) == codomain(A, 𝒯₂) == 𝒯₃
+            # an undefined space propagates on both sides
+            @test domain(N, UndefSpace()) == codomain(N, UndefSpace()) == UndefSpace()
+            @test domain(A, UndefSpace()) == codomain(A, UndefSpace()) == UndefSpace()
         end
 
         @testset "Add" begin
@@ -378,6 +381,10 @@
             @test domain(S, Taylor(5)) == 𝒯₂
             # given input 𝒯₂, A maps into 𝒯₃ and B into 𝒯₁: the union is 𝒯₃
             @test codomain(S, 𝒯₂) == 𝒯₃
+            @test domain(S, UndefSpace()) == codomain(S, UndefSpace()) == UndefSpace()
+            # an undefined summand makes the whole sum undefined
+            @test codomain(Add(A, Evaluation(0.5)), 𝒯₂) == 𝒯₃
+            @test domain(Add(A, Evaluation(0.5)), 𝒯₃) == UndefSpace()
         end
 
         @testset "ComposedOperator" begin
@@ -389,6 +396,7 @@
             @test domain(Comp, Taylor(5)) == 𝒯₁
             # given input domain 𝒯₁: inner maps into 𝒯₂, outer then maps 𝒯₂ into 𝒯₃
             @test codomain(Comp, 𝒯₁) == 𝒯₃
+            @test domain(Comp, UndefSpace()) == codomain(Comp, UndefSpace()) == UndefSpace()
         end
     end
 

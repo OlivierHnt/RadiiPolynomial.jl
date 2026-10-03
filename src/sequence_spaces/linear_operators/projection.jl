@@ -28,6 +28,11 @@ function domain(P::Projection, s::VectorSpace)
 end
 
 codomain(P::Projection) = P.space # needed for general methods
+function codomain(P::Projection, s::UndefSpace) # needed to resolve methods ambiguity
+    codom = P.space
+    _iscompatible(codom, s) || return throw(ArgumentError("spaces must be compatible: projection space is $codom, domain space is $s"))
+    return codom
+end
 function codomain(P::Projection, s::VectorSpace)
     codom = P.space
     pcodom, ps = _promote_space(codom, s)
@@ -69,8 +74,10 @@ Base.:∘(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space,
 Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
 
-_lproj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
-_lproj(A::AbstractLinearOperator, ::UndefSpace, P::Projection) = ComposedOperator(P, A)
+_proj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
+_proj(A::AbstractLinearOperator, ::UndefSpace, P::Projection) = ComposedOperator(P, A)
+_proj(A::AbstractLinearOperator, P::Projection, codomain::VectorSpace) = project(A, P.space, codomain, _coeftype(A, P.space, eltype(P)))
+_proj(A::AbstractLinearOperator, P::Projection, ::UndefSpace) = ComposedOperator(A, P)
 
 #- also trigger materilization
 
@@ -87,11 +94,11 @@ _ldistribute(P::Projection, Q::_ProjLike) = _rdistribute(P, Q)
 
 _ldistribute(P::Add, A::AbstractLinearOperator) = P.A * A + P.B * A
 _ldistribute(P::Negate{<:Projection}, A::AbstractLinearOperator) = -(P.A * A)
-_ldistribute(P::Projection, A::AbstractLinearOperator) = _lproj(A, domain(A, P.space), P)
+_ldistribute(P::Projection, A::AbstractLinearOperator) = _proj(A, domain(A, P.space), P)
 
 _rdistribute(A::AbstractLinearOperator, P::Add) = A * P.A + A * P.B
 _rdistribute(A::AbstractLinearOperator, P::Negate{<:Projection}) = -(A * P.A)
-_rdistribute(A::AbstractLinearOperator, P::Projection) = project(A, P.space, codomain(A, P.space), _coeftype(A, P.space, eltype(P)))
+_rdistribute(A::AbstractLinearOperator, P::Projection) = _proj(A, P, codomain(A, P.space))
 
 
 
@@ -168,10 +175,20 @@ The result is stored in `C` by overwriting it.
 See also: [`project`](@ref).
 """
 function project!(C::LinearOperator, A::AbstractLinearOperator)
-    pcodomC, pcodomA = _promote_space(codomain(C), codomain(A, domain(C)))
-    _iscompatible(pcodomC, pcodomA) || return throw(ArgumentError("spaces must be compatible"))
+    domC = domain(C)
+    pcodomC = codomain(C)
+    codomA = codomain(A, domC)
+    if codomA isa UndefSpace
+        # the compatibility of the truncations is checked through the domain of `A` instead,
+        # unless it is undefined as well
+        domA = domain(A, pcodomC)
+        domA isa UndefSpace || _iscompatible(_promote_space(domC, domA)...) || return throw(ArgumentError("spaces must be compatible"))
+    else
+        pcodomC, pcodomA = _promote_space(pcodomC, codomA)
+        _iscompatible(pcodomC, pcodomA) || return throw(ArgumentError("spaces must be compatible"))
+    end
     coefficients(C) .= zero(eltype(C))
-    _project!(LinearOperator(domain(C), pcodomC, coefficients(C)), A)
+    _project!(LinearOperator(domC, pcodomC, coefficients(C)), A)
     return C
 end
 function project!(C::LinearOperator, A::LinearOperator)
@@ -326,6 +343,8 @@ _lazy_domain(::AbstractMatrix, ::VectorSpace) = UndefSpace()
 function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
     nspaces(P.space) == size(v, 2) || return throw(DimensionMismatch("projection space has $(nspaces(P.space)) spaces, matrix has $(size(v, 2)) columns"))
     codoms = [_lazy_codomain(v[i,j], P.space[j]) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
+    any(sᵢ -> sᵢ isa UndefSpace, codoms) &&
+        return [v[i,j] * Projection(P.space[j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
     codom = CartesianProduct([reduce(union, view(codoms, i, :)) for i ∈ axes(v, 1)]...)
     CoefType = reduce(promote_type, [_lazy_coeftype(v[i,j], P.space[j], eltype(P)) for i ∈ axes(v, 1), j ∈ axes(v, 2)])
     C = zeros(CoefType, P.space, codom)
@@ -336,8 +355,11 @@ function Base.:*(v::Matrix, P::Projection{<:CartesianSpace})
 end
 _lazy_codomain(A, s::VectorSpace) = codomain(A, s)
 _lazy_codomain(x::Union{Number,UniformScaling}, s::VectorSpace) = codomain(UniformScalingOperator(x), s)
-_lazy_codomain(v::AbstractMatrix, s::CartesianSpace) =
-    CartesianProduct([reduce(union, [_lazy_codomain(v[i,j], s[j]) for j ∈ axes(v, 2)]) for i ∈ axes(v, 1)]...)
+function _lazy_codomain(v::AbstractMatrix, s::CartesianSpace)
+    codoms = [_lazy_codomain(v[i,j], s[j]) for i ∈ axes(v, 1), j ∈ axes(v, 2)]
+    any(sᵢ -> sᵢ isa UndefSpace, codoms) && return UndefSpace()
+    return CartesianProduct([reduce(union, view(codoms, i, :)) for i ∈ axes(v, 1)]...)
+end
 
 _lazy_coeftype(A, s::VectorSpace, ::Type{T}) where {T} = _coeftype(A, s, T)
 _lazy_coeftype(x::Union{Number,UniformScaling}, s::VectorSpace, ::Type{T}) where {T} = _coeftype(UniformScalingOperator(x), s, T)

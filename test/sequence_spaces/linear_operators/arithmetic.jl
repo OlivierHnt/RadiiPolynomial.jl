@@ -89,6 +89,11 @@
             # mismatched order within the same symmetry: only the shared index (0) is folded in
             C = LinearOperator(𝓈₁, 𝓈₁, reshape([5.0], 1, 1))
             @test coefficients(C + A) == [6.0 2.0; 3.0 4.0]
+
+            # the in-place product projects its operands and its output across symmetries, like `*`
+            D = LinearOperator(Taylor(2), Taylor(2), reshape(1.0:9.0, 3, 3))
+            @test coefficients(mul!(zeros(𝓈₂, 𝓈₂), D, A, 1.0, 0.0)) ≈ coefficients(project(D * A, 𝓈₂, 𝓈₂))
+            @test coefficients(mul!(zeros(Taylor(2), Taylor(2)), A, D, 1.0, 0.0)) ≈ coefficients(project(A * D, Taylor(2), Taylor(2)))
         end
     end
 
@@ -220,6 +225,10 @@
         D = LinearOperator(𝒯₁, 𝒯₂, [1.0 2.0; 3.0 4.0; 5.0 6.0])
         expected_D = [2.0 2.0; 3.0 5.0; 5.0 6.0]
         @test coefficients(radd!(copy(D), I)) == expected_D
+
+        # domain and codomain carrying different symmetries: `I` is the orthogonal projection between them
+        Dsym = LinearOperator(Fourier(1, 1.0), evensym(Fourier(1, 1.0)), zeros(2, 3))
+        @test coefficients(radd!(copy(Dsym), I)) == [0.0 1.0 0.0 ; 0.5 0.0 0.5]
 
         # incompatible domain/codomain *types* (Taylor vs Chebyshev)
         Dmix = LinearOperator(𝒯₁, Chebyshev(1), [1.0 2.0; 3.0 4.0])

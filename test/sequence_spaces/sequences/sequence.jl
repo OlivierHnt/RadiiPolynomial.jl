@@ -287,9 +287,10 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         fd = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
         @test RadiiPolynomial.getcoefficient(c, (fd, (1, 0))) == RadiiPolynomial.getcoefficient(c, (fd, (0, 1))) == 2.0 + 0.0im
 
-        # reading through a different symmetry than the sequence carries is an error
+        # reading through a different symmetry than the sequence carries is the orthogonal projection:
+        # the odd part of an even sequence vanishes
         se2 = oddsym(Taylor(4))
-        @test_throws DomainError RadiiPolynomial.getcoefficient(a, (se2, 0))
+        @test RadiiPolynomial.getcoefficient(a, (se2, 1)) == 0.0 + 0.0im
     end
 
     @testset "interval and complex coefficients" begin

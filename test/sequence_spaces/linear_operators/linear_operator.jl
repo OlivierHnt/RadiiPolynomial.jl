@@ -344,6 +344,20 @@
             # α=-1 has representative 1 (factor 1) but -1 ∉ indices(es) = 0:1: factor_α * Q[1,0] = 5
             @test RadiiPolynomial.getcoefficient(Q, (ℱ, -1), (ℱ, 0)) == 5.0 + 0.0im
         end
+
+        @testset "plain domain/codomain queried with one symmetric side" begin
+            A = LinearOperator(ℱ, ℱ, Float64[1 2 3 ; 4 5 6 ; 7 8 9])
+            # symmetric domain only: the column of the representative 1 is the orbit sum A[·,1] + A[·,-1]
+            @test RadiiPolynomial.getcoefficient(A, (ℱ, 0), (es, 1)) == 6.0 + 4.0 + 0.0im
+            @test RadiiPolynomial.getcoefficient(A, (ℱ, 0), (es, 0)) == 5.0 + 0.0im
+            # symmetric codomain only: the row of the representative 1 is the orbit average (A[1,·] + A[-1,·])/2
+            @test RadiiPolynomial.getcoefficient(A, (es, 1), (ℱ, 0)) == (8.0 + 2.0) / 2 + 0.0im
+            @test RadiiPolynomial.getcoefficient(A, (es, 0), (ℱ, 0)) == 5.0 + 0.0im
+            # outside the truncation of `A` the coefficients vanish instead of erroring
+            es2 = evensym(Fourier(2, 1.0))
+            @test RadiiPolynomial.getcoefficient(A, (es2, 2), (es2, 2)) == 0
+            @test RadiiPolynomial.getcoefficient(A, (es2, 1), (es2, 1)) == 10.0 + 0.0im
+        end
     end
 
     @testset "lazy wrappers: domain/codomain adaptation" begin

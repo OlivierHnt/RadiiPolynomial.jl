@@ -167,7 +167,7 @@ end
 
 function _groupelem_antiintegral(I::Integral, g::GroupElement, ::Fourier)
     c = g.lattice_aut.matrix[1]^order(I)
-    new_va = Cocycle(g.cocycle.amplitude / exact(c),
+    new_va = Cocycle(g.cocycle.angle + (c == -1), # the sign c = ±1 adds a half turn when negative
                      g.cocycle.phase)
     return GroupElement(g.lattice_aut, new_va)
 end
@@ -180,7 +180,7 @@ end
 
 function _groupelem_integral(I::Integral, g::GroupElement, ::Fourier)
     c = g.lattice_aut.matrix[1]^order(I)
-    new_va = Cocycle(g.cocycle.amplitude * exact(c),
+    new_va = Cocycle(g.cocycle.angle + (c == -1), # the sign c = ±1 adds a half turn when negative
                      g.cocycle.phase)
     return GroupElement(g.lattice_aut, new_va)
 end

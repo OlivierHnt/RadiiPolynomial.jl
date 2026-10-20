@@ -20,8 +20,8 @@ function codomain(::typeof(+), s₁::SymmetricSpace, s₂::SymmetricSpace)
     G = intersect(symmetry(s₁), symmetry(s₂))
     return SymmetricSpace(V, G)
 end
-codomain(::typeof(+), s₁::SymmetricSpace, s₂::NoSymSpace) = codomain(+, s₁, SymmetricSpace(s₂))
-codomain(::typeof(+), s₁::NoSymSpace, s₂::SymmetricSpace) = codomain(+, SymmetricSpace(s₁), s₂)
+codomain(::typeof(+), s₁::SymmetricSpace, s₂::NoSymSpace) = codomain(+, desymmetrize(s₁), s₂)
+codomain(::typeof(+), s₁::NoSymSpace, s₂::SymmetricSpace) = codomain(+, s₁, desymmetrize(s₂))
 
 # Cartesian spaces
 
@@ -322,8 +322,8 @@ end
 
 # Sequence spaces
 
-_sym_with_cst_coef(s::Group{N,T,L}) where {N,T,L} =
-    unsafe_group!(Set{GroupElement{N,T,L}}(g for g ∈ elements(s) if isone(g.cocycle.amplitude)))
+_sym_with_cst_coef(s::Group{N,L}) where {N,L} =
+    unsafe_group!(Set{GroupElement{N,L}}(g for g ∈ elements(s) if iszero(g.cocycle.angle)))
 
 function Base.:+(a::Sequence{<:NoSymSpace}, b::Number)
     CoefType = promote_type(eltype(a), typeof(b))

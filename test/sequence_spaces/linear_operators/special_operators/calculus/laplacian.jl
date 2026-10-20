@@ -125,7 +125,7 @@
         @test domain(Δ, ti) === ti
 
         # a swap action requires the swapped factors to have the same frequency
-        swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1])))
+        swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1])))
         @test domain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 1.0), swap)) isa SymmetricSpace
         @test_throws ArgumentError domain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), swap))
         @test_throws ArgumentError codomain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), swap))

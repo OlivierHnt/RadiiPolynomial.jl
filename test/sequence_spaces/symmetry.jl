@@ -35,45 +35,45 @@
     end
 
     @testset "Cocycle" begin
-        # the phase, in units of π, is reduced mod 2 at construction
-        @test Cocycle(1, Rational{Int}[3//1]).phase == [1//1]
-        @test Cocycle(1, Rational{Int}[5//2]).phase == [1//2]
-        @test_throws MethodError Cocycle(1, [0.5]) # the phase must be rational
+        # the angle and the phase, in units of π, are reduced mod 2 at construction
+        @test Cocycle(5//2, Rational{Int}[0//1]).angle == 1//2
+        @test Cocycle(0//1, Rational{Int}[3//1]).phase == [1//1]
+        @test Cocycle(0//1, Rational{Int}[5//2]).phase == [1//2]
+        @test_throws MethodError Cocycle(0//1, [0.5]) # the phase must be rational
+        @test_throws MethodError Cocycle(1, Rational{Int}[0//1]) # the amplitude is given by its angle, as a Rational
 
-        # v(k) = amplitude * cispi(phase ⋅ k)
-        v = Cocycle(2, Rational{Int}[1//2])
-        @test v(0) == 2.0 + 0.0im         # cispi(0) = 1
-        @test v(1) == 0.0 + 2.0im         # cispi(1/2) = i
-        @test v(2) == -2.0 + 0.0im        # cispi(1) = -1
+        # the factor at k is cispi(angle + phase ⋅ k), its angle being reduced mod 2
+        v = Cocycle(1//2, Rational{Int}[1//2])
+        @test RadiiPolynomial._angle(v, 0) == 1//2
+        @test RadiiPolynomial._angle(v, 1) == 1//1
+        @test RadiiPolynomial._angle(v, 3) == 0//1
 
-        # an interval amplitude gives enclosures of the same values
-        w = Cocycle(interval(1.0), Rational{Int}[1//1])
-        @test isequal_interval(real(w(0)), interval(1.0))   # cispi(0) = 1
-        @test isequal_interval(imag(w(0)), interval(0.0))
-        @test isequal_interval(real(w(1)), interval(-1.0))  # cispi(1) = -1
-        @test isequal_interval(imag(w(1)), interval(0.0))
+        # for interval coefficients the factor is a guaranteed enclosure, exact at quarter turns
+        w = RadiiPolynomial._cispi(Interval{Float64}, 1//1)
+        @test isequal_interval(real(w), interval(-1.0)) && isequal_interval(imag(w), interval(0.0))
+        @test isguaranteed(real(w)) && isguaranteed(imag(w))
 
-        a = Cocycle(2, Rational{Int}[1//2])
-        b = Cocycle(3, Rational{Int}[1//2])
+        a = Cocycle(1//2, Rational{Int}[1//2])
+        b = Cocycle(3//2, Rational{Int}[1//2])
 
         # a cocycle alone does not compose: α_{gh}(k) = α_g(β_h k)·α_h(k) needs the index
         # action of the second factor, so composition lives on `GroupElement`
         @test_throws MethodError a * b
 
-        @test a == Cocycle(2, Rational{Int}[1//2])
+        @test a == Cocycle(1//2, Rational{Int}[1//2])
         @test a != b
-        @test hash(a) == hash(Cocycle(2, Rational{Int}[1//2]))
+        @test hash(a) == hash(Cocycle(1//2, Rational{Int}[1//2]))
     end
 
     @testset "GroupElement" begin
-        g1 = GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1]))
-        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(-1, Rational{Int}[0//1]))
+        g1 = GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[0//1]))
+        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(1//1, Rational{Int}[0//1]))
 
-        @test g1 ∘ g1 == GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1]))
+        @test g1 ∘ g1 == GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[0//1]))
 
         @test g1 == g1
         @test g1 != g2
-        @test hash(g1) == hash(GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1])))
+        @test hash(g1) == hash(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[0//1])))
 
         @testset "∘ reproduces the induced action on coefficients" begin
             #= A group element acts by (g·a)_k = α_g(k) a_{β_g(k)} with α_g(k) = ρ_g e^{iπ⟨φ_g,k⟩}.
@@ -84,10 +84,10 @@
                same thing only when β_hᵀφ_g ≡ φ_g (mod 2), which every shipped symmetry happens
                to satisfy; the pair below deliberately does not. =#
             s = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
-            act(g, a) = Sequence(s, [g.cocycle(k) * a[g.lattice_aut(k)] for k ∈ indices(s)])
+            act(g, a) = Sequence(s, [cispi(RadiiPolynomial._angle(g.cocycle, k)) * a[g.lattice_aut(k)] for k ∈ indices(s)])
 
-            g = GroupElement(LatticeAut([1 0 ; 0 1]),  Cocycle(1, Rational{Int}[1//2, 0//1]))
-            h = GroupElement(LatticeAut([0 1 ; 1 0]),  Cocycle(1, Rational{Int}[0//1, 0//1]))
+            g = GroupElement(LatticeAut([1 0 ; 0 1]),  Cocycle(0//1, Rational{Int}[1//2, 0//1]))
+            h = GroupElement(LatticeAut([0 1 ; 1 0]),  Cocycle(0//1, Rational{Int}[0//1, 0//1]))
             @test mod.(h.lattice_aut.matrix' * g.cocycle.phase, 2) != g.cocycle.phase
 
             a = Sequence(s, ComplexF64[(1 + 0.4im) / (1 + sum(abs, k))^2 for k ∈ indices(s)])
@@ -101,13 +101,13 @@
     end
 
     @testset "Group" begin
-        g = GroupElement(LatticeAut([-1;;]), Cocycle(1, Rational{Int}[0//1]))
+        g = GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[0//1]))
         G = Group(g)
         @test length(elements(G)) == 2
-        @test GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1])) ∈ elements(G)
+        @test GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[0//1])) ∈ elements(G)
 
         # a 90° rotation generator needs several closure passes to reach {I, R, R², R³}
-        R = GroupElement(LatticeAut([0 -1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1]))
+        R = GroupElement(LatticeAut([0 -1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1]))
         CG = Group(R)
         @test length(elements(CG)) == 4
         @test Set(h.lattice_aut((1, 0)) for h ∈ elements(CG)) == Set([(1, 0), (0, 1), (-1, 0), (0, -1)])
@@ -115,7 +115,7 @@
         @test isconcretetype(eltype(elements(CG)))
         @test isconcretetype(fieldtype(eltype(elements(CG)), :lattice_aut))
 
-        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(-1, Rational{Int}[0//1]))
+        g2 = GroupElement(LatticeAut([-1;;]), Cocycle(1//1, Rational{Int}[0//1]))
         G2 = Group(g2)
         @test G == Group(g)
         @test hash(G) == hash(Group(g)) # the hash is precomputed at closure, so it must agree across objects
@@ -127,7 +127,7 @@
 
         Gi = intersect(G, G2)
         @test length(elements(Gi)) == 1
-        @test Gi == Group(GroupElement(LatticeAut([1;;]), Cocycle(1, Rational{Int}[0//1])))
+        @test Gi == Group(GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[0//1])))
 
         # equal groups short-circuit: the input is returned as-is, skipping the closure
         @test intersect(G, G) === G
@@ -137,7 +137,7 @@
         @test union(G, G′) === G
 
         # a group cannot mix group elements acting on indices of different length
-        h2 = GroupElement(LatticeAut([1 0 ; 0 1]), Cocycle(1, Rational{Int}[0//1, 0//1]))
+        h2 = GroupElement(LatticeAut([1 0 ; 0 1]), Cocycle(0//1, Rational{Int}[0//1, 0//1]))
         @test_throws MethodError Group(g, h2)
     end
 
@@ -267,6 +267,10 @@
         i = intersect(seven, sodd)
         @test dimension(i) == 0
 
+        # a space without symmetry carries the trivial group: the intersection keeps the symmetry, the union loses it
+        @test intersect(seven, Fourier(2, 1.0)) == intersect(Fourier(2, 1.0), seven) == evensym(Fourier(2, 1.0))
+        @test union(evensym(Fourier(2, 1.0)), s) == union(s, evensym(Fourier(2, 1.0))) == s
+
         # merging an extra symmetry onto an already-symmetric space unions the two symmetry
         # groups, giving the same group as the intersection of spaces above: closing
         # {id, (k↦-k, amp=1)} ∪ {id, (k↦-k, amp=-1)} under composition adds the element
@@ -281,7 +285,7 @@
         @test_throws MethodError SymmetricSpace(ScalarSpace(), symmetry(Fourier(1, 1.0)))
 
         # the indices must be invariant under the group, otherwise an orbit is only partially stored
-        swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1])))
+        swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1])))
         @test SymmetricSpace(Taylor(2) ⊗ Taylor(2), swap) isa SymmetricSpace
         @test_throws ArgumentError SymmetricSpace(Taylor(1) ⊗ Taylor(2), swap) # (0, 2) ↦ (2, 0)
         # a sign flip leaves the nonnegative Taylor indices
@@ -306,10 +310,9 @@
         # a different group on the same indices is a distinct entry
         @test s.rep_pos_cocycle !== oddsym(Fourier(4, 1.0)).rep_pos_cocycle
 
-        # the interval symmetry group is a distinct entry: coefficient actions must stay enclosures
+        # intervalization does not reach the group, so the entry is shared
         si = interval(s)
-        @test si.rep_pos_cocycle !== s.rep_pos_cocycle
-        @test last(first(si.rep_pos_cocycle)) isa Complex{<:Interval}
+        @test si.rep_pos_cocycle === s.rep_pos_cocycle
     end
 
     @testset "order / frequency / dimension / indices" begin
@@ -365,9 +368,8 @@
         @test length(elements(symmetry(t4))) == 16
         @test dimension(t4) == 3 * 3
 
-        # interval symmetry groups tensorize with enclosure amplitudes
-        tI = interval(sE) ⊗ interval(sE)
-        @test last(first(tI.rep_pos_cocycle)) isa Complex{<:Interval}
+        # intervalization does not reach the groups
+        @test symmetry(interval(sE) ⊗ interval(sE)) == symmetry(sE ⊗ sE)
     end
 
     @testset "_restrict: inverse of lifting through ⊗ with a NoSymSpace" begin
@@ -415,8 +417,8 @@
         @test t == d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
         @test typeof(t) === typeof(d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)))
 
-        si = SymmetricSpace(Fourier(4, interval(1.0)), interval(GE))
-        @test last(first(si.rep_pos_cocycle)) isa Complex{<:Interval}
+        si = SymmetricSpace(Fourier(4, interval(1.0)), GE)
+        @test last(first(si.rep_pos_cocycle)) isa Rational{Int}
     end
 
     @testset "_orbit_length / _stabilizer_length" begin
@@ -451,13 +453,13 @@
         @test_throws BoundsError a[(3, 0)]
         @test a[(1, 0)] == 0.0
         # the table maps every index `k` of the full space to the storage position of its
-        # representative (0 for an invalid orbit) and the cocycle factor: a_k = factor * a[q]
+        # representative (0 for an invalid orbit) and the angle θ in units of π: a_k = e^{iπθ} a[q]
         e = evensym(Fourier(2, 1.0)) # indices -2:2, representatives 0:2
         @test first.(e.rep_pos_cocycle) == [3, 2, 1, 2, 3]
-        @test all(isone, last.(e.rep_pos_cocycle))
+        @test all(iszero, last.(e.rep_pos_cocycle))
         o = oddsym(Fourier(2, 1.0)) # representatives 1:2, the orbit {0} is invalid
         @test first.(o.rep_pos_cocycle) == [2, 1, 0, 1, 2]
-        @test last.(o.rep_pos_cocycle)[[1, 2, 4, 5]] == [-1, -1, 1, 1]
+        @test last.(o.rep_pos_cocycle)[[1, 2, 4, 5]] == [1, 1, 0, 0] # a₋ₖ = e^{iπ} aₖ
         @test first(RadiiPolynomial._unsafe_rep_pos_cocycle(s, (0, -1))) == 2 # representative (1, 0)
     end
 
@@ -475,9 +477,7 @@
         s = evensym(Fourier(2, 1.0))
         si = interval(s)
         @test desymmetrize(si) == Fourier(2, interval(1.0))
-        @test length(elements(symmetry(si))) == length(elements(symmetry(s)))
-        g = first(elements(symmetry(si)))
-        @test isequal_interval(g.cocycle.amplitude, interval(1.0))
+        @test symmetry(si) === symmetry(s) # the group is exact data: intervalization only reaches the coefficients
 
         siT = interval(Float64, s)
         @test siT isa SymmetricSpace

@@ -44,23 +44,25 @@ _domain(::typeof(*), s::TensorSpace{<:NTuple{N,BaseSpace}}, s_prod::TensorSpace{
 _domain(::typeof(*), ::Taylor, s_prod::Taylor) = s_prod
 _domain(::typeof(*), s::Fourier, s_prod::Fourier) = codomain(*, s, s_prod)
 _domain(::typeof(*), s::Chebyshev, s_prod::Chebyshev) = codomain(*, s, s_prod)
+_domain(::typeof(*), s::NoSymSpace, s_prod::SymmetricSpace) = _domain(*, s, desymmetrize(s_prod))
+_domain(::typeof(*), s::SymmetricSpace, s_prod::NoSymSpace) = _domain(*, desymmetrize(s), s_prod)
 function _domain(::typeof(*), s::SymmetricSpace, s_prod::SymmetricSpace)
     V = _domain(*, desymmetrize(s), desymmetrize(s_prod))
     G = _domain_convolution_symmetry(symmetry(s), symmetry(s_prod))
     return SymmetricSpace(V, G)
 end
-function _domain_convolution_symmetry(G::Group{N,T,L}, G_prod::Group{N,T,L}) where {N,T<:Number,L}
+function _domain_convolution_symmetry(G::Group{N,L}, G_prod::Group{N,L}) where {N,L}
     idx = _by_idx_action(G)
     idx_prod = _by_idx_action(G_prod)
 
-    elems = Set{GroupElement{N,T,L}}()
+    elems = Set{GroupElement{N,L}}()
     for (key, vals) ∈ idx
         haskey(idx_prod, key) || continue
         vals_prod = idx_prod[key]
         for v ∈ vals, v_prod ∈ vals_prod
             # convolution identity e^{iπ⟨φ,j⟩} e^{iπ⟨φ,k−j⟩} = e^{iπ⟨φ,k⟩}
             if v.phase == v_prod.phase
-                new_coeff = Cocycle{N,T}(v_prod.amplitude / v.amplitude, v.phase)
+                new_coeff = Cocycle(v_prod.angle - v.angle, v.phase)
                 push!(elems, GroupElement(key, new_coeff))
             end
         end
@@ -79,15 +81,20 @@ _coeftype(ℳ::Multiplication, ::SequenceSpace, ::Type{T}) where {T} =
 function _project!(C::LinearOperator{<:SequenceSpace,<:SequenceSpace}, ℳ::Multiplication)
     dom = domain(C)
     codom = codomain(C)
+    # the rows are read at the representatives of `codom`, which is the projection onto the sequences carrying
+    # its symmetry only when the product does: otherwise the product is materialized on the full lattice first
+    issubset(symmetry(codom), symmetry(codomain(ℳ, dom))) ||
+        return _project!(C, project(ℳ, dom, desymmetrize(codom), eltype(C)))
     space_ℳ = space(sequence(ℳ))
     ds = desymmetrize(space_ℳ)
     for β ∈ _mult_domain_indices(desymmetrize(dom))
         β_valid = _extract_valid_index(desymmetrize(dom), β)
         # `x_β = factor * x_rep`: the contribution of `β` goes to the column `q` of its representative
         # weighted by the cocycle factor, so that (a*x)_α = Σ_rep x_rep Σ_{β ∈ Orb(rep)} factor(β) a_{α-β}
-        q, factor = _unsafe_rep_pos_cocycle(dom, β_valid)
+        q, θ = _unsafe_rep_pos_cocycle(dom, β_valid)
         if q != 0
-            one_factor = _safe_isone(factor) # skip the product by 1 (keeps interval guarantees when the domain is not intervalized)
+            one_factor = iszero(θ) # skip the product by 1
+            factor = _cispi(eltype(C), θ)
             for (i, α) ∈ enumerate(indices(codom))
                 l = _extract_valid_index(ds, α, β)
                 if _checkbounds_indices(l, ds)

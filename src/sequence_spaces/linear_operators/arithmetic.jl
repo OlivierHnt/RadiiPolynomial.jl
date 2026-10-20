@@ -92,6 +92,7 @@ ldiv!(b::Number, A::LinearOperator) = LinearOperator(domain(A), codomain(A), ldi
 function Base.:*(A::LinearOperator, B::LinearOperator)
     pdomA, pcodomB = _promote_space(domain(A), codomain(B))
     _iscompatible(pdomA, pcodomB) || return throw(ArgumentError("spaces must be compatible: A has domain $(domain(A)), B has codomain $(codomain(B))"))
+    _same_symmetry(pdomA, pcodomB) || return A * project(B, domain(B), pdomA)
     C = zeros(promote_type(eltype(A), eltype(B)), domain(B), codomain(A))
     _mul!(C, LinearOperator(pdomA, codomain(A), coefficients(A)), LinearOperator(domain(B), pcodomB, coefficients(B)), exact(true), exact(false))
     return C
@@ -102,6 +103,9 @@ function mul!(C::LinearOperator, A::LinearOperator, B::LinearOperator, α::Numbe
     pcodomC, pcodomA = _promote_space(codomain(C), codomain(A))
     pdomA, pcodomB = _promote_space(domain(A), codomain(B))
     _iscompatible(pdomC, pdomB) & _iscompatible(pcodomC, pcodomA) & _iscompatible(pdomA, pcodomB) || return throw(ArgumentError("spaces must be compatible"))
+    _same_symmetry(pdomA, pcodomB) || return mul!(C, A, project(B, domain(B), pdomA), α, β)
+    _same_symmetry(pdomB, pdomC) || return mul!(C, A, project(B, pdomC, codomain(B)), α, β)
+    _same_symmetry(pcodomA, pcodomC) || return mul!(C, project(A, domain(A), pcodomC), B, α, β)
     _mul!(LinearOperator(pdomC, pcodomC, coefficients(C)),
           LinearOperator(pdomA, pcodomA, coefficients(A)),
           LinearOperator(pdomB, pcodomB, coefficients(B)), α, β)
@@ -670,9 +674,13 @@ function _radd!(A::LinearOperator{<:SequenceSpace,<:SequenceSpace}, J::UniformSc
         @inbounds for i ∈ axes(A_, 1)
             A_[i,i] += J.λ
         end
-    else
+    elseif _same_symmetry(domain_A, codomain_A)
         @inbounds for α ∈ indices(domain_A ∩ codomain_A)
             A[α,α] += J.λ
+        end
+    else # the identity between different symmetries is read through the orbits, see `_sym_getcoefficient`
+        @inbounds for β ∈ indices(domain_A), α ∈ indices(codomain_A)
+            A[α,β] += _sym_getcoefficient(J, domain_A, codomain_A, α, β, eltype(A))
         end
     end
     return A

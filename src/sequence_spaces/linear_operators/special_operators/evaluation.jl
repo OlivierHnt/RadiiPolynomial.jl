@@ -154,8 +154,8 @@ codomain(ℰ::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, s::SymmetricSpace{<
 
 # the partially evaluated function inherits the symmetries acting trivially on the evaluated
 # variables: identity block, no mixing with the other variables and no phase on these variables
-_restrict_symmetry(G::Group{N,T,L}, x::NTuple{N,Union{Nothing,Number}}) where {N,T,L} =
-    unsafe_group!(Set{GroupElement{N,T,L}}(g for g ∈ elements(G) if _acts_trivially(g, x)))
+_restrict_symmetry(G::Group{N,L}, x::NTuple{N,Union{Nothing,Number}}) where {N,L} =
+    unsafe_group!(Set{GroupElement{N,L}}(g for g ∈ elements(G) if _acts_trivially(g, x)))
 
 function _acts_trivially(g::GroupElement{N}, x::NTuple{N,Union{Nothing,Number}}) where {N}
     A = g.lattice_aut.matrix

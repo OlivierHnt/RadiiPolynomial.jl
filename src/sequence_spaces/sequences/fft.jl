@@ -239,10 +239,10 @@ function _lead_inner(s::CartesianProduct, ::Val{D}) where {D}
 end
 _maybe_tensorspace(t::Tuple{BaseSpace}) = @inbounds t[1]
 _maybe_tensorspace(t::Tuple{Vararg{BaseSpace}}) = TensorSpace(t)
-function _restrict(G::Group{N,T}, ::Val{D}) where {N,T,D}
+function _restrict(G::Group{N}, ::Val{D}) where {N,D}
     # restrict a symmetry group acting trivially on the first `D` indices to the
     # trailing indices (inverse of `⊗` with a `NoSymSpace`)
-    els = Set{GroupElement{N-D,T,(N-D)^2}}()
+    els = Set{GroupElement{N-D,(N-D)^2}}()
     for g ∈ elements(G)
         A = g.lattice_aut.matrix
         ϕ = g.cocycle.phase
@@ -252,7 +252,7 @@ function _restrict(G::Group{N,T}, ::Val{D}) where {N,T,D}
             return throw(ArgumentError("the symmetry group does not act trivially on the leading $D factors"))
         push!(els, GroupElement(
             LatticeAut(StaticArrays.SMatrix{N-D,N-D,Int}(view(A, D+1:N, D+1:N))),
-            Cocycle(g.cocycle.amplitude, StaticArrays.SVector{N-D,Rational{Int}}(view(ϕ, D+1:N)))))
+            Cocycle(g.cocycle.angle, StaticArrays.SVector{N-D,Rational{Int}}(view(ϕ, D+1:N)))))
     end
     return unsafe_group!(els)
 end

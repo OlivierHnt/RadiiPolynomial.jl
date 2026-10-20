@@ -3,7 +3,12 @@
 
 Projection operator onto `space::T`. This is used to resize a sequence, a
 linear operator, or materialize a finite projection of an abstract operator. The
-type of the ouput entries is determined by promoting against `S`.
+type of the output entries is determined by promoting against `S`.
+
+On a [`SymmetricSpace`](@ref), this is the orthogonal projection onto the
+sequences carrying its symmetry (orbit averages), so that
+`Projection(codomain) * A * Projection(domain)` is the restriction of `A` when
+`A` is equivariant.
 
 Field:
 - `space :: T`
@@ -293,8 +298,10 @@ function _project!(C::LinearOperator, A::AbstractLinearOperator)
     return C
 end
 function _project!(C::LinearOperator, A::AbstractDiagonalOperator)
-    for i ∈ indices(domain(C) ∩ codomain(C))
-        C[i,i] = getcoefficient(A, (codomain(C), i), (domain(C), i), eltype(C))
+    dom, codom = domain(C), codomain(C)
+    _same_symmetry(dom, codom) || return throw(ArgumentError("a diagonal operator is only projected between spaces carrying the same symmetry"))
+    for i ∈ indices(dom ∩ codom)
+        C[i,i] = getcoefficient(A, (codom, i), (dom, i), eltype(C))
     end
     return C
 end

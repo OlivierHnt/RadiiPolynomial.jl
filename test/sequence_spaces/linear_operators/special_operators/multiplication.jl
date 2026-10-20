@@ -121,7 +121,7 @@
         M = _check_projected_multiplication(a, x, ComplexF64)
         @test coefficients(M) == [0.0; 0.0; 1.0;;]
         # phase group a_k = iᵏ a₋ₖ: the factors are ±i, the projected matrix must be complex
-        Gp = Group(GroupElement(LatticeAut([-1;;]), Cocycle(exact(1//1), Rational{Int}[1//2])))
+        Gp = Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[1//2])))
         sp = SymmetricSpace(Fourier(1, 1.0), Gp)
         ap = Sequence(sp, ComplexF64[1.0, 1.0])
         xp = Sequence(sp, ComplexF64[0.0, 1.0])
@@ -134,6 +134,38 @@
         PI = project(Multiplication(aI), sI1, sI2, Interval{Float64})
         @test all(isguaranteed, coefficients(PI))
         @test all(in_interval.([0.5, 0.0, 0.25], coefficients(PI * aI))) # cos²(t) = 1/2 + 1/2 cos(2t)
+    end
+
+    @testset "mixed symmetric and plain factors" begin
+        ℱ = Fourier(2, 1.0)
+        es = evensym(ℱ)
+        c = Sequence(ℱ, [0.0, 0.3, 1.0, 0.3, 0.0]) # even, stored on the plain space
+        ce = project(c, es)
+        x = Sequence(es, [1.0, 0.5, 0.2])
+        xf = project(x, ℱ)
+        # a factor without symmetry leaves none on the product
+        @test space(c * x) == space(ce * xf) == Fourier(4, 1.0)
+        @test c * x == ce * xf == c * xf
+        @test x * c ≈ c * xf
+        @test Multiplication(c) * x == c * x
+        # a symmetric multiplier on the plain space is the plain multiplication operator
+        @test coefficients(project(Multiplication(ce), ℱ, ℱ)) == coefficients(project(Multiplication(c), ℱ, ℱ))
+        @test Multiplication(ce) * Projection(ℱ) == Multiplication(c) * Projection(ℱ)
+        # a non symmetric multiplier compressed onto a symmetric space averages the rows of the product,
+        # like the materialized multiplication operator
+        cn = Sequence(ℱ, [0.1, -0.2, 1.0, 0.4, 0.3])
+        M = Projection(es) * Multiplication(cn)
+        @test domain(M) == Fourier(4, 1.0) && codomain(M) == es
+        @test coefficients(M) ≈ coefficients(Projection(es) * project(Multiplication(cn), Fourier(4, 1.0), ℱ))
+        @test coefficients(Multiplication(cn) * Projection(es)) ≈ coefficients(project(Multiplication(cn), ℱ, Fourier(4, 1.0)) * Projection(es))
+        @test project(Multiplication(cn), es, es) * x ≈ project(cn * xf, es)
+        # intervalized spaces keep the guarantee
+        ℱi, esi = interval(ℱ), interval(es)
+        cei = Sequence(esi, interval.(coefficients(ce)))
+        Pi = project(Multiplication(cei), esi, ℱi)
+        @test all(isguaranteed, coefficients(Pi))
+        @test all(in_interval.(coefficients(project(Multiplication(ce), es, ℱ)), coefficients(Pi)))
+        @test all(isguaranteed, coefficients(cei * Sequence(ℱi, interval.(coefficients(xf)))))
     end
 
     @testset "cartesian space (not supported)" begin
@@ -153,7 +185,7 @@
            βᵀφ ≡ φ (so the group is a faithful representation) while 2φ ≢ 0 (so −φ ≠ φ). =#
         P = RadiiPolynomial.StaticArrays.SMatrix{3,3,Int}([0 0 1; 1 0 0; 0 1 0])
         φ = RadiiPolynomial.StaticArrays.SVector{3,Rational{Int}}(2//3, 2//3, 2//3)
-        G = Group(GroupElement(LatticeAut(P), Cocycle(1//1, φ)))
+        G = Group(GroupElement(LatticeAut(P), Cocycle(0//1, φ)))
         @test length(elements(G)) == 3
 
         G_dom = RadiiPolynomial._domain_convolution_symmetry(G, G)
@@ -174,7 +206,7 @@
             maximum(indices(space(c))) do k
                 βk = g.lattice_aut(k) # invariance reads c_k = α_g(k) c_{β_g(k)}
                 all(abs.(βk) .≤ order(space(c))) || return 0.0
-                abs(c[k] - g.cocycle(k) * c[βk])
+                abs(c[k] - cispi(RadiiPolynomial._angle(g.cocycle, k)) * c[βk])
             end
         end
         @test worst < 1e-12

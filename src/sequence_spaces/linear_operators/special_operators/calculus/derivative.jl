@@ -144,7 +144,7 @@ end
 
 function _groupelem_antiderivative(D::Derivative, g::GroupElement, ::Fourier)
     c = g.lattice_aut.matrix[1]^order(D)
-    new_va = Cocycle(g.cocycle.amplitude / exact(c),
+    new_va = Cocycle(g.cocycle.angle + (c == -1), # the sign c = ±1 adds a half turn when negative
                      g.cocycle.phase)
     return GroupElement(g.lattice_aut, new_va)
 end
@@ -157,7 +157,7 @@ end
 
 function _groupelem_derivative(D::Derivative, g::GroupElement, ::Fourier)
     c = g.lattice_aut.matrix[1]^order(D)
-    new_va = Cocycle(g.cocycle.amplitude * exact(c),
+    new_va = Cocycle(g.cocycle.angle + (c == -1), # the sign c = ±1 adds a half turn when negative
                      g.cocycle.phase)
     return GroupElement(g.lattice_aut, new_va)
 end

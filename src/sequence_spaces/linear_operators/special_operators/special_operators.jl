@@ -15,31 +15,19 @@ include("shift.jl")
 
 #
 
-for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Scale, :Shift)
+for S ∈ (:UniformScalingOperator, :Evaluation, :Derivative, :Integral, :Laplacian, :Scale, :Shift)
     @eval begin
         getcoefficient(A::$S, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}, ::Type{T}) where {T} =
-            _sym_getcoefficient(A, dom, codom, α, β, T)
+            convert(T, _sym_getcoefficient(A, dom, codom, α, β, T))
+        getcoefficient(A::$S, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}, ::Type{T}) where {T} =
+            convert(T, _sym_getcoefficient(A, dom, codom, α, β, T))
+        getcoefficient(A::$S, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}, ::Type{T}) where {T} =
+            convert(T, _sym_getcoefficient(A, dom, codom, α, β, T))
+    end
+end
 
-        function _sym_getcoefficient(A::$S, dom::SymmetricSpace, codom::SymmetricSpace, α, β, ::Type{T}) where {T}
-            v = zero(T)
-            G_dom = elements(symmetry(dom))
-            G_codom = elements(symmetry(codom))
-            for g ∈ G_dom
-                l = g.lattice_aut(β)
-                _checkbounds_indices(l, desymmetrize(dom)) || continue
-                _, factor_l = _unsafe_rep_pos_cocycle(dom, l)
-                for h ∈ G_codom
-                    k = h.lattice_aut(α)
-                    _checkbounds_indices(k, desymmetrize(codom)) || continue
-                    _, factor_k = _unsafe_rep_pos_cocycle(codom, k)
-                    v += factor_l * getcoefficient(A, (desymmetrize(codom), k), (desymmetrize(dom), l), T) / factor_k
-                end
-            end
-            # each point of an orbit is reached |Stab| times and the sum is averaged over the orbit of α,
-            # hence the normalization |Stab(β)| |Stab(α)| |Orb(α)| = |Stab(β)| |G_codom|
-            return convert(T, v / exact(_stabilizer_length(symmetry(dom), β) * length(G_codom)))
-        end
-
+for S ∈ (:Evaluation, :Derivative, :Integral, :Laplacian, :Scale, :Shift)
+    @eval begin
         function _apply!(c::Sequence{<:SymmetricSpace}, A::$S, a::Sequence{<:SymmetricSpace})
             @inbounds for k ∈ indices(space(c))
                 c[k] = zero(eltype(c))
@@ -53,59 +41,57 @@ for S ∈ (:Evaluation, :Multiplication, :Derivative, :Integral, :Laplacian, :Sc
 
     # Cartesian spaces
 
-    if S != :Multiplication
-        @eval begin
-            function domain(A::$S, s::CartesianPower)
-                s_out = domain(A, space(s))
-                s_out isa UndefSpace && return UndefSpace()
-                return CartesianPower(s_out, nspaces(s))
+    @eval begin
+        function domain(A::$S, s::CartesianPower)
+            s_out = domain(A, space(s))
+            s_out isa UndefSpace && return UndefSpace()
+            return CartesianPower(s_out, nspaces(s))
+        end
+
+        function domain(A::$S, s::CartesianProduct)
+            s_out = map(sᵢ -> domain(A, sᵢ), spaces(s))
+            any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
+            return CartesianProduct(s_out)
+        end
+
+        codomain(A::$S, s::CartesianPower) =
+            CartesianPower(codomain(A, space(s)), nspaces(s))
+
+        codomain(A::$S, s::CartesianProduct) =
+            CartesianProduct(map(sᵢ -> codomain(A, sᵢ), spaces(s)))
+
+        _coeftype(A::$S, s::CartesianPower, ::Type{T}) where {T} =
+            _coeftype(A, space(s), T)
+
+        _coeftype(A::$S, s::CartesianProduct, ::Type{T}) where {T} =
+            @inbounds promote_type(_coeftype(A, s[1], T), _coeftype(A, Base.tail(s), T))
+        _coeftype(A::$S, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
+            @inbounds _coeftype(A, s[1], T)
+
+        function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::$S)
+            @inbounds for i ∈ 1:nspaces(domain(C))
+                _project!(component(C, i, i), A)
             end
+            return C
+        end
 
-            function domain(A::$S, s::CartesianProduct)
-                s_out = map(sᵢ -> domain(A, sᵢ), spaces(s))
-                any(sᵢ -> sᵢ isa UndefSpace, s_out) && return UndefSpace()
-                return CartesianProduct(s_out)
+        #
+
+        function _apply!(c::Sequence{<:CartesianPower}, A::$S, a::Sequence{<:CartesianSpace})
+            @inbounds for i ∈ 1:nspaces(space(c))
+                _apply!(component(c, i), A, component(a, i))
             end
+            return c
+        end
 
-            codomain(A::$S, s::CartesianPower) =
-                CartesianPower(codomain(A, space(s)), nspaces(s))
-
-            codomain(A::$S, s::CartesianProduct) =
-                CartesianProduct(map(sᵢ -> codomain(A, sᵢ), spaces(s)))
-
-            _coeftype(A::$S, s::CartesianPower, ::Type{T}) where {T} =
-                _coeftype(A, space(s), T)
-
-            _coeftype(A::$S, s::CartesianProduct, ::Type{T}) where {T} =
-                @inbounds promote_type(_coeftype(A, s[1], T), _coeftype(A, Base.tail(s), T))
-            _coeftype(A::$S, s::CartesianProduct{<:Tuple{VectorSpace}}, ::Type{T}) where {T} =
-                @inbounds _coeftype(A, s[1], T)
-
-            function _project!(C::LinearOperator{<:CartesianSpace,<:CartesianSpace}, A::$S)
-                @inbounds for i ∈ 1:nspaces(domain(C))
-                    _project!(component(C, i, i), A)
-                end
-                return C
-            end
-
-            #
-
-            function _apply!(c::Sequence{<:CartesianPower}, A::$S, a::Sequence{<:CartesianSpace})
-                @inbounds for i ∈ 1:nspaces(space(c))
-                    _apply!(component(c, i), A, component(a, i))
-                end
-                return c
-            end
-
-            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {N,T<:NTuple{N,VectorSpace}}
-                @inbounds _apply!(component(c, 1), A, component(a, 1))
-                @inbounds _apply!(component(c, 2:N), A, component(a, 2:N))
-                return c
-            end
-            function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {T<:Tuple{VectorSpace}}
-                @inbounds _apply!(component(c, 1), A, component(a, 1))
-                return c
-            end
+        function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {N,T<:NTuple{N,VectorSpace}}
+            @inbounds _apply!(component(c, 1), A, component(a, 1))
+            @inbounds _apply!(component(c, 2:N), A, component(a, 2:N))
+            return c
+        end
+        function _apply!(c::Sequence{CartesianProduct{T}}, A::$S, a::Sequence{<:CartesianSpace}) where {T<:Tuple{VectorSpace}}
+            @inbounds _apply!(component(c, 1), A, component(a, 1))
+            return c
         end
     end
 end

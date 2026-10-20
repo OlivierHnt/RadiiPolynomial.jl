@@ -105,10 +105,89 @@
             @test project(af, ℱe3) == Sequence(ℱe3, [1.0, 2.0, 0.0, 0.0])
             @test project(project(af, ℱe3), ℱe1) == af
 
-            # projecting between different symmetry groups is an error
+            # projecting onto a different symmetry group is the orthogonal projection: the even part of an odd sequence vanishes
             𝒯o2 = oddsym(Taylor(2))
             ao = Sequence(𝒯o2, [10.0])
-            @test_throws DomainError project(ao, 𝒯e4)
+            @test project(ao, 𝒯e4) == Sequence(𝒯e4, zeros(3))
+
+            # and it is the identity when the target symmetry is weaker (a subgroup): d4 ⊃ {id, reflection in x}
+            𝒯² = Fourier(1, 1.0) ⊗ Fourier(1, 1.0)
+            ex = SymmetricSpace(𝒯², Group(GroupElement(LatticeAut([-1 0 ; 0 1]), Cocycle(0//1, Rational{Int}[0//1, 0//1]))))
+            ad4 = Sequence(d4sym(𝒯²), [1.0, 2.0, 3.0])
+            @test project(project(ad4, ex), 𝒯²) == project(ad4, 𝒯²)
+
+            # projecting a plain sequence onto a symmetric space is the orthogonal projection, i.e. the
+            # average over the orbits: the even part of a sine vanishes
+            ℱ2 = Fourier(2, 1.0)
+            sine = Sequence(ℱ2, [0.0, -1.0, 0.0, 1.0, 0.0])
+            @test project(sine, evensym(ℱ2)) == Sequence(evensym(ℱ2), zeros(3))
+            @test project(sine, oddsym(ℱ2)) == Sequence(oddsym(ℱ2), [1.0, 0.0])
+            @test project(Sequence(ℱ2, [1.0, 2.0, 3.0, 4.0, 5.0]), evensym(ℱ2)) == Sequence(evensym(ℱ2), [3.0, 3.0, 3.0])
+            # and a sequence already carrying the symmetry round trips exactly, even over orbits of size 8
+            ae2 = Sequence(evensym(ℱ2), [1.0, 0.5, 0.2])
+            @test project(project(ae2, ℱ2), evensym(ℱ2)) == ae2
+            @test project(project(ad4, 𝒯²), d4sym(𝒯²)) == ad4
+        end
+
+        @testset "SymmetricSpace: operators" begin
+            ℱ = Fourier(2, 1.0)
+            es, os = evensym(ℱ), oddsym(ℱ)
+            xe, xo = Sequence(es, [1.0, 0.5, 0.2]), Sequence(os, [0.5, 0.2])
+            A = project(Multiplication(Sequence(ℱ, [0.0, 0.3, 1.0, 0.3, 0.0])), ℱ, ℱ) # equivariant
+            N = LinearOperator(ℱ, ℱ, reshape(1.0:25.0, 5, 5)) # not equivariant
+            # the compression onto a symmetric space, in one or two steps, is desymmetrize-apply-project
+            for (B, x) ∈ ((A, xe), (A, xo), (N, xe), (N, xo))
+                s = space(x)
+                y = project(B * project(x, ℱ), s)
+                @test project(B, s, s) * x ≈ y
+                @test (Projection(s) * (B * Projection(s))) * x ≈ y
+                @test (Projection(s) * B) * Projection(s) * x ≈ y
+                @test B * x ≈ B * project(x, ℱ) # acting on a symmetric sequence desymmetrizes it
+            end
+            # a column collects its orbit (x₋₁ = x₁ for a cosine series) while a row averages its orbit
+            @test coefficients(A * Projection(es))[:, 2] == coefficients(A)[:, 2] + coefficients(A)[:, 4]
+            @test coefficients(project(A, es, es)) == [1.0 0.6 0.0 ; 0.3 1.0 0.3 ; 0.0 0.3 1.0]
+            @test coefficients(Projection(es) * N)[2, :] == (coefficients(N)[2, :] + coefficients(N)[4, :]) / 2
+            # desymmetrizing one side of a symmetric operator agrees with the equivariant original
+            Aes = project(A, es, es)
+            @test Aes * Projection(ℱ) ≈ Projection(es) * A
+            @test Projection(ℱ) * Aes ≈ A * Projection(es)
+            @test project(Aes, ℱ, ℱ) ≈ project(Projection(ℱ) * Aes, ℱ, ℱ)
+            # enlarging zero-pads
+            es3 = evensym(Fourier(3, 1.0))
+            @test coefficients(project(A, es3, es3)) == [coefficients(Aes) zeros(3) ; zeros(1, 4)]
+            # composing operators with different symmetries projects the inner one onto the domain of the outer one
+            @test (A * Aes) * xe ≈ A * project(Aes * xe, ℱ)
+            @test (Aes * A) * project(xe, ℱ) ≈ Aes * project(A * project(xe, ℱ), es)
+            # a weaker symmetry (reflections in x ⊂ d4) is read from the stored coefficients, as the full compression would
+            𝒯² = Fourier(1, 1.0) ⊗ Fourier(1, 1.0)
+            ex = SymmetricSpace(𝒯², Group(GroupElement(LatticeAut([-1 0 ; 0 1]), Cocycle(0//1, Rational{Int}[0//1, 0//1]))))
+            Ad4 = LinearOperator(d4sym(𝒯²), d4sym(𝒯²), [1.0 2.0 3.0 ; 4.0 5.0 6.0 ; 7.0 8.0 9.0])
+            Afull = project(Ad4, 𝒯², 𝒯²)
+            @test project(Ad4, ex, ex) ≈ project(Afull, ex, ex)
+            @test project(Ad4, 𝒯², ex) ≈ project(Afull, 𝒯², ex) && project(Ad4, ex, 𝒯²) ≈ project(Afull, ex, 𝒯²)
+        end
+
+        @testset "SymmetricSpace: identity and diagonal operators across symmetries" begin
+            ℱ = Fourier(1, 1.0)
+            es, os = evensym(ℱ), oddsym(ℱ)
+            ts = SymmetricSpace(ℱ, symmetry(ℱ)) # trivial group: the same sequences as ℱ, read through the symmetric machinery
+            U = UniformScalingOperator(1.0)
+            Iℱ = project(U, ℱ, ℱ)
+            # the identity between different symmetries is the orthogonal projection, however it is materialized
+            @test coefficients(project(U, ℱ, es)) == coefficients(project(Iℱ, ℱ, es)) == [0.0 1.0 0.0 ; 0.5 0.0 0.5]
+            @test coefficients(project(U, ts, os)) == coefficients(project(Iℱ, ℱ, os)) == [-0.5 0.0 0.5]
+            A = LinearOperator(ℱ, es, zeros(2, 3))
+            @test coefficients(one(A)) == coefficients(project(A + I, ℱ, es)) == [0.0 1.0 0.0 ; 0.5 0.0 0.5]
+            # a diagonal operator maps a space to itself: across symmetries it is materialized first, then compressed
+            struct _LatticeDiag <: RadiiPolynomial.AbstractDiagonalOperator end
+            RadiiPolynomial.getcoefficient(::_LatticeDiag, (codom, i)::Tuple{VectorSpace,Any}, (dom, j)::Tuple{VectorSpace,Any}, ::Type{T}) where {T} =
+                ifelse(i == j, convert(T, 2), zero(T))
+            D = _LatticeDiag()
+            @test_throws ArgumentError project(D, ℱ, es, Float64)
+            @test coefficients(project(project(D, ℱ, ℱ, Float64), ℱ, es)) == [0.0 2.0 0.0 ; 1.0 0.0 1.0]
+            # the composition of projections is the projection onto the intersection
+            @test (Projection(es) * Projection(ℱ)).space == (Projection(ℱ) ∘ Projection(es)).space == es
         end
 
         @testset "ScalarSpace <-> SequenceSpace isomorphism" begin

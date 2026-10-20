@@ -249,29 +249,47 @@ getcoefficient(a::Sequence, (s, α)::Tuple{VectorSpace,Any}) =
     _getcoefficient(a, α)
 
 function getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{SymmetricSpace,Any})
-    symmetry(space(a)) == symmetry(s) || return throw(DomainError((symmetry(space(a)), symmetry(s)), "symmetries must be equal"))
-    return _getcoefficient(a, α)
+    symmetry(space(a)) == symmetry(s) && return _getcoefficient(a, α)
+    issubset(symmetry(s), symmetry(space(a))) && return _desym_getcoefficient(a, α)
+    return _sym_getcoefficient(a, s, α)
 end
+getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{NoSymSpace,Any}) =
+    _desym_getcoefficient(a, α)
+getcoefficient(a::Sequence{<:NoSymSpace}, (s, α)::Tuple{SymmetricSpace,Any}) =
+    _sym_getcoefficient(a, s, α)
 
 function _getcoefficient(a::Sequence, α)
     _checkbounds_indices(α, space(a)) || return zero(eltype(a))
     return @inbounds a[α]
 end
 
-getcoefficient(a::Sequence{<:SymmetricSpace}, (s, α)::Tuple{NoSymSpace,Any}) = _desym_getcoefficient(a, α)
-
 function _desym_getcoefficient(a::Sequence{<:SymmetricSpace}, α)
     CoefType = complex(eltype(a))
     _checkbounds_indices(α, desymmetrize(space(a))) || return zero(CoefType)
-    q, factor = _unsafe_rep_pos_cocycle(space(a), α)
+    q, θ = _unsafe_rep_pos_cocycle(space(a), α)
     q == 0 && return zero(CoefType)
-    return @inbounds convert(CoefType, factor * coefficients(a)[q])
+    return @inbounds convert(CoefType, _cispi(CoefType, θ) * coefficients(a)[q])
+end
+
+# coefficient of `Projection(s) * a`, at the representative `α`
+function _sym_getcoefficient(a::Sequence, s::SymmetricSpace, α)
+    ds = desymmetrize(s)
+    G = elements(symmetry(s))
+    _, θ_α = _unsafe_rep_pos_cocycle(s, α)
+    t_α = getcoefficient(a, (ds, α)) * conj(_cispi(eltype(a), θ_α)) # a_α read on the full lattice
+    δ = zero(t_α)
+    for h ∈ G # orbit of α, each point reached |Stab(α)| times
+        k = h.lattice_aut(α)
+        _, θ_k = _unsafe_rep_pos_cocycle(s, k)
+        δ += getcoefficient(a, (ds, k)) * conj(_cispi(eltype(a), θ_k)) - t_α # zero when `a` already has the symmetry
+    end
+    return t_α + δ / exact(length(G)) # average over the orbit
 end
 
 # position `q` in the storage of the representative of `k` (0 if the orbit of `k` is invalid or its
-# representative lies outside the truncation) and the cocycle factor with `a_k = factor * coefficients(a)[q]`
+# representative lies outside the truncation) and the angle `θ` (in units of π) with `a_k = e^{iπθ} coefficients(a)[q]`
 # `k` is assumed to be an index of `desymmetrize(s)` (no bounds check)
-_unsafe_rep_pos_cocycle(s::NoSymSpace, k) = (_checkbounds_indices(k, s) ? _findposition(k, s) : 0), exact(true)
+_unsafe_rep_pos_cocycle(s::VectorSpace, k) = (_checkbounds_indices(k, s) ? _findposition(k, s) : 0), 0//1
 _unsafe_rep_pos_cocycle(s::SymmetricSpace, k) = @inbounds s.rep_pos_cocycle[_findposition(k, desymmetrize(s))]
 
 #

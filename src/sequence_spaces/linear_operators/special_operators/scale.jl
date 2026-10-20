@@ -120,7 +120,7 @@ function domain(𝒮::Scale, s::SymmetricSpace{<:Fourier})
 end
 
 function _groupelem_invscale(𝒮::Scale, g::GroupElement, ::Fourier)
-    new_va = Cocycle(g.cocycle.amplitude,
+    new_va = Cocycle(g.cocycle.angle,
                      g.cocycle.phase * value(𝒮))
     return GroupElement(g.lattice_aut, new_va)
 end
@@ -134,7 +134,7 @@ function codomain(𝒮::Scale, s::SymmetricSpace{<:Fourier})
 end
 
 function _groupelem_scale(𝒮::Scale, g::GroupElement, ::Fourier)
-    new_va = Cocycle(g.cocycle.amplitude,
+    new_va = Cocycle(g.cocycle.angle,
                      g.cocycle.phase / value(𝒮))
     return GroupElement(g.lattice_aut, new_va)
 end

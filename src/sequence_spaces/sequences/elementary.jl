@@ -356,10 +356,10 @@ function _check_branch_cut_poles(nl::Nonlinearity, a::Sequence, ν::Tuple, image
     return true
 end
 
-_sweep_segment(nl::Nonlinearity, a::Sequence, r::Tuple{Vararg{Interval}}, image_radius, sz) =
+_sweep_segment(nl::Nonlinearity, a::Sequence, r::Tuple{Interval,Vararg{Interval}}, image_radius, sz) =
     __check_branch_cut_poles(nl, a, r, image_radius, sz)
 
-function _sweep_segment(nl::Nonlinearity, a::Sequence, r::Tuple{Vararg{Tuple}}, image_radius, sz)
+function _sweep_segment(nl::Nonlinearity, a::Sequence, r::Tuple{Tuple,Vararg{Tuple}}, image_radius, sz)
     # for float, given the multi-dim segment [r₁, r₂], the FFT only runs at r₂
     # to compensate the neighborhood of the image that must keep clear of the
     # exclusion sets is inflated by the largest drift the image can undergo

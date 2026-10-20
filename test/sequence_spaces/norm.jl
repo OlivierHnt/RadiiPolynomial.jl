@@ -235,7 +235,7 @@ Base.:(==)(::_OddWeight, ::_OddWeight) = true
         @testset "weight not constant on the orbits" begin
             # swapping the indices of `Taylor` and `Chebyshev`: the identity weight doubles the nonzero
             # Chebyshev indices only
-            swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(1, Rational{Int}[0//1, 0//1])))
+            swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1])))
             s = SymmetricSpace(Taylor(2) ⊗ Chebyshev(2), swap)
             @test !RadiiPolynomial._isinvariant((IdentityWeight(), IdentityWeight()), s)
             a = Sequence(s, [sin(k) for k ∈ 1:dimension(s)])

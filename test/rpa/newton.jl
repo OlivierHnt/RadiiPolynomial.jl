@@ -199,4 +199,23 @@
         RadiiPolynomial._sub_maybeinplace!(D3, Draw)
         @test coefficients(D3) == [9.0 18.0; 27.0 36.0]
     end
+
+    #= A map and a Jacobian returned on the plain Fourier space are compressed onto the symmetric space
+       of the unknown; the compression keeps the whole orbit of each coefficient, so a linear problem
+       converges in a single step. =#
+    @testset "newton: map and Jacobian returned on the desymmetrized space" begin
+        ℱ = Fourier(2, 1.0)
+        es = evensym(ℱ)
+        A = project(Multiplication(Sequence(ℱ, [0.0, 0.3, 1.0, 0.3, 0.0])), ℱ, ℱ)
+        x_exact = Sequence(es, [1.0, 0.5, 0.2])
+        b = A * x_exact
+        calls = Ref(0)
+        x, success = newton(zeros(es)) do u
+            calls[] += 1
+            return A * u - b, A
+        end
+        @test success == true
+        @test x ≈ x_exact atol=1e-12
+        @test calls[] == 2 # one Newton step, then the convergence check
+    end
 end

@@ -23,16 +23,15 @@ function mul!(c::Sequence, S::AbstractLinearOperator, a::Sequence, α::Number, �
     return c
 end
 
-function mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number)
+function mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     pdomA, psb  = _promote_space(domain(A), space(b))
     psc, pcodomA = _promote_space(space(c), codomain(A))
     _iscompatible(psc, pcodomA) & _iscompatible(psb, pdomA) || return throw(ArgumentError("spaces must be compatible"))
+    _same_symmetry(pdomA, psb) || return mul!(c, A, project(b, pdomA), α, β)
+    _same_symmetry(pcodomA, psc) || return mul!(c, project(A, pdomA, psc), b, α, β)
     _mul!(Sequence(psc, coefficients(c)), LinearOperator(pdomA, pcodomA, coefficients(A)), Sequence(psb, coefficients(b)), α, β)
     return c
 end
-
-_mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number) =
-    _mul!(c, A, project(b, domain(A)), α, β)
 
 
 
@@ -45,6 +44,7 @@ Base.:*(A::LinearOperator, b::AbstractSequence) = A * (Projection(domain(A)) * b
 function Base.:*(A::LinearOperator, b::Sequence)
     pdomA, psb = _promote_space(domain(A), space(b))
     _iscompatible(pdomA, psb) || return throw(ArgumentError("spaces must be compatible: A has domain $(domain(A)), b has space $(space(b))"))
+    _same_symmetry(pdomA, psb) || return A * project(b, pdomA)
     c = zeros(promote_type(eltype(A), eltype(b)), codomain(A))
     _mul!(c, LinearOperator(pdomA, codomain(A), coefficients(A)), Sequence(psb, coefficients(b)), exact(true), exact(false))
     return c
@@ -55,8 +55,8 @@ function Base.:*(A::LinearOperator, b::InfiniteSequence)
     return InfiniteSequence(A * sequence(b), X; total_error = opnorm(A, X) * total_error(b))
 end
 
-mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number) =
-    _mul!(c, A, b, α, β)
+mul!(c::Sequence, A::LinearOperator, b::AbstractSequence, α::Number, β::Number) =
+    mul!(c, A, project(b, domain(A)), α, β)
 
 function _mul!(c::Sequence, A::LinearOperator, b::Sequence, α::Number, β::Number)
     domain_A, codomain_A = domain(A), codomain(A)

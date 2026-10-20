@@ -29,15 +29,26 @@
             d4b = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
             @test codomain(+, d4a, d4b) == d4b
 
-            # mixing a SymmetricSpace with its own plain (non-symmetric) base space: intersecting
-            # the evensym group with the trivial group collapses to the trivial group, so the
-            # codomain is the trivial-symmetry wrapping of the underlying union, i.e. `Taylor(2)`
-            # with no restriction
+            # mixing a SymmetricSpace with a plain (non-symmetric) space: no symmetry survives, which
+            # is known from the types, so the codomain is the plain union
             r1 = codomain(+, evensym(Taylor(2)), Taylor(2))
             r2 = codomain(+, Taylor(2), evensym(Taylor(2)))
-            @test r1 isa SymmetricSpace
-            @test r1 == r2 == SymmetricSpace(Taylor(2))
-            @test indices(r1) == 0:2
+            @test r1 == r2 == Taylor(2)
+
+            # the symmetric term is read on that space; the terms of an even + odd sum are read on
+            # their trivially symmetric intersection
+            ae = Sequence(evensym(Taylor(2)), [1.0, 3.0]) # 1 + 3x²
+            b = Sequence(Taylor(2), [1.0, 2.0, 4.0])
+            @test coefficients(ae + b) == coefficients(b + ae) == [2.0, 2.0, 7.0]
+            ao = Sequence(oddsym(Taylor(2)), [5.0]) # 5x
+            @test coefficients(ae + ao) == [1.0, 5.0, 3.0]
+
+            # intervalized spaces keep the guarantee
+            si = interval(evensym(Fourier(1, 1.0)))
+            aei = Sequence(si, interval.([1.0, 3.0])) # a₀ = 1, a₁ = a₋₁ = 3
+            bi = Sequence(interval(Fourier(1, 1.0)), interval.([1.0, 2.0, 4.0]))
+            @test all(isguaranteed, coefficients(aei + bi))
+            @test all(in_interval.([4.0, 3.0, 7.0], coefficients(aei + bi)))
 
             # end-to-end: adding a genuinely restricted evensym sequence into a plain target
             # recovers the plain sum (odd-order coefficient of `a` is implicitly zero)

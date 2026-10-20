@@ -38,6 +38,18 @@
             A = LinearOperator(es, es, [1.0 2.0 ; 3.0 4.0])
             a = Sequence(es, [10.0, 20.0])
             @test A(a) == A * a == Sequence(es, [50.0, 110.0])
+
+            # a plain operator acting on a symmetric sequence desymmetrizes it, and conversely
+            ℱ = Fourier(1, 1.0)
+            B = LinearOperator(ℱ, ℱ, [1.0 2.0 3.0 ; 4.0 5.0 6.0 ; 7.0 8.0 9.0])
+            @test B * a == B * project(a, ℱ)
+            @test A * project(a, ℱ) == A * a
+            # and so does the in-place product, whatever the symmetry of the output space
+            @test mul!(zeros(ℱ), A, project(a, ℱ), 1.0, 0.0) ≈ project(A * a, ℱ)
+            @test mul!(zeros(es), B, a, 1.0, 0.0) ≈ project(B * project(a, ℱ), es)
+            # the trivial symmetry group is the symmetry of a plain space: no projection is needed
+            t = Sequence(SymmetricSpace(ℱ, symmetry(ℱ)), [10.0, 20.0, 30.0])
+            @test B * t ≈ B * Sequence(ℱ, [10.0, 20.0, 30.0])
         end
 
         @testset "ComplexF64 coefficients, real sequence" begin

@@ -200,14 +200,7 @@ Base.reverse!(A::LinearOperator; dims = :) = LinearOperator(domain(A), codomain(
 Base.zero(A::LinearOperator) = zeros(eltype(A), domain(A), codomain(A))
 Base.zero(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = zeros(eltype(R), _zero_space(T), _zero_space(S))
 
-function Base.one(A::LinearOperator)
-    CoefType = eltype(A)
-    C = zero(A)
-    @inbounds for α ∈ indices(domain(A) ∩ codomain(A))
-        C[α,α] = one(CoefType)
-    end
-    return C
-end
+Base.one(A::LinearOperator) = project(UniformScalingOperator(one(eltype(A))), domain(A), codomain(A), eltype(A))
 Base.one(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = ones(eltype(R), _zero_space(T), _zero_space(S))
 
 Base.float(A::LinearOperator) = LinearOperator(_float_space(domain(A)), _float_space(codomain(A)), float.(coefficients(A)))
@@ -300,8 +293,30 @@ getcoefficient(A::LinearOperator, (codom, α)::Tuple{VectorSpace,Any}, (dom, β)
     _getcoefficient(A, α, β)
 
 function getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any})
-    (symmetry(domain(A)) == symmetry(dom)) & (symmetry(codomain(A)) == symmetry(codom)) || return throw(DomainError(((symmetry(domain(A)), symmetry(dom)), (symmetry(codomain(A)), symmetry(codom))), "symmetries must be equal"))
-    return _getcoefficient(A, α, β)
+    (symmetry(codomain(A)) == symmetry(codom)) & (symmetry(domain(A)) == symmetry(dom)) && return _getcoefficient(A, α, β)
+    issubset(symmetry(codom), symmetry(codomain(A))) & issubset(symmetry(dom), symmetry(domain(A))) && return _desym_getcoefficient(A, α, β) * exact(_orbit_length(symmetry(dom), β))
+    return _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+end
+getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
+    _desym_getcoefficient(A, α, β)
+getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{VectorSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
+    _desym_getcoefficient(A, α, β)
+getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{VectorSpace,Any}) =
+    _desym_getcoefficient(A, α, β)
+getcoefficient(A::LinearOperator, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}) =
+    _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+getcoefficient(A::LinearOperator, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
+    _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+getcoefficient(A::LinearOperator, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}) =
+    _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+# one requested side carries a symmetry while the other one is read on the full lattice (needed to resolve method ambiguity)
+function getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any})
+    issubset(symmetry(codom), symmetry(codomain(A))) && return _desym_getcoefficient(A, α, β)
+    return _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+end
+function getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any})
+    issubset(symmetry(dom), symmetry(domain(A))) && return _desym_getcoefficient(A, α, β) * exact(_orbit_length(symmetry(dom), β))
+    return _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
 end
 
 function _getcoefficient(A::LinearOperator, α, β)
@@ -309,61 +324,43 @@ function _getcoefficient(A::LinearOperator, α, β)
     return A[α,β]
 end
 
-getcoefficient(A::LinearOperator{<:NoSymSpace,<:NoSymSpace}, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}) =
-    _sym_getcoefficient(A, dom, codom, α, β)
-
-function _sym_getcoefficient(A::LinearOperator, dom::SymmetricSpace, codom::SymmetricSpace, α, β)
-    v = zero(eltype(A))
-    G_dom = elements(symmetry(dom))
-    G_codom = elements(symmetry(codom))
-    for g ∈ G_dom
-        l = g.lattice_aut(β)
-        _checkbounds_indices(l, desymmetrize(dom)) || continue
-        _, factor_l = _unsafe_rep_pos_cocycle(dom, l)
-        for h ∈ G_codom
-            k = h.lattice_aut(α)
-            _checkbounds_indices(k, desymmetrize(codom)) || continue
-            _, factor_k = _unsafe_rep_pos_cocycle(codom, k)
-            v += factor_l * (A[k,l] / factor_k)
-        end
-    end
-    # each point of an orbit is reached |Stab| times and the sum is averaged over the orbit of α,
-    # hence the normalization |Stab(β)| |Stab(α)| |Orb(α)| = |Stab(β)| |G_codom|
-    return v / exact(_stabilizer_length(symmetry(dom), β) * length(G_codom))
-end
-
-getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
-    _desym_getcoefficient(A, α, β)
-
-function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:SymmetricSpace}, α, β)
+# `A` read on the full lattice, extended by zero outside the sequences carrying its symmetry: `A_{k,l} = e^{iπ(θ_k - θ_l)}
+# A_{rep k, rep l} / |Orb(l)|` (a side of `A` without symmetry is read as is). At the representatives of a requested
+# space carrying a weaker symmetry than `A` this is the compression, times the length of the orbit on the domain side.
+function _desym_getcoefficient(A::LinearOperator, α, β)
     CoefType = complex(eltype(A))
     _checkbounds_indices(α, desymmetrize(codomain(A))) & _checkbounds_indices(β, desymmetrize(domain(A))) || return zero(CoefType)
-    qα, factor_α = _unsafe_rep_pos_cocycle(codomain(A), α)
-    qβ, factor_β = _unsafe_rep_pos_cocycle(domain(A), β)
+    qα, θ_α = _unsafe_rep_pos_cocycle(codomain(A), α)
+    qβ, θ_β = _unsafe_rep_pos_cocycle(domain(A), β)
     (qα != 0) & (qβ != 0) || return zero(CoefType)
-    return @inbounds convert(CoefType, factor_α * (coefficients(A)[qα,qβ] / factor_β) / exact(_orbit_length(symmetry(domain(A)), β)))
+    return @inbounds convert(CoefType, _cispi(CoefType, θ_α) * conj(_cispi(CoefType, θ_β)) * coefficients(A)[qα,qβ] / exact(_orbit_length(domain(A), β)))
 end
+_orbit_length(::VectorSpace, k) = 1
+_orbit_length(s::SymmetricSpace, k) = _orbit_length(symmetry(s), k)
 
-getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{VectorSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any}) =
-    _desym_getcoefficient(A, α, β)
-
-function _desym_getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, α, β)
-    CoefType = complex(eltype(A))
-    _checkbounds_indices(α, codomain(A)) & _checkbounds_indices(β, desymmetrize(domain(A))) || return zero(CoefType)
-    qβ, factor_β = _unsafe_rep_pos_cocycle(domain(A), β)
-    qβ == 0 && return zero(CoefType)
-    return @inbounds convert(CoefType, (coefficients(A)[_findposition(α, codomain(A)),qβ] / factor_β) / exact(_orbit_length(symmetry(domain(A)), β)))
-end
-
-getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{VectorSpace,Any}) =
-    _desym_getcoefficient(A, α, β)
-
-function _desym_getcoefficient(A::LinearOperator{<:VectorSpace,<:SymmetricSpace}, α, β)
-    CoefType = complex(eltype(A))
-    _checkbounds_indices(α, desymmetrize(codomain(A))) & _checkbounds_indices(β, domain(A)) || return zero(CoefType)
-    qα, factor_α = _unsafe_rep_pos_cocycle(codomain(A), α)
-    qα == 0 && return zero(CoefType)
-    return @inbounds convert(CoefType, factor_α * coefficients(A)[qα,_findposition(β, domain(A))])
+# coefficient of `Projection(codom) * A * Projection(dom)`, at the representatives `α` and `β`
+function _sym_getcoefficient(A::AbstractLinearOperator, dom::VectorSpace, codom::VectorSpace, α, β, ::Type{T}) where {T}
+    ddom, dcodom = desymmetrize(dom), desymmetrize(codom)
+    G_dom, G_codom = elements(symmetry(dom)), elements(symmetry(codom))
+    _, θ_α = _unsafe_rep_pos_cocycle(codom, α)
+    function row(l) # column l of A projected onto `codom`, at the representative α
+        t_α = getcoefficient(A, (dcodom, α), (ddom, l), T) * conj(_cispi(T, θ_α))
+        δ = zero(t_α)
+        for h ∈ G_codom # orbit of α, each point reached |Stab(α)| times
+            k = h.lattice_aut(α)
+            _, θ_k = _unsafe_rep_pos_cocycle(codom, k)
+            δ += getcoefficient(A, (dcodom, k), (ddom, l), T) * conj(_cispi(T, θ_k)) - t_α # zero when `A` already has the symmetry
+        end
+        return t_α + δ / exact(length(G_codom)) # average over the orbit
+    end
+    u_β = row(β)
+    Δ = zero(u_β)
+    for g ∈ G_dom # orbit of β carrying x_l = e^{iπθ_l} x_β, each point reached |Stab(β)| times
+        l = g.lattice_aut(β)
+        _, θ_l = _unsafe_rep_pos_cocycle(dom, l)
+        Δ += _cispi(T, θ_l) * row(l) - u_β # zero when `A` already has the symmetry
+    end
+    return (exact(length(G_dom)) * u_β + Δ) / exact(_stabilizer_length(symmetry(dom), β)) # sum over the orbit
 end
 
 #
@@ -454,6 +451,9 @@ Base.eltype(::UniformScalingOperator{T}) where {T<:Number} = T
 Base.eltype(::Type{UniformScalingOperator{T}}) where {T<:Number} = T
 _coeftype(A::UniformScalingOperator, ::VectorSpace) = eltype(A)
 _coeftype(A::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
+
+getcoefficient(J::UniformScalingOperator, (codom, i)::Tuple{VectorSpace,Any}, (dom, j)::Tuple{VectorSpace,Any}, ::Type{T}) where {T} =
+    ifelse(i == j, convert(T, J.λ), zero(T))
 
 Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.λ))
 Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(zero(eltype(T)))

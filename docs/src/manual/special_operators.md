@@ -128,17 +128,20 @@ The shift operator [`Shift`](@ref) has a field `value::Union{Number,Tuple{Vararg
 !!! note
     Currently, only [`Fourier`](@ref) space allows values different than `0`.
 
+On a [`Fourier`](@ref) space, `Shift(τ)` shifts by ``\tau`` periods and multiplies the ``k``-th coefficient by ``e^{2i\pi\tau k}``.
+
 ```@repl special_operators
 a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5]) # cos(x)
-shift(a, π)
-𝒮 = Shift(π)
+shift(a, 1//2) # half a period
+𝒮 = Shift(1//2)
 𝒮 * a # 𝒮(a)
+codomain(Shift(1//3), evensym(Fourier(1, 1.0)))
 ```
 
 A finite dimensional truncation of [`Shift`](@ref) may be obtained via [`project`](@ref project(::Shift, ::VectorSpace, ::VectorSpace)) or [`project!`](@ref project!(::LinearOperator, ::Shift)):
 
 ```@repl special_operators
-project(Shift(π), Fourier(1, 1.0), codomain(Shift(π), Fourier(1, 1.0)), Complex{Float64})
+project(Shift(1//2), Fourier(1, 1.0), codomain(Shift(1//2), Fourier(1, 1.0)), Complex{Float64})
 ```
 
 ## API

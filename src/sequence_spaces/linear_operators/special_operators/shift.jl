@@ -3,6 +3,9 @@
 
 Generic shift operator.
 
+On a [`Fourier`](@ref) space, `Shift(τ)` shifts by ``\\tau`` periods and
+multiplies the ``k``-th coefficient by ``e^{2i\\pi\\tau k}``.
+
 Field:
 - `value :: T`
 
@@ -77,19 +80,20 @@ end
 
 # Fourier
 
+# the value is measured in periods: the factor at `k` is e^{2iπτk}, an exact root of unity for `Integer` and `Rational` values
+
 domain(::Shift, s::Fourier) = s
 
 codomain(::Shift, s::Fourier) = s
 
-_coeftype(::Shift{T}, s::Fourier, ::Type{S}) where {T,S} =
-    promote_type(typeof(cis(frequency(s)*zero(T))), S)
+_coeftype(::Shift{T}, ::Fourier, ::Type{S}) where {T,S} = promote_type(typeof(cispi(zero(T))), S)
 
 function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Fourier,Integer}, (dom, j)::Tuple{Fourier,Integer}, ::Type{T}) where {T}
     i == j || return zero(T)
-    τ = value(𝒮)
-    iszero(τ) && return one(T)
-    return convert(T, cis(frequency(dom) * τ * exact(i)))
+    return convert(T, _period_factor(T, value(𝒮), i))
 end
+_period_factor(::Type{T}, τ::Union{Integer,Rational}, k::Integer) where {T} = _cispi(T, Rational{Int}(mod(2τ * k, 2)))
+_period_factor(::Type{T}, τ::Number, k::Integer) where {T} = cispi(2τ * exact(k))
 
 # Chebyshev
 
@@ -107,6 +111,35 @@ function getcoefficient(𝒮::Shift, (codom, i)::Tuple{Chebyshev,Integer}, (dom,
         return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces"))
     end
 end
+
+# Symmetric space
+
+# the shift by `r` periods turns the symmetry a_k = α(k) a_{βk} into c_k = α(k) e^{2iπ⟨r, k - βk⟩} c_{βk},
+# which moves the phase of the cocycle by 2(I - βᵀ)r
+function domain(𝒮::Shift, s::SymmetricSpace{<:Union{Fourier,TensorSpace{<:Tuple{Vararg{Fourier}}}}})
+    r = _period_fraction(𝒮)
+    G = unsafe_group!(Set(_groupelem_shift(-r, g) for g ∈ elements(symmetry(s))))
+    return SymmetricSpace(domain(𝒮, desymmetrize(s)), G)
+end
+
+function codomain(𝒮::Shift, s::SymmetricSpace{<:Union{Fourier,TensorSpace{<:Tuple{Vararg{Fourier}}}}})
+    r = _period_fraction(𝒮)
+    G = unsafe_group!(Set(_groupelem_shift(r, g) for g ∈ elements(symmetry(s))))
+    return SymmetricSpace(codomain(𝒮, desymmetrize(s)), G)
+end
+
+_period_fraction(𝒮::Shift{<:Union{Integer,Rational}}) = StaticArrays.SVector(value(𝒮))
+_period_fraction(𝒮::Shift{<:Tuple{Vararg{Union{Integer,Rational}}}}) = StaticArrays.SVector(value(𝒮))
+_period_fraction(𝒮::Shift) = throw(DomainError(𝒮, "Shift value must be an Integer or Rational number of periods for symmetric Fourier spaces"))
+
+function _groupelem_shift(r::StaticArrays.SVector{N,<:Union{Integer,Rational}}, g::GroupElement{N}) where {N}
+    new_va = Cocycle(g.cocycle.angle,
+                     g.cocycle.phase + 2 * (r - g.lattice_aut.matrix' * r))
+    return GroupElement(g.lattice_aut, new_va)
+end
+
+_coeftype(𝒮::Shift, s::SymmetricSpace, ::Type{T}) where {T} =
+    _coeftype(𝒮, desymmetrize(s), T)
 
 
 
@@ -181,50 +214,26 @@ end
 
 function _apply!(c::Sequence{<:Fourier}, 𝒮::Shift, a)
     τ = value(𝒮)
-    if iszero(τ)
-        coefficients(c) .= coefficients(a)
-    else
-        @inbounds c[0] = a[0]
-        eiωτ = cis(frequency(a)*τ)
-        eiωτj = one(eiωτ)
-        @inbounds for j ∈ 1:order(a)
-            eiωτj *= eiωτ
-            c[j] = eiωτj * a[j]
-            c[-j] = a[-j] / eiωτj
-        end
+    @inbounds for k ∈ indices(space(a))
+        c[k] = _period_factor(eltype(c), τ, k) * a[k]
     end
     return c
 end
 
 function _apply!(C, 𝒮::Shift, space::Fourier, ::Val{D}, A) where {D}
     τ = value(𝒮)
-    if !iszero(τ)
-        ord = order(space)
-        eiωτ = cis(frequency(space)*τ)
-        eiωτj = one(eiωτ)
-        @inbounds for j ∈ 1:ord
-            eiωτj *= eiωτ
-            selectdim(C, D, ord+1+j) .*= eiωτj
-            selectdim(C, D, ord+1-j) ./= eiωτj
-        end
+    ord = order(space)
+    @inbounds for k ∈ -ord:ord
+        selectdim(C, D, ord+1+k) .*= _period_factor(eltype(C), τ, k)
     end
     return C
 end
 
 function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Fourier, A) where {T,N}
     τ = value(𝒮)
-    if iszero(τ)
-        C .= A
-    else
-        ord = order(space)
-        @inbounds selectdim(C, N, ord+1) .= selectdim(A, N, ord+1)
-        eiωτ = cis(frequency(space)*τ)
-        eiωτj = one(eiωτ)
-        @inbounds for j ∈ 1:ord
-            eiωτj *= eiωτ
-            selectdim(C, N, ord+1+j) .= eiωτj .* selectdim(A, N, ord+1+j)
-            selectdim(C, N, ord+1-j) .= selectdim(A, N, ord+1-j) ./ eiωτj
-        end
+    ord = order(space)
+    @inbounds for k ∈ -ord:ord
+        selectdim(C, N, ord+1+k) .= _period_factor(T, τ, k) .* selectdim(A, N, ord+1+k)
     end
     return C
 end

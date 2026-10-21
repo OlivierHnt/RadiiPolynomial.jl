@@ -381,6 +381,8 @@ function _findindex_constant(s::SymmetricSpace)
     _checkbounds_indices(k0, s) && return k0
     return nothing
 end
+# the symmetries keeping the constant coefficient
+_compatible_space_with_constant_index(s::SymmetricSpace) = SymmetricSpace(desymmetrize(s), _sym_with_cst_coef(symmetry(s)))
 
 function _findposition(k::Integer, s::SymmetricSpace{<:BaseSpace})
     # representative located by by arithmetic on the `StepRange`

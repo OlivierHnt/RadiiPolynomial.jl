@@ -150,6 +150,10 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test one(b) == Sequence(Taylor(2), [1.0, 0.0, 0.0])
         c = Sequence(Fourier(2, 1.0), [1.0, 2.0, 3.0, 4.0, 5.0])
         @test one(c) == Sequence(Fourier(2, 1.0), [0.0, 0.0, 1.0, 0.0, 0.0])
+        # on a symmetric space the constant keeps the symmetries fixing it: all of them for an even space, none for an odd one
+        @test one(Sequence(evensym(Fourier(2, 1.0)), ones(3))) == Sequence(evensym(Fourier(2, 1.0)), [1.0, 0.0, 0.0])
+        o = one(Sequence(oddsym(Fourier(2, 1.0)), ones(2)))
+        @test project(o, Fourier(2, 1.0)) == one(c) && length(elements(symmetry(space(o)))) == 1
         d = Sequence(𝒯 ⊗ ℱ, collect(1.0:6.0)) # constant mode is (0,0) -> position 3
         @test one(d) == Sequence(𝒯 ⊗ ℱ, [0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
         @test one(Sequence(3)) == Sequence(1)

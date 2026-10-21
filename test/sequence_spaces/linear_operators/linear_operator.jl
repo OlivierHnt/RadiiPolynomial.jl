@@ -240,6 +240,9 @@
         D = LinearOperator(Taylor(1), Taylor(0), [10.0 20.0])
         E = LinearOperator(Taylor(1), Taylor(0), [1.0 2.0])
         @test coefficients(complex(D, E)) == ComplexF64[10+1im 20+2im]
+        # the parts are paired on the sums of the spaces, not position by position
+        E₂ = LinearOperator(Taylor(2), Taylor(0), [1.0 2.0 3.0])
+        @test coefficients(complex(D, E₂)) == ComplexF64[10+1im 20+2im 3im]
     end
 
     @testset "transpose, adjoint" begin

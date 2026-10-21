@@ -195,7 +195,10 @@ for f ∈ (:complex, :real, :imag, :conj)
     @eval Base.$f(a::Sequence) = Sequence(space(a), $f.(coefficients(a)))
 end
 Base.conj!(a::Sequence) = Sequence(space(a), conj!(coefficients(a)))
-Base.complex(a::Sequence, b::Sequence) = Sequence(codomain(+, space(a), space(b)), complex.(coefficients(a), coefficients(b)))
+function Base.complex(a::Sequence, b::Sequence)
+    s = codomain(+, space(a), space(b))
+    return Sequence(s, complex.(coefficients(project(a, s)), coefficients(project(b, s))))
+end
 Base.complex(::Type{Sequence{T,S}}) where {T<:VectorSpace,S<:AbstractVector} = Sequence{T,Vector{complex(eltype(S))}}
 
 Base.permutedims(a::Sequence{<:TensorSpace}, σ::AbstractVector{<:Integer}) =

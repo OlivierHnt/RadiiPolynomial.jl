@@ -334,7 +334,7 @@ end
 
 function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
     full_c = sequence(a) * sequence(b)
-    space_c = space(a) ∪ space(b)
+    space_c = space(full_c) ∩ (desymmetrize(space(a)) ∪ desymmetrize(space(b)))
     c = project(full_c, space_c)
 
     @inbounds view(full_c, indices(space_c)) .= zero(eltype(full_c)) # keep the tail

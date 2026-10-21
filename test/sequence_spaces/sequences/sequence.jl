@@ -173,6 +173,11 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         re = Sequence(Taylor(1), [1, 3])
         im_ = Sequence(Taylor(1), [1.0, 2.0])
         @test complex(re, im_) == Sequence(Taylor(1), [1 + 1im, 3 + 2im])
+        # the parts are paired on the sum of the spaces, not position by position
+        @test complex(re, Sequence(Taylor(2), [1.0, 2.0, 3.0])) == Sequence(Taylor(2), [1 + 1im, 3 + 2im, 3im])
+        ℱ = Fourier(1, 1.0)
+        ce, co = Sequence(evensym(ℱ), [1.0, 2.0]), Sequence(oddsym(ℱ), [3.0])
+        @test project(complex(ce, co), ℱ) == complex(project(ce, ℱ), project(co, ℱ))
         @test complex(typeof(im_)) == Sequence{Taylor,Vector{ComplexF64}}
     end
 

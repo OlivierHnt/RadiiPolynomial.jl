@@ -489,6 +489,25 @@
         end
     end
 
+    @testset "InfiniteSequence: product of symmetric sequences" begin
+        # the finite part carries the symmetry of the product, truncated like the factors: odd times odd is even
+        F = Fourier(4, 1.0)
+        X = Ell1(GeometricWeight(interval(11) / interval(10)))
+        ao = InfiniteSequence(interval(Sequence(oddsym(F), [0.5, 0.3, 0.2, 0.1])), X; total_error = interval(1e-6))
+        ap = InfiniteSequence(project(sequence(ao), interval(F)), X; total_error = interval(1e-6))
+        co, cp = ao * ao, ap * ap
+        @test space(co) == evensym(interval(F))
+        @test all(k -> mid(real(project(sequence(co), interval(F))[k])) ≈ mid(sequence(cp)[k]), -4:4)
+        @test mid(total_error(co)) ≈ mid(total_error(cp))
+        # factors with different symmetries whose product is representable on neither
+        σ = GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[0//1]))
+        s⁺ = SymmetricSpace(F, Group(σ, GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[1//1])))) # even modes
+        s⁻ = SymmetricSpace(F, Group(σ, GroupElement(LatticeAut([1;;]), Cocycle(1//1, Rational{Int}[1//1])))) # odd modes
+        a = InfiniteSequence(interval(Sequence(s⁺, [1.0, 0.5, 0.2])), X; total_error = interval(1e-6))
+        b = InfiniteSequence(interval(Sequence(s⁻, [0.4, 0.1])), X; total_error = interval(1e-6))
+        @test collect(indices(space(a * b))) == [1, 3]
+    end
+
     @testset "InfiniteSequence: power-by-squaring (^) for n ≥ 3" begin
         # a = 1 + 2x (Taylor(1)) with finite_error=0, tail_error=total_error=0.5 in Ell1();
         # all coefficients/errors are exact binary fractions, so every association of the

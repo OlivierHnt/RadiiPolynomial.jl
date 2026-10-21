@@ -211,8 +211,10 @@ for f ∈ (:complex, :real, :imag, :conj)
     @eval Base.$f(A::LinearOperator) = LinearOperator(domain(A), codomain(A), $f.(coefficients(A)))
 end
 Base.conj!(A::LinearOperator) = LinearOperator(domain(A), codomain(A), conj!(coefficients(A)))
-Base.complex(A::LinearOperator, B::LinearOperator) =
-    LinearOperator(codomain(+, domain(A), domain(B)), codomain(+, codomain(A), codomain(B)), complex.(coefficients(A), coefficients(B)))
+function Base.complex(A::LinearOperator, B::LinearOperator)
+    dom, codom = codomain(+, domain(A), domain(B)), codomain(+, codomain(A), codomain(B))
+    return LinearOperator(dom, codom, complex.(coefficients(project(A, dom, codom)), coefficients(project(B, dom, codom))))
+end
 Base.complex(::Type{LinearOperator{T,S,R}}) where {T<:VectorSpace,S<:VectorSpace,R<:AbstractMatrix} = LinearOperator{T,S,Matrix{complex(eltype(R))}}
 
 #

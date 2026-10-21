@@ -309,6 +309,15 @@ getcoefficient(A::LinearOperator, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, 
     _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
 getcoefficient(A::LinearOperator, (codom, α)::Tuple{NoSymSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any}) =
     _sym_getcoefficient(A, dom, codom, α, β, eltype(A))
+# a scalar side is read as the zero space of the other side (cf. `_promote_space`)
+function getcoefficient(A::LinearOperator, (codom, α)::Tuple{ScalarSpace,Any}, (dom, β)::Tuple{SymmetricSpace,Any})
+    s₀ = _zero_space(desymmetrize(dom))
+    return getcoefficient(LinearOperator(domain(A), s₀, coefficients(A)), (s₀, _findindex_constant(s₀)), (dom, β))
+end
+function getcoefficient(A::LinearOperator, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{ScalarSpace,Any})
+    s₀ = _zero_space(desymmetrize(codom))
+    return getcoefficient(LinearOperator(s₀, codomain(A), coefficients(A)), (codom, α), (s₀, _findindex_constant(s₀)))
+end
 # one requested side carries a symmetry while the other one is read on the full lattice (needed to resolve method ambiguity)
 function getcoefficient(A::LinearOperator{<:SymmetricSpace,<:VectorSpace}, (codom, α)::Tuple{SymmetricSpace,Any}, (dom, β)::Tuple{NoSymSpace,Any})
     issubset(symmetry(codom), symmetry(codomain(A))) && return _desym_getcoefficient(A, α, β)

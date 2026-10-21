@@ -166,6 +166,12 @@
             Afull = project(Ad4, 𝒯², 𝒯²)
             @test project(Ad4, ex, ex) ≈ project(Afull, ex, ex)
             @test project(Ad4, 𝒯², ex) ≈ project(Afull, 𝒯², ex) && project(Ad4, ex, 𝒯²) ≈ project(Afull, ex, 𝒯²)
+            # a scalar side is read as the zero space of the other side: a functional sums the orbits of its domain
+            # and a column averages the orbits of its codomain, like any operator
+            a = Sequence(ℱ, [0.1, -0.2, 1.0, 0.4, 0.3])
+            @test (project(adjoint(a), es, ScalarSpace()) * xe)[1] ≈ (adjoint(a) * project(xe, ℱ))[1]
+            @test project(LinearOperator(a), ScalarSpace(), es) == LinearOperator(project(a, es))
+            @test (project(adjoint(xe) * Multiplication(a), es, ScalarSpace()) * xe)[1] ≈ (adjoint(xe) * (a * project(xe, ℱ)))[1]
         end
 
         @testset "SymmetricSpace: identity and diagonal operators across symmetries" begin

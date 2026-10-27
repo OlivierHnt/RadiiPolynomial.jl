@@ -383,15 +383,27 @@ function _conjugacy_symmetry!(a::Sequence{ScalarSpace})
     return a
 end
 
+# a sequence represents a real-valued function when its Taylor and Chebyshev coefficients are real and
+# its Fourier coefficients satisfy a_{-k} = conj(a_k): the projection averages `a` with its conjugate
+# reflected along the Fourier axes
+
+function _conjugacy_symmetry!(a::Sequence{<:Union{Taylor,Chebyshev}})
+    A = coefficients(a)
+    A .= real.(A)
+    return a
+end
+
 function _conjugacy_symmetry!(a::Sequence{<:Fourier})
     A = coefficients(a)
     A .= (A .+ conj.(reverse(A))) ./ 2
     return a
 end
 
-function _conjugacy_symmetry!(a::Sequence{<:TensorSpace{<:Tuple{Vararg{Fourier}}}})
-    A = _no_alloc_reshape(coefficients(a), dimensions(space(a)))
-    A .= (A .+ conj.(reverse(A))) ./ 2
+function _conjugacy_symmetry!(a::Sequence{<:TensorSpace{<:NTuple{N,BaseSpace}}}) where {N}
+    s = space(a)
+    dims = filter(l -> s[l] isa Fourier, ntuple(identity, Val(N)))
+    A = _no_alloc_reshape(coefficients(a), dimensions(s))
+    A .= (A .+ conj.(reverse(A; dims = dims))) ./ 2
     return a
 end
 

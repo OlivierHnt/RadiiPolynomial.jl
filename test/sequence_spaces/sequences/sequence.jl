@@ -242,9 +242,25 @@ Base.getindex(a::_OffsetVector, i::Int) = a.v[i-1]
         @test coefficients(conjugacy_symmetry!(copy(dprod))) == ComplexF64[3, 3, 3, 3, 3]
 
         # only scalar, Fourier and cartesian spaces carry a conjugacy symmetry
-        @test_throws DomainError conjugacy_symmetry!(Sequence(Taylor(2), [1.0, 2.0, 3.0]))
-        @test_throws DomainError conjugacy_symmetry!(Sequence(Chebyshev(2), [1.0, 2.0, 3.0]))
-        @test_throws DomainError conjugacy_symmetry!(Sequence(Taylor(1) ⊗ Chebyshev(1), [1.0, 2.0, 3.0, 4.0]))
+        # Taylor and Chebyshev coefficients of a real-valued function are real
+        @test coefficients(conjugacy_symmetry!(Sequence(Taylor(2), ComplexF64[1+im, 2-im, 3im]))) == ComplexF64[1, 2, 0]
+        @test coefficients(conjugacy_symmetry!(Sequence(Chebyshev(2), ComplexF64[1+im, 2-im, 3im]))) == ComplexF64[1, 2, 0]
+        @test coefficients(conjugacy_symmetry!(Sequence(Taylor(1) ⊗ Chebyshev(1), ComplexF64[1+im, 2, 3-2im, 4im]))) == ComplexF64[1, 2, 3, 0]
+        @test conjugacy_symmetry!(Sequence(Taylor(2), [1.0, 2.0, 3.0])) == Sequence(Taylor(2), [1.0, 2.0, 3.0])
+
+        # mixed tensors are reflected along the Fourier axes only: a_{-k,j} = conj(a_{k,j})
+        m = Sequence(Fourier(1, 1.0) ⊗ Chebyshev(1), ComplexF64[1+im, 2, 3-im, 4, 5+2im, 6im])
+        ms = conjugacy_symmetry!(copy(m))
+        for j ∈ 0:1, k ∈ -1:1
+            @test ms[(-k, j)] == conj(ms[(k, j)])
+            @test ms[(k, j)] == (m[(k, j)] + conj(m[(-k, j)])) / 2
+        end
+        @test conjugacy_symmetry!(copy(ms)) == ms # a projection
+        @test abs(imag(ms(0.3, 0.7))) < 1e-14 # real-valued at real arguments
+        t3 = Sequence(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Fourier(1, 2.0), ComplexF64[cispi(0.1n) * n for n ∈ 1:18])
+        t3s = conjugacy_symmetry!(copy(t3))
+        @test all(t3s[(-k, j, -l)] == conj(t3s[(k, j, l)]) for k ∈ -1:1, j ∈ 0:1, l ∈ -1:1)
+        @test all(t3s[(k, j, l)] == (t3[(k, j, l)] + conj(t3[(-k, j, -l)])) / 2 for k ∈ -1:1, j ∈ 0:1, l ∈ -1:1)
     end
 
     @testset "geometricweight, algebraicweight" begin

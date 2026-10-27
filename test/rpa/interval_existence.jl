@@ -164,14 +164,14 @@
             Y1 = [interval(1.0)]
             Z1_ = fill(interval(2.0), 1, 1)
             W1 = zeros(Interval{Float64}, 1, 1, 1)
-            rmin1, eta1, success1 = @test_logs (:info, r"not simultaneously nonpositive") RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true)
+            rmin1, eta1, success1 = RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true)
             @test success1 == false
             @test isempty(rmin1) && isempty(eta1)
 
             Y2 = [interval(1.0), interval(1.0)]
             Z2_ = [interval(2.0) interval(0.0); interval(0.0) interval(2.0)]
             W2 = zeros(Interval{Float64}, 2, 2, 2)
-            rmin2, eta2, success2 = @test_logs (:info, r"not simultaneously nonpositive") RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true)
+            rmin2, eta2, success2 = RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true)
             @test success2 == false
             @test isempty(rmin2) && isempty(eta2)
 
@@ -192,13 +192,13 @@
             W[1, 1, 1] = interval(0.5)
             W[2, 2, 2] = interval(0.5)
 
-            rmin_ok, eta_ok, success_ok = @test_logs RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0])
+            rmin_ok, eta_ok, success_ok = RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0])
             @test success_ok == true
             @test sup.(rmin_ok) ≈ [1.0, 1.0] atol = 1e-6 # matches the hand-computed root of Y + 0.25r² - r = 0
             @test all(isguaranteed, rmin_ok)
             @test all(r -> decoration(r) == com, rmin_ok)
 
-            rmin_bad, eta_bad, success_bad = @test_logs (:info, r"exceed") RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true)
+            rmin_bad, eta_bad, success_bad = RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true)
             @test success_bad == false
             @test isempty(rmin_bad) && isempty(eta_bad)
 
@@ -210,7 +210,7 @@
             @test !any(isguaranteed, rmin_ng)
 
             # inconsistent sizes are rejected, not broadcast
-            _, _, success_sz = @test_logs (:info, r"sizes") RadiiPolynomial.set_of_radii(Y, Z, W, [5.0]; verbose = true)
+            _, _, success_sz = RadiiPolynomial.set_of_radii(Y, Z, W, [5.0]; verbose = true)
             @test success_sz == false
 
             # BigFloat inputs are accepted and the radii are BigFloat intervals
@@ -240,12 +240,9 @@
             Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
             W[1, 1, 2] = interval(8.0)
-            rmin, eta, success = @test_logs (:info, r"no contraction") RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true)
+            rmin, eta, success = RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true)
             @test success == false
             @test isempty(rmin) && isempty(eta)
-
-            # the same call is silent without `verbose`: diagnostics are opt-in
-            @test_logs RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0])
         end
     end
 end

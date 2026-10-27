@@ -98,7 +98,7 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
     Pf = r -> Yf .+ Zf * r .+ Bf(r) * r ./ 2 .- r
     DPf = r -> Zf .+ (Bf(r) .+ Bfᵀ(r)) ./ 2 .- LinearAlgebra.I(M)
 
-    r = _search_radii(Pf, DPf, max.(Yf, floatmin(Float64)), r -> all(p -> precedes(p, zero(p)), P(r)))
+    r = _search_radii(Pf, DPf, max.(Yf, floatmin(Float64)), r -> all(p -> !isempty_interval(p) & precedes(p, zero(p)), P(r)))
     isnothing(r) && return _rpa_failure("radii polynomials not simultaneously nonpositive", T, verbose)
 
     η = _perron_vector(A(r))
@@ -132,7 +132,7 @@ function _search_radii(Pf, DPf, r₀, nonpositive)
 
     for n ∈ -52:150
         r = r₀ .* (1 .+ d .* 2.0^n)
-        all(>(0), r) || return nothing
+        all(rᵢ -> isfinite(rᵢ) & (rᵢ > 0), r) || return nothing # an infinite radius would make the interval evaluations empty, and the checks vacuous
         nonpositive(r) && return r
     end
     return nothing

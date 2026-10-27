@@ -154,5 +154,28 @@
         @test domain(Shift(r), space(cb)) == sd
         @test project(cb, s2) ≈ shift(project(b, s2), r)
         @test project(Shift(r), sd, space(cb), ComplexF64)(b) ≈ cb
+
+        # mixed tensor: a Taylor or Chebyshev axis admits only the zero shift and keeps its symmetry
+        for sC ∈ (evensym(Chebyshev(2)), oddsym(Taylor(3)))
+            m = evensym(F) ⊗ sC
+            rm = (1//3, 0)
+            cm = Shift(rm) * Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)])
+            @test space(cm) == s3 ⊗ sC
+            @test domain(Shift(rm), space(cm)) == m
+            @test project(cm, desymmetrize(m)) ≈ shift(project(Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)]), desymmetrize(m)), rm)
+            @test_throws DomainError codomain(Shift((1//3, 1)), m)
+            @test_throws DomainError codomain(Shift((1//3, 1//2)), m)
+            @test_throws DomainError codomain(Shift((0.5, 0)), m)
+        end
+        @test codomain(Shift(0), evensym(Chebyshev(2))) == evensym(Chebyshev(2))
+        @test_throws DomainError codomain(Shift(1), evensym(Chebyshev(2)))
+
+        # an exact or a thin rational interval number of periods is as good as a rational one
+        @test codomain(Shift(exact(1//3)), sE) == codomain(Shift(interval(1//3)), sE) == s3
+        @test codomain(Shift(exact(1)), sE) == codomain(Shift(interval(1//1)), sE) == sE
+        @test codomain(Shift((exact(1//4), exact(1//4))), sd) == space(cb)
+        @test all(in_interval.(coefficients(shift(project(a, F), 1//3)), coefficients(project(Shift(interval(1//3)) * interval(a), F))))
+        @test_throws DomainError codomain(Shift(interval(1//3, 1//2)), sE) # a set of shifts has no single group
+        @test_throws DomainError codomain(Shift(interval(1.0) / 3), sE) # floating point endpoints are not exact thirds
     end
 end

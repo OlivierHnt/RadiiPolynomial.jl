@@ -115,22 +115,31 @@ end
 # Symmetric space
 
 # the shift by `r` periods turns the symmetry a_k = α(k) a_{βk} into c_k = α(k) e^{2iπ⟨r, k - βk⟩} c_{βk},
-# which moves the phase of the cocycle by 2(I - βᵀ)r
-function domain(𝒮::Shift, s::SymmetricSpace{<:Union{Fourier,TensorSpace{<:Tuple{Vararg{Fourier}}}}})
-    r = _period_fraction(𝒮)
+# which moves the phase of the cocycle by 2(I - βᵀ)r; a Taylor or Chebyshev axis only admits the zero
+# shift, so it contributes nothing to `r`
+function domain(𝒮::Shift, s::SymmetricSpace)
+    r = _period_fraction(𝒮, desymmetrize(s))
     G = unsafe_group!(Set(_groupelem_shift(-r, g) for g ∈ elements(symmetry(s))))
     return SymmetricSpace(domain(𝒮, desymmetrize(s)), G)
 end
 
-function codomain(𝒮::Shift, s::SymmetricSpace{<:Union{Fourier,TensorSpace{<:Tuple{Vararg{Fourier}}}}})
-    r = _period_fraction(𝒮)
+function codomain(𝒮::Shift, s::SymmetricSpace)
+    r = _period_fraction(𝒮, desymmetrize(s))
     G = unsafe_group!(Set(_groupelem_shift(r, g) for g ∈ elements(symmetry(s))))
     return SymmetricSpace(codomain(𝒮, desymmetrize(s)), G)
 end
 
-_period_fraction(𝒮::Shift{<:Union{Integer,Rational}}) = StaticArrays.SVector(value(𝒮))
-_period_fraction(𝒮::Shift{<:Tuple{Vararg{Union{Integer,Rational}}}}) = StaticArrays.SVector(value(𝒮))
-_period_fraction(𝒮::Shift) = throw(DomainError(𝒮, "Shift value must be an Integer or Rational number of periods for symmetric Fourier spaces"))
+_period_fraction(𝒮::Shift{<:Number}, s::BaseSpace) = StaticArrays.SVector(_period_fraction(value(𝒮), s))
+_period_fraction(𝒮::Shift{<:NTuple{N,Number}}, s::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} =
+    StaticArrays.SVector(map(_period_fraction, value(𝒮), spaces(s)))
+
+_period_fraction(τ::Union{Integer,Rational}, ::Fourier) = τ
+_period_fraction(τ::ExactReal{<:Union{Integer,Rational}}, ::Fourier) = τ.value
+_period_fraction(τ::Interval{<:Rational}, ::Fourier) =
+    isthin(τ) ? sup(τ) : throw(DomainError(τ, "Shift value must be a single number of periods for symmetric Fourier spaces"))
+_period_fraction(τ::Number, ::Fourier) = throw(DomainError(τ, "Shift value must be an Integer or Rational number of periods for symmetric Fourier spaces"))
+_period_fraction(τ::Number, s::Union{Taylor,Chebyshev}) =
+    _safe_iszero(τ) ? zero(Rational{Int}) : throw(DomainError(τ, "Shift is only defined for τ = 0 for $(nameof(typeof(s))) spaces"))
 
 function _groupelem_shift(r::StaticArrays.SVector{N,<:Union{Integer,Rational}}, g::GroupElement{N}) where {N}
     new_va = Cocycle(g.cocycle.angle,

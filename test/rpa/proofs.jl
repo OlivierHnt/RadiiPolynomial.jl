@@ -173,7 +173,8 @@
             R = [10.0, 10.0]
             rmin, η, success = RadiiPolynomial.set_of_radii(Y, Z, W, R)
             @test success
-            @test rmin ≈ [0.01 / (1 - 0.1), 0.02 / (1 - 0.2)] atol = 1e-6
+            @test sup.(rmin) ≈ [0.01 / (1 - 0.1), 0.02 / (1 - 0.2)] atol = 1e-6
+            @test all(isguaranteed, rmin)
 
             # an invalid threshold R yields empty outputs and failure
             rmin2, η2, success2 = RadiiPolynomial.set_of_radii(Y, Z, W, [-1.0, 10.0])
@@ -195,7 +196,7 @@
             rmin1, eta1, success1 = RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [10.0])
             @test success1 == true
             @test eta1 == [1.0]
-            @test rmin1[1] ≈ 0.011124862507311817 atol = 1e-12
+            @test sup(rmin1[1]) ≈ 0.011124862507311817 atol = 1e-12
 
             # same Y, Z, W, but R = 0.005 < r₁ ≈ 0.01112: the found radius is genuinely a root and
             # contracts, yet is overturned by the R check, giving a graceful failure (not a crash)

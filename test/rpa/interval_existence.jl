@@ -157,104 +157,95 @@
         @test !(sup(Z2 * nextfloat(sup(iv))) < inf(one(Z1) - Z1)) # and the endpoint is the largest such double
     end
 
-    #= The local helper below captures stdout, which both silences the diagnostic printing
-       and lets each test assert that the expected diagnostic was actually emitted. =#
-    @testset "set_of_radii (M-dimensional): uncovered branches" begin
-        function capture_stdout(f)
-            old = stdout
-            rd, wr = redirect_stdout()
-            out = f()
-            redirect_stdout(old)
-            close(wr)
-            return read(rd, String), out
-        end
-
-        #= a diagonal Z with an entry ≥ 1 makes the decoupled fixed-point equation
-           Yₘ + (Zₘₘ-1)rₘ = 0 solve to a NEGATIVE rₘ = Yₘ/(1-Zₘₘ) (hand: 1/(1-2) = -1 < 0), so
-           Newton's iterate r0 is never all-positive. This triggers the (non-fatal) "no good set
-           of radii found for inclusion" diagnostic, and since r0 is not componentwise nonnegative
-           the radii-search loop is skipped entirely (partialsuccess stays false), so the final
-           "radii polynomial(s) not negative (simultaneously)" failure path is taken. =#
-        @testset "Newton failure and the M==1 / M>1 \"not negative (simultaneously)\" paths" begin
-            # M == 1 gives the singular wording "radii polynomial not negative"; since the
-            # search never even starts, the contraction check is never reached
+    @testset "set_of_radii (M-dimensional)" begin
+        #= a diagonal Z with an entry ≥ 1 makes P₁(r) = Y₁ + (Z₁₁ - 1) r₁ = Y₁ + r₁ > 0 for every
+           r₁ ≥ 0, so no set of radii can make the radii polynomials simultaneously nonpositive =#
+        @testset "radii polynomials never nonpositive" begin
             Y1 = [interval(1.0)]
             Z1_ = fill(interval(2.0), 1, 1)
             W1 = zeros(Interval{Float64}, 1, 1, 1)
-            msg1, (rmin1, eta1, success1) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true))
-            @test occursin("no good set of radii found for inclusion", msg1)
-            @test occursin("radii polynomial not negative", msg1)
-            @test !occursin("simultaneously", msg1) # confirms the M==1 (singular) branch, not M>1
+            rmin1, eta1, success1 = @test_logs (:info, r"not simultaneously nonpositive") RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true)
             @test success1 == false
             @test isempty(rmin1) && isempty(eta1)
 
-            # M == 2 (decoupled): exercises "radii polynomials not negative simultaneously"
             Y2 = [interval(1.0), interval(1.0)]
             Z2_ = [interval(2.0) interval(0.0); interval(0.0) interval(2.0)]
             W2 = zeros(Interval{Float64}, 2, 2, 2)
-            msg2, (rmin2, eta2, success2) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true))
-            @test occursin("no good set of radii found for inclusion", msg2)
-            @test occursin("radii polynomials not negative simultaneously", msg2)
+            rmin2, eta2, success2 = @test_logs (:info, r"not simultaneously nonpositive") RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true)
             @test success2 == false
             @test isempty(rmin2) && isempty(eta2)
+
+            # Z = I makes the Jacobian of the radii polynomials singular at the root: no exception
+            Zs = [interval(1.0) interval(0.0); interval(0.0) interval(1.0)]
+            rmins, etas, successs = RadiiPolynomial.set_of_radii([interval(0.01), interval(0.01)], Zs, W2, [10.0, 10.0])
+            @test successs == false
+            @test isempty(rmins) && isempty(etas)
         end
 
         #= The decoupled scalar quadratic Y = 0.75, Z₁ = 0, Z₂ = 0.5 has root r₁ = 1, where the
-           contraction holds. Taking R below that radius, success is provisionally true (the
-           radii are found and the Collatz–Wielandt contraction test holds) yet gets overturned
-           because rmin ≈ 1 exceeds R = 0.5. With R large enough (5) the same data succeeds. =#
-        @testset "success overturned because rᵢ ≥ Rᵢ" begin
+           contraction holds. Taking R below that radius, the radii are found and contract yet
+           exceed R. With R large enough (5) the same data succeeds. =#
+        @testset "radii exceed R" begin
             Y = [interval(0.75), interval(0.75)]
             Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
             W[1, 1, 1] = interval(0.5)
             W[2, 2, 2] = interval(0.5)
 
-            # control: with generous R the decoupled root r₁ = 1 is found and accepted
-            msg_ok, (rmin_ok, eta_ok, success_ok) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0]))
-            @test isempty(msg_ok)
+            rmin_ok, eta_ok, success_ok = @test_logs RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0])
             @test success_ok == true
-            @test rmin_ok ≈ [1.0, 1.0] atol = 1e-6 # matches the hand-computed root of Y + 0.25r² - r = 0
+            @test sup.(rmin_ok) ≈ [1.0, 1.0] atol = 1e-6 # matches the hand-computed root of Y + 0.25r² - r = 0
+            @test all(isguaranteed, rmin_ok)
+            @test all(r -> decoration(r) == com, rmin_ok)
 
-            # same Y, Z, W but R too small: the elseif branch overturns the provisional success
-            msg_bad, (rmin_bad, eta_bad, success_bad) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true))
-            @test occursin("the set of found radii", msg_bad)
+            rmin_bad, eta_bad, success_bad = @test_logs (:info, r"exceed") RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true)
             @test success_bad == false
             @test isempty(rmin_bad) && isempty(eta_bad)
+
+            # the guarantee flag of the inputs propagates to the radii
+            Y_ng = [interval(0.75) + 0, interval(0.75)]
+            @test !isguaranteed(Y_ng[1])
+            rmin_ng, _, success_ng = RadiiPolynomial.set_of_radii(Y_ng, Z, W, [5.0, 5.0])
+            @test success_ng == true
+            @test !any(isguaranteed, rmin_ng)
+
+            # inconsistent sizes are rejected, not broadcast
+            _, _, success_sz = @test_logs (:info, r"sizes") RadiiPolynomial.set_of_radii(Y, Z, W, [5.0]; verbose = true)
+            @test success_sz == false
+
+            # BigFloat inputs are accepted and the radii are BigFloat intervals
+            rmin_big, _, success_big = RadiiPolynomial.set_of_radii(interval.(big.([0.75, 0.75])), zeros(Interval{BigFloat}, 2, 2), Interval{BigFloat}.(W), [5.0, 5.0])
+            @test success_big == true
+            @test eltype(rmin_big) == Interval{BigFloat}
         end
 
-        #= "inclusion found, but no contraction.": using an intentionally asymmetric W (only
-           W[1,1,2] is set, not its "mirror" W[1,2,1]) decouples the matrix used for the
-           contraction test, Mat(r) = Z + WW(r), from the (symmetrized) Jacobian Newton actually
-           differentiates. With Z = 0 and W[1,1,2] = 8 (all other entries 0), the quadratic term
-           for component 1 is (1/2)ΣᵢⱼW₁ᵢⱼrᵢrⱼ = 4r₁r₂, so
+        #= "inclusion found, but no contraction": using an intentionally asymmetric W (only
+           W[1,1,2] is set, not its "mirror" W[1,2,1]) decouples the contraction matrix
+           A(r) = Z + Σⱼ W[:,:,j] rⱼ from the (symmetrized) Jacobian Newton differentiates.
+           With Z = 0 and W[1,1,2] = 8 (all other entries 0), the quadratic term for component 1
+           is (1/2)ΣᵢⱼW₁ᵢⱼrᵢrⱼ = 4r₁r₂, so
              P₁(r) = Y₁ + 4r₁r₂ - r₁,   P₂(r) = Y₂ - r₂  (component 2 is unaffected by W)
            whose exact positive root is r₂ = Y₂ and r₁ = Y₁/(1-4r₂). With Y₁=0.01, Y₂=0.2:
-           r₂ = 0.2, r₁ = 0.01/(1-0.8) = 0.05 (both positive ⟹ partialsuccess). But
-           Mat(r) = [8r₂ 0; 0 0], so at r=(0.05,0.2): Mat(r) = [1.6 0; 0 0], whose eigenvalues are
-           1.6 and 0 (diagonal matrix) ⟹ the Collatz–Wielandt dominant bound is 1.6 ≥ 1: the
-           contraction fails even though the radii-polynomial test itself found P(r) < 0. =#
-        @testset "partial success without contraction (asymmetric W, hand-verified 2×2 Collatz–Wielandt)" begin
-            # direct sanity check of the Collatz–Wielandt bound on the hand-verified matrix Mat(rmin)
-            Matrmin = [interval(1.6) interval(0.0); interval(0.0) interval(0.0)]
-            dominant, testvector = RadiiPolynomial._collatz_wielandt(Matrmin)
-            @test dominant isa Float64
-            @test dominant ≈ 1.6 # eigenvalues of [1.6 0; 0 0] are 1.6 and 0; Perron root = 1.6
-            @test testvector[1] > testvector[2] # dominant eigenvector points along e₁ = (1, 0)
+           r₂ = 0.2, r₁ = 0.01/(1-0.8) = 0.05 (both positive). But A(r) = [8r₂ 0; 0 0], so at
+           r=(0.05,0.2): A(r) = [1.6 0; 0 0], and no positive η satisfies A(r) η < η since
+           1.6 η₁ < η₁ is impossible: the contraction fails even though P(r) ≤ 0. =#
+        @testset "inclusion without contraction (asymmetric W, hand-verified 2×2)" begin
+            # direct sanity check of the test vector on the hand-verified matrix A(r)
+            A = [interval(1.6) interval(0.0); interval(0.0) interval(0.0)]
+            η = RadiiPolynomial._perron_vector(A)
+            @test η[1] > η[2] > 0 # dominant eigenvector points along e₁ = (1, 0), kept positive
+            @test sup(maximum(A * η ./ η)) ≈ 1.6 # Collatz-Wielandt bound equals the Perron root 1.6 of [1.6 0; 0 0]
 
             Y = [interval(0.01), interval(0.2)]
             Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
             W[1, 1, 2] = interval(8.0)
-            msg, (rmin, eta, success) = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true))
-            @test occursin("inclusion found, but no contraction.", msg)
-            @test occursin("radii polynomials not negative simultaneously", msg) # M>1, ultimately fails
+            rmin, eta, success = @test_logs (:info, r"no contraction") RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true)
             @test success == false
             @test isempty(rmin) && isempty(eta)
 
             # the same call is silent without `verbose`: diagnostics are opt-in
-            msg_quiet, _ = capture_stdout(() -> RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]))
-            @test isempty(msg_quiet)
+            @test_logs RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0])
         end
     end
 end

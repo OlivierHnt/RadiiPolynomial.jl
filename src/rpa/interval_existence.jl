@@ -74,135 +74,87 @@ end
 """
     set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool = false)
 
-Return a set of radii, a vector and a boolean value with the following meaning:
-- `true`: the set of radii corresponds to ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \\in \\R^n_+`` such that ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m``.
-- `false`: otherwise, and the set of radii and the vector are empty.
+Return a set of radii, a test vector and a boolean value with the following meaning:
+- `true`: the radii ``r = (r_1, \\dots, r_n) \\in [0, R_1] \\times \\ldots \\times [0, R_n]`` and the test vector ``\\eta \\in \\R^n_+`` satisfy ``Y_m + \\sum_{i=1}^n Z_{m,i} r_i + \\sum_{i,j=1}^n W_{m,i,j} r_i r_j / 2 - r_m \\le 0`` and ``\\sum_{i=1}^n Z_{m,i} \\eta_i + \\sum_{i,j=1}^n W_{m,i,j} \\eta_i r_j < \\eta_m`` for all ``m``.
+- `false`: otherwise, and the radii and the test vector are empty.
 """
 function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real}; verbose::Bool=false)
+    T = float(promote_type(IntervalArithmetic.numtype(eltype(Y)), IntervalArithmetic.numtype(eltype(Z)), IntervalArithmetic.numtype(eltype(W))))
+
     isvalid, msg = _check_inputs(Y, Z, W, R)
-    isvalid || return _rpa_failure(msg, verbose)
+    isvalid || return _rpa_failure(msg, T, verbose)
 
     M = length(Y)
 
-    I_mat = I(M)
+    # radii polynomials P(r)ₘ = Yₘ + Σᵢ Zₘᵢ rᵢ + Σᵢⱼ Wₘᵢⱼ rᵢ rⱼ / 2 - rₘ and contraction matrix A(r)ₘᵢ = Zₘᵢ + Σⱼ Wₘᵢⱼ rⱼ
+    B = r -> reshape(reshape(W, M * M, M) * r, M, M)
+    P = r -> Y .+ Z * r .+ B(r) * r ./ exact(2) .- r
+    A = r -> Z .+ B(r)
 
-    Yf = sup.(Y)
-    Yf = max.(Yf, floatmin(Float64)) # avoid zeros
+    # floating-point copies for the heuristic search only; the certification below uses P and A on the intervals
+    Yf, Zf, Wf = Float64.(sup.(Y)), Float64.(sup.(Z)), Float64.(sup.(W))
+    Bf = r -> reshape(reshape(Wf, M * M, M) * r, M, M)
+    Bfᵀ = r -> reshape(reshape(permutedims(Wf, (1, 3, 2)), M * M, M) * r, M, M)
+    Pf = r -> Yf .+ Zf * r .+ Bf(r) * r ./ 2 .- r
+    DPf = r -> Zf .+ (Bf(r) .+ Bfᵀ(r)) ./ 2 .- LinearAlgebra.I(M)
 
-    Zf = sup.(Z)
-    Wf = sup.(W)
+    r = _search_radii(Pf, DPf, max.(Yf, floatmin(Float64)), r -> all(p -> precedes(p, zero(p)), P(r)))
+    isnothing(r) && return _rpa_failure("radii polynomials not simultaneously nonpositive", T, verbose)
 
-    WWf = r -> reshape(reshape(Wf, :, M) * r, M, M)
-    WW2f = r -> reshape(reshape(permutedims(Wf, (1, 3, 2)), :, M) * r, M, M)
+    η = _perron_vector(A(r))
+    ρ = sup(maximum(A(r) * η ./ η)) # Collatz-Wielandt upper bound on the spectral radius of A(r)
+    ρ < 1 || return _rpa_failure("inclusion found, but no contraction: spectral radius bound $ρ", T, verbose)
+    all(r .≤ R) || return _rpa_failure("radii exceed the thresholds R", T, verbose)
 
-    Pf = r -> Yf .+ Zf * r .+ (WWf(r) * r) ./ 2 .- r
-    DPf = r -> Zf .+ (WWf(r) .+ WW2f(r)) ./ 2 .- I_mat
+    verbose && @info "success\nr = $r\nη = $η\nspectral radius bound = $ρ"
 
-    WW = r -> reshape(reshape(W, :, M) * r, M, M)
-    Pintval = r -> Y .+ Z * r .+ (WW(r) * r) ./ 2 .- r
-
-    Mat = r -> Z .+ WW(r)
-
-    # Newton iteration to find approximate zero
-    r0 = Yf
-    r0, newton_success = newton(r -> (Pf(r), DPf(r)), r0)
-    if !(all(>(0), r0)) || !newton_success
-        verbose && println("no good set of radii found for inclusion")
-    end
-
-    r0 = max.(r0, floatmin(Float64))
-
-    direction = DPf(r0) \ r0
-    direction ./= .-r0 # normalize the direction
-    direction ./= maximum(direction)
-
-    # search for negative point of radii polynomials
-    success = false
-    partialsuccess = false
-    rmin = NaN
-    eta = NaN
-
-    if all(>=(0), r0)
-        r2 = copy(r0)
-        n = -52
-        while n <= 150 && !partialsuccess && all(>(0), r2)
-            if all(isstrictless.(Pintval(r2), interval(0)))
-                rmin = r2
-                partialsuccess = true
-            else
-                r2 = r0 .* (ones(M) .+ direction * 2.0^n)
-                n += 1
-            end
-        end
-    end
-
-    if partialsuccess
-        if M == 1
-            dominant = sup(Mat(rmin)[1,1])
-            if dominant - 1 < 0
-                success = true
-                eta = ones(1)
-            end
-        else
-            dominant, eta = _collatz_wielandt(Mat(rmin))
-            if dominant - 1 < 0
-                success = true
-            else
-                verbose && println("inclusion found, but no contraction.")
-            end
-        end
-    end
-
-    if !success
-        if M == 1
-            verbose && println("radii polynomial not negative")
-        else
-            verbose && println("radii polynomials not negative simultaneously")
-        end
-        return _rpa_failure("no set of radii found", verbose)
-    elseif !all(sup.(rmin) .< R)
-        verbose && println("the set of found radii rᵢ are not smaller than Rᵢ")
-        return _rpa_failure("the set of found radii rᵢ are not smaller than Rᵢ", verbose)
-    end
-
-    verbose && @info "success\nr = $(rmin)\nη = $(eta)"
-    return rmin, eta, success
-end
-
-function _collatz_wielandt(A)
-    # Compute upper bound on spectral radius (Perron-Frobenius) of nonnegative matrix A
-
-    Aeps = max.(mid.(A), 10 * eps(Float64))
-
-    F = LinearAlgebra.eigen(Aeps)
-    eigenvectors = F.vectors
-    eigenvalues = F.values
-
-    m = argmax(abs.(eigenvalues))
-    y = abs.(eigenvectors[:, m])
-
-    # testvector for Collatz-Wielandt bound
-    testvector = max.(y, eps(Float64)) # avoid division by 0
-
-    PFupperbound = maximum((A * testvector) ./ testvector)
-
-    if eltype(A) <: Interval
-        PFupperbound = sup(PFupperbound)
-    end
-
-    return PFupperbound, testvector
+    dec = min(minimum(decoration, Y), minimum(decoration, Z), minimum(decoration, W))
+    t = all(isguaranteed, Y) & all(isguaranteed, Z) & all(isguaranteed, W)
+    return [_setguarantee(interval(T, rᵢ, rᵢ, dec), t) for rᵢ ∈ r], η, true
 end
 
 set_of_radii(Y, Z, W, R; verbose::Bool=false) = set_of_radii(interval.(Y), interval.(Z), interval.(W), R; verbose=verbose)
 
-function _rpa_failure(msg::AbstractString, verbose::Bool)
+# from the smallest root of the radii polynomials, step outward along a direction in which they all decrease until `nonpositive` holds
+function _search_radii(Pf, DPf, r₀, nonpositive)
+    r₀ = try
+        first(newton(r -> (Pf(r), DPf(r)), r₀))
+    catch e
+        e isa LinearAlgebra.SingularException || rethrow()
+        r₀
+    end
+    r₀ = max.(r₀, floatmin(Float64))
+
+    F = LinearAlgebra.lu(DPf(r₀); check = false) # DPf(r₀) d = -r₀ gives the relative direction d, else a uniform scaling
+    d = LinearAlgebra.issuccess(F) ? -(F \ r₀) ./ r₀ : ones(length(r₀))
+    all(isfinite, d) & (maximum(d) > 0) || (d = ones(length(r₀)))
+    d ./= maximum(d)
+
+    for n ∈ -52:150
+        r = r₀ .* (1 .+ d .* 2.0^n)
+        all(>(0), r) || return nothing
+        nonpositive(r) && return r
+    end
+    return nothing
+end
+
+# Perron eigenvector of the midpoint matrix, kept positive, as test vector for the contraction
+function _perron_vector(A)
+    F = LinearAlgebra.eigen(max.(Float64.(mid.(A)), 10eps(Float64)))
+    v = abs.(F.vectors[:, argmax(abs.(F.values))])
+    return max.(v, eps(Float64))
+end
+
+function _rpa_failure(msg::AbstractString, ::Type{T}, verbose::Bool) where {T}
     verbose && @info "failure: $msg"
-    return Float64[], Float64[], false
+    return Interval{T}[], Float64[], false
 end
 
 function _check_inputs(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interval}, W::AbstractArray{<:Interval,3}, R::AbstractVector{<:Real})
-    any(<(0), R) | any(isnan, R) && return false, "invalid threshold R"
-    all(isbounded, Y) & all(Y_m -> precedes(zero(Y_m), Y_m), Y) & all(isbounded, Z) & all(Z_mi -> precedes(zero(Z_mi), Z_mi), Z) & all(isbounded, W) & all(W_mij -> precedes(zero(W_mij), W_mij), W) ||
-        return false, "each entry of Y, Z, W must be positive"
+    M = length(Y)
+    (size(Z) == (M, M)) & (size(W) == (M, M, M)) & (length(R) == M) || return false, "inconsistent sizes"
+    any(<(0), R) | any(isnan, R) && return false, "invalid thresholds R"
+    all(Yₘ -> isbounded(Yₘ) & precedes(zero(Yₘ), Yₘ), Y) & all(Zₘᵢ -> isbounded(Zₘᵢ) & precedes(zero(Zₘᵢ), Zₘᵢ), Z) & all(Wₘᵢⱼ -> isbounded(Wₘᵢⱼ) & precedes(zero(Wₘᵢⱼ), Wₘᵢⱼ), W) ||
+        return false, "each entry of Y, Z, W must be positive and bounded"
     return true, ""
 end

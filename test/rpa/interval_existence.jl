@@ -95,6 +95,18 @@
         @test isequal_interval(ivn, iv)
     end
 
+    #= With Y far below the ulp of (1 - Z₁)², the root formula (-b - √Δ)/Z₂ cancels catastrophically
+       and the width of Z₁ leaks into the bound: it gave 2.6e-12 here. The stable form 2Y/(-b + √Δ)
+       evaluated at sup(Z₁) gives the true root, about 8.8e-36. =#
+    @testset "3-arg: stable root formula for tiny Y" begin
+        Y, Z1, Z2 = interval(1e-36), interval(0.886818866398, 0.886818866400), interval(0.7693526887)
+        iv, ok = interval_of_existence(Y, Z1, Z2, Inf)
+        @test ok == true
+        b = interval(sup(Z1)) - one(Z1)
+        @test inf(iv) == sup(exact(2) * Y / (-b + sqrt(b^2 - exact(2) * Z2 * Y)))
+        @test inf(iv) < 1e-35
+    end
+
     @testset "3-arg: Z₂ thin-zero falls back to the 2-arg formula" begin
         Y, Z1, R = interval(0.25), interval(0.5), 2.0
         iv2, ok2 = interval_of_existence(Y, Z1, R)

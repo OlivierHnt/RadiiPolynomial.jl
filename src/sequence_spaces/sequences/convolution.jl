@@ -64,11 +64,40 @@ _maybe_sym(a::Sequence, s::SymmetricSpace) = Projection(s) * a
 function _conv!(c::Sequence{<:SequenceSpace}, a, b)
     dsa = desymmetrize(space(a))
     dsb = desymmetrize(space(b))
-    @inbounds for k ∈ indices(space(c)), j ∈ _convolution_indices(dsa, dsb, k)
-        c[k] += getcoefficient(a, (dsa, _extract_valid_index(dsa, k, j))) * getcoefficient(b, (dsb, _extract_valid_index(dsb, j)))
+    T = eltype(c)
+    @inbounds for k ∈ indices(space(c))
+        c[k] += _conv_sum(T, a, b, dsa, dsb, k, _convolution_indices(dsa, dsb, k))
     end
     return c
 end
+
+# the sum is accumulated in a local variable, one nested sum per dimension, so
+# that each partial sum stays small
+
+function _conv_sum(::Type{T}, a, b, dsa, dsb, k, j_indices) where {T}
+    s = zero(T)
+    for j ∈ j_indices
+        s += _conv_term(a, b, dsa, dsb, k, j)
+    end
+    return s
+end
+
+_conv_sum(::Type{T}, a, b, dsa, dsb, k, j_indices::TensorIndices) where {T} =
+    _conv_sum(T, a, b, dsa, dsb, k, j_indices.indices, ())
+
+@inline function _conv_sum(::Type{T}, a, b, dsa, dsb, k, j_indices::Tuple, j_prefix::Tuple) where {T}
+    s = zero(T)
+    @inbounds inds = j_indices[1]
+    for jᵢ ∈ inds
+        s += _conv_sum(T, a, b, dsa, dsb, k, Base.tail(j_indices), (j_prefix..., jᵢ))
+    end
+    return s
+end
+
+@inline _conv_sum(::Type, a, b, dsa, dsb, k, ::Tuple{}, j::Tuple) = _conv_term(a, b, dsa, dsb, k, j)
+
+@inline _conv_term(a, b, dsa, dsb, k, j) =
+    @inbounds getcoefficient(a, (dsa, _extract_valid_index(dsa, k, j))) * getcoefficient(b, (dsb, _extract_valid_index(dsb, j)))
 
 #
 
@@ -101,7 +130,7 @@ end
 
 codomain(::typeof(mul_bar), s₁::Fourier, s₂::Fourier) = intersect(s₁, s₂)
 
-_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = intersect(i .- indices(s₁), indices(s₂))
+_convolution_indices(s₁::Fourier, s₂::Fourier, i::Int) = max(i-order(s₁), -order(s₂)):min(i+order(s₁), order(s₂))
 
 # Chebyshev
 

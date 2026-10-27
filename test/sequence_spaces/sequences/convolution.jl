@@ -548,4 +548,34 @@
             @test r6.full_norm == ref.full_norm
         end
     end
+
+    @testset "interval enclosures of tensor products" begin
+        # the Cauchy product is accumulated with one nested sum per dimension so that
+        # every partial sum stays small: a flat loop over all index pairs, where each
+        # term is added to the output coefficient, loses about one ulp of the running
+        # sum per addition and gives enclosures an order of magnitude wider
+        N, K = 32, 20
+        S = Chebyshev(N) ⊗ Fourier(K, 1.0)
+        mk(ϕ) = Sequence(S, vec([(m = 0.5^n * 0.7^abs(k) * sinpi(ϕ * (n + 1) + 0.3 * k); r = 1e-16 * 0.5^n * 0.7^abs(k); interval(m - r, m + r)) for n ∈ 0:N, k ∈ -K:K]))
+        a, b = mk(0.37), mk(0.71)
+
+        # reference: flat accumulation of every term into the output coefficient
+        function flat_conv(a, b, space_c)
+            dsa, dsb = space(a), space(b)
+            c = zeros(eltype(a), space_c)
+            for k ∈ indices(space_c), j ∈ RadiiPolynomial._convolution_indices(dsa, dsb, k)
+                c[k] += a[RadiiPolynomial._extract_valid_index(dsa, k, j)] * b[RadiiPolynomial._extract_valid_index(dsb, j)]
+            end
+            return c
+        end
+
+        for (c, c_flat) ∈ ((a * b, flat_conv(a, b, codomain(*, S, S))),
+                           (mul_bar(a, b), flat_conv(a, b, codomain(mul_bar, S, S))),
+                           (a ^ 2, flat_conv(a, a, codomain(^, S, 2))))
+            @test mid.(coefficients(c)) ≈ mid.(coefficients(c_flat))
+            @test maximum(radius, coefficients(c)) ≤ maximum(radius, coefficients(c_flat)) / 10
+            @test sum(radius, coefficients(c)) ≤ sum(radius, coefficients(c_flat)) / 10
+        end
+        @test maximum(radius, coefficients(a * b)) < 1e-14 # the flat loop gives ≈ 8e-14
+    end
 end

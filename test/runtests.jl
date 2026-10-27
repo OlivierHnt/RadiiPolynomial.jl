@@ -33,4 +33,6 @@ using RadiiPolynomial
     include("rpa/interval_existence.jl")
     include("rpa/newton.jl")
     include("rpa/proofs.jl")
+
+    include("ext/forwarddiff.jl")
 end

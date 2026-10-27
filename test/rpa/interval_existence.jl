@@ -76,7 +76,11 @@
 
         iv, ok = interval_of_existence(Y, Z1, Z2, 5.0)
         @test ok == true
-        @test isequal_interval(iv, interval(1.0, 2.0)) # upper end capped by the vertex (2 < R = 5)
+        @test inf(iv) == 1.0
+        # upper end is the largest float below the vertex (2 < R = 5) at which Z₂ r < 1 - Z₁ is certified
+        @test sup(iv) == prevfloat(2.0)
+        @test sup(Z2 * sup(iv)) < inf(one(Z1) - Z1)
+        @test !(sup(Z2 * nextfloat(sup(iv))) < inf(one(Z1) - Z1))
         @test isguaranteed(iv) == true
         @test decoration(iv) == decoration(Y) == decoration(Z1) == decoration(Z2)
 
@@ -134,11 +138,10 @@
     end
 
     #= 3-arg: when the inputs are not natively floating-point (e.g. Rational), converting the
-       exact vertex z = -b/Z₂ to Float64 via `float` can round UP past the true value; the
-       implementation then walks back down with `prevfloat` until the returned bound is a sound
-       (non-overestimating) enclosure. Here Z₁ = 0//1, Z₂ = 10//1 ⟹ b = -1//1 and
-       z = -b/Z₂ = 1//10 exactly; Float64(1//10) = 0.1 rounds UP (0.1 > 1//10 as an exact
-       rational comparison), so the correction loop must fire at least once. =#
+       exact vertex z = -b/Z₂ to Float64 can round UP past the true value; the implementation
+       then walks back down with `prevfloat` until Z₂ x < 1 - Z₁ is certified. Here Z₁ = 0//1,
+       Z₂ = 10//1 ⟹ b = -1//1 and z = -b/Z₂ = 1//10 exactly; Float64(1//10) = 0.1 rounds UP
+       (0.1 > 1//10 as an exact rational comparison), so the correction loop must fire. =#
     @testset "3-arg: Rational inputs force the vertex float-rounding correction (prevfloat loop)" begin
         Y, Z1, Z2 = interval(1//100), interval(0//1), interval(10//1)
         b = Z1 - one(Z1)
@@ -149,8 +152,9 @@
         iv, ok = interval_of_existence(Y, Z1, Z2, 1.0)
         @test ok == true
         @test iv isa Interval{Float64}
-        @test sup(iv) == prevfloat(float(z)) # corrected down to the largest double ≤ 1//10
         @test sup(iv) < 0.1 # never unsoundly reports the naive (rounded-up) float vertex
+        @test sup(Z2 * sup(iv)) < inf(one(Z1) - Z1) # the contraction is certified at the upper endpoint
+        @test !(sup(Z2 * nextfloat(sup(iv))) < inf(one(Z1) - Z1)) # and the endpoint is the largest such double
     end
 
     #= The local helper below captures stdout, which both silences the diagnostic printing

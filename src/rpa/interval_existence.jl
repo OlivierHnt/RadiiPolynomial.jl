@@ -6,33 +6,14 @@ Return an interval and a boolean value with the following meaning:
 - `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, R::Real; verbose::Bool=false)
-    r = Y / (one(Z₁) - Z₁)
-
-    isvalid, msg = _check_inputs(Y, Z₁, R)
-    isvalid || return _rpa_failure(msg, r, verbose)
-
-    r_sup = sup(r)
-    0 ≤ r_sup ≤ R || return _rpa_failure("root not in [0, R]", r, verbose)
-
-    verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nR = $R"
-
-    t = isguaranteed(Y) & isguaranteed(Z₁)
-    return _setguarantee(interval(IntervalArithmetic.numtype(r), r_sup, R, min(decoration(Y), decoration(Z₁))), t), true
+    ie, success, msg = _interval_of_existence(Y, Z₁, zero(Z₁), R)
+    verbose && @info (success ?
+        "success: first-order radii polynomial Y + (Z₁ - 1) r\nY = $Y\nZ₁ = $Z₁ (bound on the ball of radius R)\nR = $R" :
+        "failure: $msg")
+    return ie, success
 end
 
 interval_of_existence(Y, Z₁, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), R; verbose=verbose)
-
-function _check_inputs(Y::Interval, Z₁::Interval, R::Real)
-    (R < 0) | isnan(R) && return false, "invalid threshold R"
-    isbounded(Y) & precedes(zero(Y), Y) & precedes(zero(Z₁), Z₁) & strictprecedes(Z₁, one(Z₁)) ||
-        return false, "Y must be positive and 0 ≤ Z₁ < 1"
-    return true, ""
-end
-
-function _rpa_failure(msg::AbstractString, r::Interval, verbose::Bool)
-    verbose && @info "failure: $msg"
-    return emptyinterval(r), false
-end
 
 """
     interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=false)
@@ -42,39 +23,51 @@ Return an interval and a boolean value with the following meaning:
 - `false`: otherwise, and the interval is empty.
 """
 function interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real; verbose::Bool=false)
-    isthinzero(Z₂) && return interval_of_existence(Y, Z₁, R; verbose=verbose)
-
-    b = Z₁ - one(Z₁)
-    Δ = b^2 - exact(2) * Z₂ * Y
-    sqrtΔ = sqrt(Δ)
-    r₁ = (-b - sqrtΔ) / Z₂
-    r₂ = (-b + sqrtΔ) / Z₂
-
-    isvalid, msg = _check_inputs(Y, Z₁, Z₂, R)
-    isvalid || return _rpa_failure(msg, r₁, verbose)
-
-    r₁_sup = sup(r₁)
-
-    inf(Δ) < 0 && return _rpa_failure("discriminant negative → complex roots", r₁, verbose)
-    0 ≤ r₁_sup ≤ R && sup(Z₁ + Z₂ * r₁_sup) < 1 || return _rpa_failure("roots not in [0, R] or contraction fails", r₁, verbose)
-
-    verbose && @info "success: interval found\nY = $Y\nZ₁ = $Z₁\nZ₂ = $Z₂\nR = $R\nΔ = $Δ\nroots = ($r₁, $r₂)"
-    z = inf(-b / Z₂)
-    x = float(z)
-    while x > z
-        x = prevfloat(x)
-    end
-
-    t = isguaranteed(Y) & isguaranteed(Z₁) & isguaranteed(Z₂)
-    return _setguarantee(interval(IntervalArithmetic.numtype(r₁), r₁_sup, min(R, x), min(decoration(Y), decoration(Z₁), decoration(Z₂))), t), true
+    ie, success, msg = _interval_of_existence(Y, Z₁, Z₂, R)
+    verbose && @info (success ?
+        "success: second-order radii polynomial Y + (Z₁ - 1) r + Z₂ r² / 2\nY = $Y\nZ₁ = $Z₁ (bound at the approximation)\nZ₂ = $Z₂ (bound on the ball of radius R)\nR = $R" :
+        "failure: $msg")
+    return ie, success
 end
 
 interval_of_existence(Y, Z₁, Z₂, R; verbose::Bool=false) = interval_of_existence(interval(Y), interval(Z₁), interval(Z₂), R; verbose=verbose)
 
+function _interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
+    T = float(promote_type(IntervalArithmetic.numtype(Y), IntervalArithmetic.numtype(Z₁), IntervalArithmetic.numtype(Z₂)))
+
+    isvalid, msg = _check_inputs(Y, Z₁, Z₂, R)
+    isvalid || return emptyinterval(T), false, msg
+
+    # the radii polynomial p(r) = Y + (Z₁ - 1) r + Z₂ r² / 2 is increasing in Y, Z₁, Z₂ on [0, ∞)
+    y, z₁, z₂ = interval(T, sup(Y)), interval(T, sup(Z₁)), interval(T, sup(Z₂))
+
+    b = one(z₁) - z₁ # -p'(0) > 0
+    Δ = b^2 - exact(2) * z₂ * y
+    inf(Δ) < 0 && return emptyinterval(T), false, "radii polynomial has no real root"
+    r = exact(2) * y / (b + sqrt(Δ)) # smallest root of p, reduces to Y / (1 - Z₁) when Z₂ = 0
+    r_sup = sup(r)
+
+    # largest radius x ≤ R at which p'(x) < 0, i.e. Z₂ x < 1 - Z₁, is certified
+    x = T(R, RoundDown)
+    if !isthinzero(z₂)
+        x = min(x, inf(b / z₂))
+        while !(sup(z₂ * x) < inf(b))
+            x = prevfloat(x)
+        end
+    end
+
+    isfinite(r_sup) & (r_sup ≤ x) || return emptyinterval(T), false, "root not in [0, R] or contraction fails"
+
+    dec = min(decoration(Y), decoration(Z₁), decoration(Z₂))
+    t = isguaranteed(Y) & isguaranteed(Z₁) & isguaranteed(Z₂)
+    return _setguarantee(interval(T, r_sup, x, dec), t), true, ""
+end
+
 function _check_inputs(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
     (R < 0) | isnan(R) && return false, "invalid threshold R"
-    isbounded(Y) & precedes(zero(Y), Y) & precedes(zero(Z₁), Z₁) & strictprecedes(Z₁, one(Z₁)) & isbounded(Z₂) & precedes(zero(Z₂), Z₂) ||
-        return false, "Y, Z₂ must be positive and 0 ≤ Z₁ < 1"
+    isbounded(Y) & precedes(zero(Y), Y) || return false, "Y must be positive and bounded"
+    precedes(zero(Z₁), Z₁) & strictprecedes(Z₁, one(Z₁)) || return false, "Z₁ must satisfy 0 ≤ Z₁ < 1"
+    isbounded(Z₂) & precedes(zero(Z₂), Z₂) || return false, "Z₂ must be positive and bounded"
     return true, ""
 end
 

@@ -133,6 +133,13 @@ Base.:(==)(::_OddWeight, ::_OddWeight) = true
 
         X3 = EllInf((GeometricWeight(ρ), IdentityWeight(), AlgebraicWeight(p)))
         @test norm(a, X3) == max(1, ρ) * max(1.0, 1.0, 1.0) * max(1, 2*2^p) == 32.0
+
+        # a lone weight applies to every dimension, so the Chebyshev doubling is kept
+        b = ones(Chebyshev(2) ⊗ Chebyshev(2))
+        @test norm(b, Ell1()) == norm(b, Ell1((IdentityWeight(), IdentityWeight()))) == 25.0   # (1+2+2)²
+        @test norm(b, Ell2()) == 5.0
+        @test norm(b, EllInf()) == 4.0
+        @test norm(b, Ell1(GeometricWeight(ρ))) == norm(b, Ell1((GeometricWeight(ρ), GeometricWeight(ρ)))) == (1 + 2ρ + 2ρ^2)^2
     end
 
     @testset "SymmetricSpace" begin

@@ -153,7 +153,7 @@ _norm(a::Sequence{<:SequenceSpace}, X::Union{Ell1,Ell2,EllInf}) = _norm(coeffici
 _norm_dual(a::Sequence{<:SequenceSpace}, X::Union{Ell1,Ell2,EllInf}) = _norm_dual(coefficients(a), _weights(X, space(a)), X)
 
 function _norm(A::AbstractVector, weights, ::Ell1)
-    s = abs(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s += abs(Aᵢ) * w
     end
@@ -161,7 +161,7 @@ function _norm(A::AbstractVector, weights, ::Ell1)
 end
 
 function _norm_dual(A::AbstractVector, weights, ::Ell1)
-    s = abs(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s = max(s, abs(Aᵢ) / w)
     end
@@ -169,7 +169,7 @@ function _norm_dual(A::AbstractVector, weights, ::Ell1)
 end
 
 function _norm(A::AbstractVector, weights, ::Ell2)
-    s = abs2(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s += abs2(Aᵢ) * w
     end
@@ -177,7 +177,7 @@ function _norm(A::AbstractVector, weights, ::Ell2)
 end
 
 function _norm_dual(A::AbstractVector, weights, ::Ell2)
-    s = abs2(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s += abs2(Aᵢ) / w
     end
@@ -185,7 +185,7 @@ function _norm_dual(A::AbstractVector, weights, ::Ell2)
 end
 
 function _norm(A::AbstractVector, weights, ::EllInf)
-    s = abs(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s = max(s, abs(Aᵢ) * w)
     end
@@ -193,7 +193,7 @@ function _norm(A::AbstractVector, weights, ::EllInf)
 end
 
 function _norm_dual(A::AbstractVector, weights, ::EllInf)
-    s = abs(zero(eltype(A)))
+    s = zero(float(real(eltype(A))))
     for (Aᵢ, w) ∈ zip(A, weights)
         s += abs(Aᵢ) / w
     end

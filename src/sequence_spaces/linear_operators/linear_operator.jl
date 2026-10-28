@@ -43,10 +43,15 @@ domain(A::AbstractLinearOperator, s::VectorSpace) = throw(DomainError((A, s), "c
 domain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
 codomain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
 
-# an operator declares the type of its entries by extending `_coeftype`: by default, the entries
-# are assumed to be representable in the requested type
+# an operator declares the type of its entries by extending `_coeftype`: by default, the type is
+# inferred from the first entry, which is assumed to be representative of all the entries
 _coeftype(A::AbstractLinearOperator, dom::VectorSpace) = _coeftype(A, dom, Float64)
-_coeftype(::AbstractLinearOperator, ::VectorSpace, ::Type{T}) where {T} = T
+function _coeftype(A::AbstractLinearOperator, dom::VectorSpace, ::Type{T}) where {T}
+    codom = codomain(A, dom)
+    (isempty(indices(codom)) | isempty(indices(dom))) && return T # guard against undefined space
+    x = getcoefficient(A, (codom, first(indices(codom))), (dom, first(indices(dom))), T)
+    return promote_type(typeof(x), T)
+end
 
 #
 

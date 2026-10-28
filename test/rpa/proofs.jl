@@ -117,6 +117,14 @@
             @test !ok6
             @test isempty_interval(ie6)
 
+            # an interval threshold is taken by its lower end
+            ie_int, ok_int = interval_of_existence(interval(0.1), interval(0.5), interval(10.0, 20.0))
+            @test ok_int
+            @test isequal_interval(ie_int, ie)
+            ie_int2, ok_int2 = interval_of_existence(interval(0.1), interval(0.5), interval(0.1, 1.0))
+            @test !ok_int2
+            @test isempty_interval(ie_int2)
+
             # Y must be non-negative
             ie7, ok7 = interval_of_existence(interval(-0.1), interval(0.5), 10.0)
             @test !ok7

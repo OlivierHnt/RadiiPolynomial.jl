@@ -372,6 +372,34 @@
                 [2.0 0.0 0.0 ; 0.0 2.0 0.0 ; 0.0 0.0 2.0 ; 0.0 0.0 0.0 ; 0.0 0.0 0.0])
         end
 
+        @testset "coefficient type inferred from the entries" begin
+            # a custom operator defined through `getcoefficient` alone, without `_coeftype`: the
+            # entry type (complex intervals here) must be inferred rather than assumed Float64
+            struct _ComplexDiag <: RadiiPolynomial.AbstractDiagonalOperator
+                λ₁ :: Complex{Interval{Float64}}
+                λ₂ :: Complex{Interval{Float64}}
+            end
+            function RadiiPolynomial.getcoefficient(L::_ComplexDiag, (codom, k)::T, (dom, l)::T) where {T<:Tuple{TensorSpace{NTuple{2,Taylor}},NTuple{2,Int}}}
+                x = inv(exact(k[1]) * L.λ₁ + exact(k[2]) * L.λ₂)
+                k == l && sum(k) ≥ 2 && return x
+                return zero(x)
+            end
+            L = _ComplexDiag(interval(0.1) + im * interval(0.4), interval(0.1) - im * interval(0.4))
+            s = Taylor(3) ⊗ Taylor(3)
+            A = project(L, s, s)
+            @test eltype(A) == Complex{Interval{Float64}}
+            @test all(isequal_interval.(coefficients(A), coefficients(project(L, s, s, Complex{Interval{Float64}}))))
+            @test eltype(L * Sequence(s, ones(16))) == Complex{Interval{Float64}}
+
+            # a general (non diagonal) operator
+            struct _ComplexShiftUp <: AbstractLinearOperator end
+            RadiiPolynomial.codomain(::_ComplexShiftUp, s::Taylor) = Taylor(order(s) + 1)
+            RadiiPolynomial.getcoefficient(::_ComplexShiftUp, (codom, i)::Tuple{Taylor,Int}, (dom, j)::Tuple{Taylor,Int}) = complex(0.0, float(i == j + 1))
+            B = project(_ComplexShiftUp(), Taylor(1), Taylor(2))
+            @test eltype(B) == ComplexF64
+            @test coefficients(B) == [0 0 ; im 0 ; 0 im]
+        end
+
         @testset "Sequence <-> LinearOperator(ScalarSpace, ·) round trip" begin
             a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
             A = project(a, ScalarSpace(), Taylor(2))

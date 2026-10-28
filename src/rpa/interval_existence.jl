@@ -48,7 +48,7 @@ function _interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::
     r_sup = sup(r)
 
     # largest radius x ≤ R at which p'(x) < 0, i.e. Z₂ x < 1 - Z₁, is certified
-    x = T(R, RoundDown)
+    x = _threshold(T, R)
     if !isthinzero(z₂)
         x = min(x, inf(b / z₂))
         while !(sup(z₂ * x) < inf(b))
@@ -62,6 +62,10 @@ function _interval_of_existence(Y::Interval, Z₁::Interval, Z₂::Interval, R::
     t = isguaranteed(Y) & isguaranteed(Z₁) & isguaranteed(Z₂)
     return _setguarantee(interval(T, r_sup, x, dec), t), true, ""
 end
+
+# an interval threshold is taken by its lower end: the bounds are only known to hold on the ball of radius inf(R)
+_threshold(::Type{T}, R::Real) where {T} = T(R, RoundDown)
+_threshold(::Type{T}, R::Interval) where {T} = T(inf(R), RoundDown)
 
 function _check_inputs(Y::Interval, Z₁::Interval, Z₂::Interval, R::Real)
     (R < 0) | isnan(R) && return false, "invalid threshold R"

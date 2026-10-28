@@ -167,6 +167,40 @@ function scale!(c::Sequence, a::Sequence, γ::Union{Number,Tuple{Vararg{Number}}
     return c
 end
 
+# the scale is an isometry onto the space whose weight is the pulled back one, and it maps the finite part
+# onto the finite part of the codomain, so the three errors are carried over unchanged:
+# - Fourier dilates the indices, k ↦ γk, and ν^{|γk|} = (ν^{|γ|})^{|k|} gives the rate ν^{1/|γ|}
+# - Taylor multiplies the k-th coefficient by γ^k, which gives the rate ν/|γ|, only a weight when ≥ 1
+# - Chebyshev only admits γ = 1
+function scale(a::InfiniteSequence, γ::Union{Number,Tuple{Vararg{Number}}})
+    c = scale(sequence(a), γ)
+    X = Ell1(_scale_weight(weight(banachspace(a)), space(a), γ))
+    return InfiniteSequence(c, finite_error(a), tail_error(a), total_error(a), X)
+end
+
+_scale_weight(w::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NTuple{N,Number}) where {N} =
+    map(_scale_weight, w, spaces(s), γ)
+_scale_weight(w::Weight, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NTuple{N,Number}) where {N} =
+    _scale_weight(ntuple(_ -> w, Val(N)), s, γ)
+
+_scale_weight(w::IdentityWeight, ::BaseSpace, ::Number) = w
+_scale_weight(w::Weight, ::BaseSpace, ::Number) =
+    throw(DomainError(w, "Scale of an InfiniteSequence is only implemented for IdentityWeight and GeometricWeight"))
+
+function _scale_weight(w::GeometricWeight, ::Fourier, γ::Number)
+    isone(abs(γ)) && return w
+    return GeometricWeight(exp(log(rate(w)) / abs(γ)))
+end
+
+function _scale_weight(w::GeometricWeight, ::Taylor, γ::Number)
+    isone(abs(γ)) && return w
+    ν = rate(w) / abs(γ)
+    inf(ν) ≥ 1 || return throw(DomainError(γ, "Scale by γ maps the geometric rate ν onto ν/|γ| on a Taylor space, which must be at least one"))
+    return GeometricWeight(ν)
+end
+
+_scale_weight(w::GeometricWeight, ::Chebyshev, ::Number) = w
+
 # Tensor space
 
 function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Scale, a)

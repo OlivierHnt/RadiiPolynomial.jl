@@ -178,4 +178,20 @@
         @test_throws DomainError codomain(Shift(interval(1//3, 1//2)), sE) # a set of shifts has no single group
         @test_throws DomainError codomain(Shift(interval(1.0) / 3), sE) # floating point endpoints are not exact thirds
     end
+
+    @testset "InfiniteSequence" begin
+        X = Ell1(GeometricWeight(2.0))
+        a = InfiniteSequence(Sequence(Fourier(2, 1.0), ComplexF64[1, 2, 3, 2, 1]), 0.1, 0.2, 0.3, X)
+        b = shift(a, 1//3)
+        @test sequence(b) == shift(sequence(a), 1//3)
+        @test (finite_error(b), tail_error(b), total_error(b)) == (0.1, 0.2, 0.3)
+        @test banachspace(b) == X # the shift is an isometry
+        @test norm(sequence(b), X) ≈ norm(sequence(a), X)
+        @test sequence(Shift(1//3) * a) == sequence(b)
+        m = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Chebyshev(1), ComplexF64[1, 2, 3, 4, 5, 6]), 0.1, 0.2, 0.3, Ell1((GeometricWeight(2.0), GeometricWeight(1.5))))
+        bm = shift(m, (0.25, 0))
+        @test sequence(bm) == shift(sequence(m), (0.25, 0))
+        @test banachspace(bm) == banachspace(m)
+        @test total_error(bm) == 0.3
+    end
 end

@@ -185,4 +185,46 @@
         expected = Sequence(Taylor(2), ComplexF64[1.0+1.0im, 4.0, 12.0-4.0im])
         @test scale(a, 2.0) == expected
     end
+
+    @testset "InfiniteSequence" begin
+        # Fourier: the dilation k ↦ γk pulls the rate back to ν^{1/|γ|}, errors unchanged
+        X = Ell1(GeometricWeight(4.0))
+        a = InfiniteSequence(Sequence(Fourier(2, 1.0), ComplexF64[1, 2, 3, 2, 1]), 0.1, 0.2, 0.3, X)
+        b = scale(a, 2)
+        @test sequence(b) == scale(sequence(a), 2)
+        @test (finite_error(b), tail_error(b), total_error(b)) == (0.1, 0.2, 0.3)
+        @test rate(weight(banachspace(b))) ≈ 2.0
+        @test norm(sequence(b), banachspace(b)) ≈ norm(sequence(a), X)
+        @test banachspace(scale(a, -1)) == X # a reflection is an isometry
+        @test norm(sequence(scale(a, -1)), X) ≈ norm(sequence(a), X)
+        @test sequence(Scale(-1) * a) == sequence(scale(a, -1))
+        @test banachspace(scale(InfiniteSequence(sequence(a), 0.1, 0.2, 0.3, Ell1()), 2)) == Ell1()
+        @test_throws DomainError scale(InfiniteSequence(sequence(a), 0.1, 0.2, 0.3, Ell1(AlgebraicWeight(1.0))), 2)
+
+        # Taylor: γ^k multiplies the weight, so the rate becomes ν/|γ| and must stay at least one
+        t = InfiniteSequence(Sequence(Taylor(2), [1.0, 2.0, 3.0]), 0.1, 0.2, 0.3, X)
+        tb = scale(t, 0.5)
+        @test sequence(tb) == scale(sequence(t), 0.5)
+        @test rate(weight(banachspace(tb))) == 8.0
+        @test norm(sequence(tb), banachspace(tb)) ≈ norm(sequence(t), X)
+        @test rate(weight(banachspace(scale(t, 4.0)))) == 1.0
+        @test_throws DomainError scale(t, 5.0)
+        @test banachspace(scale(t, -1)) == X
+
+        # tensor: one weight per axis, a Chebyshev axis only admits γ = 1
+        m = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Chebyshev(1), ComplexF64.(1:12)), 0.1, 0.2, 0.3, Ell1((GeometricWeight(4.0), GeometricWeight(2.0), GeometricWeight(3.0))))
+        mb = scale(m, (2, 0.5, 1))
+        @test sequence(mb) == scale(sequence(m), (2, 0.5, 1))
+        @test map(rate, weight(banachspace(mb))) == (2.0, 4.0, 3.0)
+        @test norm(sequence(mb), banachspace(mb)) ≈ norm(sequence(m), banachspace(m))
+        @test total_error(mb) == 0.3
+        # a single weight on a tensor space is applied to each axis
+        ms = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Fourier(1, 1.0), ComplexF64.(1:9)), 0.1, 0.2, 0.3, Ell1(GeometricWeight(4.0)))
+        @test map(rate, weight(banachspace(scale(ms, (2, -1))))) == (2.0, 4.0)
+
+        # interval rates stay rigorous
+        ai = InfiniteSequence(interval(sequence(a)), interval(0.1), interval(0.2), interval(0.3), Ell1(GeometricWeight(interval(4.0))))
+        @test in_interval(2.0, rate(weight(banachspace(scale(ai, 2)))))
+        @test rate(weight(banachspace(scale(ai, -1)))) === interval(4.0)
+    end
 end

@@ -175,6 +175,11 @@ function shift!(c::Sequence, a::Sequence, τ::Union{Number,Tuple{Vararg{Number}}
     return c
 end
 
+# the Fourier shift multiplies each coefficient by a unimodular factor and the Taylor and Chebyshev
+# axes only admit the zero shift, so the shift is an isometry of every weighted space
+shift(a::InfiniteSequence, τ::Union{Number,Tuple{Vararg{Number}}}) =
+    InfiniteSequence(shift(sequence(a), τ), finite_error(a), tail_error(a), total_error(a), banachspace(a))
+
 # Tensor space
 
 function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Shift, a)

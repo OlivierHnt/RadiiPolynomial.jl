@@ -186,6 +186,74 @@
         @test scale(a, 2.0) == expected
     end
 
+    @testset "Symmetric space" begin
+        F = Fourier(2, 1.0)
+        sE = evensym(F)
+        sO = oddsym(F)
+        a = Sequence(sE, [1.0, 2.0, 3.0])
+
+        # a reflection k ↦ -k keeps the space and flips the phase, a dilation divides it by γ
+        @test codomain(Scale(-1), sE) == sE
+        @test codomain(Scale(-1), sO) == sO
+        @test codomain(Scale(2), sE) == evensym(Fourier(4, 1.0))
+        @test domain(Scale(2), evensym(Fourier(4, 1.0))) == sE
+        @test project(scale(a, -1), F) == scale(project(a, F), -1)
+        @test project(scale(a, 2), Fourier(4, 1.0)) == scale(project(a, F), 2)
+        @test project(Scale(2), sE, evensym(Fourier(4, 1.0)), Float64)(a) == scale(a, 2)
+        s3 = SymmetricSpace(F, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[4//3]))))
+        @test codomain(Scale(2), s3) == SymmetricSpace(Fourier(4, 1.0), Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[2//3]))))
+        @test domain(Scale(2), codomain(Scale(2), s3)) == s3
+        @test codomain(Scale(-1), s3) == SymmetricSpace(F, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[-4//3]))))
+        b = Sequence(s3, ComplexF64[1, 2, 3])
+        @test project(scale(b, -1), F) ≈ scale(project(b, F), -1)
+        @test_throws DomainError codomain(Scale(1//2), sE)
+        @test_throws DomainError codomain(Scale(0.5), sE)
+
+        # mixed tensors: a Chebyshev axis only admits γ = 1, a Taylor axis keeps its cocycle
+        m = evensym(Chebyshev(2)) ⊗ sE
+        c = Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)])
+        @test codomain(Scale((1, -1)), m) == m
+        @test project(scale(c, (1, -1)), desymmetrize(m)) == scale(project(c, desymmetrize(m)), (1, -1))
+        @test codomain(Scale((1, 2)), m) == evensym(Chebyshev(2)) ⊗ evensym(Fourier(4, 1.0))
+        @test project(scale(c, (1, 2)), Chebyshev(2) ⊗ Fourier(4, 1.0)) == scale(project(c, desymmetrize(m)), (1, 2))
+        @test_throws DomainError codomain(Scale((2, 1)), m)
+        mt = oddsym(Taylor(3)) ⊗ sE
+        d = Sequence(mt, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(mt)])
+        @test codomain(Scale((0.5, -1)), mt) == mt
+        @test project(scale(d, (0.5, -1)), desymmetrize(mt)) ≈ scale(project(d, desymmetrize(mt)), (0.5, -1))
+        @test domain(Scale((0.5, 2)), codomain(Scale((0.5, 2)), mt)) == mt
+
+        # D₄: the quarter turn exchanges the axes, so both must carry the same scale
+        t = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
+        e = Sequence(t, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        @test codomain(Scale((2, 2)), t) == d4sym(Fourier(4, 1.0) ⊗ Fourier(4, 1.0))
+        @test codomain(Scale((-1, -1)), t) == t
+        @test project(scale(e, (2, 2)), Fourier(4, 1.0) ⊗ Fourier(4, 1.0)) == scale(project(e, desymmetrize(t)), (2, 2))
+        # unequal scales break the quarter turn: only the axis reflections survive, as for partial evaluation
+        t21 = codomain(Scale((2, 1)), t)
+        @test desymmetrize(t21) == Fourier(4, 1.0) ⊗ Fourier(2, 1.0)
+        @test length(elements(symmetry(t21))) == 4
+        @test all(g -> g.lattice_aut.matrix[1,2] == g.lattice_aut.matrix[2,1] == 0, elements(symmetry(t21)))
+        @test project(scale(e, (2, 1)), desymmetrize(t21)) == scale(project(e, desymmetrize(t)), (2, 1))
+        @test domain(Scale((2, 1)), t21) == SymmetricSpace(desymmetrize(t), symmetry(t21))
+        # a reflection of one axis conjugates the quarter turn into the other one, so D₄ is preserved
+        @test codomain(Scale((-1, 1)), t) == t
+        @test codomain(Scale((2, -2)), t) == d4sym(Fourier(4, 1.0) ⊗ Fourier(4, 1.0))
+        @test project(scale(e, (2, -2)), Fourier(4, 1.0) ⊗ Fourier(4, 1.0)) == scale(project(e, desymmetrize(t)), (2, -2))
+        # the dilation does not see the frequencies, so exchanging axes of different frequencies is fine
+        tω = SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), Group(GroupElement(LatticeAut([0 1; 1 0]), Cocycle(0//1, Rational{Int}[0, 0]))))
+        eω = Sequence(tω, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(tω)])
+        @test codomain(Scale((2, 2)), tω) == SymmetricSpace(Fourier(4, 1.0) ⊗ Fourier(4, 2.0), symmetry(tω))
+        @test project(scale(eω, (2, 2)), Fourier(4, 1.0) ⊗ Fourier(4, 2.0)) == scale(project(eω, desymmetrize(tω)), (2, 2))
+        @test symmetry(codomain(Scale((2, 1)), tω)) == RadiiPolynomial._trivial_symmetry(Val(2))
+        # Taylor axes exchanged by the group must carry the same scale
+        tt = SymmetricSpace(Taylor(2) ⊗ Taylor(2), Group(GroupElement(LatticeAut([0 1; 1 0]), Cocycle(0//1, Rational{Int}[0, 0]))))
+        @test codomain(Scale((0.5, 0.5)), tt) == tt
+        @test symmetry(codomain(Scale((0.5, 2.0)), tt)) == RadiiPolynomial._trivial_symmetry(Val(2))
+        et = Sequence(tt, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        @test project(scale(et, (0.5, 0.5)), desymmetrize(tt)) == scale(project(et, desymmetrize(tt)), (0.5, 0.5))
+    end
+
     @testset "InfiniteSequence" begin
         # Fourier: the dilation k ↦ γk pulls the rate back to ν^{1/|γ|}, errors unchanged
         X = Ell1(GeometricWeight(4.0))

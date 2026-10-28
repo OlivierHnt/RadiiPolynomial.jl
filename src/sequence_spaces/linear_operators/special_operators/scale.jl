@@ -110,34 +110,71 @@ end
 
 # Symmetric space
 
-function domain(𝒮::Scale, s::SymmetricSpace{<:Fourier})
-    γ = value(𝒮)
-    all(isinteger, indices(s) ./ γ) || return throw(DomainError(𝒮, "Division of indices by Scale value must yield a lattice for symmetric Fourier spaces"))
-    V = Fourier(Int(order(s) ÷ abs(γ)), frequency(s))
-    G = unsafe_group!(Set(_groupelem_invscale(𝒮, g, desymmetrize(s))
-                  for g ∈ elements(symmetry(s))))
-    return SymmetricSpace(V, G)
+# on a Fourier axis the scale dilates the indices, k ↦ γk, and on a Taylor axis it multiplies the k-th
+# coefficient by γ^k; a Chebyshev axis only admits γ = 1. Writing Γ for the diagonal matrix of the Fourier
+# scales (1 elsewhere) and τ(k) = ∏ γ_l^{k_l} over the Taylor axes, the symmetry a_k = α(k) a_{βk} becomes
+#     c_k = α(Γ⁻¹k) c_{ΓβΓ⁻¹k}    whenever τ∘β = τ,
+# so the scaled sequence is invariant under the elements with ΓβΓ⁻¹ integer and τ∘β = τ, transformed into
+# the automorphism ΓβΓ⁻¹ with the phase Γ⁻¹φ; the other elements are no longer symmetries and are dropped,
+# as for the partial evaluation. The domain inverts the dilation, i.e. uses Γ⁻¹ in place of Γ.
+
+function domain(𝒮::Scale, s::SymmetricSpace)
+    V = domain(𝒮, desymmetrize(s))
+    V isa UndefSpace && return UndefSpace()
+    return SymmetricSpace(V, _scale_symmetry(symmetry(s), desymmetrize(s), 𝒮, -1))
 end
 
-function _groupelem_invscale(𝒮::Scale, g::GroupElement, ::Fourier)
-    new_va = Cocycle(g.cocycle.angle,
-                     g.cocycle.phase * value(𝒮))
-    return GroupElement(g.lattice_aut, new_va)
+function codomain(𝒮::Scale, s::SymmetricSpace)
+    V = codomain(𝒮, desymmetrize(s))
+    return SymmetricSpace(V, _scale_symmetry(symmetry(s), desymmetrize(s), 𝒮, 1))
 end
 
-function codomain(𝒮::Scale, s::SymmetricSpace{<:Fourier})
-    γ = value(𝒮)
-    all(isinteger, indices(s) .* γ) || return throw(DomainError(𝒮, "Multiplication of indices by Scale value must yield a lattice for symmetric Fourier spaces"))
-    V = Fourier(Int(order(s) * abs(γ)), frequency(s))
-    G = unsafe_group!(Set(_groupelem_scale(𝒮, g, desymmetrize(s)) for g ∈ elements(symmetry(s))))
-    return SymmetricSpace(V, G)
+_scale_symmetry(G::Group, s::BaseSpace, 𝒮::Scale{<:Number}, direction::Int) =
+    _scale_symmetry(G, (s,), (value(𝒮),), direction)
+_scale_symmetry(G::Group, s::TensorSpace{<:NTuple{N,BaseSpace}}, 𝒮::Scale{<:NTuple{N,Number}}, direction::Int) where {N} =
+    _scale_symmetry(G, spaces(s), value(𝒮), direction)
+
+function _scale_symmetry(G::Group{N,L}, s::NTuple{N,BaseSpace}, γ::NTuple{N,Number}, direction::Int) where {N,L}
+    Γ = map(_index_dilation, s, γ) # k ↦ γk on a Fourier axis, the identity elsewhere
+    τ = map(_coefficient_factor, s, γ) # a_k ↦ γ^k a_k on a Taylor axis, the identity elsewhere
+    direction == -1 && (Γ = map(inv, Γ))
+    return unsafe_group!(Set{GroupElement{N,L}}(_scale_groupelem(g, Γ) for g ∈ elements(G) if _scale_preserves(g, Γ, τ)))
 end
 
-function _groupelem_scale(𝒮::Scale, g::GroupElement, ::Fourier)
-    new_va = Cocycle(g.cocycle.angle,
-                     g.cocycle.phase / value(𝒮))
-    return GroupElement(g.lattice_aut, new_va)
+function _index_dilation(::Fourier, γ::Number)
+    isinteger(γ) || return throw(DomainError(γ, "Scale value must be an integer for Fourier spaces"))
+    return Int(γ) // 1
 end
+_index_dilation(::Taylor, ::Number) = 1 // 1
+function _index_dilation(::Chebyshev, γ::Number)
+    isone(γ) || return throw(DomainError(γ, "Scale is only defined for γ = 1 for Chebyshev spaces"))
+    return 1 // 1
+end
+
+_coefficient_factor(::Taylor, γ::Number) = γ
+_coefficient_factor(::BaseSpace, γ::Number) = one(γ)
+
+_conjugate_lattice_aut(β::StaticArrays.SMatrix{N,N,Int}, Γ::NTuple{N,Rational{Int}}) where {N} =
+    StaticArrays.SMatrix{N,N,Rational{Int}}(Γ[l] * β[l,m] / Γ[m] for l ∈ 1:N, m ∈ 1:N) # ΓβΓ⁻¹
+
+function _scale_preserves(g::GroupElement{N}, Γ::NTuple{N,Rational{Int}}, τ::NTuple{N,Number}) where {N}
+    β = g.lattice_aut.matrix
+    all(isinteger, _conjugate_lattice_aut(β, Γ)) || return false
+    # τ∘β = τ, i.e. ∏_l τ_l^{β_{lm}} = τ_m for every m, compared with the negative powers moved across
+    for m ∈ 1:N
+        lhs, rhs = one(τ[m]), τ[m]
+        for l ∈ 1:N
+            β[l,m] > 0 && (lhs *= τ[l] ^ β[l,m])
+            β[l,m] < 0 && (rhs *= τ[l] ^ (-β[l,m]))
+        end
+        _safe_isequal(lhs, rhs) || return false
+    end
+    return true
+end
+
+_scale_groupelem(g::GroupElement{N}, Γ::NTuple{N,Rational{Int}}) where {N} = GroupElement(
+    LatticeAut(StaticArrays.SMatrix{N,N,Int}(_conjugate_lattice_aut(g.lattice_aut.matrix, Γ))),
+    Cocycle(g.cocycle.angle, map(/, g.cocycle.phase, Γ)))
 
 _coeftype(𝒮::Scale, s::SymmetricSpace, ::Type{T}) where {T} =
     _coeftype(𝒮, desymmetrize(s), T)

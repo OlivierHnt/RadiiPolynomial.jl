@@ -53,24 +53,33 @@ codomain(::Laplacian, s::SymmetricSpace{<:BaseSpace}) = codomain(Derivative(2), 
 _coeftype(::Laplacian, s::SymmetricSpace{<:BaseSpace}, ::Type{T}) where {T} =
     promote_type(real(_coeftype(Derivative(2), s, T)), T)
 
-function _check_laplacian_symmetry(s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
+# Δ is diagonal with the symbol -(ω₁²k₁² + … + ω_N²k_N²), so the Laplacian of an invariant sequence keeps
+# the symmetries whose lattice automorphism preserves the symbol, unchanged; the others are dropped, as
+# for the partial evaluation
+function _laplacian_symmetry(s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
     w2 = map(ω -> ω*ω, frequency(s))
-    for g ∈ elements(symmetry(s))
-        β = g.lattice_aut.matrix
-        for i ∈ 1:N, j ∈ i:N
-            v = sum(l -> w2[l] * (β[l,i]*β[l,j]), 1:N)
-            valid = i == j ? _safe_isequal(v, w2[i]) : _safe_iszero(v)
-            valid || return throw(ArgumentError("Laplacian is not compatible with the symmetry group: the lattice automorphism with matrix $β does not preserve the symbol -(ω₁²k₁² + … + ω_N²k_N²)"))
-        end
-    end
-    return s
+    G = symmetry(s)
+    return unsafe_group!(Set{eltype(elements(G))}(g for g ∈ elements(G) if _preserves_symbol(g, w2)))
 end
 
-domain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N} =
-    _check_laplacian_symmetry(s)
+function _preserves_symbol(g::GroupElement{N}, w2::NTuple{N,Number}) where {N}
+    β = g.lattice_aut.matrix
+    for i ∈ 1:N, j ∈ i:N
+        v = sum(l -> w2[l] * (β[l,i]*β[l,j]), 1:N)
+        (i == j ? _safe_isequal(v, w2[i]) : _safe_iszero(v)) || return false
+    end
+    return true
+end
 
-codomain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N} =
-    _check_laplacian_symmetry(s)
+function domain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
+    G = _laplacian_symmetry(s)
+    return G == symmetry(s) ? s : SymmetricSpace(desymmetrize(s), G)
+end
+
+function codomain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}) where {N}
+    G = _laplacian_symmetry(s)
+    return G == symmetry(s) ? s : SymmetricSpace(desymmetrize(s), G)
+end
 
 _coeftype(Δ::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}, ::Type{T}) where {N,T} =
     _coeftype(Δ, desymmetrize(s), T)

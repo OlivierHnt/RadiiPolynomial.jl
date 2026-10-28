@@ -124,11 +124,22 @@
         ti = interval(t)
         @test domain(Δ, ti) === ti
 
-        # a swap action requires the swapped factors to have the same frequency
+        # a swap of factors with different frequencies does not preserve the symbol: as for the partial
+        # evaluation, the symmetries that are broken are dropped rather than raising an error
         swap = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1])))
-        @test domain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 1.0), swap)) isa SymmetricSpace
-        @test_throws ArgumentError domain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), swap))
-        @test_throws ArgumentError codomain(Δ, SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), swap))
+        sw = SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 1.0), swap)
+        @test domain(Δ, sw) === sw
+        swω = SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), swap)
+        @test symmetry(domain(Δ, swω)) == symmetry(codomain(Δ, swω)) == RadiiPolynomial._trivial_symmetry(Val(2))
+        @test desymmetrize(codomain(Δ, swω)) == desymmetrize(swω)
+        b = Sequence(swω, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(swω)])
+        @test project(laplacian(b), desymmetrize(swω)) == laplacian(project(b, desymmetrize(swω)))
+        # a group mixing a symbol-preserving reflection with the frequency-breaking swap keeps the reflection
+        mixed = Group(GroupElement(LatticeAut([0 1 ; 1 0]), Cocycle(0//1, Rational{Int}[0//1, 0//1])),
+                      GroupElement(LatticeAut([-1 0 ; 0 1]), Cocycle(0//1, Rational{Int}[0//1, 0//1])))
+        smω = SymmetricSpace(Fourier(2, 1.0) ⊗ Fourier(2, 2.0), mixed)
+        @test length(elements(symmetry(codomain(Δ, smω)))) == 4
+        @test all(g -> g.lattice_aut.matrix[1,2] == 0, elements(symmetry(codomain(Δ, smω))))
     end
 
     @testset "unsupported / restrictions" begin

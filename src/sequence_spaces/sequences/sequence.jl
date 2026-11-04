@@ -186,6 +186,8 @@ for (f, g) ∈ ((:float, :_float_space), (:big, :_big_space), (:mid, :_mid_space
         $g(s::Fourier) = Fourier(order(s), $f(frequency(s)))
         $g(s::Chebyshev) = s
 
+        $g(s::SymmetricSpace) = SymmetricSpace($g(desymmetrize(s)), symmetry(s))
+
         $g(s::CartesianPower) = CartesianPower($g(space(s)), nspaces(s))
         $g(s::CartesianProduct) = CartesianProduct(map($g, spaces(s)))
     end

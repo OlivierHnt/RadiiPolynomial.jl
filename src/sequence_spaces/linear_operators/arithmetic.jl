@@ -711,6 +711,12 @@ Base.:*(B::Matrix, A::LinearOperator) = (B * Projection(codomain(A), eltype(A)))
 Base.:*(A::LinearOperator, B::LinearAlgebra.Diagonal) = A * Matrix(B)
 Base.:*(B::LinearAlgebra.Diagonal, A::LinearOperator) = Matrix(B) * A
 
+LinearAlgebra.diagzero(D::LinearAlgebra.Diagonal{<:AbstractLinearOperator}, i, j) =
+    _diagzero(D.diag[i], D.diag[j])
+_diagzero(Aᵢ::Union{LinearOperator,Projection}, Aⱼ::Union{LinearOperator,Projection}) =
+    zeros(promote_type(eltype(Aᵢ), eltype(Aⱼ)), domain(Aⱼ), codomain(Aᵢ))
+_diagzero(Aᵢ, Aⱼ) = UniformScalingOperator(exact(false))
+
 #
 
 radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::LinearAlgebra.Diagonal{<:UniformScaling}) = radd!(A, LinearAlgebra.Diagonal(UniformScalingOperator.(J.diag)))

@@ -496,15 +496,6 @@ Base.convert(::Type{AbstractLinearOperator}, J::UniformScaling) = UniformScaling
 Base.convert(::Type{UniformScalingOperator{T}}, J::UniformScaling{S}) where {T<:Number,S<:Number} = UniformScalingOperator(convert(promote_type(T,S), J.λ))
 
 
-#
-
-LinearAlgebra.diagzero(D::LinearAlgebra.Diagonal{<:AbstractLinearOperator}, i, j) =
-    _diagzero(D.diag[i], D.diag[j])
-_diagzero(Aᵢ::Union{LinearOperator,Projection}, Aⱼ::Union{LinearOperator,Projection}) =
-    zeros(promote_type(eltype(Aᵢ), eltype(Aⱼ)), domain(Aⱼ), codomain(Aᵢ))
-_diagzero(Aᵢ, Aⱼ) = UniformScalingOperator(exact(false))
-
-
 
 
 

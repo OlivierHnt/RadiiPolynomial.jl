@@ -102,7 +102,9 @@ function set_of_radii(Y::AbstractVector{<:Interval}, Z::AbstractMatrix{<:Interva
     Pf = r -> Yf .+ Zf * r .+ Bf(r) * r ./ 2 .- r
     DPf = r -> Zf .+ (Bf(r) .+ Bfᵀ(r)) ./ 2 .- LinearAlgebra.I(M)
 
-    r = _search_radii(Pf, DPf, max.(Yf, floatmin(Float64)), r -> all(p -> !isempty_interval(p) & precedes(p, zero(p)), P(r)))
+    # the search is relative to the scale of Y: a zero Yₘ starts at a slack of 10⁻⁶ max(Y), since the dyadic steps cannot lift a radius from floatmin to the root, and Newton stops at a residual of 10⁻¹² max(Y)
+    scale = maximum(Yf)
+    r = _search_radii(Pf, DPf, max.(Yf, 1e-6 * scale, floatmin(Float64)), 1e-12 * scale, r -> all(p -> !isempty_interval(p) & precedes(p, zero(p)), P(r)))
     isnothing(r) && return _rpa_failure("radii polynomials not simultaneously nonpositive", T, verbose)
 
     η = _perron_vector(A(r))
@@ -120,9 +122,9 @@ end
 set_of_radii(Y, Z, W, R; verbose::Bool=false) = set_of_radii(interval.(Y), interval.(Z), interval.(W), R; verbose=verbose)
 
 # from the smallest root of the radii polynomials, step outward along a direction in which they all decrease until `nonpositive` holds
-function _search_radii(Pf, DPf, r₀, nonpositive)
+function _search_radii(Pf, DPf, r₀, tol, nonpositive)
     r₀ = try
-        first(newton(r -> (Pf(r), DPf(r)), r₀))
+        first(newton(r -> (Pf(r), DPf(r)), r₀; tol = tol))
     catch e
         e isa LinearAlgebra.SingularException || rethrow()
         r₀

@@ -484,14 +484,28 @@ end
 
 function _golden_search(f, a, b)
     ϕ = (sqrt(5) - 1) / 2 # ≈ 0.618
-    # the objective is flat around its minimum, so a percent of the initial bracket is as far as
-    # it is worth splitting hairs; an absolute tolerance would instead scale with ν̄_max
+    # the right end is only a hint: a decay rate fitted on a noise floor can be arbitrarily large, far past
+    # the radius where the contour bound overflows; the objective is finite on an interval [a, μ⋆) since
+    # that bound grows with the radius, so replace b by the geometric mean of a and b until b is feasible
+    fb = f(b)
+    while !isfinite(fb) && b > a
+        b = sqrt(a * b)
+        fb = f(b)
+    end
+    # the objective is flat around its minimum, so a percent of the feasible bracket is as fine as it
+    # is worth splitting; an absolute tolerance would instead scale with ν̄_max
     tol = abs(b - a) / 100
     c = b - ϕ * (b - a)
     d = a + ϕ * (b - a)
     fc = f(c)
     fd = f(d)
-    best_x, best_f = fd < fc ? (d, fd) : (c, fc)
+    best_x, best_f = b, fb
+    if fc < best_f
+        best_f, best_x = fc, c
+    end
+    if fd < best_f
+        best_f, best_x = fd, d
+    end
     iter = 0
 
     while abs(b - a) > tol && iter < 12
@@ -665,20 +679,38 @@ _scaled(x, s) = iszero(x) ? x : x * s
 # error of the grid evaluation
 
 function _error(f, a, approx, ν::NTuple{N}, ν̄, N_v) where {N}
-    ν̄⁻¹ = inv.(ν̄)
-    corners = _polyannulus_corners(ν̄)
+    C = maximum(μ -> _contour(f, a, μ), _polyannulus_corners(ν̄))
 
-    C = maximum(μ -> _contour(f, a, μ), corners)
+    # the grid folds every index k + j N_fft, j ∈ ℤᴺ \\ {0}, onto k; by the Cauchy estimate the folds of
+    # direction i contribute (ν̄ᵢ^kᵢ + ν̄ᵢ^-kᵢ)/(ν̄ᵢ^N_fftᵢ - 1) next to the unfolded ν̄ᵢ^-|kᵢ|, and summing
+    # over j ≠ 0 is the product over directions minus the j = 0 term
+    N_fft = _oversampled_fft_size(space(approx))
+    finite_alias = sum(TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))); init = zero(prod(ν̄) * prod(ν))) do k
+        unfolded = ν̄ .^ exact.(.- abs.(k))
+        folded = (ν̄ .^ exact.(k) .+ ν̄ .^ exact.(.- k)) ./ (ν̄ .^ exact.(N_fft) .- exact(1))
+        return prod(ν .^ exact.(abs.(k))) * _prod_with_one_of(unfolded, folded)
+    end
 
-    # `init` because the box may be empty since a plateau reaching the constant
-    # term keeps nothing and every index is charged to the tail
-    q = sum(k -> sum(μ -> prod(μ .^ exact.(k)), corners) * prod(ν .^ exact.(abs.(k))),
-            TensorIndices(ntuple(i -> -N_v[i]:N_v[i], Val(N))); init = zero(prod(ν̄) * prod(ν)))
-
-    finite_alias = q / prod(ν̄ .^ exact.( _oversampled_fft_size(space(approx)) ) .- exact(1))
-    tail_alias   = exact(2^N) * prod(ν̄ ./ (ν̄ .- ν) .* (ν .* ν̄⁻¹) .^ exact.(N_v .+ 1))
+    # the tail is the complement of the box in ℤᴺ
+    ρ = ν ./ ν̄
+    box = ifelse.(N_v .< 0, zero.(ρ), (exact(1) .+ ρ .- exact(2) .* ρ .^ exact.(N_v .+ 1)) ./ (exact(1) .- ρ))
+    tail = exact(2) .* ρ .^ exact.(N_v .+ 1) ./ (exact(1) .- ρ)
+    tail_alias = _prod_with_one_of(box, tail)
 
     return C, finite_alias, tail_alias
+end
+
+# ∏ᵢ (xᵢ + yᵢ) - ∏ᵢ xᵢ, i.e. the sum of the products with at least one y factor, evaluated without the
+# subtraction: the y's are the tiny alias and tail terms and the cancellation would otherwise floor the
+# bound at the rounding level of the x's
+function _prod_with_one_of(x::NTuple{N}, y::NTuple{N}) where {N}
+    p = zero(x[1] * y[1])
+    p_x = one(x[1])
+    @inbounds for i ∈ 1:N
+        p = p * (x[i] + y[i]) + p_x * y[i]
+        p_x = p_x * x[i]
+    end
+    return p
 end
 
 function _perturbation_bound(f, a::Sequence{<:SequenceSpace,<:AbstractVector{<:RealOrComplexI}}, ρ, ν, ν̄)

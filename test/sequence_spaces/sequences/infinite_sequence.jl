@@ -213,4 +213,14 @@
         @test_throws DomainError norm(ia, Ell2())
     end
 
+    @testset "symmetric spaces" begin
+        # the Banach space is checked against the underlying space: a symmetric tensor space takes a
+        # tuple of weights
+        X = Ell1((GeometricWeight(1.1), IdentityWeight()))
+        s = Chebyshev(2) ⊗ evensym(Fourier(3, 1.0))
+        b = InfiniteSequence(Sequence(s, collect(1.0:dimension(s))), X; total_error = 0.1)
+        @test space(b) == s
+        @test banachspace(b) == X
+        @test total_error(b) == 0.1
+    end
 end

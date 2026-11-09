@@ -295,4 +295,15 @@
         @test in_interval(2.0, rate(weight(banachspace(scale(ai, 2)))))
         @test rate(weight(banachspace(scale(ai, -1)))) === interval(4.0)
     end
+
+    @testset "InfiniteSequence on a symmetric space" begin
+        # the weight is pulled back through the underlying space
+        X = Ell1((GeometricWeight(1.1), IdentityWeight()))
+        s = Chebyshev(2) ⊗ evensym(Fourier(3, 1.0))
+        b = InfiniteSequence(Sequence(s, collect(1.0:dimension(s))), X; total_error = 0.1)
+        c = scale(b, (1, -1))
+        @test space(c) == s
+        @test banachspace(c) == X
+        @test total_error(c) == 0.1
+    end
 end

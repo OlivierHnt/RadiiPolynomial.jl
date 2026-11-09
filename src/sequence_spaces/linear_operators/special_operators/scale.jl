@@ -219,6 +219,8 @@ _scale_weight(w::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NT
     map(_scale_weight, w, spaces(s), γ)
 _scale_weight(w::Weight, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NTuple{N,Number}) where {N} =
     _scale_weight(ntuple(_ -> w, Val(N)), s, γ)
+_scale_weight(w::Union{Weight,Tuple{Vararg{Weight}}}, s::SymmetricSpace, γ::Union{Number,Tuple{Vararg{Number}}}) =
+    _scale_weight(w, desymmetrize(s), γ)
 
 _scale_weight(w::IdentityWeight, ::BaseSpace, ::Number) = w
 _scale_weight(w::Weight, ::BaseSpace, ::Number) =

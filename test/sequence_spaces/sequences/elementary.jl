@@ -740,6 +740,36 @@
         @test isfinite(sup(total_error(exp(InfiniteSequence(sq4, X4)))))
     end
 
+    @testset "InfiniteSequence: output resolved to a noise floor" begin
+        # exp of the interpolant of log(2 + t/2) is the polynomial 2 + t/2: the decay rate fitted on the
+        # output is enormous and must not drive the auxiliary radius past where the contour bound overflows
+        N = 16
+        nodes = [-cospi(j / N) for j ∈ 0:N]
+        a = interval(real(RadiiPolynomial.to_coef(reverse(log.(2 .+ nodes ./ 2)), Chebyshev(N))))
+        X = Ell1(GeometricWeight(interval(1.2)))
+        for codomain ∈ (Chebyshev(N), Chebyshev(2N))
+            r = Nonlinearity(exp)(InfiniteSequence(a, X); codomain = codomain)
+            @test sup(total_error(r)) < 1e-12
+        end
+    end
+
+    @testset "InfiniteSequence: tensor space tail and aliasing cover the slabs" begin
+        # exp(2z₁ + 0.01z₂) has the closed-form coefficients 2^k/k! 0.01^l/l!: the tail outside the
+        # box |k| ≤ N, |l| ≤ N lives in the slab k > N, l ≤ N, which a product of one-dimensional tails
+        # does not see
+        s = Taylor(5) ⊗ Taylor(5)
+        a = Sequence(s, zeros(Interval{Float64}, dimension(s)))
+        a[(1,0)] = interval(2.0)
+        a[(0,1)] = interval(0.01)
+        X = Ell1((GeometricWeight(interval(1.2)), GeometricWeight(interval(1.2))))
+        r = exp(InfiniteSequence(a, X))
+        N = order(space(sequence(r)))
+        c(k, l) = 2.0^k / factorial(big(k)) * 0.01^l / factorial(big(l)) * 1.2^(k+l)
+        true_tail = Float64(sum(c(k, l) for k ∈ 0:60, l ∈ 0:60 if k > N[1] || l > N[2]))
+        @test inf(tail_error(r)) ≥ true_tail
+        @test inf(total_error(r)) ≥ true_tail
+    end
+
     @testset "InfiniteSequence: Taylor disk vs. branch cut" begin
         Xt = Ell1(GeometricWeight(interval(1.5)))
 

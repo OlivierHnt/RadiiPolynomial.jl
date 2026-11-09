@@ -111,7 +111,7 @@ As in [A first validation](@ref), interval arithmetic supplies it by making ever
 R = 10sup(Y)
 u_R = Sequence(X, interval.(coefficients(u_bar), R; format = :midpoint))
 
-Z₁_R = opnorm(I - A_i * DF(u_R, params_i), X_norm)
+Z₁_R = opnorm(exact(I) - A_i * DF(u_R, params_i), X_norm)
 
 ie_first, proved_first = interval_of_existence(Y, Z₁_R, R)
 inf(ie_first), sup(ie_first), proved_first
@@ -126,7 +126,7 @@ But the chosen value of ``R``, which bounds the uniqueness radius, must be small
 To do better, we put the limiting constraint ``Z_1 < 1`` at the center of the ball ``\|I - A DF(\num)\| < 1`` and we control how fast ``DF`` varies nearby.
 
 ```@example lorenz_equilibria
-Z₁ = opnorm(I - A_i * DF(u_i, params_i), X_norm)
+Z₁ = opnorm(exact(I) - A_i * DF(u_i, params_i), X_norm)
 ```
 
 Writing ``h = u - \num``, every entry of ``DF`` is affine in ``u``, so the difference is exactly

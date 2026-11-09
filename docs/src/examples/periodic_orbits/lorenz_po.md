@@ -49,9 +49,9 @@ function DF(x, params, ξ_)
     ξ = unpack(ξ_)
     M = Matrix{Any}(undef, 2, 2)
 
-    L = [Derivative(1)  0*I            0*I
-         0*I            Derivative(1)  0*I
-         0*I            0*I            Derivative(1)]
+    L = [Derivative(1)  exact(0*I)     exact(0*I)
+         exact(0*I)     Derivative(1)  exact(0*I)
+         exact(0*I)     exact(0*I)     Derivative(1)]
 
     M[1,1] = L - τ[1] * Multiplication.(Df(unpack(u), params))
 
@@ -59,7 +59,7 @@ function DF(x, params, ξ_)
 
     M[2,1] = [adjoint(ξ[1]) adjoint(ξ[2]) adjoint(ξ[3])]
 
-    M[2,2] = [LinearOperator(0);;]
+    M[2,2] = [LinearOperator(exact(0));;]
 
     return M
 end
@@ -172,7 +172,7 @@ u₁_bar_interval, u₂_bar_interval, u₃_bar_interval = unpack(component(x_bar
 Z₂ = max(opnorm(A_K_interval, X), inv(interval(K+1))) *
     max(exact(2) * (abs(τ_bar_interval) + R),
         max(σ_interval + norm(ρ_interval - u₃_bar_interval, X_F) + R + norm(u₂_bar_interval, X_F) + R,
-            σ_interval + 1 + norm(u₁_bar_interval, X_F) + R,
+            σ_interval + exact(1) + norm(u₁_bar_interval, X_F) + R,
             norm(u₁_bar_interval, X_F) + R + β_interval))
 
 #

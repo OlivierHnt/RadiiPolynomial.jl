@@ -177,7 +177,7 @@ _scale_groupelem(g::GroupElement{N}, Γ::NTuple{N,Rational{Int}}) where {N} = Gr
     Cocycle(g.cocycle.angle, map(/, g.cocycle.phase, Γ)))
 
 _coeftype(𝒮::Scale, s::SymmetricSpace, ::Type{T}) where {T} =
-    _coeftype(𝒮, desymmetrize(s), T)
+    _symtype(symmetry(s), _coeftype(𝒮, desymmetrize(s), T))
 
 
 

@@ -148,7 +148,7 @@ function _groupelem_shift(r::StaticArrays.SVector{N,<:Union{Integer,Rational}}, 
 end
 
 _coeftype(𝒮::Shift, s::SymmetricSpace, ::Type{T}) where {T} =
-    _coeftype(𝒮, desymmetrize(s), T)
+    _symtype(symmetry(s), _coeftype(𝒮, desymmetrize(s), T))
 
 
 

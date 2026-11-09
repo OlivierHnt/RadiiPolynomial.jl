@@ -159,6 +159,11 @@ elements(g::Group) = g.elements
 
 Base.:(==)(G₁::Group, G₂::Group) = G₁ === G₂ || (G₁.hash == G₂.hash && elements(G₁) == elements(G₂)) # elements(G₁) == elements(G₂) is a safeguard
 Base.issubset(G₁::Group, G₂::Group) = issubset(elements(G₁), elements(G₂))
+
+# type of an orbit average over `G` of entries of type `T`: floating point for the division by the orbit size,
+# and complex as soon as a cocycle factor e^{iπ(θ + ⟨φ,k⟩)} is not ±1
+_symtype(G::Group, ::Type{T}) where {T} =
+    all(g -> isinteger(g.cocycle.angle) & all(isinteger, g.cocycle.phase), elements(G)) ? float(T) : complex(float(T))
 function Base.intersect(G₁::Group, G₂::Group)
     G₁ == G₂ && return G₁
     return unsafe_group!(intersect(elements(G₁), elements(G₂)))

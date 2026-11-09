@@ -17,7 +17,7 @@ struct Projection{T<:VectorSpace,S<:Number} <: AbstractLinearOperator
     space :: T
 end
 
-Projection(space::VectorSpace, ::Type{T}=Float64) where {T<:Number} = Projection{typeof(space),T}(space)
+Projection(space::VectorSpace, ::Type{T}=ExactReal{Bool}) where {T<:Number} = Projection{typeof(space),T}(space)
 
 domain(P::Projection) = P.space # needed for general methods
 function domain(P::Projection, s::UndefSpace) # needed to resolve methods ambiguity
@@ -45,12 +45,15 @@ function codomain(P::Projection, s::VectorSpace)
     return codom
 end
 
-coefficients(P::Projection) = project(UniformScalingOperator(true), P.space, P.space, eltype(P)) # needed for general methods
+coefficients(P::Projection) = project(UniformScalingOperator(one(eltype(P))), P.space, P.space) # needed for general methods
 
 Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
 Base.eltype(::Type{<:Projection{<:VectorSpace,S}}) where {S<:Number} = S
-_coeftype(A::Projection, ::VectorSpace) = eltype(A)
+_coeftype(A::Projection, s::VectorSpace) = _coeftype(A, s, eltype(A))
 _coeftype(A::Projection, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
+_coeftype(A::Projection{<:SequenceSpace}, s::SequenceSpace, ::Type{T}) where {T} =
+    symmetry(s) == symmetry(A.space) ? promote_type(eltype(A), T) : _symtype(symmetry(A.space), _symtype(symmetry(s), promote_type(eltype(A), T)))
+_coeftype(A::Projection{<:NoSymSpace}, ::NoSymSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 IntervalArithmetic.interval(::Type{T}, P::Projection) where {T<:IntervalArithmetic.NumTypes} = Projection(IntervalArithmetic.interval(T, P.space), Interval{T})
 IntervalArithmetic.interval(P::Projection) = Projection(interval(P.space), Interval{IntervalArithmetic.promote_numtype(eltype(P), eltype(P))})
@@ -64,11 +67,10 @@ IntervalArithmetic.interval(P::Projection) = Projection(interval(P.space), Inter
 
 #- action
 
-Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space, promote_type(eltype(P), eltype(a)))
+Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space, _coeftype(P, space(a), eltype(a)))
 
 #- arithmetic
 
-# the projection is materialized in the promoted type, so its ones are exact against intervals
 Base.:+(P::Projection, A::LinearOperator) = project(P, P.space, P.space, promote_type(eltype(P), eltype(A))) + A
 Base.:+(A::LinearOperator, P::Projection) = A + project(P, P.space, P.space, promote_type(eltype(P), eltype(A)))
 Base.:-(P::Projection, A::LinearOperator) = project(P, P.space, P.space, promote_type(eltype(P), eltype(A))) - A
@@ -77,10 +79,10 @@ Base.:-(A::LinearOperator, P::Projection) = A - project(P, P.space, P.space, pro
 Base.:*(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
 Base.:∘(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
 
-Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
-Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, promote_type(eltype(P), eltype(A))) # needed to resolve method ambiguity
+Base.:*(A::LinearOperator, P::Projection) = project(A, P.space, codomain(A), _coeftype(A, P.space, eltype(P))) # needed to resolve method ambiguity
+Base.:*(P::Projection, A::LinearOperator) = project(A, domain(A), P.space, _coeftype(P, codomain(A), eltype(A))) # needed to resolve method ambiguity
 
-_proj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(A, domain, eltype(P)))
+_proj(A::AbstractLinearOperator, domain::VectorSpace, P::Projection) = project(A, domain, P.space, _coeftype(P, codomain(A, domain), _coeftype(A, domain, eltype(P))))
 _proj(A::AbstractLinearOperator, ::UndefSpace, P::Projection) = ComposedOperator(P, A)
 _proj(A::AbstractLinearOperator, P::Projection, codomain::VectorSpace) = project(A, P.space, codomain, _coeftype(A, P.space, eltype(P)))
 _proj(A::AbstractLinearOperator, P::Projection, ::UndefSpace) = ComposedOperator(A, P)
@@ -117,7 +119,7 @@ Represent `a` as a [`Sequence`](@ref) in `space_dest`.
 
 See also: [`project!`](@ref).
 """
-project(a::AbstractSequence, space_dest::VectorSpace, ::Type{T}=eltype(a)) where {T} = project!(zeros(T, space_dest), a)
+project(a::AbstractSequence, space_dest::VectorSpace, ::Type{T}=_coeftype(Projection(space_dest, eltype(a)), space(a), eltype(a))) where {T} = project!(zeros(T, space_dest), a)
 
 """
     project!(c::Sequence, a::Sequence)
@@ -169,7 +171,7 @@ Represent `A` as a [`LinearOperator`](@ref) from `domain_dest` to `codomain_dest
 
 See also: [`project!`](@ref).
 """
-project(A::AbstractLinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=_coeftype(A, domain_dest)) where {T} =
+project(A::AbstractLinearOperator, domain_dest::VectorSpace, codomain_dest::VectorSpace, ::Type{T}=_coeftype(Projection(codomain_dest), codomain(A, domain_dest), _coeftype(A, domain_dest))) where {T} =
     project!(zeros(T, domain_dest, codomain_dest), A)
 
 """
@@ -309,7 +311,7 @@ end
 
 _project!(C::LinearOperator, A::LinearOperator) = _radd!(C, A)
 
-_project!(A::LinearOperator, P::Projection) = radd!(A, project(UniformScalingOperator(true), P.space, P.space, eltype(A))) # ones in the type of `A`: exact against intervals
+_project!(A::LinearOperator, P::Projection) = radd!(A, project(UniformScalingOperator(one(eltype(P))), P.space, P.space, eltype(A)))
 
 _project!(A::LinearOperator, J::UniformScalingOperator) = radd!(A, J)
 _project!(A::LinearOperator, J::UniformScaling) = _project!(A, UniformScalingOperator(J))

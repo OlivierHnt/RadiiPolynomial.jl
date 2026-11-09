@@ -74,7 +74,7 @@ domain(I::Integral, s::Taylor) = codomain(Derivative(order(I)), s)
 
 codomain(ℐ::Integral, s::Taylor) = Taylor(order(s)+order(ℐ))
 
-_coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = typeof(inv(one(T))*zero(T))
+_coeftype(::Integral, ::Taylor, ::Type{T}) where {T} = float(T)
 
 function getcoefficient(ℐ::Integral, (codom, i)::Tuple{Taylor,Integer}, (dom, j)::Tuple{Taylor,Integer}, ::Type{T}) where {T}
     n = order(ℐ)
@@ -92,7 +92,7 @@ domain(::Integral, s::Fourier) = s
 
 codomain(::Integral, s::Fourier) = s
 
-_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(inv(one(real(S))*one(T))*zero(S)))
+_coeftype(::Integral, ::Fourier{T}, ::Type{S}) where {T,S} = complex(promote_type(float(T), float(S)))
 
 function getcoefficient(ℐ::Integral, (codom, i)::Tuple{Fourier,Integer}, (dom, j)::Tuple{Fourier,Integer}, ::Type{T}) where {T}
     n = order(ℐ)
@@ -120,7 +120,7 @@ domain(I::Integral, s::Chebyshev) = iszero(order(I)) ? s : UndefSpace() # flags 
 
 codomain(ℐ::Integral, s::Chebyshev) = Chebyshev(order(s)+order(ℐ))
 
-_coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = T
+_coeftype(::Integral, ::Chebyshev, ::Type{T}) where {T} = float(T)
 
 function getcoefficient(ℐ::Integral, (codom, i)::Tuple{Chebyshev,Integer}, (dom, j)::Tuple{Chebyshev,Integer}, ::Type{T}) where {T}
     n = order(ℐ)
@@ -186,7 +186,7 @@ function _groupelem_integral(I::Integral, g::GroupElement, ::Fourier)
 end
 
 _coeftype(I::Integral, s::SymmetricSpace, ::Type{T}) where {T} =
-    _coeftype(I, desymmetrize(s), T)
+    _symtype(symmetry(s), _coeftype(I, desymmetrize(s), T))
 
 function _apply!(c::Sequence{<:SymmetricSpace{<:Fourier}}, ℐ::Integral, a::Sequence{<:SymmetricSpace{<:Fourier}})
     n = order(ℐ)

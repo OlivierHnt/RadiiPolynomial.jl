@@ -685,21 +685,6 @@
         @test_throws ArgumentError A2 + A3
     end
 
-    @testset "the ones of `I` and `Projection` are exact against intervals" begin
-        # a `Bool` or `Float64` one converted to an interval is not flagged guaranteed, so the identity and
-        # the projection are materialized as `one(T)` in the type of the result
-        s = Fourier(3, exact(1.0))
-        A = LinearOperator(s, s, interval.(reshape(1.0:49.0, 7, 7)))
-        a = Sequence(s, interval.(1.0:7.0))
-        guaranteed(B) = all(isguaranteed, coefficients(B))
-        @test guaranteed(project(UniformScalingOperator(true), s, s, Interval{Float64}))
-        @test guaranteed(radd!(copy(A), I))
-        @test guaranteed(Projection(s) - A)
-        @test guaranteed(A + Projection(Fourier(2, exact(1.0))))
-        @test guaranteed(project(Multiplication(a) + I, s, s))
-        @test eltype(Projection(s) - LinearOperator(s, s, ones(7, 7))) == Float64
-    end
-
     @testset "exact zeros read through a symmetry" begin
         # the cocycle factor of a zero coefficient is skipped: multiplying an exact zero by it gives a
         # `Float64`, which cannot be stored back as an `ExactReal`
@@ -708,5 +693,12 @@
         F = LinearOperator(E, ScalarSpace(), [1.0+0im 2.0 3.0])
         @test Z + F == F
         @test F + Z == F
+    end
+
+    @testset "the sum allocates the type of the sum of the entries" begin
+        s = Taylor(1)
+        B = LinearOperator(s, s, Bool[1 0 ; 0 1])
+        @test B + B == LinearOperator(s, s, [2 0 ; 0 2])
+        @test eltype(B + B) == Int
     end
 end

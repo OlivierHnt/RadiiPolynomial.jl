@@ -5,9 +5,9 @@
 
     @testset "construction, domain, codomain" begin
         Π = Projection(𝒯)
-        @test Π isa Projection{Taylor,Float64}
+        @test Π isa Projection{Taylor,ExactReal{Bool}}
         @test domain(Π) == codomain(Π) == 𝒯
-        @test eltype(Π) == Float64
+        @test eltype(Π) == ExactReal{Bool}
 
         ΠC = Projection(𝒯, ComplexF64)
         @test eltype(ΠC) == ComplexF64
@@ -554,5 +554,50 @@
         # undefined space
         @test_throws ArgumentError domain(Π, UndefSpace())
         @test_throws ArgumentError codomain(Π, UndefSpace())
+    end
+
+    @testset "exact ones, storage promoted with the operands" begin
+        # a default projection and `UniformScalingOperator()` carry exact ones; the matrix holding them
+        # takes the promoted type of the operands, and the type of the orbit averages across symmetries
+        s = Fourier(3, exact(1.0))
+        A = LinearOperator(s, s, interval.(reshape(1.0:49.0, 7, 7)))
+        guaranteed(B) = all(isguaranteed, coefficients(B))
+        @test guaranteed(Projection(s) - A)
+        @test guaranteed(A + Projection(s))
+        @test guaranteed(radd!(copy(A), UniformScalingOperator()))
+        @test eltype(project(Projection(𝒯), 𝒯, 𝒯)) == ExactReal{Bool}
+        # across symmetries, the orbit averages (a₋ₖ + aₖ)/2 are stored as well
+        ℱ₂ = Fourier(2, 1.0)
+        @test project(Projection(ℱ₂), ℱ₂, evensym(ℱ₂)) == LinearOperator(ℱ₂, evensym(ℱ₂), [0.0 0.0 1.0 0.0 0.0 ; 0.0 0.5 0.0 0.5 0.0 ; 0.5 0.0 0.0 0.0 0.5])
+        # a cocycle factor which is not ±1 makes the averages complex
+        c = SymmetricSpace(ℱ₂, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[1//3]))))
+        @test eltype(project(Projection(ℱ₂), ℱ₂, c)) == ComplexF64
+        @test eltype(Projection(Taylor(3)) * Derivative(1)) == Int
+        @test eltype(Projection(𝒯) * Sequence(𝒯, [1, 2, 3])) == Int
+        @test eltype(Projection(s) - LinearOperator(s, s, ones(7, 7))) == Float64
+    end
+
+    @testset "reads across symmetries" begin
+        # a read whose domain or codomain carries another group averages over the orbits: the result is
+        # floating, and complex when a cocycle factor is not ±1, whatever the types of the operands
+        ℱ₂ = Fourier(2, 1.0)
+        e = evensym(ℱ₂)
+        c = SymmetricSpace(ℱ₂, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[1//3]))))
+        a = Sequence(ℱ₂, [1, 2, 3, 5, 5])
+        L = LinearOperator(ℱ₂, ℱ₂, Matrix{Int}(I, 5, 5))
+        @test Projection(e) * a == Sequence(e, [3.0, 3.5, 3.0])
+        @test project(a, e) == Sequence(e, [3.0, 3.5, 3.0])
+        @test eltype(Projection(e) * L) == Float64
+        @test eltype(Projection(e) * Multiplication(a)) == Float64
+        @test eltype(project(Projection(ℱ₂), e, ℱ₂)) == Float64
+        @test eltype(Projection(c) * Sequence(ℱ₂, ones(5))) == ComplexF64
+        @test eltype(project(LinearOperator(ℱ₂, ℱ₂, ones(5, 5)), c, ℱ₂)) == ComplexF64
+        @test eltype(LinearOperator(ℱ₂, ℱ₂, ones(5, 5)) * Projection(c)) == ComplexF64
+        @test eltype(Sequence(c, [1.0, 2.0, 3.0]) + Sequence(ℱ₂, ones(5))) == ComplexF64
+        @test eltype(Projection(c) + LinearOperator(ℱ₂, ℱ₂, ones(5, 5))) == ComplexF64
+        # between plain spaces the type is inferred
+        b = Sequence(ℱ₂, [1.0, 2.0, 3.0, 4.0, 5.0])
+        @test @inferred(project(b, Fourier(3, 1.0))) == project(b, Fourier(3, 1.0))
+        @test @inferred(b + b) == 2b
     end
 end

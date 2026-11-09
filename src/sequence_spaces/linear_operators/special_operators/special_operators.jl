@@ -98,7 +98,7 @@ end
 
 #
 
-Base.:+(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence + _convert_scaling(eltype(A.sequence), J.λ))
-Base.:+(J::UniformScalingOperator, A::Multiplication) = Multiplication(_convert_scaling(eltype(A.sequence), J.λ) + A.sequence)
-Base.:-(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence - _convert_scaling(eltype(A.sequence), J.λ))
-Base.:-(J::UniformScalingOperator, A::Multiplication) = Multiplication(_convert_scaling(eltype(A.sequence), J.λ) - A.sequence)
+Base.:+(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence + J.λ)
+Base.:+(J::UniformScalingOperator, A::Multiplication) = Multiplication(J.λ + A.sequence)
+Base.:-(A::Multiplication, J::UniformScalingOperator) = Multiplication(A.sequence - J.λ)
+Base.:-(J::UniformScalingOperator, A::Multiplication) = Multiplication(J.λ - A.sequence)

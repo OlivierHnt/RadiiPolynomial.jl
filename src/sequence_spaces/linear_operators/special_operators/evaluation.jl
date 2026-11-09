@@ -171,7 +171,7 @@ function _acts_trivially(g::GroupElement{N}, x::NTuple{N,Union{Nothing,Number}})
     return true
 end
 
-_coeftype(ℰ::Evaluation, s::SymmetricSpace, ::Type{T}) where {T} = _coeftype(ℰ, desymmetrize(s), T)
+_coeftype(ℰ::Evaluation, s::SymmetricSpace, ::Type{T}) where {T} = _symtype(symmetry(s), _coeftype(ℰ, desymmetrize(s), T))
 
 
 

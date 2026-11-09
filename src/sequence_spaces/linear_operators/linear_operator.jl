@@ -48,7 +48,7 @@ codomain(::AbstractLinearOperator, ::UndefSpace) = UndefSpace()
 _coeftype(A::AbstractLinearOperator, dom::VectorSpace) = _coeftype(A, dom, Float64)
 function _coeftype(A::AbstractLinearOperator, dom::VectorSpace, ::Type{T}) where {T}
     codom = codomain(A, dom)
-    (isempty(indices(codom)) | isempty(indices(dom))) && return T # guard against undefined space
+    (isempty(indices(codom)) | isempty(indices(dom))) && return float(T) # guard against undefined space
     x = getcoefficient(A, (codom, first(indices(codom))), (dom, first(indices(dom))), T)
     return promote_type(typeof(x), T)
 end
@@ -163,8 +163,8 @@ Base.@propagate_inbounds Base.Broadcast.dotview(A::LinearOperator, α, β) = vie
 
 Base.eltype(A::LinearOperator) = eltype(coefficients(A))
 Base.eltype(::Type{<:LinearOperator{<:VectorSpace,<:VectorSpace,T}}) where {T<:AbstractMatrix} = eltype(T)
-_coeftype(A::LinearOperator, ::VectorSpace) = eltype(A)
-_coeftype(A::LinearOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
+_coeftype(A::LinearOperator, s::VectorSpace) = _coeftype(A, s, eltype(A))
+_coeftype(A::LinearOperator, s::VectorSpace, ::Type{T}) where {T} = _coeftype(Projection(domain(A), eltype(A)), s, T)
 
 Base.:(==)(A::LinearOperator, B::LinearOperator) =
     codomain(A) == codomain(B) && domain(A) == domain(B) && coefficients(A) == coefficients(B)
@@ -454,7 +454,7 @@ struct UniformScalingOperator{T<:Number} <: AbstractLinearOperator
     λ :: T
 end
 
-UniformScalingOperator() = UniformScalingOperator(true)
+UniformScalingOperator() = UniformScalingOperator(exact(true))
 UniformScalingOperator(J::UniformScaling) = UniformScalingOperator(J.λ)
 
 domain(::UniformScalingOperator, s::VectorSpace) = s
@@ -471,9 +471,7 @@ _coeftype(A::UniformScalingOperator, ::VectorSpace) = eltype(A)
 _coeftype(A::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 getcoefficient(J::UniformScalingOperator, (codom, i)::Tuple{VectorSpace,Any}, (dom, j)::Tuple{VectorSpace,Any}, ::Type{T}) where {T} =
-    ifelse(i == j, _convert_scaling(T, J.λ), zero(T))
-_convert_scaling(::Type{T}, λ) where {T} = convert(T, λ)
-_convert_scaling(::Type{T}, λ::Bool) where {T} = λ ? one(T) : zero(T) # `I` stays guaranteed against intervals
+    ifelse(i == j, convert(T, J.λ), zero(T))
 
 Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.λ))
 Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(zero(eltype(T)))

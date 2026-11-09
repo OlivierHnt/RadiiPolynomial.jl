@@ -128,10 +128,10 @@
         @test domain(Integral(0), Chebyshev(3)) == Chebyshev(3)
         @test codomain(∫¹, Chebyshev(3)) == Chebyshev(4)
 
-        # n = 0: identity, and (unlike Taylor/Fourier) the coefficient type is preserved
+        # n = 0: identity, coefficients in floating point (as for Taylor/Fourier)
         a_int = Sequence(Chebyshev(2), [1, 2, 3])
         c_int = integrate(a_int, 0)
-        @test eltype(c_int) == Int
+        @test eltype(c_int) == Float64
         @test c_int == a_int
 
         # n = 1, order(a) = 0: ∫a₀dx ↦ [a₀, a₀/2]

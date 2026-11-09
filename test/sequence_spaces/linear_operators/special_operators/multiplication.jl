@@ -236,4 +236,15 @@
         expected = Sequence(Fourier(2, 1.0), Complex{Interval{Float64}}.([0.25, 0.0, 0.5, 0.0, 0.25]))
         @test ℳ(a) == a*a == expected
     end
+
+    @testset "complex cocycle factors" begin
+        # a sequence invariant under a₋ₖ = e^{iπk/3} aₖ has complex entries off its representatives, even when
+        # the stored ones are real: the operator is complex whether the domain is symmetric or not
+        ℱ = Fourier(2, 1.0)
+        c = SymmetricSpace(ℱ, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[1//3]))))
+        a = Sequence(c, [1.0, 2.0, 3.0])
+        @test eltype(project(Multiplication(a), ℱ, Fourier(4, 1.0))) == ComplexF64
+        @test eltype(project(Multiplication(a), c, Fourier(4, 1.0))) == ComplexF64
+        @test eltype(project(Multiplication(Sequence(ℱ, [1, 2, 3, 4, 5])), ℱ, Fourier(4, 1.0), Int)) == Int
+    end
 end

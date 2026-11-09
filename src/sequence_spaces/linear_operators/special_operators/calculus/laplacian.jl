@@ -82,7 +82,7 @@ function codomain(::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourie
 end
 
 _coeftype(Δ::Laplacian, s::SymmetricSpace{<:TensorSpace{<:NTuple{N,Fourier}}}, ::Type{T}) where {N,T} =
-    _coeftype(Δ, desymmetrize(s), T)
+    _symtype(symmetry(s), _coeftype(Δ, desymmetrize(s), T))
 
 
 

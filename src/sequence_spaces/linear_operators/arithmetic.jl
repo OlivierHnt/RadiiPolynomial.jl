@@ -211,8 +211,11 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
         function $f(A::LinearOperator, B::LinearOperator)
             pdomA, pdomB = _promote_space(domain(A), domain(B))
             pcodomA, pcodomB = _promote_space(codomain(A), codomain(B))
-            C = zeros(promote_type(eltype(A), eltype(B)), codomain($f, pdomA, pdomB), codomain($f, pcodomA, pcodomB))
-            $_f!(C, LinearOperator(pdomA, pcodomA, coefficients(A)), LinearOperator(pdomB, pcodomB, coefficients(B)))
+            dom, codom = codomain($f, pdomA, pdomB), codomain($f, pcodomA, pcodomB)
+            A_, B_ = LinearOperator(pdomA, pcodomA, coefficients(A)), LinearOperator(pdomB, pcodomB, coefficients(B))
+            # each operand is read from `dom` into `codom`, possibly across its symmetries
+            C = zeros(Base.promote_op($f, _coeftype(Projection(codom, eltype(A)), pcodomA, _coeftype(A_, dom)), _coeftype(Projection(codom, eltype(B)), pcodomB, _coeftype(B_, dom))), dom, codom)
+            $_f!(C, A_, B_)
             return C
         end
 
@@ -662,7 +665,7 @@ function lsub!(J::UniformScalingOperator, A::LinearOperator)
 end
 
 function _radd!(A::LinearOperator{ScalarSpace,ScalarSpace}, J::UniformScalingOperator)
-    @inbounds A[1,1] += _convert_scaling(eltype(A), J.λ)
+    @inbounds A[1,1] += J.λ
     return A
 end
 
@@ -672,11 +675,11 @@ function _radd!(A::LinearOperator{<:SequenceSpace,<:SequenceSpace}, J::UniformSc
     if domain_A == codomain_A
         A_ = coefficients(A)
         @inbounds for i ∈ axes(A_, 1)
-            A_[i,i] += _convert_scaling(eltype(A), J.λ)
+            A_[i,i] += J.λ
         end
     elseif _same_symmetry(domain_A, codomain_A)
         @inbounds for α ∈ indices(domain_A ∩ codomain_A)
-            A[α,α] += _convert_scaling(eltype(A), J.λ)
+            A[α,α] += J.λ
         end
     else # the identity between different symmetries is read through the orbits, see `_sym_getcoefficient`
         @inbounds for β ∈ indices(domain_A), α ∈ indices(codomain_A)
@@ -691,7 +694,7 @@ function _radd!(A::LinearOperator{<:CartesianSpace,<:CartesianSpace}, J::Uniform
     if domain_A == codomain(A)
         A_ = coefficients(A)
         @inbounds for i ∈ axes(A_, 1)
-            A_[i,i] += _convert_scaling(eltype(A), J.λ)
+            A_[i,i] += J.λ
         end
     else
         @inbounds for i ∈ 1:nspaces(domain_A)

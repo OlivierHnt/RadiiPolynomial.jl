@@ -306,4 +306,11 @@
         @test banachspace(c) == X
         @test total_error(c) == 0.1
     end
+
+    @testset "orbit averages on a symmetric space" begin
+        # reading `Scale` on a symmetric space averages over the orbits, in floating point
+        s = evensym(Fourier(2, exact(1.0)))
+        @test eltype(Projection(s) * Scale(-1)) == Float64
+        @test Projection(s) * Scale(-1) == project(Scale(-1), s, s, Float64)
+    end
 end

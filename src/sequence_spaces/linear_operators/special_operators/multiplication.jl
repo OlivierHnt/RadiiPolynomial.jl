@@ -75,6 +75,12 @@ codomain(ℳ::Multiplication, s::SequenceSpace) = codomain(*, space(sequence(ℳ
 
 _coeftype(ℳ::Multiplication, ::SequenceSpace, ::Type{T}) where {T} =
     promote_type(eltype(sequence(ℳ)), T)
+_coeftype(ℳ::Multiplication, s::SymmetricSpace, ::Type{T}) where {T} =
+    _symtype(symmetry(s), _coeftype(ℳ, desymmetrize(s), T))
+_coeftype(ℳ::Multiplication{<:Sequence{<:SymmetricSpace}}, ::SequenceSpace, ::Type{T}) where {T} =
+    _symtype(symmetry(space(sequence(ℳ))), promote_type(eltype(sequence(ℳ)), T))
+_coeftype(ℳ::Multiplication{<:Sequence{<:SymmetricSpace}}, s::SymmetricSpace, ::Type{T}) where {T} = # needed to resolve method ambiguity
+    _symtype(symmetry(s), _coeftype(ℳ, desymmetrize(s), T))
 
 #
 

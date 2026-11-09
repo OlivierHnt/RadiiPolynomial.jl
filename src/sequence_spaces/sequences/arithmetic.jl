@@ -83,7 +83,9 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
     @eval begin
         function $f(a::Sequence, b::Sequence)
             psa, psb = _promote_space(space(a), space(b))
-            c = zeros(promote_type(eltype(a), eltype(b)), codomain($f, psa, psb))
+            space_c = codomain($f, psa, psb)
+            # each operand is read on `space_c`, possibly across its symmetry
+            c = zeros(Base.promote_op($f, _coeftype(Projection(space_c, eltype(a)), psa, eltype(a)), _coeftype(Projection(space_c, eltype(b)), psb, eltype(b))), space_c)
             $_f!(c, Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return c
         end

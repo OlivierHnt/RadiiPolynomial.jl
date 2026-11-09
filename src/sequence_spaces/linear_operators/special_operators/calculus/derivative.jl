@@ -74,7 +74,7 @@ domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
 
 codomain(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
 
-_coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = T
+_coeftype(::Derivative, ::Taylor, ::Type{T}) where {T} = Base.promote_op(*, Int, T)
 
 function getcoefficient(𝒟::Derivative, (codom, i)::Tuple{Taylor,Integer}, (dom, j)::Tuple{Taylor,Integer}, ::Type{T}) where {T}
     n = order(𝒟)
@@ -92,7 +92,7 @@ domain(::Derivative, s::Fourier) = s
 
 codomain(::Derivative, s::Fourier) = s
 
-_coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(typeof(zero(T)*zero(S)))
+_coeftype(::Derivative, ::Fourier{T}, ::Type{S}) where {T,S} = complex(promote_type(float(T), float(S)))
 
 function getcoefficient(𝒟::Derivative, (codom, i)::Tuple{Fourier,Integer}, (dom, j)::Tuple{Fourier,Integer}, ::Type{T}) where {T}
     i != j && return zero(T)
@@ -120,7 +120,7 @@ domain(D::Derivative, s::Chebyshev) = iszero(order(D)) ? s : UndefSpace() # flag
 
 codomain(𝒟::Derivative, s::Chebyshev) = Chebyshev(max(0, order(s)-order(𝒟)))
 
-_coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = T
+_coeftype(::Derivative, ::Chebyshev, ::Type{T}) where {T} = Base.promote_op(*, Int, T)
 
 function getcoefficient(𝒟::Derivative, (codom, i)::Tuple{Chebyshev,Integer}, (dom, j)::Tuple{Chebyshev,Integer}, ::Type{T}) where {T}
     n = order(𝒟)
@@ -163,7 +163,7 @@ function _groupelem_derivative(D::Derivative, g::GroupElement, ::Fourier)
 end
 
 _coeftype(D::Derivative, s::SymmetricSpace, ::Type{T}) where {T} =
-    _coeftype(D, desymmetrize(s), T)
+    _symtype(symmetry(s), _coeftype(D, desymmetrize(s), T))
 
 
 

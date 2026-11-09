@@ -699,4 +699,14 @@
         @test guaranteed(project(Multiplication(a) + I, s, s))
         @test eltype(Projection(s) - LinearOperator(s, s, ones(7, 7))) == Float64
     end
+
+    @testset "exact zeros read through a symmetry" begin
+        # the cocycle factor of a zero coefficient is skipped: multiplying an exact zero by it gives a
+        # `Float64`, which cannot be stored back as an `ExactReal`
+        E, E₀ = evensym(Fourier(2, exact(1.0))), evensym(Fourier(0, exact(1.0)))
+        Z = zeros(Complex{ExactReal{Float64}}, E₀, ScalarSpace())
+        F = LinearOperator(E, ScalarSpace(), [1.0+0im 2.0 3.0])
+        @test Z + F == F
+        @test F + Z == F
+    end
 end

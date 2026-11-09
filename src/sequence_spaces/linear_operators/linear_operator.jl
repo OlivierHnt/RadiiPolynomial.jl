@@ -349,7 +349,9 @@ function _desym_getcoefficient(A::LinearOperator, α, β)
     qα, θ_α = _unsafe_rep_pos_cocycle(codomain(A), α)
     qβ, θ_β = _unsafe_rep_pos_cocycle(domain(A), β)
     (qα != 0) & (qβ != 0) || return zero(CoefType)
-    return @inbounds convert(CoefType, _cispi(CoefType, θ_α) * conj(_cispi(CoefType, θ_β)) * coefficients(A)[qα,qβ] / exact(_orbit_length(domain(A), β)))
+    c = @inbounds coefficients(A)[qα,qβ]
+    _safe_iszero(c) && return zero(CoefType) # no factor on a zero: an exact zero stays exact
+    return convert(CoefType, _cispi(CoefType, θ_α) * conj(_cispi(CoefType, θ_β)) * c / exact(_orbit_length(domain(A), β)))
 end
 _orbit_length(::VectorSpace, k) = 1
 _orbit_length(s::SymmetricSpace, k) = _orbit_length(symmetry(s), k)

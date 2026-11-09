@@ -223,4 +223,14 @@
         @test banachspace(b) == X
         @test total_error(b) == 0.1
     end
+
+    @testset "copy" begin
+        ia = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell1())
+        ib = copy(ia)
+        @test sequence(ib) == a
+        @test coefficients(ib) !== coefficients(ia)
+        @test (finite_error(ib), tail_error(ib), total_error(ib)) == (finite_error(ia), tail_error(ia), total_error(ia))
+        @test norm(ib) == norm(ia)
+        @test sequence(ia^1) == a # `^` returns a copy for n = 1
+    end
 end

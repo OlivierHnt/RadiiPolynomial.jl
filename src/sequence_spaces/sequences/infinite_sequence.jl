@@ -122,6 +122,7 @@ IntervalArithmetic.interval(::Type{T}, a::InfiniteSequence) where {T<:IntervalAr
 IntervalArithmetic.interval(a::InfiniteSequence) =
     InfiniteSequence(interval(sequence(a)), interval(finite_error(a)), interval(tail_error(a)), interval(total_error(a)), interval(banachspace(a)))
 
+Base.copy(a::InfiniteSequence) = _unsafe_infinite_sequence(copy(sequence(a)), sequence_norm(a), finite_error(a), tail_error(a), total_error(a), a.full_norm, banachspace(a))
 Base.zero(a::InfiniteSequence) = InfiniteSequence(zero(sequence(a)), banachspace(a))
 Base.one(a::InfiniteSequence) = InfiniteSequence(one(sequence(a)), banachspace(a))
 

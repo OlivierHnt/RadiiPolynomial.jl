@@ -231,6 +231,20 @@
             @test eltype(rmin_big) == Interval{BigFloat}
         end
 
+        #= A zero Yₘ makes Pₘ homogeneous in r. Below a scale of 10⁻¹² the search used to stop
+           Newton before any iteration (absolute tolerance) and start rₘ at floatmin, from where the
+           dyadic steps cannot reach the root, so the proof failed. The search is now relative to
+           max(Y): the proof succeeds and the radii match the exact root (I - Z)⁻¹ Y of the linear case. =#
+        @testset "zero Y entry at a tiny scale" begin
+            Z = [0.1 0.2; 0.3 0.1]
+            W = zeros(Interval{Float64}, 2, 2, 2)
+            for s ∈ (1e-1, 1e-14, 1e-100), Y ∈ ([s, 0.0], [0.0, s])
+                rmin, _, success = RadiiPolynomial.set_of_radii(interval.(Y), interval.(Z), W, [1.0, 1.0])
+                @test success == true
+                @test sup.(rmin) ≈ (I - Z) \ Y rtol = 1e-12
+            end
+        end
+
         #= "inclusion found, but no contraction": using an intentionally asymmetric W (only
            W[1,1,2] is set, not its "mirror" W[1,2,1]) decouples the contraction matrix
            A(r) = Z + Σⱼ W[:,:,j] rⱼ from the (symmetrized) Jacobian Newton differentiates.

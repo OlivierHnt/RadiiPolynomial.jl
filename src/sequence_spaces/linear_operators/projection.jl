@@ -45,7 +45,7 @@ function codomain(P::Projection, s::VectorSpace)
     return codom
 end
 
-coefficients(P::Projection) = project(UniformScalingOperator(one(eltype(P))), P.space, P.space) # needed for general methods
+coefficients(P::Projection) = project(UniformScalingOperator(true), P.space, P.space, eltype(P)) # needed for general methods
 
 Base.eltype(::Projection{<:VectorSpace,S}) where {S<:Number} = S
 Base.eltype(::Type{<:Projection{<:VectorSpace,S}}) where {S<:Number} = S
@@ -68,10 +68,11 @@ Base.:*(P::Projection, a::AbstractSequence) = project(a, P.space, promote_type(e
 
 #- arithmetic
 
-Base.:+(P::Projection, A::LinearOperator) = project(P, P.space, P.space) + A
-Base.:+(A::LinearOperator, P::Projection) = A + project(P, P.space, P.space)
-Base.:-(P::Projection, A::LinearOperator) = project(P, P.space, P.space) - A
-Base.:-(A::LinearOperator, P::Projection) = A - project(P, P.space, P.space)
+# the projection is materialized in the promoted type, so its ones are exact against intervals
+Base.:+(P::Projection, A::LinearOperator) = project(P, P.space, P.space, promote_type(eltype(P), eltype(A))) + A
+Base.:+(A::LinearOperator, P::Projection) = A + project(P, P.space, P.space, promote_type(eltype(P), eltype(A)))
+Base.:-(P::Projection, A::LinearOperator) = project(P, P.space, P.space, promote_type(eltype(P), eltype(A))) - A
+Base.:-(A::LinearOperator, P::Projection) = A - project(P, P.space, P.space, promote_type(eltype(P), eltype(A)))
 
 Base.:*(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
 Base.:∘(P₁::Projection, P₂::Projection) = Projection(intersect(P₁.space, P₂.space))
@@ -308,7 +309,7 @@ end
 
 _project!(C::LinearOperator, A::LinearOperator) = _radd!(C, A)
 
-_project!(A::LinearOperator, P::Projection) = radd!(A, coefficients(P))
+_project!(A::LinearOperator, P::Projection) = radd!(A, project(UniformScalingOperator(true), P.space, P.space, eltype(A))) # ones in the type of `A`: exact against intervals
 
 _project!(A::LinearOperator, J::UniformScalingOperator) = radd!(A, J)
 _project!(A::LinearOperator, J::UniformScaling) = _project!(A, UniformScalingOperator(J))

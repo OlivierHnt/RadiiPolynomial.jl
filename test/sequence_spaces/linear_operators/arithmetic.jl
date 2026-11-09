@@ -684,4 +684,19 @@
         A3 = LinearOperator(CP3, CP3, Matrix{Float64}(I, 6, 6))
         @test_throws ArgumentError A2 + A3
     end
+
+    @testset "the ones of `I` and `Projection` are exact against intervals" begin
+        # a `Bool` or `Float64` one converted to an interval is not flagged guaranteed, so the identity and
+        # the projection are materialized as `one(T)` in the type of the result
+        s = Fourier(3, exact(1.0))
+        A = LinearOperator(s, s, interval.(reshape(1.0:49.0, 7, 7)))
+        a = Sequence(s, interval.(1.0:7.0))
+        guaranteed(B) = all(isguaranteed, coefficients(B))
+        @test guaranteed(project(UniformScalingOperator(true), s, s, Interval{Float64}))
+        @test guaranteed(radd!(copy(A), I))
+        @test guaranteed(Projection(s) - A)
+        @test guaranteed(A + Projection(Fourier(2, exact(1.0))))
+        @test guaranteed(project(Multiplication(a) + I, s, s))
+        @test eltype(Projection(s) - LinearOperator(s, s, ones(7, 7))) == Float64
+    end
 end

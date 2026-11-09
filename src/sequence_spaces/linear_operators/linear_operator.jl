@@ -469,7 +469,9 @@ _coeftype(A::UniformScalingOperator, ::VectorSpace) = eltype(A)
 _coeftype(A::UniformScalingOperator, ::VectorSpace, ::Type{T}) where {T} = promote_type(eltype(A), T)
 
 getcoefficient(J::UniformScalingOperator, (codom, i)::Tuple{VectorSpace,Any}, (dom, j)::Tuple{VectorSpace,Any}, ::Type{T}) where {T} =
-    ifelse(i == j, convert(T, J.λ), zero(T))
+    ifelse(i == j, _convert_scaling(T, J.λ), zero(T))
+_convert_scaling(::Type{T}, λ) where {T} = convert(T, λ)
+_convert_scaling(::Type{T}, λ::Bool) where {T} = λ ? one(T) : zero(T) # `I` stays guaranteed against intervals
 
 Base.zero(J::UniformScalingOperator) = UniformScalingOperator(zero(J.λ))
 Base.zero(::Type{T}) where {T<:UniformScalingOperator} = UniformScalingOperator(zero(eltype(T)))

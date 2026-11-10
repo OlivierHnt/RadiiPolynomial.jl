@@ -1,274 +1,206 @@
+function _existence_fails(args...)
+    ie, success = interval_of_existence(args...)
+    return !success && isempty_interval(ie)
+end
+
+function _radii_fail(args...; kwargs...)
+    rmin, η, success = RadiiPolynomial.set_of_radii(args...; kwargs...)
+    return !success && isempty(rmin) && isempty(η)
+end
+
 @testset "Interval existence" begin
 
-    #= interval_of_existence(Y, Z₁, R): the radii-polynomial p(r) = Y + (Z₁-1)r is affine
-       and decreasing (since Z₁ < 1), so p(r) ≤ 0 ⟺ r ≥ r* := Y/(1-Z₁). The validated
-       interval is therefore [r*, R] provided 0 ≤ r* ≤ R. =#
-    @testset "2-arg (Y, Z₁, R): success" begin
-        Y, Z1, R = interval(0.25), interval(0.5), 2.0
-        # r* = 0.25 / (1 - 0.5) = 0.5 exactly (both operands exactly representable)
-        iv, ok = interval_of_existence(Y, Z1, R)
-        @test ok == true
-        @test isequal_interval(iv, interval(0.5, 2.0))
-        @test isguaranteed(iv) == true
-        @test decoration(iv) == decoration(Y) == decoration(Z1)
-        @test iv isa Interval{Float64}
+    #= p(r) = Y + (Z₁ - 1) r is affine and decreasing when Z₁ < 1, so p(r) ≤ 0 on [r*, R] with
+       r* = Y / (1 - Z₁), provided r* ≤ R =#
+    @testset "first order (Y, Z₁, R)" begin
+        Y, Z₁ = interval(0.25), interval(0.5)   # r* = 0.5 exactly
+        ie, success = interval_of_existence(Y, Z₁, 2.0)
+        @test success
+        @test isequal_interval(ie, interval(0.5, 2.0))
+        @test isguaranteed(ie)
+        @test decoration(ie) == decoration(Y) == decoration(Z₁)
+        @test ie isa Interval{Float64}
 
-        # plain-number call form forwards through `interval(...)` and gives the same result
-        iv2, ok2 = interval_of_existence(0.25, 0.5, 2.0)
-        @test ok2 == true
-        @test isequal_interval(iv2, iv)
+        # real numbers are converted to intervals and remain guaranteed
+        ie_real, success_real = interval_of_existence(0.25, 0.5, 2.0)
+        @test success_real && isequal_interval(ie_real, ie) && isguaranteed(ie_real)
+
+        # an interval threshold is taken by its lower end
+        ie_R, success_R = interval_of_existence(Y, Z₁, interval(2.0, 20.0))
+        @test success_R && isequal_interval(ie_R, ie)
+        @test _existence_fails(Y, Z₁, interval(0.1, 1.0))
+
+        @test _existence_fails(interval(0.1), interval(1.0), 1.0)    # Z₁ ≥ 1 is not a contraction
+        @test _existence_fails(interval(-0.1), interval(0.5), 1.0)   # Y < 0
+        @test _existence_fails(interval(0.1), interval(0.5), -1.0)   # R < 0
+        @test _existence_fails(interval(0.1), interval(0.5), NaN)
+        @test _existence_fails(interval(1.0), interval(0.5), 0.1)    # r* = 2 exceeds R
+
+        # the guarantee and the decoration of the result are the weakest of the inputs
+        Y_trv = IntervalArithmetic._unsafe_interval(bareinterval(Y), trv, false)
+        ie_trv, success_trv = interval_of_existence(Y_trv, Z₁, 2.0)
+        @test success_trv && isequal_interval(ie_trv, ie)
+        @test !isguaranteed(ie_trv)
+        @test decoration(ie_trv) == trv
+
+        @test_logs (:info,) interval_of_existence(Y, Z₁, 2.0; verbose = true)
+        @test_logs (:info,) interval_of_existence(interval(0.1), interval(1.0), 1.0; verbose = true)
+        @test_logs interval_of_existence(Y, Z₁, 2.0; verbose = false)
     end
 
-    @testset "2-arg (Y, Z₁, R): failures" begin
-        # Z₁ ≥ 1 violates the strict contraction requirement Z₁ < 1
-        iv, ok = interval_of_existence(interval(0.1), interval(1.0), 1.0)
-        @test ok == false
-        @test isempty_interval(iv)
+    #= p(r) = Y + (Z₁ - 1) r + (Z₂ / 2) r² is an upward parabola. With b = Z₁ - 1 and
+       Δ = b² - 2 Z₂ Y its roots are r₁,₂ = (-b ∓ √Δ) / Z₂. The interval is [r₁, min(R, x)] where
+       x is the largest float below the vertex -b / Z₂ at which Z₁ + Z₂ x < 1 is certified. =#
+    @testset "second order (Y, Z₁, Z₂, R)" begin
+        # b = -1, Δ = 0.25, r₁ = 1, r₂ = 3 and the vertex is 2
+        Y, Z₁, Z₂ = interval(0.75), interval(0.0), interval(0.5)
+        ie, success = interval_of_existence(Y, Z₁, Z₂, 5.0)
+        @test success
+        @test inf(ie) == 1.0
+        @test sup(ie) == prevfloat(2.0)
+        @test sup(Z₂ * sup(ie)) < inf(one(Z₁) - Z₁)
+        @test !(sup(Z₂ * nextfloat(sup(ie))) < inf(one(Z₁) - Z₁))
+        @test isguaranteed(ie)
+        @test decoration(ie) == decoration(Y) == decoration(Z₁) == decoration(Z₂)
 
-        # Y < 0 is invalid (Y must be nonnegative)
-        iv2, ok2 = interval_of_existence(interval(-0.1), interval(0.5), 1.0)
-        @test ok2 == false
-        @test isempty_interval(iv2)
+        # R below the vertex caps the interval
+        ie_R, success_R = interval_of_existence(Y, Z₁, Z₂, 1.0)
+        @test success_R && isequal_interval(ie_R, interval(1.0, 1.0))
 
-        # R < 0 is an invalid threshold
-        iv3, ok3 = interval_of_existence(interval(0.1), interval(0.5), -1.0)
-        @test ok3 == false
-        @test isempty_interval(iv3)
+        ie_real, success_real = interval_of_existence(0.75, 0.0, 0.5, 5.0)
+        @test success_real && isequal_interval(ie_real, ie)
 
-        # R = NaN is likewise an invalid threshold
-        iv4, ok4 = interval_of_existence(interval(0.1), interval(0.5), NaN)
-        @test ok4 == false
-        @test isempty_interval(iv4)
+        # a thin zero Z₂ reduces to the first order
+        ie₀, success₀ = interval_of_existence(interval(0.25), interval(0.5), interval(0.0), 2.0)
+        @test success₀ && isequal_interval(ie₀, interval(0.5, 2.0))
 
-        # valid Y, Z₁ but the root r* = 1.0/(1-0.5) = 2.0 exceeds R = 0.1
-        iv5, ok5 = interval_of_existence(interval(1.0), interval(0.5), 0.1)
-        @test ok5 == false
-        @test isempty_interval(iv5)
-    end
+        @test _existence_fails(interval(2.0), interval(0.5), interval(1.0), 10.0)   # Δ = -3.75 < 0
+        # double root at the vertex r₁ = r₂ = 0.5, where Z₁ + Z₂ r₁ = 1 is not a contraction
+        @test _existence_fails(interval(0.25), interval(0.0), interval(2.0), 1.0)
+        @test _existence_fails(Y, Z₁, Z₂, 0.5)                                       # r₁ = 1 exceeds R
+        @test _existence_fails(interval(0.01), interval(1.0), interval(0.2), 10.0)  # Z₁ ≥ 1
+        @test _existence_fails(interval(0.1), interval(0.1), interval(-0.1), 1.0)   # Z₂ < 0
+        @test _existence_fails(interval(0.1), interval(0.1), interval(0.1), -1.0)   # R < 0
 
-    @testset "2-arg: guarantee / decoration propagation" begin
-        Ybare = bareinterval(interval(0.25))
-        Ylow = IntervalArithmetic._unsafe_interval(Ybare, trv, false) # NG, decoration trv
-        Z1 = interval(0.5) # guaranteed, decoration com
+        @test_logs (:info,) interval_of_existence(Y, Z₁, Z₂, 5.0; verbose = true)
+        @test_logs (:info,) interval_of_existence(interval(2.0), interval(0.5), interval(1.0), 10.0; verbose = true)
+        @test_logs interval_of_existence(Y, Z₁, Z₂, 5.0; verbose = false)
 
-        iv, ok = interval_of_existence(Ylow, Z1, 2.0)
-        @test ok == true
-        @test isequal_interval(iv, interval(0.5, 2.0)) # bounds unaffected by guarantee/decoration
-        @test isguaranteed(iv) == false # false (Ylow) & true (Z1) = false
-        @test decoration(iv) == trv     # min(trv, com) = trv
-    end
-
-    @testset "2-arg: verbose flag emits @info, silent otherwise" begin
-        @test_logs (:info,) interval_of_existence(interval(0.25), interval(0.5), 2.0; verbose = true)
-        @test_logs (:info,) interval_of_existence(interval(0.1), interval(1.0), 1.0; verbose = true) # failure path also logs
-        @test_logs interval_of_existence(interval(0.25), interval(0.5), 2.0; verbose = false)
-    end
-
-    #= interval_of_existence(Y, Z₁, Z₂, R): p(r) = Y + (Z₁-1)r + (Z₂/2)r² is a upward
-       parabola (Z₂ > 0). With b = Z₁-1, its roots are r₁,₂ = (-b ∓ √Δ)/Z₂,
-       Δ = b² - 2·Z₂·Y. p(r) ≤ 0 on [r₁, r₂]; the validated interval is
-       [r₁, min(R, x)] where x ≤ -b/Z₂ (the parabola's vertex, where the *second*
-       radii-polynomial condition Z₁ + Z₂ r < 1 stops holding), further capped by R. =#
-    @testset "3-arg (Y, Z₁, Z₂, R): success" begin
-        # Choose Z₁ = 0, Z₂ = 0.5 ⟹ b = -1, Δ = 1 - 2·0.5·0.75 = 0.25, √Δ = 0.5
-        # r₁ = (1 - 0.5)/0.5 = 1, r₂ = (1 + 0.5)/0.5 = 3; vertex -b/Z₂ = 1/0.5 = 2
-        Y, Z1, Z2 = interval(0.75), interval(0.0), interval(0.5)
-
-        iv, ok = interval_of_existence(Y, Z1, Z2, 5.0)
-        @test ok == true
-        @test inf(iv) == 1.0
-        # upper end is the largest float below the vertex (2 < R = 5) at which Z₂ r < 1 - Z₁ is certified
-        @test sup(iv) == prevfloat(2.0)
-        @test sup(Z2 * sup(iv)) < inf(one(Z1) - Z1)
-        @test !(sup(Z2 * nextfloat(sup(iv))) < inf(one(Z1) - Z1))
-        @test isguaranteed(iv) == true
-        @test decoration(iv) == decoration(Y) == decoration(Z1) == decoration(Z2)
-
-        # R-cap: R = 1 < vertex (2) ⟹ upper endpoint becomes R itself
-        ivR, okR = interval_of_existence(Y, Z1, Z2, 1.0)
-        @test okR == true
-        @test isequal_interval(ivR, interval(1.0, 1.0))
-
-        # plain-number call form gives the same result
-        ivn, okn = interval_of_existence(0.75, 0.0, 0.5, 5.0)
-        @test okn == true
-        @test isequal_interval(ivn, iv)
-    end
-
-    #= With Y far below the ulp of (1 - Z₁)², the root formula (-b - √Δ)/Z₂ cancels catastrophically
-       and the width of Z₁ leaks into the bound: it gave 2.6e-12 here. The stable form 2Y/(-b + √Δ)
-       evaluated at sup(Z₁) gives the true root, about 8.8e-36. =#
-    @testset "3-arg: stable root formula for tiny Y" begin
-        Y, Z1, Z2 = interval(1e-36), interval(0.886818866398, 0.886818866400), interval(0.7693526887)
-        iv, ok = interval_of_existence(Y, Z1, Z2, Inf)
-        @test ok == true
-        b = interval(sup(Z1)) - one(Z1)
-        @test inf(iv) == sup(exact(2) * Y / (-b + sqrt(b^2 - exact(2) * Z2 * Y)))
-        @test inf(iv) < 1e-35
-    end
-
-    @testset "3-arg: Z₂ thin-zero falls back to the 2-arg formula" begin
-        Y, Z1, R = interval(0.25), interval(0.5), 2.0
-        iv2, ok2 = interval_of_existence(Y, Z1, R)
-        iv3, ok3 = interval_of_existence(Y, Z1, interval(0.0), R)
-        @test ok3 == ok2 == true
-        @test isequal_interval(iv3, iv2)
-    end
-
-    @testset "3-arg: failures" begin
-        # negative discriminant: Y=2, Z₁=0.5, Z₂=1 ⟹ b=-0.5, Δ = 0.25 - 2·1·2 = -3.75 < 0
-        iv, ok = interval_of_existence(interval(2.0), interval(0.5), interval(1.0), 10.0)
-        @test ok == false
-        @test isempty_interval(iv)
-
-        # double root exactly at the vertex: Y=0.25, Z₁=0, Z₂=2 ⟹ Δ=0, r₁=r₂=0.5,
-        # but then Z₁ + Z₂·r₁ = 0 + 2·0.5 = 1 is not < 1 ⟹ contraction fails
-        ivd, okd = interval_of_existence(interval(0.25), interval(0.0), interval(2.0), 1.0)
-        @test okd == false
-        @test isempty_interval(ivd)
-
-        # valid roots but R too small: r₁ = 1 > R = 0.5
-        ivr, okr = interval_of_existence(interval(0.75), interval(0.0), interval(0.5), 0.5)
-        @test okr == false
-        @test isempty_interval(ivr)
-
-        # Z₂ < 0 is invalid
-        ivz, okz = interval_of_existence(interval(0.1), interval(0.1), interval(-0.1), 1.0)
-        @test okz == false
-        @test isempty_interval(ivz)
-
-        # R < 0 is an invalid threshold
-        ivR2, okR2 = interval_of_existence(interval(0.1), interval(0.1), interval(0.1), -1.0)
-        @test okR2 == false
-        @test isempty_interval(ivR2)
-    end
-
-    @testset "3-arg: verbose flag emits @info, silent otherwise" begin
-        @test_logs (:info,) interval_of_existence(interval(0.75), interval(0.0), interval(0.5), 5.0; verbose = true)
-        @test_logs (:info,) interval_of_existence(interval(2.0), interval(0.5), interval(1.0), 10.0; verbose = true) # failure path
-        @test_logs interval_of_existence(interval(0.75), interval(0.0), interval(0.5), 5.0; verbose = false)
-    end
-
-    #= 3-arg: when the inputs are not natively floating-point (e.g. Rational), converting the
-       exact vertex z = -b/Z₂ to Float64 can round UP past the true value; the implementation
-       then walks back down with `prevfloat` until Z₂ x < 1 - Z₁ is certified. Here Z₁ = 0//1,
-       Z₂ = 10//1 ⟹ b = -1//1 and z = -b/Z₂ = 1//10 exactly; Float64(1//10) = 0.1 rounds UP
-       (0.1 > 1//10 as an exact rational comparison), so the correction loop must fire. =#
-    @testset "3-arg: Rational inputs force the vertex float-rounding correction (prevfloat loop)" begin
-        Y, Z1, Z2 = interval(1//100), interval(0//1), interval(10//1)
-        b = Z1 - one(Z1)
-        z = inf(-b / Z2) # exact rational vertex, 1//10
-        @test z == 1//10
-        @test float(z) > z # naive Float64 conversion overestimates the vertex: triggers the loop
-
-        iv, ok = interval_of_existence(Y, Z1, Z2, 1.0)
-        @test ok == true
-        @test iv isa Interval{Float64}
-        @test sup(iv) < 0.1 # never unsoundly reports the naive (rounded-up) float vertex
-        @test sup(Z2 * sup(iv)) < inf(one(Z1) - Z1) # the contraction is certified at the upper endpoint
-        @test !(sup(Z2 * nextfloat(sup(iv))) < inf(one(Z1) - Z1)) # and the endpoint is the largest such double
-    end
-
-    @testset "set_of_radii (M-dimensional)" begin
-        #= a diagonal Z with an entry ≥ 1 makes P₁(r) = Y₁ + (Z₁₁ - 1) r₁ = Y₁ + r₁ > 0 for every
-           r₁ ≥ 0, so no set of radii can make the radii polynomials simultaneously nonpositive =#
-        @testset "radii polynomials never nonpositive" begin
-            Y1 = [interval(1.0)]
-            Z1_ = fill(interval(2.0), 1, 1)
-            W1 = zeros(Interval{Float64}, 1, 1, 1)
-            rmin1, eta1, success1 = RadiiPolynomial.set_of_radii(Y1, Z1_, W1, [100.0]; verbose = true)
-            @test success1 == false
-            @test isempty(rmin1) && isempty(eta1)
-
-            Y2 = [interval(1.0), interval(1.0)]
-            Z2_ = [interval(2.0) interval(0.0); interval(0.0) interval(2.0)]
-            W2 = zeros(Interval{Float64}, 2, 2, 2)
-            rmin2, eta2, success2 = RadiiPolynomial.set_of_radii(Y2, Z2_, W2, [100.0, 100.0]; verbose = true)
-            @test success2 == false
-            @test isempty(rmin2) && isempty(eta2)
-
-            # Z = I makes the Jacobian of the radii polynomials singular at the root: no exception
-            Zs = [interval(1.0) interval(0.0); interval(0.0) interval(1.0)]
-            rmins, etas, successs = RadiiPolynomial.set_of_radii([interval(0.01), interval(0.01)], Zs, W2, [10.0, 10.0])
-            @test successs == false
-            @test isempty(rmins) && isempty(etas)
+        #= With Y far below the ulp of (1 - Z₁)², the formula (-b - √Δ) / Z₂ cancels and the width
+           of Z₁ leaks into the root (about 2.6e-12 here). The stable form 2Y / (-b + √Δ) at
+           sup(Z₁) gives the true root, about 8.8e-36. =#
+        @testset "tiny Y" begin
+            Y, Z₁, Z₂ = interval(1e-36), interval(0.886818866398, 0.886818866400), interval(0.7693526887)
+            ie, success = interval_of_existence(Y, Z₁, Z₂, Inf)
+            @test success
+            b = interval(sup(Z₁)) - one(Z₁)
+            @test inf(ie) == sup(exact(2) * Y / (-b + sqrt(b^2 - exact(2) * Z₂ * Y)))
+            @test inf(ie) < 1e-35
         end
 
-        #= The decoupled scalar quadratic Y = 0.75, Z₁ = 0, Z₂ = 0.5 has root r₁ = 1, where the
-           contraction holds. Taking R below that radius, the radii are found and contract yet
-           exceed R. With R large enough (5) the same data succeeds. =#
-        @testset "radii exceed R" begin
+        #= The vertex 1//10 is exact in rational arithmetic and its conversion to Float64 rounds
+           up, so the upper end must be walked back down until the contraction is certified =#
+        @testset "Rational inputs: the vertex rounds up in Float64" begin
+            Y, Z₁, Z₂ = interval(1//100), interval(0//1), interval(10//1)
+            z = inf(-(Z₁ - one(Z₁)) / Z₂)
+            @test z == 1//10 && float(z) > z
+
+            ie, success = interval_of_existence(Y, Z₁, Z₂, 1.0)
+            @test success
+            @test ie isa Interval{Float64}
+            @test sup(ie) < 0.1
+            @test sup(Z₂ * sup(ie)) < inf(one(Z₁) - Z₁)
+            @test !(sup(Z₂ * nextfloat(sup(ie))) < inf(one(Z₁) - Z₁))
+        end
+    end
+
+    @testset "set_of_radii" begin
+        W₀ = zeros(Interval{Float64}, 2, 2, 2)
+
+        @testset "decoupled linear problem" begin
+            # rₘ = Yₘ / (1 - Zₘₘ)
+            Y = [interval(0.01), interval(0.02)]
+            Z = [interval(0.1) interval(0.0); interval(0.0) interval(0.2)]
+            rmin, _, success = RadiiPolynomial.set_of_radii(Y, Z, W₀, [10.0, 10.0])
+            @test success
+            @test sup.(rmin) ≈ [0.01 / (1 - 0.1), 0.02 / (1 - 0.2)] atol = 1e-6
+            @test all(isguaranteed, rmin)
+
+            @test _radii_fail(Y, Z, W₀, [-1.0, 10.0])
+            @test _radii_fail([interval(-0.01), interval(0.02)], Z, W₀, [10.0, 10.0])
+        end
+
+        @testset "one dimension" begin
+            # P(r) = 0.01 - 0.9 r + 0.1 r² has the smaller root r₁ = (0.9 - √0.806) / 0.2
+            Y, Z, W = [interval(0.01)], fill(interval(0.1), 1, 1), fill(interval(0.2), 1, 1, 1)
+            rmin, η, success = RadiiPolynomial.set_of_radii(Y, Z, W, [10.0])
+            @test success
+            @test η == [1.0]
+            @test sup(rmin[1]) ≈ 0.011124862507311817 atol = 1e-12
+            @test _radii_fail(Y, Z, W, [0.005])   # r₁ exceeds R
+        end
+
+        @testset "radii polynomials never nonpositive" begin
+            # a diagonal entry Zₘₘ = 2 gives Pₘ(r) = Yₘ + rₘ > 0
+            @test _radii_fail([interval(1.0)], fill(interval(2.0), 1, 1), zeros(Interval{Float64}, 1, 1, 1), [100.0]; verbose = true)
+            @test _radii_fail(fill(interval(1.0), 2), [interval(2.0) interval(0.0); interval(0.0) interval(2.0)], W₀, [100.0, 100.0]; verbose = true)
+            # Z = I makes the Jacobian of the radii polynomials singular at the root
+            @test _radii_fail(fill(interval(0.01), 2), [interval(1.0) interval(0.0); interval(0.0) interval(1.0)], W₀, [10.0, 10.0])
+        end
+
+        @testset "decoupled quadratic problem" begin
+            # each component is the scalar problem Y = 0.75, Z₁ = 0, Z₂ = 0.5 whose root is 1
             Y = [interval(0.75), interval(0.75)]
             Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
-            W[1, 1, 1] = interval(0.5)
-            W[2, 2, 2] = interval(0.5)
+            W[1, 1, 1] = W[2, 2, 2] = interval(0.5)
 
-            rmin_ok, eta_ok, success_ok = RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0])
-            @test success_ok == true
-            @test sup.(rmin_ok) ≈ [1.0, 1.0] atol = 1e-6 # matches the hand-computed root of Y + 0.25r² - r = 0
-            @test all(isguaranteed, rmin_ok)
-            @test all(r -> decoration(r) == com, rmin_ok)
+            rmin, _, success = RadiiPolynomial.set_of_radii(Y, Z, W, [5.0, 5.0])
+            @test success
+            @test sup.(rmin) ≈ [1.0, 1.0] atol = 1e-6
+            @test all(isguaranteed, rmin)
+            @test all(r -> decoration(r) == com, rmin)
 
-            rmin_bad, eta_bad, success_bad = RadiiPolynomial.set_of_radii(Y, Z, W, [0.5, 0.5]; verbose = true)
-            @test success_bad == false
-            @test isempty(rmin_bad) && isempty(eta_bad)
+            @test _radii_fail(Y, Z, W, [0.5, 0.5]; verbose = true)   # the radii exceed R
+            @test _radii_fail(Y, Z, W, [5.0]; verbose = true)        # inconsistent sizes
 
-            # the guarantee flag of the inputs propagates to the radii
+            # the guarantee of the inputs propagates to the radii
             Y_ng = [interval(0.75) + 0, interval(0.75)]
             @test !isguaranteed(Y_ng[1])
             rmin_ng, _, success_ng = RadiiPolynomial.set_of_radii(Y_ng, Z, W, [5.0, 5.0])
-            @test success_ng == true
+            @test success_ng
             @test !any(isguaranteed, rmin_ng)
 
-            # inconsistent sizes are rejected, not broadcast
-            _, _, success_sz = RadiiPolynomial.set_of_radii(Y, Z, W, [5.0]; verbose = true)
-            @test success_sz == false
-
-            # BigFloat inputs are accepted and the radii are BigFloat intervals
             rmin_big, _, success_big = RadiiPolynomial.set_of_radii(interval.(big.([0.75, 0.75])), zeros(Interval{BigFloat}, 2, 2), Interval{BigFloat}.(W), [5.0, 5.0])
-            @test success_big == true
+            @test success_big
             @test eltype(rmin_big) == Interval{BigFloat}
         end
 
-        #= A zero Yₘ makes Pₘ homogeneous in r. Below a scale of 10⁻¹² the search used to stop
-           Newton before any iteration (absolute tolerance) and start rₘ at floatmin, from where the
-           dyadic steps cannot reach the root, so the proof failed. The search is now relative to
-           max(Y): the proof succeeds and the radii match the exact root (I - Z)⁻¹ Y of the linear case. =#
+        #= A zero Yₘ makes Pₘ homogeneous in r, so the search must be relative to max(Y) to reach
+           the root at any scale. The radii match the root (I - Z)⁻¹ Y of the linear case. =#
         @testset "zero Y entry at a tiny scale" begin
             Z = [0.1 0.2; 0.3 0.1]
-            W = zeros(Interval{Float64}, 2, 2, 2)
             for s ∈ (1e-1, 1e-14, 1e-100), Y ∈ ([s, 0.0], [0.0, s])
-                rmin, _, success = RadiiPolynomial.set_of_radii(interval.(Y), interval.(Z), W, [1.0, 1.0])
-                @test success == true
+                rmin, _, success = RadiiPolynomial.set_of_radii(interval.(Y), interval.(Z), W₀, [1.0, 1.0])
+                @test success
                 @test sup.(rmin) ≈ (I - Z) \ Y rtol = 1e-12
             end
         end
 
-        #= "inclusion found, but no contraction": using an intentionally asymmetric W (only
-           W[1,1,2] is set, not its "mirror" W[1,2,1]) decouples the contraction matrix
-           A(r) = Z + Σⱼ W[:,:,j] rⱼ from the (symmetrized) Jacobian Newton differentiates.
-           With Z = 0 and W[1,1,2] = 8 (all other entries 0), the quadratic term for component 1
-           is (1/2)ΣᵢⱼW₁ᵢⱼrᵢrⱼ = 4r₁r₂, so
-             P₁(r) = Y₁ + 4r₁r₂ - r₁,   P₂(r) = Y₂ - r₂  (component 2 is unaffected by W)
-           whose exact positive root is r₂ = Y₂ and r₁ = Y₁/(1-4r₂). With Y₁=0.01, Y₂=0.2:
-           r₂ = 0.2, r₁ = 0.01/(1-0.8) = 0.05 (both positive). But A(r) = [8r₂ 0; 0 0], so at
-           r=(0.05,0.2): A(r) = [1.6 0; 0 0], and no positive η satisfies A(r) η < η since
-           1.6 η₁ < η₁ is impossible: the contraction fails even though P(r) ≤ 0. =#
-        @testset "inclusion without contraction (asymmetric W, hand-verified 2×2)" begin
-            # direct sanity check of the test vector on the hand-verified matrix A(r)
+        #= With Z = 0 and only W[1,1,2] = 8 nonzero,
+               P₁(r) = Y₁ + 4 r₁ r₂ - r₁,   P₂(r) = Y₂ - r₂,
+           whose positive root for Y = (0.01, 0.2) is r = (0.05, 0.2). There the contraction matrix
+           Z + Σⱼ W[:,:,j] rⱼ = [1.6 0; 0 0] has spectral radius 1.6, so P(r) ≤ 0 holds without
+           contraction. =#
+        @testset "inclusion without contraction" begin
             A = [interval(1.6) interval(0.0); interval(0.0) interval(0.0)]
             η = RadiiPolynomial._perron_vector(A)
-            @test η[1] > η[2] > 0 # dominant eigenvector points along e₁ = (1, 0), kept positive
-            @test sup(maximum(A * η ./ η)) ≈ 1.6 # Collatz-Wielandt bound equals the Perron root 1.6 of [1.6 0; 0 0]
+            @test η[1] > η[2] > 0
+            @test sup(maximum(A * η ./ η)) ≈ 1.6
 
-            Y = [interval(0.01), interval(0.2)]
-            Z = zeros(Interval{Float64}, 2, 2)
             W = zeros(Interval{Float64}, 2, 2, 2)
             W[1, 1, 2] = interval(8.0)
-            rmin, eta, success = RadiiPolynomial.set_of_radii(Y, Z, W, [50.0, 50.0]; verbose = true)
-            @test success == false
-            @test isempty(rmin) && isempty(eta)
+            @test _radii_fail([interval(0.01), interval(0.2)], zeros(Interval{Float64}, 2, 2), W, [50.0, 50.0]; verbose = true)
         end
     end
 end

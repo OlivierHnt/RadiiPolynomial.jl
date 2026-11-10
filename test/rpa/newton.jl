@@ -1,209 +1,160 @@
+_newton_stdout(f) = mktemp() do path, io
+    redirect_stdout(f, io)
+    flush(io)
+    return read(path, String)
+end
+
 @testset "Newton" begin
 
-    #= Convergence criteria (RadiiPolynomial.ConvergenceCriterion subtypes) are plain
-       functors of (nF, nAF, tol, ϵ) ↦ (converged::Bool, tolerance_used). Check the
-       hand-derived formulas directly before relying on them inside `newton`/`newton!`. =#
-    @testset "ConvergenceCriterion functors" begin
-        rt = RadiiPolynomial.ResidualTolCriterion()
-        @test rt(0.5, 999.0, 1.0, 1e-16) == (true, 1.0)   # 0.5 ≤ tol=1.0
-        @test rt(2.0, 0.0, 1.0, 1e-16) == (false, 1.0)    # 2.0 > tol=1.0
+    # a criterion maps (|F(x)|, |DF(x)\F(x)|, tol, ϵ) to (converged, tolerance used)
+    @testset "convergence criteria" begin
+        residual_tol = RadiiPolynomial.ResidualTolCriterion()
+        residual = RadiiPolynomial.ResidualCriterion()
+        step = RadiiPolynomial.StepCriterion()
+        combined = RadiiPolynomial.CombinedCriterion()
 
-        # z = max(tol, √ϵ*(1+nF)); with ϵ=1e-16, √ϵ = 1e-8 (up to rounding)
-        rc = RadiiPolynomial.ResidualCriterion()
+        @test residual_tol(0.5, 999.0, 1.0, 1e-16) == (true, 1.0)
+        @test residual_tol(2.0, 0.0, 1.0, 1e-16) == (false, 1.0)
+
+        # the tolerance used is max(tol, √ϵ (1 + n)) with n the residual or the step
         z_a = max(1e-12, sqrt(1e-16) * (1 + 0.5))
-        @test rc(0.5, 0.0, 1e-12, 1e-16) == (false, z_a)
         z_b = max(1e-12, sqrt(1e-16) * (1 + 1e-10))
-        @test rc(1e-10, 0.0, 1e-12, 1e-16) == (true, z_b) # nF=1e-10 ≤ z_b
+        @test residual(0.5, 0.0, 1e-12, 1e-16) == (false, z_a)
+        @test residual(1e-10, 0.0, 1e-12, 1e-16) == (true, z_b)
+        @test step(0.0, 0.5, 1e-12, 1e-16) == (false, z_a)
+        @test step(999.0, 0.5, 1.0, 1e-16) == (true, 1.0)
 
-        # z = max(tol, √ϵ*(1+nAF)); nAF = 0.5
-        sc = RadiiPolynomial.StepCriterion()
-        @test sc(0.0, 0.5, 1e-12, 1e-16) == (false, z_a) # same z as z_a (same formula, same value)
+        # both must hold, and the tolerance used is the smallest of the two
+        @test combined(1e-10, 1e-10, 1e-12, 1e-16) == (true, z_b)
+        @test combined(0.5, 1e-10, 1e-12, 1e-16) == (false, min(z_a, z_b))
+        @test combined(0.5, 2.0, 1.0, 1e-16) == (false, 1.0)
+        @test combined(2.0, 0.5, 1.0, 1e-16) == (false, 1.0)
 
-        # both ResidualCriterion and StepCriterion must hold; combined value = min of the two z's
-        cc = RadiiPolynomial.CombinedCriterion()
-        @test cc(1e-10, 1e-10, 1e-12, 1e-16) == (true, min(z_b, z_b))
-        @test cc(0.5, 1e-10, 1e-12, 1e-16) == (false, min(z_a, z_b))
+        @test sprint(show, residual_tol) == "|F(x)| ≤ tol"
+        @test sprint(show, residual) == "|F(x)| ≤ max(tol, √ϵ*(1+|F(x)|)"
+        @test sprint(show, step) == "|DF(x)\\F(x)| ≤ max(tol, √ϵ*(1+|DF(x)\\F(x)|)"
+        @test sprint(show, combined) == "|F(x)| ≤ max(tol, √ϵ*(1+|F(x)|) && |DF(x)\\F(x)| ≤ max(tol, √ϵ*(1+|DF(x)\\F(x)|)"
     end
 
-    #= newton(F_DF, x0): x² - 2 = 0 converging to √2. F_DF returns fresh (F, DF) each
-       call (not in-place); the wrapper copies/projects them into internal buffers. =#
-    @testset "newton: scalar x² - 2 → √2" begin
+    @testset "scalar x² - 2" begin
         F_DF(x) = (x^2 - 2, 2x)
+        F_DF!(F, DF, x) = F_DF(x)
 
         x, success = newton(F_DF, 1.0)
-        @test success == true
-        @test x ≈ sqrt(2) atol=1e-12
+        @test success
+        @test x == sqrt(2)
         @test (x, success) isa Tuple{Float64,Bool}
 
-        # different starting guess, same root
-        x2, success2 = newton(F_DF, 10.0)
-        @test success2 == true
-        @test x2 ≈ sqrt(2) atol=1e-12
+        # `newton!` with allocated or given buffers agrees with `newton`
+        @test newton!(F_DF!, 1.0) == newton!(F_DF!, 1.0, 0.0, 0.0) == (x, true)
 
-        # custom convergence criterion threads through end-to-end
-        x3, success3 = newton(F_DF, 1.0; convergence_criterion = RadiiPolynomial.StepCriterion())
-        @test success3 == true
-        @test x3 ≈ sqrt(2) atol=1e-10
-    end
+        y, success_y = newton(F_DF, 10.0)
+        @test success_y
+        @test y ≈ sqrt(2) atol = 1e-12
 
-    @testset "newton: maxiter / non-convergence" begin
-        F_DF(x) = (x^2 - 2, 2x)
+        for criterion ∈ (RadiiPolynomial.StepCriterion(), RadiiPolynomial.CombinedCriterion())
+            y, success_y = newton(F_DF, 1.0; convergence_criterion = criterion)
+            @test success_y
+            @test y ≈ sqrt(2) atol = 1e-10
+        end
 
-        # Hand-unrolled Newton step: xₙ₊₁ = xₙ - f(xₙ)/f'(xₙ), starting far from the root
-        # so that 2 iterations do not reach tol = 1e-12.
-        x0 = 100.0
-        x1 = x0 - (x0^2 - 2) / (2x0)
-        x2 = x1 - (x1^2 - 2) / (2x1)
-        result, success = newton(F_DF, x0; maxiter = 2)
-        @test success == false
-        @test result == x2
+        @testset "maxiter" begin
+            # two hand-unrolled steps xₙ₊₁ = xₙ - f(xₙ) / f'(xₙ) from a start far from the root
+            x₀ = 100.0
+            x₁ = x₀ - (x₀^2 - 2) / (2x₀)
+            x₂ = x₁ - (x₁^2 - 2) / (2x₁)
+            @test newton(F_DF, x₀; maxiter = 2) == (x₂, false)
+            @test newton(F_DF, x₀; maxiter = 0) == (x₀, false)
+            y, success_y = newton(F_DF, x₀; maxiter = 15)
+            @test success_y
+            @test y ≈ sqrt(2) atol = 1e-12
 
-        # maxiter = 0: only the initial residual is checked, x0 itself is returned unchanged
-        result0, success0 = newton(F_DF, x0; maxiter = 0)
-        @test success0 == false
-        @test result0 == x0
+            # F = 1 and DF = 1 have no root: the iterates are 1, 0, -1, -2
+            @test newton(x -> (1.0, 1.0), 1.0; maxiter = 3, tol = 1e-15) == (-2.0, false)
+        end
 
-        # maxiter large enough recovers convergence for the same start
-        resultbig, successbig = newton(F_DF, x0; maxiter = 15)
-        @test successbig == true
-        @test resultbig ≈ sqrt(2) atol=1e-12
-    end
-
-    @testset "newton: DomainError on invalid tol/maxiter" begin
-        F_DF(x) = (x^2 - 2, 2x)
         @test_throws DomainError newton(F_DF, 1.0; tol = -1.0)
         @test_throws DomainError newton(F_DF, 1.0; maxiter = -1)
         @test_throws DomainError newton(F_DF, 1.0; tol = -1.0, maxiter = -1)
-    end
 
-    @testset "newton: verbose flag silencing" begin
-        F_DF(x) = (x^2 - 2, 2x)
-
-        function capture_stdout(f)
-            old = stdout
-            rd, wr = redirect_stdout()
-            f()
-            redirect_stdout(old)
-            close(wr)
-            return read(rd, String)
-        end
-
-        silent = capture_stdout(() -> newton(F_DF, 1.0; verbose = false))
-        @test isempty(silent)
-
-        loud = capture_stdout(() -> newton(F_DF, 1.0; verbose = true))
-        @test !isempty(loud)
+        @test isempty(_newton_stdout(() -> newton(F_DF, 1.0; verbose = false)))
+        loud = _newton_stdout(() -> newton(F_DF, 1.0; verbose = true))
         @test occursin("Newton's method", loud)
         @test occursin("Iteration", loud)
     end
 
-    #= newton!(F_DF!, x0): a small in-place Sequence problem on Taylor(1) (2 coefficients).
-       F_DF! solves the two independent equations a₀² = 2 and a₁² = 3 componentwise
-       (i.e. two Babylonian sqrt Newton iterations running in parallel), so the exact
-       root is (√2, √3). newton! (2-/4-arg, no leading `x0 = copy(...)`) mutates x0
-       in place — the returned Sequence is the very same object. =#
-    @testset "newton!: in-place Sequence problem" begin
-        𝒯 = Taylor(1)
-        target = Sequence(𝒯, [2.0, 3.0])
-
+    # the decoupled equations x₁² = 2 and x₂² = 3
+    @testset "newton!: in-place problems" begin
         function F_DF!(F, DF, x)
-            cx, ct = coefficients(x), coefficients(target)
-            coefficients(F) .= cx .^ 2 .- ct
-            M = coefficients(DF)
-            fill!(M, 0.0)
-            M[1,1] = 2cx[1]
-            M[2,2] = 2cx[2]
+            F[1] = x[1]^2 - 2
+            F[2] = x[2]^2 - 3
+            DF .= 0.0
+            DF[1,1] = 2x[1]
+            DF[2,2] = 2x[2]
             return F, DF
         end
 
-        a = Sequence(𝒯, [1.0, 1.0])
-        xsol, success = newton!(F_DF!, a)
-        @test success == true
-        @test xsol === a # mutated in place, same object returned
-        @test coefficients(xsol) ≈ [sqrt(2), sqrt(3)] atol=1e-12
+        v, success_v = newton!(F_DF!, [1.0, 1.0])
+        @test success_v
+        @test v ≈ [sqrt(2), sqrt(3)]
 
-        # explicit-buffer form, buffers seeded with Inf so unwritten entries would be caught
-        b = Sequence(𝒯, [1.0, 1.0])
-        Fbuf = Sequence(𝒯, [Inf, Inf])
-        DFbuf = LinearOperator(𝒯, 𝒯, fill(Inf, 2, 2))
-        xsol2, success2 = newton!(F_DF!, b, Fbuf, DFbuf)
-        @test success2 == true
-        @test xsol2 === b
-        @test coefficients(b) ≈ [sqrt(2), sqrt(3)] atol=1e-12
+        function F_DF_seq!(F, DF, x)
+            F_DF!(coefficients(F), coefficients(DF), coefficients(x))
+            return F, DF
+        end
+
+        # the initial guess is mutated and returned
+        a = Sequence(Taylor(1), [1.0, 1.0])
+        x, success = newton!(F_DF_seq!, a)
+        @test success
+        @test x === a
+        @test coefficients(x) ≈ [sqrt(2), sqrt(3)] atol = 1e-12
+
+        # buffers filled with `Inf` to catch an entry left unwritten
+        b = Sequence(Taylor(1), [1.0, 1.0])
+        x, success = newton!(F_DF_seq!, b, fill(Inf, Taylor(1)), fill(Inf, Taylor(1), Taylor(1)))
+        @test success
+        @test x === b
+        @test coefficients(b) ≈ [sqrt(2), sqrt(3)] atol = 1e-12
     end
 
-    @testset "Internal helpers: _similar / _similar_linop" begin
-        @test RadiiPolynomial._similar(3.0) === 0.0
+    @testset "_similar and _similar_linop" begin
         v = [1.0, 2.0, 3.0]
-        sv = RadiiPolynomial._similar(v)
-        @test sv isa Vector{Float64} && length(sv) == 3
-
-        @test RadiiPolynomial._similar_linop(3.0) === 0.0
-        Mv = RadiiPolynomial._similar_linop(v)
-        @test size(Mv) == (3, 3)
-
         a = Sequence(Taylor(1), [1.0, 2.0])
+        @test RadiiPolynomial._similar(3.0) === 0.0
+        @test RadiiPolynomial._similar(v) isa Vector{Float64} && length(RadiiPolynomial._similar(v)) == 3
+        @test RadiiPolynomial._similar_linop(3.0) === 0.0
+        @test size(RadiiPolynomial._similar_linop(v)) == (3, 3)
         La = RadiiPolynomial._similar_linop(a)
         @test La isa LinearOperator
         @test domain(La) == codomain(La) == space(a)
-        @test size(coefficients(La)) == (2, 2)
     end
 
-    #= The non-bang `newton` accepts an `F_DF(x)` returning a Sequence/LinearOperator on a
-       *different* (typically larger, e.g. grown by convolution) space than x: the result is
-       projected down onto the buffer's space. That step is exercised directly here. =#
-    @testset "Internal helpers: _copy_maybeinplace!" begin
-        @test RadiiPolynomial._copy_maybeinplace!(0.0, 5.0) == 5.0 # Number: just returns y
+    # `F_DF(x)` may return its values on a larger space than the one of `x`, on which they are projected
+    @testset "_copy_maybeinplace! and _sub_maybeinplace!" begin
+        𝒯₁, 𝒯₂ = Taylor(1), Taylor(2)
+        y = Sequence(𝒯₂, [1.0, 2.0, 3.0])
+        D = LinearOperator(𝒯₁, 𝒯₂, [1.0 2.0; 3.0 4.0; 5.0 6.0])
 
-        buf = [Inf, Inf]
-        RadiiPolynomial._copy_maybeinplace!(buf, [1.0, 2.0])
-        @test buf == [1.0, 2.0] # generic fallback: x .= y
+        @test RadiiPolynomial._copy_maybeinplace!(0.0, 5.0) == 5.0
+        @test RadiiPolynomial._copy_maybeinplace!([Inf, Inf], [1.0, 2.0]) == [1.0, 2.0]
+        @test coefficients(RadiiPolynomial._copy_maybeinplace!(fill(Inf, 𝒯₁), y)) == [1.0, 2.0]
+        @test coefficients(RadiiPolynomial._copy_maybeinplace!(fill(Inf, 𝒯₁, 𝒯₁), D)) == [1.0 2.0; 3.0 4.0]
 
-        𝒯1, 𝒯2 = Taylor(1), Taylor(2)
-        bufS = Sequence(𝒯1, [Inf, Inf])
-        y = Sequence(𝒯2, [1.0, 2.0, 3.0]) # 1 + 2t + 3t²
-        RadiiPolynomial._copy_maybeinplace!(bufS, y)
-        @test coefficients(bufS) == [1.0, 2.0] # Projection(Taylor(1)) drops the t² term
-
-        D1 = LinearOperator(𝒯1, 𝒯1, fill(Inf, 2, 2))
-        Draw = LinearOperator(𝒯1, 𝒯2, [1.0 2.0; 3.0 4.0; 5.0 6.0]) # domain 𝒯1, codomain 𝒯2
-        RadiiPolynomial._copy_maybeinplace!(D1, Draw)
-        @test coefficients(D1) == [1.0 2.0; 3.0 4.0] # Projection(codomain=𝒯1) drops row 3
+        x() = Sequence(𝒯₁, [10.0, 20.0])
+        A() = LinearOperator(𝒯₁, 𝒯₁, [10.0 20.0; 30.0 40.0])
+        @test RadiiPolynomial._sub_maybeinplace!(5.0, 2.0) == 3.0
+        @test RadiiPolynomial._sub_maybeinplace!([10.0, 20.0], [1.0, 2.0]) == [9.0, 18.0]
+        @test coefficients(RadiiPolynomial._sub_maybeinplace!(x(), Sequence(𝒯₁, [1.0, 2.0]))) == [9.0, 18.0]
+        @test coefficients(RadiiPolynomial._sub_maybeinplace!(x(), y)) == [9.0, 18.0]
+        @test coefficients(RadiiPolynomial._sub_maybeinplace!(A(), LinearOperator(𝒯₁, 𝒯₁, [1.0 2.0; 3.0 4.0]))) == [9.0 18.0; 27.0 36.0]
+        @test coefficients(RadiiPolynomial._sub_maybeinplace!(A(), D)) == [9.0 18.0; 27.0 36.0]
     end
 
-    @testset "Internal helpers: _sub_maybeinplace!" begin
-        @test RadiiPolynomial._sub_maybeinplace!(5.0, 2.0) == 3.0 # Number: x -= y
-
-        buf = [10.0, 20.0]
-        RadiiPolynomial._sub_maybeinplace!(buf, [1.0, 2.0])
-        @test buf == [9.0, 18.0] # generic fallback: x .-= y
-
-        𝒯1, 𝒯2 = Taylor(1), Taylor(2)
-        x = Sequence(𝒯1, [10.0, 20.0])
-        y = Sequence(𝒯1, [1.0, 2.0])
-        RadiiPolynomial._sub_maybeinplace!(x, y) # same space: direct in-place subtraction
-        @test coefficients(x) == [9.0, 18.0]
-
-        x2 = Sequence(𝒯1, [10.0, 20.0])
-        y2 = Sequence(𝒯2, [1.0, 2.0, 3.0]) # mismatched (larger) space, projected before subtracting
-        RadiiPolynomial._sub_maybeinplace!(x2, y2)
-        @test coefficients(x2) == [9.0, 18.0]
-
-        D1 = LinearOperator(𝒯1, 𝒯1, [10.0 20.0; 30.0 40.0])
-        D2 = LinearOperator(𝒯1, 𝒯1, [1.0 2.0; 3.0 4.0])
-        RadiiPolynomial._sub_maybeinplace!(D1, D2) # same domain/codomain: direct subtraction
-        @test coefficients(D1) == [9.0 18.0; 27.0 36.0]
-
-        D3 = LinearOperator(𝒯1, 𝒯1, [10.0 20.0; 30.0 40.0])
-        Draw = LinearOperator(𝒯1, 𝒯2, [1.0 2.0; 3.0 4.0; 5.0 6.0]) # mismatched codomain
-        RadiiPolynomial._sub_maybeinplace!(D3, Draw)
-        @test coefficients(D3) == [9.0 18.0; 27.0 36.0]
-    end
-
-    #= A map and a Jacobian returned on the plain Fourier space are compressed onto the symmetric space
-       of the unknown; the compression keeps the whole orbit of each coefficient, so a linear problem
-       converges in a single step. =#
-    @testset "newton: map and Jacobian returned on the desymmetrized space" begin
+    #= A map and a Jacobian returned on the plain Fourier space are compressed onto the symmetric
+       space of the unknown. The compression keeps the whole orbit of each coefficient, so a
+       linear problem converges in a single step. =#
+    @testset "map and Jacobian returned on the desymmetrized space" begin
         ℱ = Fourier(2, 1.0)
         es = evensym(ℱ)
         A = project(Multiplication(Sequence(ℱ, [0.0, 0.3, 1.0, 0.3, 0.0])), ℱ, ℱ)
@@ -214,8 +165,8 @@
             calls[] += 1
             return A * u - b, A
         end
-        @test success == true
-        @test x ≈ x_exact atol=1e-12
+        @test success
+        @test x ≈ x_exact atol = 1e-12
         @test calls[] == 2 # one Newton step, then the convergence check
     end
 end

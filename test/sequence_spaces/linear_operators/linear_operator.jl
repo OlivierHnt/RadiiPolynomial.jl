@@ -1,30 +1,51 @@
+# operator family over the parameter space `s_par`, with entries 1, 2, ... in column-major order
+function _lo_family(s_par, dom, codom)
+    new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
+    return LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
+end
+
+function _lo_test_roundtrip(A, s_par, A_grid = to_grid(A, grid_size(s_par)))
+    B = to_coef(A_grid, s_par)
+    @testset let s_par = s_par, dom = domain(A), codom = codomain(A)
+        @test (domain(B) == dom) & (codomain(B) == codom)
+        @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+    end
+end
+
+# the grid operator at each Chebyshev node acts as the family evaluated at that node,
+# `v` being read as constant in the parameter
+function _lo_test_nodes(A, A_grid, v)
+    v₀ = Sequence(domain(A), coefficients(v))
+    m = length(A_grid)
+    for k ∈ 1:m
+        @test real.(coefficients(A_grid[k] * v)) ≈ coefficients(Evaluation(cospi((k-1)/(m-1)), nothing) * (A * v₀)) atol=1e-9
+    end
+end
+
+_lo_test_enclosure(A, B) = @test all(issubset_interval.(coefficients(A), real.(coefficients(B))))
+
 @testset "LinearOperator" begin
 
     @testset "Construction, accessors, and dimension checks" begin
-        𝒯 = Taylor(1)
-        𝒞 = Chebyshev(2)
-        M = [1.0 2.0 3.0 ; 4.0 5.0 6.0] # 2×3: codomain dim 2, domain dim 3
+        𝒯, 𝒞 = Taylor(1), Chebyshev(2)
+        M = [1.0 2.0 3.0 ; 4.0 5.0 6.0]
         A = LinearOperator(𝒞, 𝒯, M)
 
         @test domain(A) == 𝒞
         @test codomain(A) == 𝒯
         @test coefficients(A) == M
-        @test eltype(A) == Float64
-        @test eltype(typeof(A)) == Float64
-        @test size(A) == (2, 3)
-        @test size(A, 1) == 2
-        @test size(A, 2) == 3
+        @test eltype(A) == eltype(typeof(A)) == Float64
+        @test size(A) == (size(A, 1), size(A, 2)) == (2, 3)
         @test length(A) == 6
-        @test firstindex(A, 1) == 0 && lastindex(A, 1) == 1
-        @test firstindex(A, 2) == 0 && lastindex(A, 2) == 2
-        @test firstindex(A, 3) == 1 && lastindex(A, 3) == 1 # any further dimension is trivial
+        @test (firstindex(A, 1), lastindex(A, 1)) == (0, 1)
+        @test (firstindex(A, 2), lastindex(A, 2)) == (0, 2)
+        @test (firstindex(A, 3), lastindex(A, 3)) == (1, 1) # any further dimension is trivial
         @test collect(A) == vec(M)
 
-        # codomain and domain dimensions must match the coefficient matrix size
         @test_throws DimensionMismatch LinearOperator(𝒞, 𝒯, zeros(3, 3))
         @test_throws DimensionMismatch LinearOperator(𝒞, 𝒯, zeros(2, 2))
 
-        # `order`/`frequency` forward to the domain and codomain when both are cartesian
+        # `order` and `frequency` forward to the domain and codomain
         ℱ = Fourier(1, 1.5)
         B = LinearOperator(ℱ^2, ℱ^3, zeros(9, 6))
         @test order(B) == (order(ℱ^2), order(ℱ^3)) == ([1, 1], [1, 1, 1])
@@ -43,47 +64,37 @@
         @test codomain(m) == ScalarSpace()^2
         @test coefficients(m) == [1 2 3 ; 4 5 6]
 
-        𝒯 = Taylor(1)
-        a = Sequence(𝒯, [1.0, 2.0])
+        a = Sequence(Taylor(1), [1.0, 2.0])
         Aa = LinearOperator(a)
         @test domain(Aa) == ScalarSpace()
-        @test codomain(Aa) == 𝒯
+        @test codomain(Aa) == Taylor(1)
         @test coefficients(Aa) == reshape([1.0, 2.0], 2, 1)
-
         @test Sequence(Aa) == a
     end
 
     @testset "domain/codomain adaptation and compatibility checks" begin
-        𝒯₁ = Taylor(1)
-        ℱ₁ = Fourier(1, 1.0)
+        𝒯₁, ℱ₁ = Taylor(1), Fourier(1, 1.0)
         A = LinearOperator(𝒯₁, ℱ₁, zeros(3, 2))
 
-        # `domain(A, s)`/`codomain(A, s)` return the fixed domain/codomain of `A` once
-        # compatibility of `s` with the other side has been checked
-        @test domain(A, ℱ₁) == 𝒯₁ # any Fourier is compatible with codomain(A) = ℱ₁
-        @test domain(A, ScalarSpace()) == 𝒯₁ # ScalarSpace is compatible with any SequenceSpace
-        @test codomain(A, 𝒯₁) == ℱ₁
-        @test codomain(A, ScalarSpace()) == ℱ₁
-
+        # the domain and codomain of `A` are fixed, the argument is only checked for compatibility
+        @test domain(A, ℱ₁) == domain(A, ScalarSpace()) == 𝒯₁
+        @test codomain(A, 𝒯₁) == codomain(A, ScalarSpace()) == ℱ₁
         @test_throws ArgumentError domain(A, Fourier(1, 2.0))
         @test_throws ArgumentError codomain(A, Fourier(1, 3.0))
     end
 
     @testset "getindex / setindex! in numeric index coordinates" begin
-        𝒯₂ = Taylor(2)
-        𝒯₁ = Taylor(1)
-        M = Float64[1 2 3 ; 4 5 6] # rows = codomain (𝒯₁), cols = domain (𝒯₂)
-        A = LinearOperator(𝒯₂, 𝒯₁, copy(M))
+        # rows are indexed by the codomain, columns by the domain
+        A = LinearOperator(Taylor(2), Taylor(1), Float64[1 2 3 ; 4 5 6])
 
         @test A[0, 0] == 1.0
         @test A[0, 2] == 3.0
         @test A[1, 1] == 5.0
-        @test A[0:1, 0] == [1.0, 4.0]
-        @test A[:, 0] == [1.0, 4.0]
+        @test A[0:1, 0] == A[:, 0] == [1.0, 4.0]
         @test A[0, :] == [1.0, 2.0, 3.0]
 
-        @test_throws BoundsError A[5, 0] # 5 ∉ indices(domain(A))
-        @test_throws BoundsError A[0, 9] # 9 ∉ indices(codomain(A))
+        @test_throws BoundsError A[5, 0]
+        @test_throws BoundsError A[0, 9]
 
         B = copy(A)
         B[1, 2] = 999.0
@@ -96,33 +107,30 @@
     end
 
     @testset "space-based getindex / view (sub-block selection)" begin
-        𝒯₃ = Taylor(3)
-        B = LinearOperator(𝒯₃, 𝒯₃, Float64[10i+j for i ∈ 0:3, j ∈ 0:3]) # B[i,j] = 10i+j
+        B = LinearOperator(Taylor(3), Taylor(3), Float64[10i+j for i ∈ 0:3, j ∈ 0:3])
 
         sub = B[Taylor(1), Taylor(1)]
         @test domain(sub) == codomain(sub) == Taylor(1)
-        @test coefficients(sub) == [0.0 1.0 ; 10.0 11.0] # B[i,j], i,j ∈ {0,1}
+        @test coefficients(sub) == [0.0 1.0 ; 10.0 11.0]
 
-        # `getindex` with one space and one plain index is explicitly unsupported
-        @test_throws ErrorException B[Taylor(1), 0]
-        @test_throws ErrorException B[0, Taylor(1)]
-
-        # `view` gives the same values but stays glued to the parent's coefficients
+        # a `view` shares the coefficients of its parent, `getindex` copies them
         vsub = view(B, Taylor(1), Taylor(1))
         @test coefficients(vsub) == coefficients(sub)
         vsub[0, 0] = -1.0
-        @test B[0, 0] == -1.0 # mutated through the view
-        @test coefficients(sub)[1, 1] == 0.0 # `getindex` copy is unaffected
+        @test B[0, 0] == -1.0
+        @test coefficients(sub)[1, 1] == 0.0
 
+        # mixing a space with a plain index is unsupported
+        @test_throws ErrorException B[Taylor(1), 0]
+        @test_throws ErrorException B[0, Taylor(1)]
         @test_throws ErrorException view(B, Taylor(1), 0)
         @test_throws ErrorException view(B, 0, Taylor(1))
     end
 
     @testset "component, eachcomponent, unpack: cartesian domain and codomain" begin
-        dom = Taylor(1) × Taylor(0) # component dims 2,1 (total 3)
-        codom = Taylor(0)^2 # component dims 1,1 (total 2)
-        M = Float64[1 2 3 ; 4 5 6]
-        A = LinearOperator(dom, codom, copy(M))
+        dom = Taylor(1) × Taylor(0)
+        codom = Taylor(0)^2
+        A = LinearOperator(dom, codom, Float64[1 2 3 ; 4 5 6])
 
         c11 = component(A, 1, 1)
         @test domain(c11) == Taylor(1) && codomain(c11) == Taylor(0)
@@ -132,55 +140,49 @@
         @test domain(c12) == Taylor(0) && codomain(c12) == Taylor(0)
         @test coefficients(c12) == reshape([3.0], 1, 1)
 
-        c21 = component(A, 2, 1)
-        @test coefficients(c21) == [4.0 5.0]
+        @test coefficients(component(A, 2, 1)) == [4.0 5.0]
 
         U = unpack(A)
         @test size(U) == (2, 2)
         @test U == collect(eachcomponent(A))
         @test all(coefficients(U[i,j]) == coefficients(component(A,i,j)) for i ∈ 1:2, j ∈ 1:2)
 
-        # mutating a component (or an unpacked entry) mutates the parent: view semantics
+        # a component and an unpacked entry are views of the parent, whose own indices are
+        # the plain positions of the cartesian space
         c11[0, 0] = 999.0
-        @test A[1, 1] == 999.0 # (1,1) is a plain `CartesianSpace` position, not a `Taylor` index
+        @test A[1, 1] == 999.0
         U[2, 2][0, 0] = 555.0
         @test A[2, 3] == 555.0
 
         cr = component(A, 1:2, 1)
         @test domain(cr) == Taylor(1) && codomain(cr) == CartesianProduct(Taylor(0), Taylor(0))
-        cc = component(A, :, 1)
-        @test coefficients(cc) == coefficients(cr)
+        @test coefficients(component(A, :, 1)) == coefficients(cr)
     end
 
     @testset "component, eachcomponent, unpack: one-sided cartesian space" begin
-        # cartesian domain, plain codomain
-        A = LinearOperator(Taylor(1) × Taylor(0), Taylor(2), Float64[1 2 3 ; 4 5 6 ; 7 8 9])
-        a1 = component(A, 1)
-        a2 = component(A, 2)
-        @test domain(a1) == Taylor(1) && codomain(a1) == Taylor(2)
-        @test coefficients(a1) == [1.0 2.0 ; 4.0 5.0 ; 7.0 8.0]
-        @test domain(a2) == Taylor(0) && codomain(a2) == Taylor(2)
-        @test coefficients(a2) == reshape([3.0, 6.0, 9.0], 3, 1)
-        Ua = unpack(A)
-        @test size(Ua) == (1, 2)
-        @test Ua == collect(eachcomponent(A))
+        M = Float64[1 2 3 ; 4 5 6 ; 7 8 9]
 
-        # plain domain, cartesian codomain
-        B = LinearOperator(Taylor(2), Taylor(1) × Taylor(0), Float64[1 2 3 ; 4 5 6 ; 7 8 9])
-        b1 = component(B, 1)
-        b2 = component(B, 2)
+        A = LinearOperator(Taylor(1) × Taylor(0), Taylor(2), M)
+        a1, a2 = component(A, 1), component(A, 2)
+        @test domain(a1) == Taylor(1) && codomain(a1) == Taylor(2)
+        @test coefficients(a1) == M[:, 1:2]
+        @test domain(a2) == Taylor(0) && codomain(a2) == Taylor(2)
+        @test coefficients(a2) == M[:, 3:3]
+        @test size(unpack(A)) == (1, 2)
+        @test unpack(A) == collect(eachcomponent(A))
+
+        B = LinearOperator(Taylor(2), Taylor(1) × Taylor(0), M)
+        b1, b2 = component(B, 1), component(B, 2)
         @test domain(b1) == Taylor(2) && codomain(b1) == Taylor(1)
-        @test coefficients(b1) == [1.0 2.0 3.0 ; 4.0 5.0 6.0]
+        @test coefficients(b1) == M[1:2, :]
         @test domain(b2) == Taylor(2) && codomain(b2) == Taylor(0)
-        @test coefficients(b2) == [7.0 8.0 9.0]
-        Ub = unpack(B)
-        @test size(Ub) == (2, 1)
-        @test Ub == collect(eachcomponent(B))
+        @test coefficients(b2) == M[3:3, :]
+        @test size(unpack(B)) == (2, 1)
+        @test unpack(B) == collect(eachcomponent(B))
     end
 
     @testset "copy, zero, one, similar, fill, fill!" begin
-        𝒯₂ = Taylor(2)
-        𝒯₃ = Taylor(3)
+        𝒯₂, 𝒯₃ = Taylor(2), Taylor(3)
         A = LinearOperator(𝒯₂, 𝒯₃, Float64[1 2 3 ; 4 5 6 ; 7 8 9 ; 10 11 12])
 
         Ac = copy(A)
@@ -193,15 +195,13 @@
         @test iszero(Az)
         @test !iszero(A)
 
-        Ao = one(A)
-        # `one` puts the identity on `domain(A) ∩ codomain(A) = Taylor(2)`, the rest is zero
-        @test coefficients(Ao) == [1.0 0.0 0.0 ; 0.0 1.0 0.0 ; 0.0 0.0 1.0 ; 0.0 0.0 0.0]
+        # `one` is the identity on `domain(A) ∩ codomain(A)` and zero elsewhere
+        @test coefficients(one(A)) == [1.0 0.0 0.0 ; 0.0 1.0 0.0 ; 0.0 0.0 1.0 ; 0.0 0.0 0.0]
 
         As = similar(A)
         @test domain(As) == domain(A) && codomain(As) == codomain(A)
         @test eltype(As) == Float64
-        Asi = similar(A, Int)
-        @test eltype(Asi) == Int
+        @test eltype(similar(A, Int)) == Int
 
         F = fill(7.0, Taylor(1), Taylor(0))
         @test domain(F) == Taylor(1) && codomain(F) == Taylor(0)
@@ -212,8 +212,7 @@
         T = LinearOperator{Taylor,Taylor,Matrix{Float64}}
         z = zero(T)
         @test domain(z) == codomain(z) == Taylor(0) && coefficients(z) == [0.0;;]
-        o = one(T)
-        @test coefficients(o) == [1.0;;]
+        @test coefficients(one(T)) == [1.0;;]
         @test complex(T) == LinearOperator{Taylor,Taylor,Matrix{ComplexF64}}
     end
 
@@ -222,23 +221,21 @@
         A = LinearOperator(ℱ, ℱ, Float64[1 2 3 ; 4 5 6 ; 7 8 9])
         Af = float(A)
         @test eltype(Af) == Float64
-        @test domain(Af) == codomain(Af) == Fourier(1, 1.0) # frequency promoted to Float64
+        @test domain(Af) == codomain(Af) == Fourier(1, 1.0) # the frequency is promoted too
         @test coefficients(Af) == Float64[1 2 3 ; 4 5 6 ; 7 8 9]
 
         Ac = complex(A)
         @test eltype(Ac) == ComplexF64
-        @test domain(Ac) == domain(A) # `complex` does not touch the spaces
+        @test domain(Ac) == domain(A) # `complex` leaves the spaces untouched
 
-        B = LinearOperator(Taylor(1), Taylor(1), ComplexF64[1+2im 3-1im ; 0+1im 2+0im])
-        @test real(B) == LinearOperator(Taylor(1), Taylor(1), Float64[1 3 ; 0 2])
-        @test imag(B) == LinearOperator(Taylor(1), Taylor(1), Float64[2 -1 ; 1 0])
-        @test conj(B) == LinearOperator(Taylor(1), Taylor(1), ComplexF64[1-2im 3+1im ; 0-1im 2-0im])
-        Bconj = copy(B)
-        conj!(Bconj)
-        @test Bconj == conj(B)
+        𝒯 = Taylor(1)
+        B = LinearOperator(𝒯, 𝒯, ComplexF64[1+2im 3-1im ; 0+1im 2+0im])
+        @test real(B) == LinearOperator(𝒯, 𝒯, Float64[1 3 ; 0 2])
+        @test imag(B) == LinearOperator(𝒯, 𝒯, Float64[2 -1 ; 1 0])
+        @test conj(B) == conj!(copy(B)) == LinearOperator(𝒯, 𝒯, ComplexF64[1-2im 3+1im ; 0-1im 2-0im])
 
-        D = LinearOperator(Taylor(1), Taylor(0), [10.0 20.0])
-        E = LinearOperator(Taylor(1), Taylor(0), [1.0 2.0])
+        D = LinearOperator(𝒯, Taylor(0), [10.0 20.0])
+        E = LinearOperator(𝒯, Taylor(0), [1.0 2.0])
         @test coefficients(complex(D, E)) == ComplexF64[10+1im 20+2im]
         # the parts are paired on the sums of the spaces, not position by position
         E₂ = LinearOperator(Taylor(2), Taylor(0), [1.0 2.0 3.0])
@@ -246,31 +243,27 @@
     end
 
     @testset "transpose, adjoint" begin
-        A = LinearOperator(Taylor(1), Taylor(0), [1.0 2.0]) # 1×2
-        At = transpose(A)
+        At = transpose(LinearOperator(Taylor(1), Taylor(0), [1.0 2.0]))
         @test domain(At) == Taylor(0) && codomain(At) == Taylor(1)
         @test coefficients(At) == reshape([1.0, 2.0], 2, 1)
 
         B = LinearOperator(Taylor(1), Taylor(0), ComplexF64[1+2im 3-1im])
-        Ba = adjoint(B)
-        @test coefficients(Ba) == reshape(ComplexF64[1-2im, 3+1im], 2, 1)
+        @test coefficients(adjoint(B)) == reshape(ComplexF64[1-2im, 3+1im], 2, 1)
 
-        a = Sequence(Taylor(1), [1.0, 2.0])
-        at = transpose(a)
+        at = transpose(Sequence(Taylor(1), [1.0, 2.0]))
         @test domain(at) == Taylor(1) && codomain(at) == ScalarSpace()
         @test coefficients(at) == [1.0 2.0]
     end
 
     @testset "equality, isapprox, iszero" begin
-        A = LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 4.0])
-        B = LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 4.0])
-        C = LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 4.1])
-        @test A == B
-        @test A != C
-        @test isapprox(A, B)
-        @test !isapprox(A, C)
-        @test isapprox(A, LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 4.0 + 1e-10]))
-        @test !isapprox(A, LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 4.0 + 1e-10]); atol = 1e-12)
+        op(x) = LinearOperator(Taylor(1), Taylor(1), [1.0 2.0 ; 3.0 x])
+        A = op(4.0)
+        @test A == op(4.0)
+        @test A != op(4.1)
+        @test isapprox(A, op(4.0))
+        @test !isapprox(A, op(4.1))
+        @test isapprox(A, op(4.0 + 1e-10))
+        @test !isapprox(A, op(4.0 + 1e-10); atol = 1e-12)
         @test !iszero(A)
         @test iszero(zeros(Taylor(1), Taylor(1)))
     end
@@ -281,139 +274,96 @@
         @test domain(Ai) == domain(A) && codomain(Ai) == codomain(A)
         @test all(isequal_interval.(coefficients(Ai), interval.(coefficients(A))))
 
+        # 1*10 + 2*20 = 50 and 3*10 + 4*20 = 110
         a = Sequence(Taylor(1), [10.0, 20.0])
-        ai = interval(a)
-        ci = Ai * ai
-        # 1*10+2*20 = 50, 3*10+4*20 = 110, both exactly representable
+        ci = Ai * interval(a)
         @test issubset_interval(interval(50.0), ci[0])
         @test issubset_interval(interval(110.0), ci[1])
-
-        Ac = complex(A)
-        ac = complex(a)
-        @test Ac * ac == Sequence(Taylor(1), ComplexF64[50.0, 110.0])
+        @test complex(A) * complex(a) == Sequence(Taylor(1), ComplexF64[50.0, 110.0])
     end
 
     @testset "getcoefficient with SymmetricSpace index coordinates" begin
-        # `evensym(Fourier(1,1.0))`: Z₂ group {id, k ↦ -k} acting with unit amplitude and
-        # zero phase (a₋ₖ = aₖ), representatives are the orbit maxima: indices 0,1
+        # evensym: a₋ₖ = aₖ, with representatives 0 and 1. A column of a representative sums its
+        # orbit and a row averages its orbit.
         ℱ = Fourier(1, 1.0)
         es = evensym(ℱ)
+        es2 = evensym(Fourier(2, 1.0))
         @test indices(es) == 0:1
 
-        @testset "plain domain/codomain queried in symmetric coordinates" begin
-            # A[k,l] = 10(k+2) + (l+2), k,l ∈ {-1,0,1} → M[i,j] = 10i+j, i,j ∈ {1,2,3}
-            M = Float64[1 2 3 ; 4 5 6 ; 7 8 9]
-            A = LinearOperator(ℱ, ℱ, M)
-
-            # A_sym[1,1] = (1/2)Σ_{k,l∈{-1,1}} A[k,l] = (A[1,1]+A[1,-1]+A[-1,1]+A[-1,-1])/2
-            #            = (9+7+3+1)/2 = 10
-            @test RadiiPolynomial.getcoefficient(A, (es, 1), (es, 1)) == 10.0 + 0.0im
-            # A_sym[0,0] = A[0,0] (orbit of 0 is a singleton) = 5
-            @test RadiiPolynomial.getcoefficient(A, (es, 0), (es, 0)) == 5.0 + 0.0im
-            # A_sym[1,0] = (A[1,0]+A[-1,0])/2 = (8+2)/2 = 5
-            @test RadiiPolynomial.getcoefficient(A, (es, 1), (es, 0)) == 5.0 + 0.0im
-            # A_sym[0,1] = (A[0,1]+A[0,-1]) / |orbit(0)| = (6+4)/1 = 10 (the divisor is always
-            # the size of the *codomain* orbit, here a singleton, unlike the α=1 case above)
-            @test RadiiPolynomial.getcoefficient(A, (es, 0), (es, 1)) == 10.0 + 0.0im
-        end
-
-        @testset "symmetric domain/codomain queried in full (desymmetrized) coordinates" begin
-            # B[(es i),(es j)] = N[i+1,j+1], N = [1 2 ; 3 4] (es indices 0,1)
-            B = LinearOperator(es, es, Float64[1 2 ; 3 4])
-
-            # desym(α=-1,β=-1): representative of -1 is 1 (both sides), factor 1;
-            # value = B[1,1] / |orbit(1)| = 4/2 = 2
-            @test RadiiPolynomial.getcoefficient(B, (ℱ, -1), (ℱ, -1)) == 2.0 - 0.0im
-            # α=1 is already its own representative: same value 2
-            @test RadiiPolynomial.getcoefficient(B, (ℱ, -1), (ℱ, 1)) == 2.0 - 0.0im
-            # α=0,β=0: representative of 0 is 0, orbit is a singleton: B[0,0]/1 = 1
-            @test RadiiPolynomial.getcoefficient(B, (ℱ, 0), (ℱ, 0)) == 1.0 - 0.0im
-        end
-
-        @testset "one side symmetric, the other plain (domain symmetric, codomain plain)" begin
-            # domain symmetric (es), codomain plain (ℱ): only β needs desymmetrizing
-            P = LinearOperator(es, ℱ, Float64[1 2 ; 3 4 ; 5 6]) # P[(ℱ i),(es j)] = N[i+1,j+1]
-            # β=-1 desymmetrizes to representative 1 (factor 1, orbit size 2):
-            # value = P[0,1]/2 = 4/2 = 2
-            @test RadiiPolynomial.getcoefficient(P, (ℱ, 0), (ℱ, -1)) == 2.0 - 0.0im
-            @test RadiiPolynomial.getcoefficient(P, (ℱ, 0), (ℱ, 1)) == 2.0 - 0.0im # β=1 is its own rep
-        end
-
-        @testset "one side symmetric, the other plain (codomain symmetric, domain plain)" begin
-            # domain plain (ℱ), codomain symmetric (es): only α needs desymmetrizing
-            Q = LinearOperator(ℱ, es, Float64[1 2 3 ; 4 5 6]) # Q[(es i),(ℱ j)] = N[i+1,j+1]
-            # α=1 is already a representative (∈ indices(es)): Q[1,0] = 5
-            @test RadiiPolynomial.getcoefficient(Q, (ℱ, 1), (ℱ, 0)) == 5.0 + 0.0im
-            # α=-1 has representative 1 (factor 1) but -1 ∉ indices(es) = 0:1: factor_α * Q[1,0] = 5
-            @test RadiiPolynomial.getcoefficient(Q, (ℱ, -1), (ℱ, 0)) == 5.0 + 0.0im
-        end
-
-        @testset "plain domain/codomain queried with one symmetric side" begin
-            A = LinearOperator(ℱ, ℱ, Float64[1 2 3 ; 4 5 6 ; 7 8 9])
-            # symmetric domain only: the column of the representative 1 is the orbit sum A[·,1] + A[·,-1]
-            @test RadiiPolynomial.getcoefficient(A, (ℱ, 0), (es, 1)) == 6.0 + 4.0 + 0.0im
-            @test RadiiPolynomial.getcoefficient(A, (ℱ, 0), (es, 0)) == 5.0 + 0.0im
-            # symmetric codomain only: the row of the representative 1 is the orbit average (A[1,·] + A[-1,·])/2
-            @test RadiiPolynomial.getcoefficient(A, (es, 1), (ℱ, 0)) == (8.0 + 2.0) / 2 + 0.0im
-            @test RadiiPolynomial.getcoefficient(A, (es, 0), (ℱ, 0)) == 5.0 + 0.0im
-            # outside the truncation of `A` the coefficients vanish instead of erroring
-            es2 = evensym(Fourier(2, 1.0))
-            @test RadiiPolynomial.getcoefficient(A, (es2, 2), (es2, 2)) == 0
-            @test RadiiPolynomial.getcoefficient(A, (es2, 1), (es2, 1)) == 10.0 + 0.0im
+        A = LinearOperator(ℱ, ℱ, Float64[1 2 3 ; 4 5 6 ; 7 8 9]) # A[k,l] = 3(k+1) + l+2
+        B = LinearOperator(es, es, Float64[1 2 ; 3 4])
+        P = LinearOperator(es, ℱ, Float64[1 2 ; 3 4 ; 5 6])
+        Q = LinearOperator(ℱ, es, Float64[1 2 3 ; 4 5 6])
+        cases = (
+            # plain operator read in symmetric coordinates
+            (A, (es, 1), (es, 1), (9 + 7 + 3 + 1) / 2),
+            (A, (es, 0), (es, 0), 5.0),
+            (A, (es, 1), (es, 0), (8 + 2) / 2),
+            (A, (es, 0), (es, 1), 6.0 + 4.0),
+            (A, (ℱ, 0), (es, 1), 6.0 + 4.0),
+            (A, (ℱ, 0), (es, 0), 5.0),
+            (A, (es, 1), (ℱ, 0), (8 + 2) / 2),
+            (A, (es, 0), (ℱ, 0), 5.0),
+            # the coefficients vanish outside the truncation of the operator
+            (A, (es2, 2), (es2, 2), 0.0),
+            (A, (es2, 1), (es2, 1), 10.0),
+            # symmetric operator read in full coordinates: the column of -1 is the one of its
+            # representative 1 divided by the size of the orbit
+            (B, (ℱ, -1), (ℱ, -1), 4 / 2),
+            (B, (ℱ, -1), (ℱ, 1), 4 / 2),
+            (B, (ℱ, 0), (ℱ, 0), 1.0),
+            (P, (ℱ, 0), (ℱ, -1), 4 / 2),
+            (P, (ℱ, 0), (ℱ, 1), 4 / 2),
+            (Q, (ℱ, 1), (ℱ, 0), 5.0),
+            (Q, (ℱ, -1), (ℱ, 0), 5.0),
+        )
+        for (L, α, β, v) ∈ cases
+            @test RadiiPolynomial.getcoefficient(L, α, β) == v
         end
     end
 
     @testset "lazy wrappers: domain/codomain adaptation" begin
-        𝒯₁ = Taylor(1)
-        𝒯₂ = Taylor(2)
-        𝒯₃ = Taylor(3)
-        A = LinearOperator(𝒯₂, 𝒯₃, zeros(4, 3)) # domain 𝒯₂, codomain 𝒯₃
-        B = LinearOperator(𝒯₂, 𝒯₁, zeros(2, 3)) # domain 𝒯₂, codomain 𝒯₁
+        𝒯₁, 𝒯₂, 𝒯₃ = Taylor(1), Taylor(2), Taylor(3)
+        A = LinearOperator(𝒯₂, 𝒯₃, zeros(4, 3))
+        B = LinearOperator(𝒯₂, 𝒯₁, zeros(2, 3))
+        undefined(L) = domain(L, UndefSpace()) == codomain(L, UndefSpace()) == UndefSpace()
+        @test undefined(A)
 
         @testset "UniformScalingOperator" begin
             J = UniformScalingOperator(2.0)
-            @test domain(J, 𝒯₂) == 𝒯₂ && codomain(J, 𝒯₂) == 𝒯₂ # acts as the identity space-wise
-            @test domain(J, UndefSpace()) == UndefSpace()
-            @test codomain(J, UndefSpace()) == UndefSpace()
+            @test domain(J, 𝒯₂) == 𝒯₂ && codomain(J, 𝒯₂) == 𝒯₂
+            @test undefined(J)
             @test eltype(J) == Float64
             @test zero(J) == UniformScalingOperator(0.0)
             @test one(J) == UniformScalingOperator(1.0)
-            @test UniformScalingOperator(I) == UniformScalingOperator(true) # `I` is re-exported
-            Ji = interval(J)
-            @test isequal_interval(Ji.λ, interval(2.0))
+            @test UniformScalingOperator(I) == UniformScalingOperator(true)
+            @test isequal_interval(interval(J).λ, interval(2.0))
         end
 
         @testset "Negate" begin
             N = Negate(A)
             @test domain(N, Taylor(5)) == domain(A, Taylor(5)) == 𝒯₂
             @test codomain(N, 𝒯₂) == codomain(A, 𝒯₂) == 𝒯₃
-            # an undefined space propagates on both sides
-            @test domain(N, UndefSpace()) == codomain(N, UndefSpace()) == UndefSpace()
-            @test domain(A, UndefSpace()) == codomain(A, UndefSpace()) == UndefSpace()
+            @test undefined(N)
         end
 
         @testset "Add" begin
             S = Add(A, B)
-            # both A and B need a domain compatible with codomain 𝒯₅ ⊇ 𝒯₃,𝒯₁, giving 𝒯₂ ∪ 𝒯₂ = 𝒯₂
-            @test domain(S, Taylor(5)) == 𝒯₂
-            # given input 𝒯₂, A maps into 𝒯₃ and B into 𝒯₁: the union is 𝒯₃
-            @test codomain(S, 𝒯₂) == 𝒯₃
-            @test domain(S, UndefSpace()) == codomain(S, UndefSpace()) == UndefSpace()
+            @test domain(S, Taylor(5)) == 𝒯₂ # union of the domains
+            @test codomain(S, 𝒯₂) == 𝒯₃ # union of the codomains 𝒯₃ and 𝒯₁
+            @test undefined(S)
             # an undefined summand makes the whole sum undefined
             @test codomain(Add(A, Evaluation(0.5)), 𝒯₂) == 𝒯₃
             @test domain(Add(A, Evaluation(0.5)), 𝒯₃) == UndefSpace()
         end
 
         @testset "ComposedOperator" begin
-            C = LinearOperator(𝒯₁, 𝒯₂, zeros(3, 2)) # domain 𝒯₁, codomain 𝒯₂
-            Comp = ComposedOperator(A, C) # outer = A (𝒯₂ → 𝒯₃), inner = C (𝒯₁ → 𝒯₂)
+            C = LinearOperator(𝒯₁, 𝒯₂, zeros(3, 2))
+            Comp = ComposedOperator(A, C) # 𝒯₁ → 𝒯₂ → 𝒯₃
             @test Comp isa ComposedOperator
-            # to land in codomain 𝒯₅: outer needs domain 𝒯₂ (⊇ requirement on 𝒯₅ trivial),
-            # inner then needs domain 𝒯₁ so that its codomain (𝒯₂) matches outer's domain
             @test domain(Comp, Taylor(5)) == 𝒯₁
-            # given input domain 𝒯₁: inner maps into 𝒯₂, outer then maps 𝒯₂ into 𝒯₃
             @test codomain(Comp, 𝒯₁) == 𝒯₃
-            @test domain(Comp, UndefSpace()) == codomain(Comp, UndefSpace()) == UndefSpace()
+            @test undefined(Comp)
         end
     end
 
@@ -422,241 +372,154 @@
         @test A[(Taylor(2), 0), (Taylor(2), 0)] == 1.0
         @test A[(Taylor(2), 1), (Taylor(2), 2)] == 6.0
 
-        # on a tensor product a plain index is itself a tuple of integers, so the two
-        # index-coordinate forms below are distinct, and must agree
+        # on a tensor product a plain index is itself a tuple of integers, which must not be
+        # confused with a space+index tuple
         𝒮 = Taylor(1) ⊗ Chebyshev(1)
-        M = Matrix{Float64}(reshape(1:16, 4, 4)) # column-major
-        B = LinearOperator(𝒮, 𝒮, M)
-        @test B[(0, 0), (1, 1)] == 13.0 # plain tuple-of-integers coordinates
-        @test B[(𝒮, (0, 0)), (𝒮, (1, 1))] == 13.0 # space+index tuple coordinates
-        @test B[(0, 0), (1, 1)] == B[(𝒮, (0, 0)), (𝒮, (1, 1))]
+        B = LinearOperator(𝒮, 𝒮, Matrix{Float64}(reshape(1:16, 4, 4)))
+        @test B[(0, 0), (1, 1)] == B[(𝒮, (0, 0)), (𝒮, (1, 1))] == 13.0
     end
 
     @testset "grids of LinearOperators (parameter families)" begin
+        s_par = Chebyshev(2)
+        dom, codom = Taylor(1), Fourier(1, 1.0)
+        A = _lo_family(s_par, dom, codom)
+
         @testset "Chebyshev parameter: to_grid/to_coef round trip" begin
-            s_par = Chebyshev(2)
-            dom, codom = Taylor(1), Fourier(1, 1.0)
-            new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
-            A = LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
             A_grid = to_grid(A, grid_size(s_par))
             @test A_grid isa Vector
             @test size(A_grid) == grid_size(s_par) == (3,)
             @test all(X -> (domain(X) == dom) & (codomain(X) == codom), A_grid)
-            B = to_coef(A_grid, s_par)
-            @test (domain(B) == new_dom) & (codomain(B) == new_codom)
-            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
-        end
-
-        @testset "grid elements agree with sequence-wise partial evaluation" begin
-            # applying the interpolated operator to a fixed sequence and evaluating
-            # at a node equals applying the grid operator at that node
-            s_par = Chebyshev(2)
-            dom, codom = Taylor(1), Fourier(1, 1.0)
-            new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
-            A = LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
-            A_grid = to_grid(A, grid_size(s_par))
-            v = Sequence(dom, [1.0, -2.0])
-            v₀ = Sequence(new_dom, coefficients(v)) # the same `v`, seen as constant in the parameter
-            m = only(grid_size(s_par))
-            for k ∈ 1:m
-                x_k = cospi((k-1)/(m-1))
-                @test real.(coefficients(A_grid[k] * v)) ≈ coefficients(Evaluation(x_k, nothing) * (A * v₀)) atol=1e-9
-            end
+            _lo_test_roundtrip(A, s_par, A_grid)
+            _lo_test_nodes(A, A_grid, Sequence(dom, [1.0, -2.0]))
         end
 
         @testset "two parameter factors give a Matrix grid" begin
-            s_par = Chebyshev(1) ⊗ Chebyshev(2)
-            dom, codom = Taylor(1), Taylor(1)
-            new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
-            A = LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
-            A_grid = to_grid(A, grid_size(s_par))
+            s₂ = Chebyshev(1) ⊗ Chebyshev(2)
+            A₂ = _lo_family(s₂, Taylor(1), Taylor(1))
+            A_grid = to_grid(A₂, grid_size(s₂))
             @test A_grid isa Matrix
-            @test size(A_grid) == grid_size(s_par) == (2, 3)
-            B = to_coef(A_grid, s_par)
-            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+            @test size(A_grid) == grid_size(s₂) == (2, 3)
+            _lo_test_roundtrip(A₂, s₂, A_grid)
         end
 
         @testset "interval enclosure round trip" begin
-            s_par = Chebyshev(1)
-            dom, codom = Taylor(1), Chebyshev(1)
-            new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
-            A = LinearOperator(new_dom, new_codom, interval.(reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom))))
-            B = to_coef(to_grid(A, grid_size(s_par)), s_par)
-            for (i, j) ∈ Iterators.product(1:size(coefficients(A), 1), 1:size(coefficients(A), 2))
-                @test issubset_interval(coefficients(A)[i, j], real(coefficients(B)[i, j]))
-            end
+            s₁ = Chebyshev(1)
+            Ai = interval(_lo_family(s₁, Taylor(1), Chebyshev(1)))
+            _lo_test_enclosure(Ai, to_coef(to_grid(Ai, grid_size(s₁)), s₁))
         end
 
         @testset "resampling an operator family on a finer grid" begin
-            s_par = Chebyshev(2)
-            dom, codom = Taylor(1), Fourier(1, 1.0)
-            new_dom, new_codom = RadiiPolynomial._zero_space(s_par) ⊗ dom, s_par ⊗ codom
-            A = LinearOperator(new_dom, new_codom, reshape(collect(1.0:dimension(new_codom)*dimension(new_dom)), :, dimension(new_dom)))
-            A_fine = to_grid(A, (9,)) # 9 nodes instead of 3
+            A_fine = to_grid(A, (9,))
             @test size(A_fine) == (9,)
-            B = to_coef(A_fine, s_par)
-            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+            _lo_test_roundtrip(A, s_par, A_fine)
         end
 
         @testset "symmetric codomain: reduced rows round trip" begin
-            s_par = Chebyshev(2)
-            dom = Taylor(1)
             codom_sym = evensym(Fourier(2, 1.0))
-            prod_sym = s_par ⊗ codom_sym
-            new_dom = RadiiPolynomial._zero_space(s_par) ⊗ dom
-            A = project(LinearOperator(new_dom, s_par ⊗ Fourier(2, 1.0), reshape(collect(1.0:30), 15, 2)), new_dom, prod_sym)
-            A_grid = to_grid(A, grid_size(s_par))
-            # grid elements carry the restricted symmetry group on the codomain
+            As = project(_lo_family(s_par, dom, Fourier(2, 1.0)), domain(A), s_par ⊗ codom_sym)
+            A_grid = to_grid(As, grid_size(s_par))
             @test all(X -> (domain(X) == dom) & (codomain(X) == codom_sym), A_grid)
-            B = to_coef(A_grid, s_par)
-            @test (domain(B) == new_dom) & (codomain(B) == prod_sym)
-            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+            _lo_test_roundtrip(As, s_par, A_grid)
         end
 
-        @testset "every codomain factor discretized: the inner space collapses to `ScalarSpace`" begin
-            # nothing is left as coefficients, so each node holds a functional
-            s_par, dom = Chebyshev(2), Taylor(1)
-            new_dom = RadiiPolynomial._zero_space(s_par) ⊗ dom
-            A = LinearOperator(new_dom, s_par, reshape(collect(1.0:dimension(s_par)*dimension(new_dom)), :, dimension(new_dom)))
-            A_grid = to_grid(A, grid_size(s_par))
-            @test size(A_grid) == grid_size(s_par) == (3,)
+        @testset "every codomain factor discretized: each node holds a functional" begin
+            Af = LinearOperator(domain(A), s_par, reshape(collect(1.0:6.0), :, 2))
+            A_grid = to_grid(Af, grid_size(s_par))
+            @test size(A_grid) == (3,)
             @test all(Z -> (domain(Z) == dom) & (codomain(Z) == ScalarSpace()), A_grid)
 
             v = Sequence(dom, [1.0, -2.0])
-            v₀ = Sequence(new_dom, coefficients(v))
-            Av = A * v₀ # the scalar family t -> A(t)v
-            m = only(grid_size(s_par))
-            for k ∈ 1:m
-                x_k = cospi((k-1)/(m-1))
-                @test real(only(coefficients(A_grid[k] * v))) ≈ Evaluation(x_k) * Av atol=1e-9
+            Av = Af * Sequence(domain(A), coefficients(v)) # the scalar family t -> A(t)v
+            for k ∈ 1:3
+                @test real(only(coefficients(A_grid[k] * v))) ≈ Evaluation(cospi((k-1)/2)) * Av atol=1e-9
             end
         end
 
         @testset "empty inner domain: reduces to the sequence case" begin
-            # nothing is left of the domain, so the family is a family of columns,
-            # that is a family of sequences: no trivial `ScalarSpace` wrapper is kept
-            s_par, codom = Chebyshev(2), Fourier(1, 1.0)
+            # a family of columns is a family of sequences, without a `ScalarSpace` wrapper
             X₀ = RadiiPolynomial._zero_space(s_par)
-            new_codom = s_par ⊗ codom
-            coeffs = reshape(collect(1.0:dimension(new_codom)), :, 1)
-            A_grid = to_grid(LinearOperator(X₀, new_codom, coeffs), grid_size(s_par))
-            @test eltype(A_grid) <: Sequence
-            @test all(x -> space(x) == codom, A_grid)
-            @test A_grid == to_grid(Sequence(new_codom, vec(coeffs)), grid_size(s_par))
-
-            # both sides collapse: plain numbers, as for a `Sequence`
-            cB = reshape(collect(1.0:dimension(s_par)), :, 1)
-            B_grid = to_grid(LinearOperator(X₀, s_par, cB), grid_size(s_par))
-            @test B_grid isa Vector{ComplexF64}
-            @test B_grid == to_grid(Sequence(s_par, vec(cB)), grid_size(s_par))
+            for (s, T) ∈ ((s_par ⊗ codom, Sequence), (s_par, ComplexF64))
+                coeffs = reshape(collect(1.0:dimension(s)), :, 1)
+                A_grid = to_grid(LinearOperator(X₀, s, coeffs), grid_size(s_par))
+                @test eltype(A_grid) <: T
+                @test A_grid == to_grid(Sequence(s, vec(coeffs)), grid_size(s_par))
+                T == Sequence && @test all(x -> space(x) == codom, A_grid)
+            end
         end
 
         @testset "error paths" begin
-            s_par = Chebyshev(1)
-            # codomain does not start with the parameter factor
-            A_bad = LinearOperator(Taylor(1), Fourier(1, 1.0), ones(3, 2))
-            @test_throws ArgumentError to_grid(A_bad, (2,))
+            # the codomain must start with the parameter factor
+            @test_throws ArgumentError to_grid(LinearOperator(Taylor(1), Fourier(1, 1.0), ones(3, 2)), (2,))
             # the leading factors of the domain must be the zero space of the parameter
-            A_bad_dom = LinearOperator(Chebyshev(1) ⊗ Taylor(1), Chebyshev(2) ⊗ Fourier(1, 1.0), ones(9, 4))
-            @test_throws ArgumentError to_grid(A_bad_dom, (3,))
-            # mismatched domains/codomains in the grid
+            @test_throws ArgumentError to_grid(LinearOperator(Chebyshev(1) ⊗ Taylor(1), Chebyshev(2) ⊗ Fourier(1, 1.0), ones(9, 4)), (3,))
+            # the grid elements must share their domain and codomain
             X₁ = LinearOperator(Taylor(1), Taylor(1), ones(2, 2))
             X₂ = LinearOperator(Taylor(2), Taylor(1), ones(2, 3))
-            @test_throws ArgumentError to_coef([X₁, X₂], s_par)
-            # grid dimension must match the number of factors of `s`
-            @test_throws ArgumentError to_coef(fill(X₁, 2, 2), s_par)
+            @test_throws ArgumentError to_coef([X₁, X₂], Chebyshev(1))
+            # the grid has one dimension per factor of the parameter space
+            @test_throws ArgumentError to_coef(fill(X₁, 2, 2), Chebyshev(1))
         end
     end
 
     @testset "grids of LinearOperators on a CartesianSpace" begin
         s_par = Chebyshev(2)
         X₀ = RadiiPolynomial._zero_space(s_par)
+        inner_dom, inner_codom = Taylor(1) × Fourier(1, 1.0), Fourier(1, 1.0) × Taylor(1)
         dom, codom = (X₀ ⊗ Taylor(1)) × (X₀ ⊗ Fourier(1, 1.0)), (s_par ⊗ Fourier(1, 1.0)) × (s_par ⊗ Taylor(1))
-        A = LinearOperator(dom, codom, reshape(collect(1.0:dimension(codom)*dimension(dom)), :, dimension(dom)))
+        family(dom, codom) = LinearOperator(dom, codom, reshape(collect(1.0:dimension(codom)*dimension(dom)), :, dimension(dom)))
+        A = family(dom, codom)
+        A_grid = to_grid(A, grid_size(s_par))
 
         @testset "both sides cartesian: the grid holds the blocks at each node" begin
-            A_grid = to_grid(A, grid_size(s_par))
             @test size(A_grid) == grid_size(s_par) == (3,)
-            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == Fourier(1, 1.0) × Taylor(1)), A_grid)
+            @test all(X -> (domain(X) == inner_dom) & (codomain(X) == inner_codom), A_grid)
             # each block is sampled as it would be on its own
             for i ∈ 1:2, j ∈ 1:2
                 ref = to_grid(component(A, i, j), grid_size(s_par))
                 @test all(k -> coefficients(component(A_grid[k], i, j)) == coefficients(ref[k]), eachindex(A_grid))
             end
-            B = to_coef(A_grid, s_par)
-            @test (domain(B) == dom) & (codomain(B) == codom)
-            @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
+            _lo_test_roundtrip(A, s_par, A_grid)
+            _lo_test_nodes(A, A_grid, Sequence(inner_dom, [1.0, -2.0, 0.5, 1.5, -1.0]))
         end
 
-        @testset "grid elements agree with sequence-wise partial evaluation" begin
-            A_grid = to_grid(A, grid_size(s_par))
-            v = Sequence(Taylor(1) × Fourier(1, 1.0), [1.0, -2.0, 0.5, 1.5, -1.0])
-            v₀ = Sequence(dom, coefficients(v)) # the same `v`, seen as constant in the parameter
-            m = only(grid_size(s_par))
-            for k ∈ 1:m
-                x_k = cospi((k-1)/(m-1))
-                @test real.(coefficients(A_grid[k] * v)) ≈ coefficients(Evaluation(x_k, nothing) * (A * v₀)) atol=1e-9
+        @testset "one side cartesian, or every codomain factor discretized" begin
+            cases = (
+                (family(X₀ ⊗ Taylor(1), codom), Taylor(1), inner_codom),
+                (family(dom, s_par ⊗ Fourier(1, 1.0)), inner_dom, Fourier(1, 1.0)),
+                (family(dom, s_par^2), inner_dom, ScalarSpace()^2),
+            )
+            for (B, d, c) ∈ cases
+                G = to_grid(B, grid_size(s_par))
+                @test all(X -> (domain(X) == d) & (codomain(X) == c), G)
+                _lo_test_roundtrip(B, s_par, G)
             end
         end
 
-        @testset "only one side cartesian" begin
-            # cartesian codomain, plain domain
-            A_codom = LinearOperator(X₀ ⊗ Taylor(1), codom, reshape(collect(1.0:dimension(codom)*2), :, 2))
-            G = to_grid(A_codom, grid_size(s_par))
-            @test all(X -> (domain(X) == Taylor(1)) & (codomain(X) == Fourier(1, 1.0) × Taylor(1)), G)
-            B = to_coef(G, s_par)
-            @test (domain(B) == X₀ ⊗ Taylor(1)) & (codomain(B) == codom)
-            @test real.(coefficients(B)) ≈ coefficients(A_codom) atol=1e-9
-
-            # cartesian domain, plain codomain
-            A_dom = LinearOperator(dom, s_par ⊗ Fourier(1, 1.0), reshape(collect(1.0:9*dimension(dom)), :, dimension(dom)))
-            G = to_grid(A_dom, grid_size(s_par))
-            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == Fourier(1, 1.0)), G)
-            B = to_coef(G, s_par)
-            @test (domain(B) == dom) & (codomain(B) == s_par ⊗ Fourier(1, 1.0))
-            @test real.(coefficients(B)) ≈ coefficients(A_dom) atol=1e-9
-        end
-
-        @testset "every codomain factor discretized: functionals at each node" begin
-            A_cst = LinearOperator(dom, s_par^2, reshape(collect(1.0:6*dimension(dom)), :, dimension(dom)))
-            G = to_grid(A_cst, grid_size(s_par))
-            @test all(X -> (domain(X) == Taylor(1) × Fourier(1, 1.0)) & (codomain(X) == ScalarSpace()^2), G)
-            B = to_coef(G, s_par)
-            @test (domain(B) == dom) & (codomain(B) == s_par^2)
-            @test real.(coefficients(B)) ≈ coefficients(A_cst) atol=1e-9
-        end
-
         @testset "in-place entry points" begin
-            ref = to_grid(A, grid_size(s_par))
-            A_grid = to_grid(A, grid_size(s_par))
-            foreach(X -> fill!(coefficients(X), complex(Inf, Inf)), A_grid)
-            @test to_grid!(A_grid, A) === A_grid
-            @test all(k -> coefficients(A_grid[k]) == coefficients(ref[k]), eachindex(A_grid))
+            G = to_grid(A, grid_size(s_par))
+            foreach(X -> fill!(coefficients(X), complex(Inf, Inf)), G)
+            @test to_grid!(G, A) === G
+            @test all(k -> coefficients(G[k]) == coefficients(A_grid[k]), eachindex(G))
 
             B = zeros(ComplexF64, dom, codom)
-            @test to_coef!(B, ref) === B
+            @test to_coef!(B, A_grid) === B
             @test real.(coefficients(B)) ≈ coefficients(A) atol=1e-9
         end
 
         @testset "interval enclosure round trip" begin
-            A_interval = LinearOperator(dom, codom, interval.(coefficients(A)))
-            B = to_coef(to_grid(A_interval, grid_size(s_par)), s_par)
-            for n ∈ eachindex(coefficients(A_interval))
-                @test issubset_interval(coefficients(A_interval)[n], real(coefficients(B)[n]))
-            end
+            Ai = interval(A)
+            _lo_test_enclosure(Ai, to_coef(to_grid(Ai, grid_size(s_par)), s_par))
         end
 
         @testset "error paths" begin
             # the components must be sampled on the same nodes
             codom_bad = (s_par ⊗ Fourier(1, 1.0)) × (Fourier(1, 1.0) ⊗ Taylor(1))
-            A_bad = LinearOperator(dom, codom_bad, ones(dimension(codom_bad), dimension(dom)))
-            @test_throws MethodError to_grid(A_bad, (3,))
+            @test_throws MethodError to_grid(LinearOperator(dom, codom_bad, ones(dimension(codom_bad), dimension(dom))), (3,))
             # the leading factors of the domain must be the zero space of the parameter
             dom_bad = (s_par ⊗ Taylor(1)) × (X₀ ⊗ Fourier(1, 1.0))
-            A_bad_dom = LinearOperator(dom_bad, codom, ones(dimension(codom), dimension(dom_bad)))
-            @test_throws ArgumentError to_grid(A_bad_dom, (3,))
-            # mismatched domains/codomains in the grid
-            @test_throws ArgumentError to_coef!(zeros(ComplexF64, dom, s_par ⊗ Fourier(1, 1.0)), to_grid(A, grid_size(s_par)))
+            @test_throws ArgumentError to_grid(LinearOperator(dom_bad, codom, ones(dimension(codom), dimension(dom_bad))), (3,))
+            # the grid elements must match the domain and codomain of the destination
+            @test_throws ArgumentError to_coef!(zeros(ComplexF64, dom, s_par ⊗ Fourier(1, 1.0)), A_grid)
         end
     end
 

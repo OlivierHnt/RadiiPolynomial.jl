@@ -1,75 +1,35 @@
 @testset "Sequence arithmetic" begin
     @testset "codomain" begin
-        @testset "ScalarSpace" begin
-            @test codomain(+, ScalarSpace(), ScalarSpace()) == ScalarSpace()
+        # the union of the spaces
+        for (s₁, s₂, s) ∈ (
+                (ScalarSpace(), ScalarSpace(), ScalarSpace()),
+                (Taylor(1), Taylor(3), Taylor(3)),
+                (Taylor(3), Taylor(1), Taylor(3)),
+                (Fourier(3, 1.0), Fourier(1, 1.0), Fourier(3, 1.0)),
+                (Chebyshev(0), Chebyshev(2), Chebyshev(2)),
+                (Taylor(1) ⊗ Fourier(0, 1.0), Taylor(2) ⊗ Fourier(1, 1.0), Taylor(2) ⊗ Fourier(1, 1.0)),
+                (evensym(Taylor(2)), evensym(Taylor(3)), evensym(Taylor(3))),
+                (oddsym(Taylor(2)), oddsym(Taylor(3)), oddsym(Taylor(3))),
+                (d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0)), d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0)), d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))),
+                # no symmetry survives a space without one
+                (evensym(Taylor(2)), Taylor(2), Taylor(2)),
+                (Taylor(2), evensym(Taylor(2)), Taylor(2)),
+                (Taylor(1)^2, Taylor(2)^2, Taylor(2)^2),
+                (Taylor(1) × Fourier(1, 1.0), Taylor(2) × Fourier(0, 1.0), Taylor(2) × Fourier(1, 1.0)),
+                (Taylor(1)^2, Taylor(1) × Taylor(2), Taylor(1) × Taylor(2)),
+                (Taylor(1) × Taylor(2), Taylor(1)^2, Taylor(1) × Taylor(2)),
+            )
+            @test codomain(+, s₁, s₂) == codomain(-, s₁, s₂) == s
         end
 
-        @testset "Taylor, Fourier, Chebyshev" begin
-            # same-type spaces: codomain is the union, i.e. the bigger order
-            @test codomain(+, Taylor(1), Taylor(3)) == Taylor(3)
-            @test codomain(+, Taylor(3), Taylor(1)) == Taylor(3)
-            @test codomain(+, Fourier(3, 1.0), Fourier(1, 1.0)) == Fourier(3, 1.0)
-            @test codomain(+, Chebyshev(0), Chebyshev(2)) == Chebyshev(2)
-            @test codomain(-, Taylor(1), Taylor(3)) == codomain(+, Taylor(1), Taylor(3))
-            # Fourier requires equal frequencies to combine
-            @test_throws ArgumentError codomain(+, Fourier(1, 1.0), Fourier(1, 2.0))
-        end
-
-        @testset "TensorSpace" begin
-            @test codomain(+, Taylor(1) ⊗ Fourier(0, 1.0), Taylor(2) ⊗ Fourier(1, 1.0)) == Taylor(2) ⊗ Fourier(1, 1.0)
-            @test_throws ArgumentError codomain(+, Taylor(1) ⊗ Fourier(1, 1.0), Taylor(1) ⊗ Fourier(1, 2.0))
-        end
-
-        @testset "SymmetricSpace" begin
-            # same symmetry group on both sides: the codomain is the union of the
-            # underlying spaces, with the group unchanged
-            @test codomain(+, evensym(Taylor(2)), evensym(Taylor(3))) == evensym(Taylor(3))
-            @test codomain(+, oddsym(Taylor(2)), oddsym(Taylor(3))) == oddsym(Taylor(3))
-            d4a = d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
-            d4b = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
-            @test codomain(+, d4a, d4b) == d4b
-
-            # mixing a SymmetricSpace with a plain (non-symmetric) space: no symmetry survives, which
-            # is known from the types, so the codomain is the plain union
-            r1 = codomain(+, evensym(Taylor(2)), Taylor(2))
-            r2 = codomain(+, Taylor(2), evensym(Taylor(2)))
-            @test r1 == r2 == Taylor(2)
-
-            # the symmetric term is read on that space; the terms of an even + odd sum are read on
-            # their trivially symmetric intersection
-            ae = Sequence(evensym(Taylor(2)), [1.0, 3.0]) # 1 + 3x²
-            b = Sequence(Taylor(2), [1.0, 2.0, 4.0])
-            @test coefficients(ae + b) == coefficients(b + ae) == [2.0, 2.0, 7.0]
-            ao = Sequence(oddsym(Taylor(2)), [5.0]) # 5x
-            @test coefficients(ae + ao) == [1.0, 5.0, 3.0]
-
-            # intervalized spaces keep the guarantee
-            si = interval(evensym(Fourier(1, 1.0)))
-            aei = Sequence(si, interval.([1.0, 3.0])) # a₀ = 1, a₁ = a₋₁ = 3
-            bi = Sequence(interval(Fourier(1, 1.0)), interval.([1.0, 2.0, 4.0]))
-            @test all(isguaranteed, coefficients(aei + bi))
-            @test all(in_interval.([4.0, 3.0, 7.0], coefficients(aei + bi)))
-
-            # end-to-end: adding a genuinely restricted evensym sequence into a plain target
-            # recovers the plain sum (odd-order coefficient of `a` is implicitly zero)
-            a = Sequence(evensym(Taylor(2)), [1.0, 2.0]) # a₀=1, a₂=2 (a₁=0)
-            b = Sequence(Taylor(2), [10.0, 20.0, 30.0])
-            @test add!(zeros(Taylor(2)), a, b) == add!(zeros(Taylor(2)), b, a) == Sequence(Taylor(2), [11.0, 20.0, 32.0])
-        end
-
-        @testset "CartesianPower" begin
-            @test codomain(+, Taylor(1)^2, Taylor(2)^2) == Taylor(2)^2
-            @test_throws ArgumentError codomain(+, Taylor(1)^2, Taylor(1)^3)
-        end
-
-        @testset "CartesianProduct" begin
-            @test codomain(+, Taylor(1) × Fourier(1, 1.0), Taylor(2) × Fourier(0, 1.0)) == Taylor(2) × Fourier(1, 1.0)
-            @test_throws ArgumentError codomain(+, Taylor(1) × Fourier(1, 1.0), (Taylor(1) × Fourier(1, 1.0)) × Chebyshev(1))
-        end
-
-        @testset "CartesianPower / CartesianProduct mix" begin
-            @test codomain(+, Taylor(1)^2, Taylor(1) × Taylor(2)) == Taylor(1) × Taylor(2)
-            @test codomain(+, Taylor(1) × Taylor(2), Taylor(1)^2) == Taylor(1) × Taylor(2)
+        # different frequencies or numbers of components do not combine
+        for (s₁, s₂) ∈ (
+                (Fourier(1, 1.0), Fourier(1, 2.0)),
+                (Taylor(1) ⊗ Fourier(1, 1.0), Taylor(1) ⊗ Fourier(1, 2.0)),
+                (Taylor(1)^2, Taylor(1)^3),
+                (Taylor(1) × Fourier(1, 1.0), (Taylor(1) × Fourier(1, 1.0)) × Chebyshev(1)),
+            )
+            @test_throws ArgumentError codomain(+, s₁, s₂)
         end
     end
 
@@ -79,19 +39,15 @@
         @test -a == Sequence(Taylor(2), [-1.0, 2.0, -3.0])
     end
 
-    @testset "scalar */÷ (rmul!, lmul!, rdiv!, ldiv!)" begin
+    @testset "scalar * and /" begin
         𝒯 = Taylor(2)
         a = Sequence(𝒯, [1.0, 2.0, 3.0])
-        expected_mul = Sequence(𝒯, [3.0, 6.0, 9.0])
-        @test a * 3.0 == 3.0 * a == rmul!(copy(a), 3.0) == lmul!(3.0, copy(a)) == expected_mul
+        @test a * 3.0 == 3.0 * a == rmul!(copy(a), 3.0) == lmul!(3.0, copy(a)) == Sequence(𝒯, [3.0, 6.0, 9.0])
+        @test a / 2.0 == 2.0 \ a == rdiv!(copy(a), 2.0) == ldiv!(2.0, copy(a)) == Sequence(𝒯, [0.5, 1.0, 1.5])
 
-        expected_div = Sequence(𝒯, [0.5, 1.0, 1.5])
-        @test a / 2.0 == 2.0 \ a == rdiv!(copy(a), 2.0) == ldiv!(2.0, copy(a)) == expected_div
-
-        af = Sequence(Fourier(1, 1.0), [interval(1.0), interval(2.0), interval(3.0)])
-        r = 2.0 * af
-        @test all(isequal_interval.(coefficients(r), interval.([2.0, 4.0, 6.0])))
-        @test all(isequal_interval.(coefficients(rmul!(copy(af), 2.0)), coefficients(r)))
+        af = Sequence(Fourier(1, 1.0), interval.([1.0, 2.0, 3.0]))
+        @test all(isequal_interval.(coefficients(2.0 * af), interval.([2.0, 4.0, 6.0])))
+        @test all(isequal_interval.(coefficients(rmul!(copy(af), 2.0)), interval.([2.0, 4.0, 6.0])))
 
         ac = Sequence(Chebyshev(1), ComplexF64[1.0+1.0im, 2.0-1.0im])
         @test 2.0 * ac == ac * 2.0 == rmul!(copy(ac), 2.0) == lmul!(2.0, copy(ac)) ==
@@ -104,270 +60,199 @@
         @test acart * 2.0 == rmul!(copy(acart), 2.0) == Sequence(Taylor(1)^2, [2.0, 4.0, 6.0, 8.0])
     end
 
-    @testset "add!, sub! and in-place variants" begin
-        @testset "Taylor: automatic order enlargement" begin
+    @testset "+ and - between sequences" begin
+        @testset "Taylor" begin
             a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
             b = Sequence(Taylor(3), [10.0, 20.0, 30.0, 40.0])
-            expected_add = Sequence(Taylor(3), [11.0, 22.0, 33.0, 40.0]) # a is zero-padded past order 2
-            expected_sub = Sequence(Taylor(3), [-9.0, -18.0, -27.0, -40.0])
+            sum_ab = Sequence(Taylor(3), [11.0, 22.0, 33.0, 40.0])
+            diff_ab = Sequence(Taylor(3), [-9.0, -18.0, -27.0, -40.0])
+            @test a + b == a - (-b) == add!(fill(Inf, Taylor(3)), a, b) == sum_ab
+            @test a - b == sub!(fill(Inf, Taylor(3)), a, b) == diff_ab
 
-            out = Sequence(Taylor(3), fill(Inf, 4))
-            @test a + b == add!(out, a, b) == expected_add
-            @test a - (-b) == expected_add
-            out2 = Sequence(Taylor(3), fill(Inf, 4))
-            @test a - b == sub!(out2, a, b) == expected_sub
-
-            # radd!/rsub! write into a's own (smaller) space: result is truncated to order 2
+            # `radd!` and `rsub!` write into the space of `a`, `ladd!` and `lsub!` into the space of `b`
             @test radd!(copy(a), b) == Sequence(Taylor(2), [11.0, 22.0, 33.0])
             @test rsub!(copy(a), b) == Sequence(Taylor(2), [-9.0, -18.0, -27.0])
-            # ladd!/lsub! write into b's own (bigger) space: result matches the full sum/difference
-            @test ladd!(a, copy(b)) == expected_add
-            @test lsub!(a, copy(b)) == Sequence(Taylor(3), [-9.0, -18.0, -27.0, -40.0])
+            @test ladd!(a, copy(b)) == sum_ab
+            @test lsub!(a, copy(b)) == diff_ab
 
-            # add! accepts a target order smaller than the union: it truncates instead of erroring
-            small = Sequence(Taylor(1), fill(Inf, 2))
-            @test add!(small, a, b) == Sequence(Taylor(1), [11.0, 22.0])
+            # a target smaller than the union truncates the result
+            @test add!(fill(Inf, Taylor(1)), a, b) == Sequence(Taylor(1), [11.0, 22.0])
 
-            # with `a` bigger than `b`, the target space matches a's space rather than b's
-            a_big = Sequence(Taylor(3), [1.0, 2.0, 3.0, 4.0])
+            # the first operand is the bigger one
             b_small = Sequence(Taylor(1), [10.0, 20.0])
-            expected_sub_bigsmall = Sequence(Taylor(3), [-9.0, -18.0, 3.0, 4.0]) # b is zero-padded past order 1
-            out3 = Sequence(Taylor(3), fill(Inf, 4))
-            @test a_big - b_small == sub!(out3, a_big, b_small) == expected_sub_bigsmall
+            @test b - b_small == sub!(fill(Inf, Taylor(3)), b, b_small) == Sequence(Taylor(3), [0.0, 0.0, 30.0, 40.0])
+
+            # both operands on the same space
+            c = Sequence(Taylor(2), [10.0, 20.0, 30.0])
+            @test rsub!(copy(a), c) == lsub!(a, copy(c)) == Sequence(Taylor(2), [-9.0, -18.0, -27.0])
         end
 
-        @testset "rsub!/lsub! fast path when a and b already share the same space" begin
-            a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-            b = Sequence(Taylor(2), [10.0, 20.0, 30.0])
-            @test rsub!(copy(a), b) == Sequence(Taylor(2), [-9.0, -18.0, -27.0]) # a .-= b, in place
-            @test lsub!(copy(a), copy(b)) == Sequence(Taylor(2), [-9.0, -18.0, -27.0]) # b .= a .- b, returned
-        end
+        @testset "Fourier" begin
+            a = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0])
+            b = Sequence(Fourier(2, 1.0), [10.0, 20.0, 30.0, 40.0, 50.0])
+            @test a + b == add!(fill(Inf, Fourier(2, 1.0)), a, b) == Sequence(Fourier(2, 1.0), [10.0, 21.0, 32.0, 43.0, 50.0])
 
-        @testset "TensorSpace: order bigger in one factor, smaller in the other" begin
-            # a is bigger in the Taylor factor but smaller in the Fourier factor (and vice
-            # versa for b), so the codomain differs from *both* a's and b's own space
-            a = Sequence(Taylor(2) ⊗ Fourier(0, 1.0), [1.0, 2.0, 3.0]) # a[(i,0)] = i+1
-            b = Sequence(Taylor(0) ⊗ Fourier(1, 1.0), [10.0, 20.0, 30.0]) # b[(0,j)]: j=-1,0,1 -> 10,20,30
-            sc = Taylor(2) ⊗ Fourier(1, 1.0)
-            # elementwise a[(i,j)] - b[(i,j)], zero-padding whichever side lacks that index
-            expected = Sequence(sc, [-10.0, 0.0, 0.0, -19.0, 2.0, 3.0, -30.0, 0.0, 0.0])
-            out = Sequence(sc, fill(Inf, 9))
-            @test a - b == sub!(out, a, b) == expected
-            # spot checks via direct indexing
-            @test expected[(0, 0)] == a[(0, 0)] - b[(0, 0)] # 1 - 20 = -19
-            @test expected[(1, 0)] == a[(1, 0)] # b has no i=1 mode: 2 - 0 = 2
-            @test expected[(0, 1)] == -b[(0, 1)] # a has no j=1 mode: 0 - 30 = -30
-        end
-
-        @testset "Fourier: same frequency required" begin
-            a = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0]) # a[-1]=1, a[0]=2, a[1]=3
-            b = Sequence(Fourier(2, 1.0), [10.0, 20.0, 30.0, 40.0, 50.0]) # b[-2..2]
-            expected = Sequence(Fourier(2, 1.0), [10.0, 21.0, 32.0, 43.0, 50.0])
-            out = Sequence(Fourier(2, 1.0), fill(Inf, 5))
-            @test a + b == add!(out, a, b) == expected
-
+            # the frequencies must agree, between the operands and with the target
             c = Sequence(Fourier(1, 2.0), [1.0, 2.0, 3.0])
             @test_throws ArgumentError a + c
             @test_throws ArgumentError radd!(copy(a), c)
             @test_throws ArgumentError ladd!(a, copy(c))
             @test_throws ArgumentError rsub!(copy(a), c)
             @test_throws ArgumentError lsub!(a, copy(c))
-            # add!/sub! with an incompatible target space also throws
-            wrong_target = zeros(Fourier(1, 2.0))
-            @test_throws ArgumentError add!(wrong_target, a, b)
-            @test_throws ArgumentError sub!(wrong_target, a, b)
+            @test_throws ArgumentError add!(zeros(Fourier(1, 2.0)), a, b)
+            @test_throws ArgumentError sub!(zeros(Fourier(1, 2.0)), a, b)
         end
 
         @testset "Chebyshev" begin
             a = Sequence(Chebyshev(1), [1.0, 2.0])
             b = Sequence(Chebyshev(2), [10.0, 20.0, 30.0])
-            expected = Sequence(Chebyshev(2), [11.0, 22.0, 30.0])
-            out = Sequence(Chebyshev(2), fill(Inf, 3))
-            @test a + b == add!(out, a, b) == expected
+            @test a + b == add!(fill(Inf, Chebyshev(2)), a, b) == Sequence(Chebyshev(2), [11.0, 22.0, 30.0])
         end
 
         @testset "TensorSpace" begin
+            # `a` only has the Fourier mode 0
+            s = Taylor(2) ⊗ Fourier(1, 1.0)
             a = Sequence(Taylor(1) ⊗ Fourier(0, 1.0), [1.0, 2.0])
-            b = Sequence(Taylor(2) ⊗ Fourier(1, 1.0), collect(1.0:9.0))
-            r = a + b
-            out = Sequence(space(r), fill(Inf, length(r)))
-            @test r == add!(out, a, b) == Sequence(Taylor(2) ⊗ Fourier(1, 1.0), [1.0, 2.0, 3.0, 5.0, 7.0, 6.0, 7.0, 8.0, 9.0])
-            # spot check via direct indexing: a only has a k=0 Fourier mode, so it only adds
-            # into b's k=0 slice; elsewhere r matches b exactly
-            @test r[(0, 0)] == a[(0, 0)] + b[(0, 0)]
-            @test r[(0, -1)] == b[(0, -1)] # a has no k=-1 Fourier mode
-        end
-    end
+            b = Sequence(s, collect(1.0:9.0))
+            @test a + b == add!(fill(Inf, s), a, b) == Sequence(s, [1.0, 2.0, 3.0, 5.0, 7.0, 6.0, 7.0, 8.0, 9.0])
 
-    @testset "cartesian sequence arithmetic" begin
-        @testset "CartesianPower: matching inner space" begin
+            # each operand is the bigger one along one factor, so the codomain is neither of their spaces
+            a = Sequence(Taylor(2) ⊗ Fourier(0, 1.0), [1.0, 2.0, 3.0])
+            b = Sequence(Taylor(0) ⊗ Fourier(1, 1.0), [10.0, 20.0, 30.0])
+            @test a - b == sub!(fill(Inf, s), a, b) == Sequence(s, [-10.0, 0.0, 0.0, -19.0, 2.0, 3.0, -30.0, 0.0, 0.0])
+        end
+
+        @testset "SymmetricSpace" begin
+            # a symmetric term is read on the space without symmetry
+            ae = Sequence(evensym(Taylor(2)), [1.0, 3.0]) # 1 + 3x²
+            b = Sequence(Taylor(2), [1.0, 2.0, 4.0])
+            @test ae + b == b + ae == add!(zeros(Taylor(2)), ae, b) == add!(zeros(Taylor(2)), b, ae) == Sequence(Taylor(2), [2.0, 2.0, 7.0])
+            # an even and an odd term are read on their intersection, which has no symmetry
+            ao = Sequence(oddsym(Taylor(2)), [5.0]) # 5x
+            @test coefficients(ae + ao) == [1.0, 5.0, 3.0]
+
+            # interval spaces keep the guarantee
+            aei = Sequence(interval(evensym(Fourier(1, 1.0))), interval.([1.0, 3.0]))
+            bi = Sequence(interval(Fourier(1, 1.0)), interval.([1.0, 2.0, 4.0]))
+            @test all(isguaranteed, coefficients(aei + bi))
+            @test all(in_interval.([4.0, 3.0, 7.0], coefficients(aei + bi)))
+        end
+
+        @testset "CartesianPower" begin
             s = Taylor(1)^2
             a = Sequence(s, [1.0, 2.0, 3.0, 4.0])
             b = Sequence(s, [10.0, 20.0, 30.0, 40.0])
-            expected = Sequence(s, [11.0, 22.0, 33.0, 44.0])
-            out = Sequence(s, fill(Inf, 4))
-            @test a + b == add!(out, a, b) == radd!(copy(a), b) == ladd!(a, copy(b)) == expected
-        end
+            @test a + b == add!(fill(Inf, s), a, b) == radd!(copy(a), b) == ladd!(a, copy(b)) == Sequence(s, [11.0, 22.0, 33.0, 44.0])
 
-        @testset "CartesianPower: mismatched inner space (auto enlarge)" begin
-            a = Sequence(Taylor(1)^2, [1.0, 2.0, 3.0, 4.0])
+            # the components are enlarged
             b = Sequence(Taylor(2)^2, [10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
-            expected = Sequence(Taylor(2)^2, [11.0, 22.0, 30.0, 43.0, 54.0, 60.0])
-            out = Sequence(Taylor(2)^2, fill(Inf, 6))
-            @test a + b == add!(out, a, b) == expected
-            # radd! truncates the result back to a's own (smaller) order
-            @test radd!(copy(a), b) == Sequence(Taylor(1)^2, [11.0, 22.0, 43.0, 54.0])
-            # ladd!/lsub! write into b's own (bigger) space, component by component
-            @test ladd!(a, copy(b)) == expected
+            sum_ab = Sequence(Taylor(2)^2, [11.0, 22.0, 30.0, 43.0, 54.0, 60.0])
+            @test a + b == add!(fill(Inf, Taylor(2)^2), a, b) == ladd!(a, copy(b)) == sum_ab
+            @test radd!(copy(a), b) == Sequence(s, [11.0, 22.0, 43.0, 54.0])
             @test lsub!(a, copy(b)) == Sequence(Taylor(2)^2, [-9.0, -18.0, -30.0, -37.0, -46.0, -60.0])
+
+            @test_throws ArgumentError zeros(s) + zeros(Taylor(1)^3)
+            @test_throws ArgumentError radd!(zeros(s), zeros(Taylor(1)^3))
         end
 
-        @testset "CartesianProduct: matching inner spaces (fast path)" begin
-            sp = Taylor(1) × Fourier(1, 1.0)
-            a = Sequence(sp, [1.0, 2.0, 3.0, 4.0, 5.0])
-            b = Sequence(sp, [10.0, 20.0, 30.0, 40.0, 50.0])
-            expected_add = Sequence(sp, [11.0, 22.0, 33.0, 44.0, 55.0])
-            expected_sub = Sequence(sp, [-9.0, -18.0, -27.0, -36.0, -45.0])
-            out = Sequence(sp, fill(Inf, 5))
-            out2 = Sequence(sp, fill(Inf, 5))
-            @test a + b == add!(out, a, b) == expected_add
-            @test a - b == sub!(out2, a, b) == expected_sub
-        end
+        @testset "CartesianProduct" begin
+            s = Taylor(1) × Fourier(1, 1.0)
+            a = Sequence(s, [1.0, 2.0, 3.0, 4.0, 5.0])
+            b = Sequence(s, [10.0, 20.0, 30.0, 40.0, 50.0])
+            @test a + b == add!(fill(Inf, s), a, b) == Sequence(s, [11.0, 22.0, 33.0, 44.0, 55.0])
+            @test a - b == sub!(fill(Inf, s), a, b) == Sequence(s, [-9.0, -18.0, -27.0, -36.0, -45.0])
 
-        @testset "CartesianProduct: 3 components, mismatched inner spaces" begin
-            sp1 = Taylor(1) × Fourier(0, 1.0) × Chebyshev(1)
-            sp2 = Taylor(2) × Fourier(1, 1.0) × Chebyshev(1)
-            a = Sequence(sp1, collect(1.0:5.0))
-            b = Sequence(sp2, collect(1.0:8.0))
-            expected = Sequence(sp2, [2.0, 4.0, 3.0, 4.0, 8.0, 6.0, 11.0, 13.0])
-            out = Sequence(sp2, fill(Inf, 8))
-            @test a + b == add!(out, a, b) == expected
-            @test radd!(copy(a), b) == Sequence(sp1, [2.0, 4.0, 8.0, 11.0, 13.0])
-        end
+            # the components are enlarged
+            s₁ = Taylor(1) × Fourier(0, 1.0) × Chebyshev(1)
+            s₂ = Taylor(2) × Fourier(1, 1.0) × Chebyshev(1)
+            a = Sequence(s₁, collect(1.0:5.0))
+            b = Sequence(s₂, collect(1.0:8.0))
+            @test a + b == add!(fill(Inf, s₂), a, b) == Sequence(s₂, [2.0, 4.0, 3.0, 4.0, 8.0, 6.0, 11.0, 13.0])
+            @test radd!(copy(a), b) == Sequence(s₁, [2.0, 4.0, 8.0, 11.0, 13.0])
 
-        @testset "single-element CartesianProduct" begin
             a = Sequence(CartesianProduct(Taylor(1)), [1.0, 2.0])
             b = Sequence(CartesianProduct(Taylor(2)), [10.0, 20.0, 30.0])
             @test a + b == Sequence(CartesianProduct(Taylor(2)), [11.0, 22.0, 30.0])
         end
-
-        @testset "CartesianPower vs CartesianProduct mismatch throws" begin
-            @test_throws ArgumentError Sequence(Taylor(1)^2, zeros(4)) + Sequence(Taylor(1)^3, zeros(6))
-            @test_throws ArgumentError radd!(Sequence(Taylor(1)^2, zeros(4)), Sequence(Taylor(1)^3, zeros(6)))
-        end
     end
 
-    @testset "ScalarSpace sequence arithmetic (*, /, \\\\, ^, +, -)" begin
+    @testset "ScalarSpace" begin
         s1 = Sequence(ScalarSpace(), [2.0])
         s2 = Sequence(ScalarSpace(), [3.0])
         @test s1 * s2 == Sequence(ScalarSpace(), [6.0])
         @test s1 ^ 2 == Sequence(ScalarSpace(), [4.0])
-        @test s1 ^ s2 == Sequence(ScalarSpace(), [8.0]) # 2³
+        @test s1 ^ s2 == Sequence(ScalarSpace(), [8.0])
         @test s1 / s2 == Sequence(ScalarSpace(), [2.0/3.0])
-        @test s1 \ s2 == Sequence(ScalarSpace(), [1.5]) # inv(2)*3
+        @test s1 \ s2 == Sequence(ScalarSpace(), [1.5])
 
-        @test s1 + 1.0 == 1.0 + s1 == Sequence(ScalarSpace(), [3.0])
-        @test s1 - 1.0 == Sequence(ScalarSpace(), [1.0])
-        @test 1.0 - s1 == Sequence(ScalarSpace(), [-1.0])
-        @test radd!(copy(s1), 1.0) == ladd!(1.0, copy(s1)) == s1 + 1.0
-        @test rsub!(copy(s1), 1.0) == s1 - 1.0
-        @test lsub!(1.0, copy(s1)) == 1.0 - s1
+        @test s1 + 1.0 == 1.0 + s1 == radd!(copy(s1), 1.0) == ladd!(1.0, copy(s1)) == Sequence(ScalarSpace(), [3.0])
+        @test s1 - 1.0 == rsub!(copy(s1), 1.0) == Sequence(ScalarSpace(), [1.0])
+        @test 1.0 - s1 == lsub!(1.0, copy(s1)) == Sequence(ScalarSpace(), [-1.0])
 
-        # mixing a ScalarSpace sequence with a SequenceSpace sequence: the scalar is treated as
-        # the constant (order-0) coefficient
+        # added to a sequence on a sequence space, the scalar is the constant coefficient
         ta = Sequence(Taylor(2), [1.0, 2.0, 3.0])
         @test s1 + ta == ta + s1 == Sequence(Taylor(2), [3.0, 2.0, 3.0])
     end
 
-    @testset "adding/subtracting a number to a sequence" begin
-        @testset "Taylor, Fourier, Chebyshev, TensorSpace" begin
-            a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-            @test a + 5.0 == 5.0 + a == Sequence(Taylor(2), [6.0, 2.0, 3.0])
-            @test a - 5.0 == Sequence(Taylor(2), [-4.0, 2.0, 3.0])
-            @test 5.0 - a == Sequence(Taylor(2), [4.0, -2.0, -3.0])
-            @test radd!(copy(a), 5.0) == ladd!(5.0, copy(a)) == a + 5.0
-            @test rsub!(copy(a), 5.0) == a - 5.0
-            @test lsub!(5.0, copy(a)) == 5.0 - a
+    @testset "sequence ± number" begin
+        # the number is added to the constant coefficient
+        a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
+        @test a + 5.0 == 5.0 + a == radd!(copy(a), 5.0) == ladd!(5.0, copy(a)) == Sequence(Taylor(2), [6.0, 2.0, 3.0])
+        @test a - 5.0 == rsub!(copy(a), 5.0) == Sequence(Taylor(2), [-4.0, 2.0, 3.0])
+        @test 5.0 - a == lsub!(5.0, copy(a)) == Sequence(Taylor(2), [4.0, -2.0, -3.0])
 
-            af = Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0]) # constant mode is the middle entry
-            @test af + 5.0 == Sequence(Fourier(1, 1.0), [1.0, 7.0, 3.0])
+        @test Sequence(Fourier(1, 1.0), [1.0, 2.0, 3.0]) + 5.0 == Sequence(Fourier(1, 1.0), [1.0, 7.0, 3.0])
+        @test Sequence(Chebyshev(1), [1.0, 2.0]) + 5.0 == Sequence(Chebyshev(1), [6.0, 2.0])
+        s = Taylor(1) ⊗ Fourier(1, 1.0)
+        @test Sequence(s, collect(1.0:6.0)) + 5.0 == Sequence(s, [1.0, 2.0, 8.0, 4.0, 5.0, 6.0])
 
-            ac = Sequence(Chebyshev(1), [1.0, 2.0])
-            @test ac + 5.0 == Sequence(Chebyshev(1), [6.0, 2.0])
+        # a constant is even, so an even space is kept
+        r = Sequence(evensym(Taylor(2)), [1.0, 2.0]) + 5.0
+        @test space(r) == evensym(Taylor(2))
+        @test r == Sequence(evensym(Taylor(2)), [6.0, 2.0])
 
-            at = Sequence(Taylor(1) ⊗ Fourier(1, 1.0), collect(1.0:6.0))
-            @test at + 5.0 == Sequence(Taylor(1) ⊗ Fourier(1, 1.0), [1.0, 2.0, 8.0, 4.0, 5.0, 6.0])
-        end
-
-        @testset "SymmetricSpace" begin
-            # evensym(Taylor(2)): only even powers (indices 0, 2) are free; adding a constant
-            # simply shifts the k=0 coefficient, the space stays evensym(Taylor(2))
-            even = Sequence(evensym(Taylor(2)), [1.0, 2.0]) # c₀=1, c₂=2
-            r = even + 5.0
-            @test space(r) == evensym(Taylor(2))
-            @test r == Sequence(evensym(Taylor(2)), [6.0, 2.0])
-
-            # oddsym(Taylor(2)): only the odd power (index 1) is free; adding a constant breaks
-            # the odd symmetry, so the result widens to the unrestricted space (all of 0:2)
-            odd = Sequence(oddsym(Taylor(2)), [3.0]) # c₁=3
-            r2 = odd + 5.0
-            @test dimension(space(r2)) == 3
-            @test r2 == Sequence(space(r2), [5.0, 3.0, 0.0])
-
-            # in-place `radd!` cannot widen the space: adding a constant to an odd-symmetric
-            # sequence in place is ill-defined since k=0 is not one of its own indices.
-            @test_throws ArgumentError radd!(copy(odd), 5.0)
-        end
+        # a constant is not odd: the sum lives on the space without symmetry, and cannot be taken in place
+        odd = Sequence(oddsym(Taylor(2)), [3.0])
+        r = odd + 5.0
+        @test dimension(space(r)) == 3
+        @test r == Sequence(space(r), [5.0, 3.0, 0.0])
+        @test_throws ArgumentError radd!(copy(odd), 5.0)
     end
 
     @testset "cartesian sequence ± vector of numbers" begin
         s = Taylor(1)^3
-        a = Sequence(s, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]) # 3 components: [1,2], [3,4], [5,6]
+        a = Sequence(s, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
         v = [10.0, 20.0, 30.0]
-        expected_add = Sequence(s, [11.0, 2.0, 23.0, 4.0, 35.0, 6.0])
-        expected_sub = Sequence(s, [-9.0, 2.0, -17.0, 4.0, -25.0, 6.0])
-        expected_rsub = Sequence(s, [9.0, -2.0, 17.0, -4.0, 25.0, -6.0]) # v - a
+        @test a + v == v + a == radd!(copy(a), v) == ladd!(v, copy(a)) == Sequence(s, [11.0, 2.0, 23.0, 4.0, 35.0, 6.0])
+        @test a - v == rsub!(copy(a), v) == Sequence(s, [-9.0, 2.0, -17.0, 4.0, -25.0, 6.0])
+        @test v - a == lsub!(v, copy(a)) == Sequence(s, [9.0, -2.0, 17.0, -4.0, 25.0, -6.0])
 
-        @test a + v == v + a == radd!(copy(a), v) == ladd!(v, copy(a)) == expected_add
-        @test a - v == rsub!(copy(a), v) == expected_sub
-        @test v - a == lsub!(v, copy(a)) == expected_rsub
-
-        # nested CartesianProduct containing a CartesianPower: the vector has one entry per
-        # deepest (leaf) component
+        # a nested cartesian space takes one number per innermost component
         s2 = (Taylor(1)^2) × Fourier(1, 1.0)
         b = Sequence(s2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
-        r = b + [100.0, 200.0, 300.0]
-        @test r == Sequence(s2, [101.0, 2.0, 203.0, 4.0, 5.0, 306.0, 7.0])
-
-        # subtraction recurses through the nested component the same way addition does
-        rs = b - [100.0, 200.0, 300.0]
-        @test rs == Sequence(s2, [-99.0, 2.0, -197.0, 4.0, 5.0, -294.0, 7.0])
+        @test b + [100.0, 200.0, 300.0] == Sequence(s2, [101.0, 2.0, 203.0, 4.0, 5.0, 306.0, 7.0])
+        @test b - [100.0, 200.0, 300.0] == Sequence(s2, [-99.0, 2.0, -197.0, 4.0, 5.0, -294.0, 7.0])
 
         @test_throws ArgumentError a + [10.0, 20.0]
         @test_throws ArgumentError radd!(copy(a), [10.0, 20.0])
     end
 
     @testset "Interval and Complex coefficient promotion" begin
-        a = Sequence(Taylor(1), [interval(1.0), interval(2.0)])
         b = Sequence(Taylor(1), [3.0, 4.0])
-        c = a + b
-        @test eltype(c) == Interval{Float64}
-        @test isequal_interval(c[0], interval(4.0)) && isequal_interval(c[1], interval(6.0))
-        out = Sequence(Taylor(1), [interval(-9999.0), interval(-9999.0)]) # sentinel to catch missed writes
-        add!(out, a, b)
-        @test isequal_interval(out[0], interval(4.0)) && isequal_interval(out[1], interval(6.0))
+
+        a = Sequence(Taylor(1), interval.([1.0, 2.0]))
+        @test eltype(a + b) == Interval{Float64}
+        @test all(isequal_interval.(coefficients(a + b), interval.([4.0, 6.0])))
+        @test all(isequal_interval.(coefficients(add!(fill(interval(-9999.0), Taylor(1)), a, b)), interval.([4.0, 6.0])))
 
         ac = Sequence(Taylor(1), ComplexF64[1.0+2.0im, 3.0+4.0im])
-        bc = Sequence(Taylor(1), [1.0, 1.0])
-        cc = ac + bc
-        @test eltype(cc) == ComplexF64
-        @test cc == Sequence(Taylor(1), ComplexF64[2.0+2.0im, 4.0+4.0im])
+        @test eltype(ac + b) == ComplexF64
+        @test ac + b == Sequence(Taylor(1), ComplexF64[4.0+2.0im, 7.0+4.0im])
 
         aci = Sequence(Taylor(1), Complex{Interval{Float64}}[interval(1.0)+interval(1.0)*im, interval(2.0)])
-        bci = Sequence(Taylor(1), [1.0, 1.0])
-        cci = aci + bci
+        cci = aci + b
         @test eltype(cci) == Complex{Interval{Float64}}
-        @test isequal_interval(real(cci[0]), interval(2.0)) && isequal_interval(imag(cci[0]), interval(1.0))
-        @test isequal_interval(real(cci[1]), interval(3.0)) && isequal_interval(imag(cci[1]), interval(0.0))
+        @test all(isequal_interval.(real.(coefficients(cci)), interval.([4.0, 6.0])))
+        @test all(isequal_interval.(imag.(coefficients(cci)), interval.([1.0, 0.0])))
     end
 end

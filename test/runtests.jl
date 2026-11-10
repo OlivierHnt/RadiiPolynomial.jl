@@ -1,6 +1,8 @@
 using Test
 using RadiiPolynomial
 
+include("helpers.jl")
+
 @testset verbose = true "RadiiPolynomial" begin
     include("sequence_spaces/vector_spaces.jl")
     include("sequence_spaces/symmetry.jl")

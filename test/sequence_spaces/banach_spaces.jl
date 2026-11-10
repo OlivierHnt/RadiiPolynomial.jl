@@ -3,112 +3,75 @@
     ℱ = Fourier(3, 1.0)
     𝒞 = Chebyshev(3)
 
-    @testset "IdentityWeight" begin
+    @testset "weights: construction, comparison and interval promotion" begin
+        for W ∈ (GeometricWeight, AlgebraicWeight, BesselWeight)
+            w = W(2.0)
+            @test w isa W{Float64}
+            @test rate(w) == 2.0
+            @test w == W(2.0)
+            @test !(w == W(3.0))
+            @test min(w, W(3.0)) == w
+            @test W(interval(1.0, 2.0)) isa W{Interval{Float64}}
+            @test interval(w) isa W{Interval{Float64}}
+            @test isguaranteed(rate(interval(w)))
+            @test interval(Float32, w) isa W{Interval{Float32}}
+        end
+        # the rate is finite, at least 1 for a geometric weight and nonnegative otherwise
+        for (W, r) ∈ ((GeometricWeight, 0.5), (AlgebraicWeight, -1.0), (BesselWeight, -1.0))
+            @test_throws DomainError W(r)
+            @test_throws DomainError W(interval(r, 2.0))
+            # the null logger silences the ill-formed interval warning raised for an infinite rate
+            Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+                @test_throws DomainError W(Inf)
+            end
+        end
+        @test GeometricWeight(2) isa GeometricWeight{Int}
+        @test GeometricWeight(2.0) == GeometricWeight(2)
+        @test !(GeometricWeight(interval(1.0, 2.0)) == GeometricWeight(interval(1.0, 3.0)))
+
         w = IdentityWeight()
         @test w == IdentityWeight()
-        @test !(w == GeometricWeight(1.0))
-        @test !(GeometricWeight(1.0) == w)
+        @test !(w == GeometricWeight(1.0)) && !(GeometricWeight(1.0) == w)
+        @test interval(w) === interval(Float64, w) === IdentityWeight()
+        @test min(w, w) === min(w, GeometricWeight(2.0)) === min(AlgebraicWeight(2.0), w) === IdentityWeight()
+    end
+
+    @testset "weights: values" begin
+        # a Chebyshev mode k > 0 counts twice (T₋ₖ = Tₖ)
+        w = IdentityWeight()
         @test RadiiPolynomial._getindex(w, 𝒯, 0) == w[(𝒯, 2)] == 1
         @test w[(ℱ, -3)] == w[(ℱ, 0)] == w[(ℱ, 3)] == 1
-        # Chebyshev counts each mode k > 0 twice (T₋ₖ = Tₖ), the zero mode once
         @test w[(𝒞, 0)] == 1
         @test w[(𝒞, 1)] == w[(𝒞, 3)] == 2
-        @test interval(w) === IdentityWeight()
-        @test interval(Float64, w) === IdentityWeight()
-        @test min(w, w) === IdentityWeight()
-        @test min(w, GeometricWeight(2.0)) === min(AlgebraicWeight(2.0), w) === IdentityWeight()
-    end
 
-    @testset "GeometricWeight" begin
+        # νⁱ on Taylor, ν^|i| on Fourier, 2νⁱ on Chebyshev for i > 0
         ν = GeometricWeight(2.0)
-        @test ν isa GeometricWeight{Float64}
-        @test rate(ν) == 2.0
-        @test GeometricWeight(2) isa GeometricWeight{Int}
-        @test rate(GeometricWeight(2)) == 2
-        @test ν == GeometricWeight(2.0) == GeometricWeight(2)
-        @test !(ν == GeometricWeight(3.0))
-        @test min(ν, GeometricWeight(3.0)) == ν
-        # Taylor: νⁱ ; Fourier: ν^|i| ; Chebyshev: 2νⁱ for i > 0, 1 at i = 0
-        @test ν[(𝒯, 0)] == 1.0
+        @test ν[(𝒯, 0)] == ν[(𝒞, 0)] == 1.0
         @test ν[(𝒯, 3)] == RadiiPolynomial._getindex(ν, 𝒯, 3) == 8.0
         @test ν[(ℱ, -3)] == ν[(ℱ, 3)] == 8.0
-        @test ν[(𝒞, 0)] == 1.0
         @test ν[(𝒞, 3)] == 16.0
-        # rate must be finite and ≥ 1
-        @test_throws DomainError GeometricWeight(0.5)
-        @test_throws DomainError GeometricWeight(interval(0.5, 2.0))
-        # the null logger silences the ill-formed interval warning raised for an infinite rate
-        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            @test_throws DomainError GeometricWeight(Inf)
-        end
-        @test GeometricWeight(interval(1.0, 2.0)) isa GeometricWeight{Interval{Float64}}
-        wint = interval(ν)
-        @test wint isa GeometricWeight{Interval{Float64}}
-        @test isguaranteed(rate(wint))
-        @test interval(Float32, ν) isa GeometricWeight{Interval{Float32}}
-        @test wint == interval(ν)
-        @test !(GeometricWeight(interval(1.0, 2.0)) == GeometricWeight(interval(1.0, 3.0)))
-        # ν = 2 at Taylor index 3 gives the exact enclosure of 8
-        v = RadiiPolynomial._getindex(wint, 𝒯, 3)
-        @test isguaranteed(v) & in_interval(8, v)
-    end
 
-    @testset "AlgebraicWeight" begin
+        # (1+i)ˢ on Taylor, (1+|i|)ˢ on Fourier, 2(1+i)ˢ on Chebyshev for i > 0
         w = AlgebraicWeight(2.0)
-        @test w isa AlgebraicWeight{Float64}
-        @test rate(w) == 2.0
-        @test w == AlgebraicWeight(2.0)
-        @test !(w == AlgebraicWeight(1.0))
-        @test min(w, AlgebraicWeight(1.0)) == AlgebraicWeight(1.0)
-        # Taylor: (1+i)ˢ ; Fourier: (1+|i|)ˢ ; Chebyshev: 2(1+i)ˢ for i > 0, 1 at i = 0
-        @test w[(𝒯, 0)] == 1.0
+        @test w[(𝒯, 0)] == w[(𝒞, 0)] == 1.0
         @test w[(𝒯, 3)] == RadiiPolynomial._getindex(w, 𝒯, 3) == 16.0
         @test w[(ℱ, -3)] == w[(ℱ, 3)] == 16.0
-        @test w[(𝒞, 0)] == 1.0
         @test AlgebraicWeight(1.0)[(𝒞, 3)] == 8.0
-        # rate must be finite and ≥ 0
-        @test_throws DomainError AlgebraicWeight(-1.0)
-        @test_throws DomainError AlgebraicWeight(interval(-1.0, 1.0))
-        Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            @test_throws DomainError AlgebraicWeight(Inf)
-        end
-        wint = interval(w)
-        @test wint isa AlgebraicWeight{Interval{Float64}}
-        @test isguaranteed(rate(wint))
-        @test interval(Float32, w) isa AlgebraicWeight{Interval{Float32}}
-        # s = 2 at Taylor index 3 gives the exact enclosure of (1+3)² = 16
-        v = RadiiPolynomial._getindex(wint, 𝒯, 3)
-        @test isguaranteed(v) & in_interval(16, v)
-    end
 
-    @testset "BesselWeight" begin
+        # (1+|α|²)ˢ with |α|² = Σ αᵢ² on a tensor product of Fourier spaces
         w = BesselWeight(1.0)
-        @test w isa BesselWeight{Float64}
-        @test rate(w) == 1.0
-        @test w == BesselWeight(1.0)
-        @test !(w == BesselWeight(2.0))
-        @test min(w, BesselWeight(2.0)) == w
-        # Fourier: (1+i²)ˢ
         @test w[(ℱ, 0)] == 1.0
         @test w[(ℱ, -2)] == w[(ℱ, 2)] == 5.0
         @test BesselWeight(2.0)[(ℱ, 2)] == 25.0
-        # tensor product of Fourier spaces: (1+|α|²)ˢ with |α|² = Σ αᵢ²
         @test w[(ℱ ⊗ ℱ, (1, -2))] == 6.0
         @test BesselWeight(1.5)[(ℱ ⊗ ℱ, (1, -2))] == 6.0 ^ 1.5
-        # rate must be finite and ≥ 0
-        @test_throws DomainError BesselWeight(-1.0)
-        @test_throws DomainError BesselWeight(Inf)
-        @test_throws DomainError BesselWeight(interval(-1.0, 1.0))
-        wint = interval(w)
-        @test wint isa BesselWeight{Interval{Float64}}
-        @test isguaranteed(rate(wint))
-        @test interval(Float32, w) isa BesselWeight{Interval{Float32}}
-        @test BesselWeight(interval(0.5, 1.0)) isa BesselWeight{Interval{Float64}}
-        # s = 1 at α = (1,-2) gives the exact enclosure of 1 + 1 + 4 = 6
-        v = RadiiPolynomial._getindex(wint, ℱ ⊗ ℱ, (1, -2))
-        @test isguaranteed(v) & in_interval(6, v)
-        v2 = RadiiPolynomial._getindex(wint, ℱ, 2)
-        @test isguaranteed(v2) & in_interval(5, v2)
+
+        # an interval rate gives a guaranteed enclosure
+        for (w, s, k, v) ∈ ((GeometricWeight(2.0), 𝒯, 3, 8), (AlgebraicWeight(2.0), 𝒯, 3, 16),
+                            (BesselWeight(1.0), ℱ ⊗ ℱ, (1, -2), 6), (BesselWeight(1.0), ℱ, 2, 5))
+            x = RadiiPolynomial._getindex(interval(w), s, k)
+            @test isguaranteed(x) & in_interval(v, x)
+        end
     end
 
     @testset "tuple of weights on tensor spaces" begin
@@ -171,70 +134,36 @@
     end
 
     @testset "min of mixed weight types" begin
-        # a geometric rate 1 has no decay: min with any algebraic weight is AlgebraicWeight(0)
-        @test min(AlgebraicWeight(3.0), GeometricWeight(1.0)) == AlgebraicWeight(0.0)
-        @test min(GeometricWeight(1.0), AlgebraicWeight(3.0)) == AlgebraicWeight(0.0)
-        # a geometric rate > 1 decays faster than any algebraic weight
-        @test min(AlgebraicWeight(3.0), GeometricWeight(2.0)) == AlgebraicWeight(3.0)
-        @test min(GeometricWeight(2.0), AlgebraicWeight(3.0)) == AlgebraicWeight(3.0)
+        # a geometric rate 1 has no decay, a rate > 1 decays faster than any algebraic weight
+        for (ν, w) ∈ ((1.0, AlgebraicWeight(0.0)), (2.0, AlgebraicWeight(3.0)))
+            @test min(AlgebraicWeight(3.0), GeometricWeight(ν)) == min(GeometricWeight(ν), AlgebraicWeight(3.0)) == w
+        end
     end
 
-    @testset "Ell1 / ℓ¹" begin
-        @test Ell1 === ℓ¹
-        @test Ell1() isa Ell1{IdentityWeight}
-        @test weight(Ell1()) === IdentityWeight()
-        X = Ell1(GeometricWeight(2.0))
-        @test X isa Ell1{GeometricWeight{Float64}}
-        @test weight(X) == GeometricWeight(2.0)
-        @test rate(X) == 2.0
-        Xt = Ell1(GeometricWeight(2.0), AlgebraicWeight(1.0))
-        @test Xt isa Ell1{Tuple{GeometricWeight{Float64},AlgebraicWeight{Float64}}}
-        @test Xt == Ell1((GeometricWeight(2.0), AlgebraicWeight(1.0)))
-        @test weight(Xt) == (GeometricWeight(2.0), AlgebraicWeight(1.0))
-        @test rate(Xt) == (2.0, 1.0)
-        @test Ell1() == Ell1()
-        @test X == Ell1(GeometricWeight(2.0))
-        @test !(X == Ell1(GeometricWeight(3.0)))
+    @testset "$name" for (name, E, alias, w, w₂) ∈ (("Ell1", Ell1, ℓ¹, GeometricWeight(2.0), AlgebraicWeight(1.0)),
+            ("Ell2", Ell2, ℓ², BesselWeight(1.5), GeometricWeight(2.0)), ("EllInf", EllInf, ℓ∞, AlgebraicWeight(1.0), GeometricWeight(2.0)))
+        @test E === alias
+        @test E() isa E{IdentityWeight}
+        @test weight(E()) === IdentityWeight()
+        X = E(w)
+        @test X isa E{typeof(w)}
+        @test weight(X) == w
+        @test rate(X) == rate(w)
+        Xt = E(w, w₂)
+        @test Xt isa E{Tuple{typeof(w),typeof(w₂)}}
+        @test Xt == E((w, w₂))
+        @test weight(Xt) == (w, w₂)
+        @test rate(Xt) == (rate(w), rate(w₂))
+        @test E() == E()
+        @test X == E(w)
+        @test !(X == E(typeof(w)(3.0)))
+        @test_throws ArgumentError E(())
+    end
+
+    @testset "Banach spaces of different types" begin
         @test !(Ell1() == Ell2())
         @test !(Ell1() == EllInf())
-        @test_throws ArgumentError Ell1(())
-    end
-
-    @testset "Ell2 / ℓ²" begin
-        @test Ell2 === ℓ²
-        @test Ell2() isa Ell2{IdentityWeight}
-        @test weight(Ell2()) === IdentityWeight()
-        X = Ell2(BesselWeight(1.5))
-        @test X isa Ell2{BesselWeight{Float64}}
-        @test weight(X) == BesselWeight(1.5)
-        @test rate(X) == 1.5
-        Xt = Ell2(BesselWeight(1.0), GeometricWeight(2.0))
-        @test Xt isa Ell2{Tuple{BesselWeight{Float64},GeometricWeight{Float64}}}
-        @test Xt == Ell2((BesselWeight(1.0), GeometricWeight(2.0)))
-        @test weight(Xt) == (BesselWeight(1.0), GeometricWeight(2.0))
-        @test rate(Xt) == (1.0, 2.0)
-        @test Ell2() == Ell2()
-        @test !(X == Ell2(BesselWeight(1.0)))
         @test !(Ell2() == EllInf())
-        @test_throws ArgumentError Ell2(())
-    end
-
-    @testset "EllInf / ℓ∞" begin
-        @test EllInf === ℓ∞
-        @test EllInf() isa EllInf{IdentityWeight}
-        @test weight(EllInf()) === IdentityWeight()
-        X = EllInf(AlgebraicWeight(1.0))
-        @test X isa EllInf{AlgebraicWeight{Float64}}
-        @test weight(X) == AlgebraicWeight(1.0)
-        @test rate(X) == 1.0
-        Xt = EllInf(GeometricWeight(2.0), AlgebraicWeight(1.0))
-        @test Xt isa EllInf{Tuple{GeometricWeight{Float64},AlgebraicWeight{Float64}}}
-        @test Xt == EllInf((GeometricWeight(2.0), AlgebraicWeight(1.0)))
-        @test weight(Xt) == (GeometricWeight(2.0), AlgebraicWeight(1.0))
-        @test rate(Xt) == (2.0, 1.0)
-        @test EllInf() == EllInf()
-        @test !(X == EllInf(AlgebraicWeight(2.0)))
-        @test_throws ArgumentError EllInf(())
     end
 
     @testset "intersect" begin
@@ -279,21 +208,15 @@
     end
 
     @testset "show" begin
-        @test repr(MIME("text/plain"), IdentityWeight()) == "IdentityWeight()"
-        @test repr(MIME("text/plain"), GeometricWeight(2.0)) == "GeometricWeight(2.0)"
-        @test repr(MIME("text/plain"), AlgebraicWeight(1.0)) == "AlgebraicWeight(1.0)"
-        @test repr(MIME("text/plain"), BesselWeight(1.5)) == "BesselWeight(1.5)"
-        @test repr(MIME("text/plain"), Ell1()) == "ℓ¹()"
-        @test repr(MIME("text/plain"), Ell2()) == "ℓ²()"
-        @test repr(MIME("text/plain"), EllInf()) == "ℓ∞()"
-        @test repr(MIME("text/plain"), Ell1(GeometricWeight(2.0))) == "ℓ¹(GeometricWeight(2.0))"
-        @test repr(MIME("text/plain"), Ell2(BesselWeight(1.0))) == "ℓ²(BesselWeight(1.0))"
-        @test repr(MIME("text/plain"), EllInf(AlgebraicWeight(1.0))) == "ℓ∞(AlgebraicWeight(1.0))"
-        @test repr(MIME("text/plain"), Ell1(GeometricWeight(1.0), AlgebraicWeight(2.0))) ==
-            "ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))"
-        @test repr(MIME("text/plain"), NormedCartesianSpace(Ell1(), EllInf())) ==
-            "NormedCartesianSpace(ℓ¹(), ℓ∞())"
-        @test repr(MIME("text/plain"), NormedCartesianSpace((Ell1(), Ell2()), EllInf())) ==
-            "NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞())"
+        for (x, str) ∈ ((IdentityWeight(), "IdentityWeight()"), (GeometricWeight(2.0), "GeometricWeight(2.0)"),
+                        (AlgebraicWeight(1.0), "AlgebraicWeight(1.0)"), (BesselWeight(1.5), "BesselWeight(1.5)"),
+                        (Ell1(), "ℓ¹()"), (Ell2(), "ℓ²()"), (EllInf(), "ℓ∞()"),
+                        (Ell1(GeometricWeight(2.0)), "ℓ¹(GeometricWeight(2.0))"), (Ell2(BesselWeight(1.0)), "ℓ²(BesselWeight(1.0))"),
+                        (EllInf(AlgebraicWeight(1.0)), "ℓ∞(AlgebraicWeight(1.0))"),
+                        (Ell1(GeometricWeight(1.0), AlgebraicWeight(2.0)), "ℓ¹(GeometricWeight(1.0), AlgebraicWeight(2.0))"),
+                        (NormedCartesianSpace(Ell1(), EllInf()), "NormedCartesianSpace(ℓ¹(), ℓ∞())"),
+                        (NormedCartesianSpace((Ell1(), Ell2()), EllInf()), "NormedCartesianSpace((ℓ¹(), ℓ²()), ℓ∞())"))
+            @test repr(MIME("text/plain"), x) == str
+        end
     end
 end

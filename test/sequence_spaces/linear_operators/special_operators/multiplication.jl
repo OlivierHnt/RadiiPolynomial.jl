@@ -1,120 +1,68 @@
+# the projected multiplication agrees with the product of the desymmetrized sequences, which uses no symmetric code
+function _check_projected_multiplication(a, x, ::Type{T}) where {T}
+    ax = a * x
+    M = project(Multiplication(a), space(x), space(ax), T)
+    @test M * x ≈ ax
+    full = (Projection(desymmetrize(space(a))) * a) * (Projection(desymmetrize(space(x))) * x)
+    @test all(k -> isapprox(RadiiPolynomial.getcoefficient(M * x, (space(full), k)), full[k]; atol = 1e-12), indices(space(full)))
+    return M
+end
+
 @testset "Multiplication" begin
     @testset "sequence accessor" begin
         a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         ℳ = Multiplication(a)
-        @test sequence(ℳ) == a
-        @test sequence(ℳ) === a # no copy
-
-        Mi = interval(Float64, ℳ)
-        @test sequence(Mi) == interval.(a)
+        @test sequence(ℳ) === a
+        @test sequence(interval(Float64, ℳ)) == interval.(a)
         @test sequence(interval(ℳ)) == interval(a)
     end
 
-    @testset "arithmetic on Multiplication operators" begin
+    @testset "arithmetic acts on the underlying sequence" begin
         a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
         ℳ = Multiplication(a)
-        @test (+ℳ).sequence == a
-        @test (-ℳ).sequence == -a
-        @test (ℳ^0).sequence == a^0
-        @test (ℳ^2).sequence == (ℳ*ℳ).sequence == Multiplication(a*a).sequence == a*a
-        @test (2ℳ/1).sequence == (ℳ+ℳ).sequence == (ℳ-(-ℳ)).sequence ==
-            Multiplication(a+a).sequence == a+a
-        # Multiplication ± / * / \ Number acts entrywise on the underlying sequence
-        @test (ℳ+1).sequence == a+1
-        @test (1+ℳ).sequence == 1+a
-        @test (ℳ-1).sequence == a-1
-        @test (1-ℳ).sequence == 1-a
-        @test (3ℳ).sequence == 3a
-        @test (ℳ*3).sequence == a*3
-        @test (ℳ/2).sequence == a/2
-        @test (2\ℳ).sequence == 2\a
+        for (𝒪, expected) ∈ (
+                (+ℳ, a), (-ℳ, -a), (ℳ^0, a^0), (ℳ^2, a*a), (ℳ*ℳ, a*a),
+                (2ℳ/1, a+a), (ℳ+ℳ, a+a), (ℳ-(-ℳ), a+a),
+                (ℳ+1, a+1), (1+ℳ, 1+a), (ℳ-1, a-1), (1-ℳ, 1-a),
+                (3ℳ, 3a), (ℳ*3, a*3), (ℳ/2, a/2), (2\ℳ, 2\a))
+            @test sequence(𝒪) == expected
+        end
     end
 
     @testset "action == convolution" begin
-        @testset "Taylor" begin
-            a = Sequence(Taylor(2), [1.0, -1.0, 1.0]) # 1 - x + x²
-            b = Sequence(Taylor(1), [2.0, 3.0])       # 2 + 3x
-            ℳ = Multiplication(a)
-            # (1 - x + x²)(2 + 3x) = 2 + (3-2)x + (-3+2)x² + 3x³ = 2 + x - x² + 3x³
-            expected = Sequence(Taylor(3), [2.0, 1.0, -1.0, 3.0])
-            out = Sequence(Taylor(3), fill(Inf, 4))
-            @test ℳ(b) == b*a == sequence(ℳ)*b == mul!(out, ℳ, b) == expected
-        end
-
-        @testset "Fourier" begin
-            a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5]) # cos(t)
-            ℳ = Multiplication(a)
-            # cos²(t) = 1/2 + 1/2 cos(2t)
-            expected = Sequence(Fourier(2, 1.0), [0.25, 0.0, 0.5, 0.0, 0.25])
-            out = Sequence(Fourier(2, 1.0), fill(Inf, 5))
-            @test ℳ(a) == a*a == mul!(out, ℳ, a) == expected
-        end
-
-        @testset "Chebyshev" begin
-            a = Sequence(Chebyshev(2), [1.0, 0.5, 0.5]) # T₀ + ½T₁ + ½T₂
-            ℳ = Multiplication(a)
-            # direct discrete (folded) convolution: cₖ = Σⱼ a_{|k-j|} a_{|j|}, e.g.
-            # c₀ = a₀a₀ + 2a₁a₁ + 2a₂a₂ = 1 + 2(0.25) + 2(0.25) = 2
-            # c₁ = 2a₀a₁ + 2a₁a₂ = 1 + 0.5 = 1.5
-            expected = Sequence(Chebyshev(4), [2.0, 1.5, 1.25, 0.5, 0.25])
-            out = Sequence(Chebyshev(4), fill(Inf, 5))
-            @test ℳ(a) == a*a == mul!(out, ℳ, a) == expected
-        end
-
-        @testset "TensorSpace" begin
-            s = Taylor(1) ⊗ Taylor(1)
-            a = Sequence(s, [1.0, 2.0, 3.0, 4.0]) # 1 + 2x + 3y + 4xy (indices (0,0),(1,0),(0,1),(1,1))
-            b = Sequence(s, [1.0, 0.0, 0.0, 1.0]) # 1 + xy
-            ℳ = Multiplication(a)
-            # (1+2x+3y+4xy)(1+xy) = 1+2x+3y+5xy+2x²y+3xy²+4x²y²
-            expected = Sequence(Taylor(2) ⊗ Taylor(2),
-                [1.0, 2.0, 0.0, 3.0, 5.0, 2.0, 0.0, 3.0, 4.0])
-            @test ℳ(b) == b*a == expected
-        end
-    end
-
-    @testset "project-to-matrix consistency" begin
-        a = Sequence(Taylor(1), [2.0, 3.0]) # 2 + 3x
-        ℳ = Multiplication(a)
-        A = project(ℳ, Taylor(1), Taylor(2), Float64)
-        # column j is the shifted copy of a corresponding to multiplication by xʲ
-        @test coefficients(A) == [2.0 0.0 ; 3.0 2.0 ; 0.0 3.0]
-        b = Sequence(Taylor(1), [1.0, 1.0])
-        @test A*b == ℳ(b) == a*b
-
-        a_ℱ = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
-        ℳ_ℱ = Multiplication(a_ℱ)
-        A_ℱ = project(ℳ_ℱ, Fourier(1, 1.0), Fourier(2, 1.0), Float64)
-        @test A_ℱ*a_ℱ == ℳ_ℱ(a_ℱ) == a_ℱ*a_ℱ
-
+        s = Taylor(1) ⊗ Taylor(1)
+        cos_ℱ = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5])
         a_𝒞 = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
-        ℳ_𝒞 = Multiplication(a_𝒞)
-        A_𝒞 = project(ℳ_𝒞, Chebyshev(2), Chebyshev(4), Float64)
-        @test A_𝒞*a_𝒞 == ℳ_𝒞(a_𝒞) == a_𝒞*a_𝒞
-    end
+        cos_e = Sequence(evensym(Fourier(1, 1.0)), [0.0, 0.5])
+        for (a, b, expected) ∈ (
+                # (1 - x + x²)(2 + 3x) = 2 + x - x² + 3x³
+                (Sequence(Taylor(2), [1.0, -1.0, 1.0]), Sequence(Taylor(1), [2.0, 3.0]), Sequence(Taylor(3), [2.0, 1.0, -1.0, 3.0])),
+                # cos²(t) = 1/2 + 1/2 cos(2t)
+                (cos_ℱ, cos_ℱ, Sequence(Fourier(2, 1.0), [0.25, 0.0, 0.5, 0.0, 0.25])),
+                (cos_e, cos_e, Sequence(evensym(Fourier(2, 1.0)), [0.5, 0.0, 0.25])),
+                # cₖ = Σⱼ a_{|k-j|} a_{|j|}, e.g. c₀ = a₀² + 2a₁² + 2a₂² = 2 and c₁ = 2a₀a₁ + 2a₁a₂ = 1.5
+                (a_𝒞, a_𝒞, Sequence(Chebyshev(4), [2.0, 1.5, 1.25, 0.5, 0.25])),
+                # (1 + 2x + 3y + 4xy)(1 + xy) = 1 + 2x + 3y + 5xy + 2x²y + 3xy² + 4x²y²
+                (Sequence(s, [1.0, 2.0, 3.0, 4.0]), Sequence(s, [1.0, 0.0, 0.0, 1.0]),
+                    Sequence(Taylor(2) ⊗ Taylor(2), [1.0, 2.0, 0.0, 3.0, 5.0, 2.0, 0.0, 3.0, 4.0])),
+                # ((1+i) + 2x)(1 + ix) = (1+i) + (1+i)x + 2ix²
+                (Sequence(Taylor(1), ComplexF64[1.0+1.0im, 2.0]), Sequence(Taylor(1), ComplexF64[1.0, 1.0im]),
+                    Sequence(Taylor(2), ComplexF64[1.0+1.0im, 1.0+1.0im, 2.0im])))
+            @test b * a == a * b == expected
+            test_action(Multiplication(a), b, expected)
+        end
 
-    @testset "symmetric space (evensym Fourier)" begin
-        # cos(t): representatives [a₀, a₁] = [0.0, 0.5] of evensym(Fourier(1,1.0))
-        a = Sequence(evensym(Fourier(1, 1.0)), [0.0, 0.5])
-        ℳ = Multiplication(a)
-        # cos²(t) = 1/2 + 1/2 cos(2t): representatives [0.5, 0.0, 0.25] of evensym(Fourier(2,1.0))
-        expected = Sequence(evensym(Fourier(2, 1.0)), [0.5, 0.0, 0.25])
-        @test ℳ(a) == a*a == expected
-        P = project(ℳ, evensym(Fourier(1, 1.0)), evensym(Fourier(2, 1.0)), Float64)
-        @test P*a == expected
+        # (1 + 2x)(3 + 4x) = 3 + 10x + 8x²
+        ai, bi = Sequence(Taylor(1), interval.([1.0, 2.0])), Sequence(Taylor(1), interval.([3.0, 4.0]))
+        @test Multiplication(ai)(bi) == bi * ai == Sequence(Taylor(2), interval.([3.0, 10.0, 8.0]))
+        ci = Sequence(Fourier(1, 1.0), Complex{Interval{Float64}}.([0.5, 0.0, 0.5]))
+        @test Multiplication(ci)(ci) == ci * ci == Sequence(Fourier(2, 1.0), Complex{Interval{Float64}}.([0.25, 0.0, 0.5, 0.0, 0.25]))
+
+        # the column j of the matrix is the sequence shifted by j
+        @test coefficients(project(Multiplication(Sequence(Taylor(1), [2.0, 3.0])), Taylor(1), Taylor(2), Float64)) == [2.0 0.0 ; 3.0 2.0 ; 0.0 3.0]
     end
 
     @testset "symmetric domain with a non-trivial cocycle" begin
-        # the column of a representative `t` collects Σ_{β ∈ Orb(t)} factor(β) a_{α-β} with x_β = factor(β) x_t;
-        # the reference is the product of the desymmetrized sequences, which uses no symmetric code
-        function _check_projected_multiplication(a, x, ::Type{T}) where {T}
-            ax = a * x
-            M = project(Multiplication(a), space(x), space(ax), T)
-            @test M * x ≈ ax
-            full = (Projection(desymmetrize(space(a))) * a) * (Projection(desymmetrize(space(x))) * x)
-            @test all(k -> isapprox(RadiiPolynomial.getcoefficient(M * x, (space(full), k)), full[k]; atol = 1e-12), indices(space(full)))
-            return M
-        end
         # odd (sine) domain: x₋₁ = -x₁, so (a*x)₁ = (a₀ - a₂) x₁ and not (a₀ + a₂) x₁
         a = Sequence(evensym(Fourier(2, 1.0)), [1.0, 0.0, 1.0])
         x = Sequence(oddsym(Fourier(1, 1.0)), [1.0im])
@@ -127,13 +75,13 @@
         xp = Sequence(sp, ComplexF64[0.0, 1.0])
         _check_projected_multiplication(ap, xp, ComplexF64)
         @test ap * xp == Sequence(SymmetricSpace(Fourier(2, 1.0), Gp), ComplexF64[-2.0im, 1.0, 1.0])
-        # with intervalized spaces the cocycle factors are thin intervals: the guarantee is kept
+        # on intervalized spaces the cocycle factors are thin intervals, which keeps the guarantee
         sI1 = interval(evensym(Fourier(1, 1.0)))
         sI2 = interval(evensym(Fourier(2, 1.0)))
         aI = Sequence(sI1, interval.([0.0, 0.5]))
         PI = project(Multiplication(aI), sI1, sI2, Interval{Float64})
         @test all(isguaranteed, coefficients(PI))
-        @test all(in_interval.([0.5, 0.0, 0.25], coefficients(PI * aI))) # cos²(t) = 1/2 + 1/2 cos(2t)
+        @test all(in_interval.([0.5, 0.0, 0.25], coefficients(PI * aI)))
     end
 
     @testset "mixed symmetric and plain factors" begin
@@ -151,8 +99,7 @@
         # a symmetric multiplier on the plain space is the plain multiplication operator
         @test coefficients(project(Multiplication(ce), ℱ, ℱ)) == coefficients(project(Multiplication(c), ℱ, ℱ))
         @test Multiplication(ce) * Projection(ℱ) == Multiplication(c) * Projection(ℱ)
-        # a non symmetric multiplier compressed onto a symmetric space averages the rows of the product,
-        # like the materialized multiplication operator
+        # a non symmetric multiplier compressed onto a symmetric space averages the rows of the product
         cn = Sequence(ℱ, [0.1, -0.2, 1.0, 0.4, 0.3])
         M = Projection(es) * Multiplication(cn)
         @test domain(M) == Fourier(4, 1.0) && codomain(M) == es
@@ -168,43 +115,35 @@
         @test all(isguaranteed, coefficients(cei * Sequence(ℱi, interval.(coefficients(xf)))))
     end
 
-    @testset "cartesian space (not supported)" begin
-        a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
-        ℳ = Multiplication(a)
-        # a multiplication operator has no cartesian counterpart, so no domain can be
-        # inferred from a cartesian codomain
-        @test_throws DomainError domain(ℳ, Taylor(2)^2)
+    @testset "cartesian space: unsupported" begin
+        @test_throws DomainError domain(Multiplication(Sequence(Taylor(2), [1.0, -1.0, 1.0])), Taylor(2)^2)
     end
 
     @testset "domain symmetry keeps the multiplier's phase" begin
-        #= For a common lattice automorphism β, if a_k = α_a(k) a_{βk} and b_k = α_b(k) b_{βk}, then
-           (a*b)_k = α_a(k)α_b(k)(a*b)_{βk} *only* when the two phases agree. So the domain
-           factor must carry φ, not −φ. Every shipped symmetry has φ ∈ {0,1}^N, where −φ ≡ φ
-           (mod 2), hence
-           the need for the group below: β of order 3 with φ = (2/3,2/3,2/3), which satisfies
-           βᵀφ ≡ φ (so the group is a faithful representation) while 2φ ≢ 0 (so −φ ≠ φ). =#
+        # If a_k = α_a(k) a_{βk} and b_k = α_b(k) b_{βk}, then (a*b)_k = α_a(k) α_b(k) (a*b)_{βk}, so the domain
+        # must carry the phase φ of the multiplier and not -φ. The two differ only when 2φ ≢ 0, as for
+        # the group below: β of order 3 with φ = (2/3, 2/3, 2/3), which satisfies βᵀφ ≡ φ.
         P = RadiiPolynomial.StaticArrays.SMatrix{3,3,Int}([0 0 1; 1 0 0; 0 1 0])
         φ = RadiiPolynomial.StaticArrays.SVector{3,Rational{Int}}(2//3, 2//3, 2//3)
         G = Group(GroupElement(LatticeAut(P), Cocycle(0//1, φ)))
         @test length(elements(G)) == 3
 
         G_dom = RadiiPolynomial._domain_convolution_symmetry(G, G)
-        # multiplier in Fix(G) times domain in Fix(G_dom) must land back in Fix(G)
         @test RadiiPolynomial._codomain_convolution_symmetry(G, G_dom) == G
-        @test G_dom == G # with ρ ≡ 1 and G_prod = G, the domain group is G itself
+        @test G_dom == G
 
         V = Fourier(2, 1.0) ⊗ Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
         sG = SymmetricSpace(V, G)
         @test RadiiPolynomial.symmetry(RadiiPolynomial._domain(*, sG, sG)) == G
 
-        # and the invariance really holds on coefficients
+        # the product of two invariant sequences is invariant: c_k = α_g(k) c_{β_g(k)}
         coeffs(s) = ComplexF64[(1 + 0.3im) / (1 + sum(abs, k))^2 for k ∈ indices(s)]
         a = Projection(V) * Sequence(sG, coeffs(sG))
         b = Projection(V) * Sequence(SymmetricSpace(V, G_dom), coeffs(SymmetricSpace(V, G_dom)))
         c = a * b
         worst = maximum(elements(G)) do g
             maximum(indices(space(c))) do k
-                βk = g.lattice_aut(k) # invariance reads c_k = α_g(k) c_{β_g(k)}
+                βk = g.lattice_aut(k)
                 all(abs.(βk) .≤ order(space(c))) || return 0.0
                 abs(c[k] - cispi(RadiiPolynomial._angle(g.cocycle, k)) * c[βk])
             end
@@ -212,34 +151,9 @@
         @test worst < 1e-12
     end
 
-    @testset "ComplexF64 coefficients" begin
-        a = Sequence(Taylor(1), ComplexF64[1.0+1.0im, 2.0]) # (1+i) + 2x
-        b = Sequence(Taylor(1), ComplexF64[1.0, 1.0im])     # 1 + ix
-        ℳ = Multiplication(a)
-        # (1+i)*1 = 1+i ; (1+i)(ix) + 2x = (i-1)x + 2x = (1+i)x ; 2x*ix = 2i x²
-        expected = Sequence(Taylor(2), ComplexF64[1.0+1.0im, 1.0+1.0im, 2.0im])
-        @test ℳ(b) == b*a == expected
-    end
-
-    @testset "Interval{Float64} coefficients" begin
-        a = Sequence(Taylor(1), interval.([1.0, 2.0])) # 1 + 2x
-        b = Sequence(Taylor(1), interval.([3.0, 4.0])) # 3 + 4x
-        ℳ = Multiplication(a)
-        # (1+2x)(3+4x) = 3 + 10x + 8x²
-        expected = Sequence(Taylor(2), interval.([3.0, 10.0, 8.0]))
-        @test ℳ(b) == b*a == expected
-    end
-
-    @testset "Complex{Interval{Float64}} coefficients" begin
-        a = Sequence(Fourier(1, 1.0), Complex{Interval{Float64}}.([0.5, 0.0, 0.5]))
-        ℳ = Multiplication(a)
-        expected = Sequence(Fourier(2, 1.0), Complex{Interval{Float64}}.([0.25, 0.0, 0.5, 0.0, 0.25]))
-        @test ℳ(a) == a*a == expected
-    end
-
     @testset "complex cocycle factors" begin
-        # a sequence invariant under a₋ₖ = e^{iπk/3} aₖ has complex entries off its representatives, even when
-        # the stored ones are real: the operator is complex whether the domain is symmetric or not
+        # a sequence invariant under a₋ₖ = e^{iπk/3} aₖ has complex coefficients off its representatives, even
+        # when the stored ones are real
         ℱ = Fourier(2, 1.0)
         c = SymmetricSpace(ℱ, Group(GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[1//3]))))
         a = Sequence(c, [1.0, 2.0, 3.0])

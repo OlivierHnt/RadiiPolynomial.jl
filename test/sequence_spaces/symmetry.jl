@@ -10,14 +10,6 @@
         R = LatticeAut([0 -1 ; 1 0])
         @test R((1, 0)) == (0, 1)
         @test R((0, 1)) == (-1, 0)
-        @test R((2, 3)) == (-3, 2)
-
-        P3 = LatticeAut([0 1 0 ; 1 0 0 ; 0 0 1])
-        @test P3((1, 2, 3)) == (2, 1, 3)
-
-        P4 = LatticeAut([0 1 0 0 ; 1 0 0 0 ; 0 0 0 1 ; 0 0 1 0])
-        @test P4((1, 2, 3, 4)) == (2, 1, 4, 3)
-
         @test R * R == LatticeAut([-1 0 ; 0 -1])
         @test (R * R)((1, 0)) == (-1, 0)
 
@@ -25,8 +17,9 @@
         @test A1 != B1
         @test hash(A1) == hash(LatticeAut([1;;]))
 
-        # the matrix is stored with its concrete `SMatrix{N,N,Int,L}` type, so that applying the
-        # automorphism is inferable and allocation-free
+        # the matrix type is concrete, so applying the automorphism is inferable
+        P3 = LatticeAut([0 1 0 ; 1 0 0 ; 0 0 1])
+        P4 = LatticeAut([0 1 0 0 ; 1 0 0 0 ; 0 0 0 1 ; 0 0 1 0])
         @test isconcretetype(typeof(R))
         @test isconcretetype(fieldtype(typeof(R), :matrix))
         @test @inferred(R((2, 3))) == (-3, 2)
@@ -40,7 +33,7 @@
         @test Cocycle(0//1, Rational{Int}[3//1]).phase == [1//1]
         @test Cocycle(0//1, Rational{Int}[5//2]).phase == [1//2]
         @test_throws MethodError Cocycle(0//1, [0.5]) # the phase must be rational
-        @test_throws MethodError Cocycle(1, Rational{Int}[0//1]) # the amplitude is given by its angle, as a Rational
+        @test_throws MethodError Cocycle(1, Rational{Int}[0//1]) # the amplitude is given by its rational angle
 
         # the factor at k is cispi(angle + phase ⋅ k), its angle being reduced mod 2
         v = Cocycle(1//2, Rational{Int}[1//2])
@@ -56,8 +49,7 @@
         a = Cocycle(1//2, Rational{Int}[1//2])
         b = Cocycle(3//2, Rational{Int}[1//2])
 
-        # a cocycle alone does not compose: α_{gh}(k) = α_g(β_h k)·α_h(k) needs the index
-        # action of the second factor, so composition lives on `GroupElement`
+        # composing needs the index action of the second factor, which only a `GroupElement` carries
         @test_throws MethodError a * b
 
         @test a == Cocycle(1//2, Rational{Int}[1//2])
@@ -79,10 +71,8 @@
             #= A group element acts by (g·a)_k = α_g(k) a_{β_g(k)} with α_g(k) = ρ_g e^{iπ⟨φ_g,k⟩}.
                Applying g then h,
                    ((a·g)·h)_k = α_h(k) (a·g)_{β_h k} = α_h(k) α_g(β_h k) a_{β_g β_h k},
-               so the composite carries β_g β_h and phase β_hᵀφ_g + φ_h — the phase of the first
-               factor is transported by the lattice automorphism of the second. Adding the phases is the
-               same thing only when β_hᵀφ_g ≡ φ_g (mod 2), which every shipped symmetry happens
-               to satisfy; the pair below deliberately does not. =#
+               so the composite carries β_g β_h and the phase β_hᵀφ_g + φ_h. The pair below has
+               β_hᵀφ_g ≢ φ_g (mod 2), so that merely adding the phases would be caught. =#
             s = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
             act(g, a) = Sequence(s, [cispi(RadiiPolynomial._angle(g.cocycle, k)) * a[g.lattice_aut(k)] for k ∈ indices(s)])
 
@@ -93,7 +83,7 @@
             a = Sequence(s, ComplexF64[(1 + 0.4im) / (1 + sum(abs, k))^2 for k ∈ indices(s)])
             @test coefficients(act(h, act(g, a))) ≈ coefficients(act(g ∘ h, a))
 
-            # and the shipped symmetries are unaffected either way
+            # within D₄ the transport is trivial
             for gg ∈ elements(d4sym(s).symmetry), hh ∈ elements(d4sym(s).symmetry)
                 @test mod.(hh.lattice_aut.matrix' * gg.cocycle.phase, 2) == gg.cocycle.phase
             end
@@ -129,7 +119,7 @@
         @test length(elements(Gi)) == 1
         @test Gi == Group(GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[0//1])))
 
-        # equal groups short-circuit: the input is returned as-is, skipping the closure
+        # equal groups return the input itself
         @test intersect(G, G) === G
         @test union(G, G) === G
         G′ = Group(g) # equal value, distinct object
@@ -143,9 +133,7 @@
 
     @testset "symmetry / desymmetrize on non-symmetric spaces" begin
         for s ∈ (Taylor(2), Fourier(2, 1.0), Chebyshev(2), Taylor(1) ⊗ Fourier(1, 1.0))
-            G = symmetry(s)
-            @test length(elements(G)) == 1
-            g = first(elements(G))
+            @test length(elements(symmetry(s))) == 1
             @test desymmetrize(s) == s
         end
 
@@ -154,25 +142,27 @@
         @test desymmetrize(evensym(Fourier(2, 1.0)) × Taylor(1)) == Fourier(2, 1.0) × Taylor(1)
     end
 
-    @testset "evensym / oddsym — Taylor" begin
-        # coefficient-only symmetry: aₖ ↦ (-1)^k aₖ (evensym) or -(-1)^k aₖ (oddsym); index untouched
-        @test indices(evensym(Taylor(4))) == 0:2:4
-        @test dimension(evensym(Taylor(4))) == 3
-        @test indices(oddsym(Taylor(4))) == 1:2:3
-        @test dimension(oddsym(Taylor(4))) == 2
+    @testset "evensym / oddsym: Taylor and Chebyshev" begin
+        # the parity acts on the coefficients only: aₖ ↦ ±(-1)ᵏ aₖ, the index being untouched
+        for s ∈ (Taylor(4), Chebyshev(4))
+            @test indices(evensym(s)) == 0:2:4
+            @test dimension(evensym(s)) == 3
+            @test indices(oddsym(s)) == 1:2:3
+            @test dimension(oddsym(s)) == 2
+            a = Sequence(evensym(s), [1.0, 2.0, 3.0])
+            @test coefficients(project(a, s)) == [1.0, 0.0, 2.0, 0.0, 3.0]
+            b = Sequence(oddsym(s), [7.0, 9.0])
+            @test coefficients(project(b, s)) == [0.0, 7.0, 0.0, 9.0, 0.0]
+        end
 
-        a = Sequence(evensym(Taylor(4)), [1.0, 2.0, 3.0]) # a₀=1, a₂=2, a₄=3
-        @test coefficients(project(a, desymmetrize(space(a)))) == [1.0, 0.0, 2.0, 0.0, 3.0]
-
-        b = Sequence(oddsym(Taylor(4)), [7.0, 9.0]) # a₁=7, a₃=9
-        @test coefficients(project(b, desymmetrize(space(b)))) == [0.0, 7.0, 0.0, 9.0, 0.0]
-
-        # evensym/oddsym are only defined for a base space, not for a tensor product
+        # defined for a base space only
         @test_throws MethodError evensym(Taylor(2) ⊗ Fourier(1, 1.0))
         @test_throws MethodError oddsym(Taylor(2) ⊗ Fourier(1, 1.0))
+        @test_throws MethodError evensym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
+        @test_throws MethodError d4sym(Chebyshev(2))
     end
 
-    @testset "evensym / oddsym — Fourier" begin
+    @testset "evensym / oddsym: Fourier" begin
         # index-flipping symmetry: aₖ ↦ a₋ₖ (evensym) or aₖ ↦ -a₋ₖ (oddsym)
         @test indices(evensym(Fourier(2, 1.0))) == 0:2 # k=0 maps to itself and is self-consistent
         @test dimension(evensym(Fourier(2, 1.0))) == 3
@@ -189,34 +179,16 @@
         @test coefficients(project(c, desymmetrize(space(c)))) ==
             ComplexF64[3.0 - 2.0im, 2.0 + 1.0im, 1.0 + 0.0im, 2.0 + 1.0im, 3.0 - 2.0im]
 
-        # with interval coefficients, the real expansion must lie inside the enclosure
+        # interval coefficients enclose the real expansion
         si = interval(evensym(Fourier(2, 1.0)))
         ai = Sequence(si, interval.([1.0, 2.0, 3.0]))
-        full_i = project(ai, desymmetrize(si))
-        full_r = project(a, desymmetrize(space(a)))
-        @test all(in_interval.(coefficients(full_r), coefficients(full_i)))
+        @test all(in_interval.(coefficients(project(a, desymmetrize(space(a)))), coefficients(project(ai, desymmetrize(si)))))
 
         # 0 is not a valid orbit representative in oddsym, so indexing it is out of bounds
         @test_throws BoundsError b[0]
-
-        # evensym/oddsym are only defined for a base space, not for a tensor product
-        @test_throws MethodError evensym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
     end
 
-    @testset "evensym / oddsym — Chebyshev" begin
-        # coefficient-only parity rule: Tₖ(-x) = (-1)^k Tₖ(x)
-        @test indices(evensym(Chebyshev(4))) == 0:2:4
-        @test dimension(evensym(Chebyshev(4))) == 3
-        @test indices(oddsym(Chebyshev(4))) == 1:2:3
-        @test dimension(oddsym(Chebyshev(4))) == 2
-
-        a = Sequence(oddsym(Chebyshev(4)), [7.0, 9.0]) # a₁=7, a₃=9
-        @test coefficients(project(a, desymmetrize(space(a)))) == [0.0, 7.0, 0.0, 9.0, 0.0]
-
-        @test_throws MethodError d4sym(Chebyshev(2))
-    end
-
-    @testset "d4sym — TensorSpace{Fourier,Fourier}" begin
+    @testset "d4sym: TensorSpace{Fourier,Fourier}" begin
         s = d4sym(Fourier(1, 1.0) ⊗ Fourier(1, 1.0))
         G = symmetry(s)
         @test length(elements(G)) == 8 # dihedral group of the square (4 rotations × 2 reflections)
@@ -227,9 +199,7 @@
 
         a = Sequence(s, [1.0, 2.0, 3.0]) # centre = 1, edge-midpoints = 2, corners = 3
         full = project(a, desymmetrize(s))
-        @test full[(0, 0)] == 1.0
-        @test full[(1, 0)] == 2.0 && full[(-1, 0)] == 2.0 && full[(0, 1)] == 2.0 && full[(0, -1)] == 2.0
-        @test full[(1, 1)] == 3.0 && full[(-1, 1)] == 3.0 && full[(-1, -1)] == 3.0 && full[(1, -1)] == 3.0
+        @test all(full[k] == 1.0 + sum(abs, k) for k ∈ indices(desymmetrize(s)))
 
         # d4sym is only defined for a tensor product of two Fourier spaces
         @test_throws MethodError d4sym(Fourier(1, 1.0))
@@ -249,12 +219,9 @@
         @test SymmetricSpace(s) == SymmetricSpace(s, symmetry(s))
         @test indices(SymmetricSpace(s)) == indices(s)
 
-        ss = evensym(s)
-        @test SymmetricSpace(ss) === ss
-
         seven = evensym(s)
         sodd = oddsym(s)
-        @test seven == evensym(s)
+        @test SymmetricSpace(seven) === seven
         @test issubset(seven, SymmetricSpace(s))
 
         # union of spaces intersects the symmetry groups: even ∪ odd removes every non-trivial constraint
@@ -262,8 +229,8 @@
         @test indices(u) == -4:4
         @test dimension(u) == 9
 
-        # intersect of spaces unions the symmetry groups: even ∩ odd forces a₀ = -a₀ = 0 *and* aₖ = a₋ₖ = -a₋ₖ
-        # for every k, i.e. every coefficient must vanish, so no valid orbit representative remains
+        # intersect of spaces unions the symmetry groups: even ∩ odd forces aₖ = a₋ₖ = -a₋ₖ, so every
+        # coefficient vanishes and no orbit representative remains
         i = intersect(seven, sodd)
         @test dimension(i) == 0
 
@@ -271,10 +238,8 @@
         @test intersect(seven, Fourier(2, 1.0)) == intersect(Fourier(2, 1.0), seven) == evensym(Fourier(2, 1.0))
         @test union(evensym(Fourier(2, 1.0)), s) == union(s, evensym(Fourier(2, 1.0))) == s
 
-        # merging an extra symmetry onto an already-symmetric space unions the two symmetry
-        # groups, giving the same group as the intersection of spaces above: closing
-        # {id, (k↦-k, amp=1)} ∪ {id, (k↦-k, amp=-1)} under composition adds the element
-        # (k↦-k, amp=1) ∘ (k↦-k, amp=-1) = (k↦k, amp=-1), forcing aₖ = -aₖ = 0 for every k
+        # adding a symmetry to a symmetric space unions the two groups, as the intersection above does.
+        # The closure adds (k↦-k, amp=1) ∘ (k↦-k, amp=-1) = (k↦k, amp=-1), which forces aₖ = -aₖ = 0
         merged = SymmetricSpace(seven, symmetry(sodd))
         @test merged isa SymmetricSpace
         @test length(elements(symmetry(merged))) == 4
@@ -297,8 +262,7 @@
     end
 
     @testset "orbit cache" begin
-        # spaces sharing the `(indices, symmetry)` key reuse the memoized orbit data; the
-        # frequency does not enter the orbit computation, so it does not split the key
+        # spaces sharing the `(indices, symmetry)` key share the memoized orbit data, whatever the frequency
         s = evensym(Fourier(4, 1.0))
         @test s.rep_pos_cocycle === evensym(Fourier(4, 2.0)).rep_pos_cocycle
 
@@ -333,15 +297,15 @@
         @test desymmetrize(tEE) == Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
         @test length(elements(symmetry(tEE))) == 4
         @test indices(tEE) == [(k, l) for l ∈ 0:2 for k ∈ 0:2] # column-major, as for a plain `TensorSpace`
-        a = Sequence(tEE, rand(dimension(tEE)))
+        a = Sequence(tEE, sin.(1:dimension(tEE)))
         A = Projection(desymmetrize(tEE)) * a
         @test A[(1, 2)] == A[(-1, 2)] == A[(1, -2)] == A[(-1, -2)]
 
-        # odd ⊗ odd: the k = 0 and l = 0 modes are invalid, the pair element (−1)·(−1) has
-        # amplitude +1, and the expansion is antisymmetric in each factor separately
+        # odd ⊗ odd: the k = 0 and l = 0 modes are invalid and the expansion is antisymmetric in
+        # each factor separately
         tOO = sO ⊗ sO
         @test indices(tOO) == [(1, 1), (2, 1), (1, 2), (2, 2)]
-        b = Sequence(tOO, rand(dimension(tOO)))
+        b = Sequence(tOO, sin.(1:dimension(tOO)))
         B = Projection(desymmetrize(tOO)) * b
         @test B[(1, 2)] == -B[(-1, 2)]
         @test B[(1, 2)] == B[(-1, -2)]
@@ -350,7 +314,7 @@
         # mixing with a plain space lifts the trivial symmetry group on that factor
         tEF = sE ⊗ Fourier(2, 1.0)
         @test dimension(tEF) == 3 * 5
-        c = Sequence(tEF, rand(dimension(tEF)))
+        c = Sequence(tEF, sin.(1:dimension(tEF)))
         C = Projection(desymmetrize(tEF)) * c
         @test C[(1, 2)] == C[(-1, 2)]
         @test C[(1, -2)] != C[(1, 2)]
@@ -394,17 +358,15 @@
         @test RadiiPolynomial._reps_indices([5]) === 5:1:5
         @test RadiiPolynomial._reps_indices([1, 2, 3]) === 1:1:3
         @test RadiiPolynomial._reps_indices([2, 4, 6]) === 2:2:6
-        # valid 1D representatives always form an arithmetic progression (an intersection of
-        # congruence classes, minus possibly the endpoint 0 fixed by the reflections); anything
-        # else means the symmetry group data is inconsistent and must fail loudly
+        # valid 1D representatives form an arithmetic progression, anything else is inconsistent group data
         @test_throws ArgumentError RadiiPolynomial._reps_indices([0, 1, 3])
         @test RadiiPolynomial._reps_indices([(0, 0), (1, 0)]) == [(0, 0), (1, 0)]
     end
 
     @testset "canonical construction types" begin
-        # the runtime type parameters are canonical — determined by the space and the group,
-        # never by the data — so repeated constructions always yield the same concrete type;
-        # in one variable the representatives are always a `StepRange`
+        # the type parameters are determined by the space and the group, never by the data, so that
+        # repeated constructions yield the same concrete type. In one variable the representatives
+        # are a `StepRange`
         GE = symmetry(evensym(Fourier(4, 1.0)))
         sE = SymmetricSpace(Fourier(4, 1.0), GE)
         @test indices(sE) isa StepRange{Int,Int}
@@ -440,7 +402,6 @@
     end
 
     @testset "_checkbounds_indices / _findposition / rep_pos_cocycle" begin
-        # O(1) through the stored position of the representative, instead of a bisection
         s = d4sym(Fourier(2, 1.0) ⊗ Fourier(2, 1.0))
         @test all(k -> RadiiPolynomial._checkbounds_indices(k, s), indices(s))
         @test !RadiiPolynomial._checkbounds_indices((0, 1), s) # in the orbit of (1, 0), not a representative
@@ -477,12 +438,8 @@
         s = evensym(Fourier(2, 1.0))
         si = interval(s)
         @test desymmetrize(si) == Fourier(2, interval(1.0))
-        @test symmetry(si) === symmetry(s) # the group is exact data: intervalization only reaches the coefficients
-
-        siT = interval(Float64, s)
-        @test siT isa SymmetricSpace
-        @test desymmetrize(siT) == Fourier(2, interval(1.0))
-        @test siT == si
+        @test symmetry(si) === symmetry(s) # the group is exact data
+        @test interval(Float64, s) == si
     end
 
 end

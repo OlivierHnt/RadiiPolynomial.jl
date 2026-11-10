@@ -1,18 +1,8 @@
 @testset "Shift" begin
-    @testset "constructors and value accessor" begin
-        𝒮 = Shift(1.0)
-        @test 𝒮 isa Shift{Float64}
-        @test value(𝒮) == 1.0
+    test_shift(a, τ, expected; cmp = ==) = test_action(Shift(τ), a, expected; inplace! = (c, a) -> shift!(c, a, τ), cmp = cmp)
 
-        𝒮₂ = Shift(1.0, 2.0)
-        @test 𝒮₂ == Shift((1.0, 2.0))
-        @test value(𝒮₂) == (1.0, 2.0)
-
-        @test_throws ArgumentError Shift(())
-        @test_throws ArgumentError Shift()
-    end
-
-    @testset "arithmetic on Shift operators" begin
+    @testset "constructors and arithmetic" begin
+        test_valued_operator(Shift)
         @test Shift(0.3) * Shift(0.7) == Shift(1.0)
         @test Shift((0.3, 0.5)) * Shift((0.2, 0.5)) == Shift((0.5, 1.0))
         @test Shift(0.3)^2 == Shift(0.6)
@@ -20,92 +10,55 @@
         @test Shift((0.3, 0.5))^(2, 3) == Shift((0.6, 1.5))
     end
 
-    @testset "Fourier: the value is measured in periods" begin
-        a = Sequence(Fourier(1, 1.0), [0.5, 0.0, 0.5]) # cos(t)
-        τ = 0.25 # a quarter period
-        𝒮 = Shift(τ)
-        @test domain(𝒮, Fourier(1, 1.0)) == Fourier(1, 1.0)
-        @test codomain(𝒮, Fourier(1, 1.0)) == Fourier(1, 1.0)
-        # cₖ = e^{2iπτk} aₖ: c₋₁ = e^{-iπ/2}(0.5) = -0.5i, c₀ = 0, c₁ = e^{iπ/2}(0.5) = 0.5i
-        expected = Sequence(Fourier(1, 1.0), ComplexF64[-0.5im, 0.0, 0.5im])
-        out = Sequence(Fourier(1, 1.0), fill(complex(Inf), 3))
-        @test shift(a, τ) ≈ 𝒮(a) ≈ project(𝒮, Fourier(1, 1.0), Fourier(1, 1.0), ComplexF64)(a) ≈
-            shift!(copy(out), a, τ) ≈ mul!(out, 𝒮, a) ≈ expected
-
-        # τ = 0: identity
+    @testset "Fourier: cₖ = e^{2iπτk} aₖ, the value being measured in periods" begin
+        ℱ = Fourier(1, 1.0)
+        a = Sequence(ℱ, [0.5, 0.0, 0.5]) # cos(t)
+        @test domain(Shift(0.25), ℱ) == codomain(Shift(0.25), ℱ) == ℱ
+        expected = Sequence(ℱ, ComplexF64[-0.5im, 0.0, 0.5im])
+        test_shift(a, 0.25, expected; cmp = ≈)
+        @test shift(a, 0.25) ≈ expected
         @test shift(a, 0.0) == a
+        @test_throws ArgumentError shift!(fill(complex(Inf), Fourier(2, 1.0)), a, 0.25)
 
-        # shift! requires the destination space to match codomain(Shift(τ), space(a))
-        @test_throws ArgumentError shift!(Sequence(Fourier(2, 1.0), fill(complex(Inf), 5)), a, τ)
-
-        # the frequency plays no role: a whole period leaves the sequence unchanged
+        # the frequency plays no role
         s = Fourier(3, 2.0)
         b = Sequence(s, ComplexF64[0.1-0.1im, 0.2, 0.3+0.2im, 0.5, 0.3-0.2im, 0.2, 0.1+0.1im])
         @test shift(b, 1.0) ≈ b
         @test shift(b, 1/3) ≈ Sequence(s, [cispi(2k/3) * b[k] for k ∈ indices(s)])
 
-        # Integer and Rational values give exact roots of unity: a quarter period is the
-        # multiplication by iᵏ, a whole period is the identity
+        # Integer and Rational values give exact roots of unity
         @test shift(b, 1//4) == project(Shift(1//4), s, s, ComplexF64)(b) == Sequence(s, [(1.0im)^k * b[k] for k ∈ indices(s)])
         @test shift(b, 1) == (Shift(1//4)^4)(b) == shift(b, 0) == b
         @test shift(b, 1//3) ≈ shift(b, 1/3)
+
+        τ = interval(0.0)
+        aᵢ = Sequence(ℱ, Complex{Interval{Float64}}.([0.5, 0.0, 0.5]))
+        @test shift(aᵢ, τ) == Shift(τ)(aᵢ) == aᵢ
     end
 
-    @testset "Taylor: only τ = 0 is supported" begin
-        a = Sequence(Taylor(2), [1.0, 2.0, 3.0])
-        𝒮 = Shift(0.0)
-        @test domain(𝒮, Taylor(2)) == Taylor(2)
-        @test codomain(𝒮, Taylor(2)) == Taylor(2)
-        out = Sequence(Taylor(2), fill(Inf, 3))
-        @test shift(a, 0.0) == 𝒮(a) == project(𝒮, Taylor(2), Taylor(2), Float64)(a) ==
-            shift!(copy(out), a, 0.0) == mul!(out, 𝒮, a) == a
-
+    @testset "$s: only τ = 0 is supported" for (s, τ) ∈ ((Taylor(2), 0.0), (Chebyshev(2), 0))
+        a = Sequence(s, [1.0, 2.0, 3.0])
+        @test domain(Shift(τ), s) == codomain(Shift(τ), s) == s
+        test_shift(a, τ, copy(a))
+        @test shift(a, τ) == a
         @test_throws DomainError shift(a, 1.0)
     end
 
-    @testset "Chebyshev: only τ = 0 is supported" begin
-        a = Sequence(Chebyshev(2), [1.0, 2.0, 3.0])
-        𝒮 = Shift(0)
-        @test domain(𝒮, Chebyshev(2)) == Chebyshev(2)
-        @test codomain(𝒮, Chebyshev(2)) == Chebyshev(2)
-        out = Sequence(Chebyshev(2), fill(Inf, 3))
-        @test shift(a, 0) == 𝒮(a) == project(𝒮, Chebyshev(2), Chebyshev(2), Float64)(a) ==
-            shift!(copy(out), a, 0) == mul!(out, 𝒮, a) == a
-
-        @test_throws DomainError shift(a, 1.0)
-    end
-
-    @testset "TensorSpace: tuple form per factor" begin
-        # Taylor factor left untouched (τ = 0), Fourier factor rotated
+    @testset "TensorSpace: one value per factor" begin
+        # the Taylor factor only admits τ = 0
         s = Taylor(0) ⊗ Fourier(1, 1.0)
-        a = Sequence(s, ComplexF64[1.0, 2.0, 3.0]) # indices (0,-1),(0,0),(0,1)
-        τ = (0.0, 0.25)
-        c = shift(a, τ)
-        # (0,-1): 1*e^{-iπ/2} = -i ; (0,0): 2*1 = 2 ; (0,1): 3*e^{iπ/2} = 3i
-        expected = Sequence(s, ComplexF64[-1.0im, 2.0, 3.0im])
-        @test c ≈ expected
-        @test project(Shift(τ), s, s, ComplexF64)(a) ≈ c
+        a = Sequence(s, ComplexF64[1.0, 2.0, 3.0])
+        @test shift(a, (0.0, 0.25)) ≈ project(Shift((0.0, 0.25)), s, s, ComplexF64)(a) ≈ Sequence(s, ComplexF64[-1.0im, 2.0, 3.0im])
 
-        # both factors rotated
         s2 = Fourier(1, 1.0) ⊗ Fourier(1, 3.0)
         b = Sequence(s2, ComplexF64.(1:9))
-        τ2 = (0.1, 0.2)
-        cb = shift(b, τ2)
-        # c[(k₁,k₂)] = e^{2iπk₁τ₁} e^{2iπk₂τ₂} a[(k₁,k₂)]
-        expected2 = Sequence(s2, [b[(k1,k2)]*cispi(2k1*τ2[1])*cispi(2k2*τ2[2]) for (k1,k2) ∈ indices(s2)])
-        @test cb ≈ expected2
-        @test project(Shift(τ2), s2, s2, ComplexF64)(b) ≈ cb
+        τ = (0.1, 0.2)
+        @test shift(b, τ) ≈ project(Shift(τ), s2, s2, ComplexF64)(b) ≈
+            Sequence(s2, [b[(k1,k2)]*cispi(2k1*τ[1])*cispi(2k2*τ[2]) for (k1,k2) ∈ indices(s2)])
 
-        # exact values
-        τ3 = (1//2, 1//4)
-        expected3 = Sequence(s2, [(-1)^k1 * (1.0im)^k2 * b[(k1,k2)] for (k1,k2) ∈ indices(s2)])
-        @test shift(b, τ3) == project(Shift(τ3), s2, s2, ComplexF64)(b) == expected3
-    end
-
-    @testset "interval τ" begin
-        τ = interval(0.0)
-        a = Sequence(Fourier(1, 1.0), Complex{Interval{Float64}}.([0.5, 0.0, 0.5]))
-        @test shift(a, τ) == Shift(τ)(a) == a
+        τ = (1//2, 1//4)
+        @test shift(b, τ) == project(Shift(τ), s2, s2, ComplexF64)(b) ==
+            Sequence(s2, [(-1)^k1 * (1.0im)^k2 * b[(k1,k2)] for (k1,k2) ∈ indices(s2)])
     end
 
     @testset "Symmetric space" begin
@@ -128,8 +81,7 @@
 
         c = 𝒮 * a
         @test space(c) == s3
-        out = Sequence(s3, fill(complex(Inf), dimension(s3)))
-        @test c ≈ project(𝒮, sE, s3, ComplexF64)(a) ≈ shift!(copy(out), a, 1//3) ≈ mul!(out, 𝒮, a)
+        test_shift(a, 1//3, c; cmp = ≈)
 
         # the shift is the group element with the identity lattice automorphism and the phase 2/3
         g = GroupElement(LatticeAut([1;;]), Cocycle(0//1, Rational{Int}[2//3]))
@@ -159,10 +111,11 @@
         for sC ∈ (evensym(Chebyshev(2)), oddsym(Taylor(3)))
             m = evensym(F) ⊗ sC
             rm = (1//3, 0)
-            cm = Shift(rm) * Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)])
+            am = Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)])
+            cm = Shift(rm) * am
             @test space(cm) == s3 ⊗ sC
             @test domain(Shift(rm), space(cm)) == m
-            @test project(cm, desymmetrize(m)) ≈ shift(project(Sequence(m, [1.0 / (1 + sum(abs, k))^2 for k ∈ indices(m)]), desymmetrize(m)), rm)
+            @test project(cm, desymmetrize(m)) ≈ shift(project(am, desymmetrize(m)), rm)
             @test_throws DomainError codomain(Shift((1//3, 1)), m)
             @test_throws DomainError codomain(Shift((1//3, 1//2)), m)
             @test_throws DomainError codomain(Shift((0.5, 0)), m)
@@ -175,8 +128,9 @@
         @test codomain(Shift(exact(1)), sE) == codomain(Shift(interval(1//1)), sE) == sE
         @test codomain(Shift((exact(1//4), exact(1//4))), sd) == space(cb)
         @test all(in_interval.(coefficients(shift(project(a, F), 1//3)), coefficients(project(Shift(interval(1//3)) * interval(a), F))))
-        @test_throws DomainError codomain(Shift(interval(1//3, 1//2)), sE) # a set of shifts has no single group
-        @test_throws DomainError codomain(Shift(interval(1.0) / 3), sE) # floating point endpoints are not exact thirds
+        # a set of shifts has no single group, and floating point endpoints are not exact thirds
+        @test_throws DomainError codomain(Shift(interval(1//3, 1//2)), sE)
+        @test_throws DomainError codomain(Shift(interval(1.0) / 3), sE)
     end
 
     @testset "InfiniteSequence" begin

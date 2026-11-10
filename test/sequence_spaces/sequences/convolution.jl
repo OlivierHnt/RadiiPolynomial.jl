@@ -319,6 +319,23 @@
         end
     end
 
+    @testset "Banach rounding is relative to the scale of the product" begin
+        # coefficients of size 1e-9 have a product below eps(Float64) in absolute terms: it is no noise
+        try
+            for a ∈ (Sequence(Taylor(2), [1e-9, 2e-9, 3e-9]), Sequence(Taylor(10), [1e-9 * 16.0^-i for i ∈ 0:10]))
+                set_conv_algorithm(:loop)
+                ab_sum = a * a
+                set_conv_algorithm(:fft)
+                @test coefficients(a * a)[1:3] ≈ coefficients(ab_sum)[1:3] rtol=1e-10
+                ab_fft = interval.(a) * interval.(a)
+                @test all(k -> in_interval(ab_sum[k], ab_fft[k]), 0:2)
+                @test maximum(radius, coefficients(ab_fft)[1:3]) < 1e-30
+            end
+        finally
+            set_conv_algorithm(:loop)
+        end
+    end
+
     @testset "banach_rounding!: genuine geometric decay triggers the non-trivial branch" begin
         # coefficients with no particular decay fit a rate ≤ 1, for which no rounding
         # order is finite and the tail is never rounded; a[i] = 16⁻ⁱ instead fits a

@@ -201,14 +201,22 @@ function _apply!(c::Sequence{<:TensorSpace}, ℱ::Derivative, a)
 end
 
 _apply!(C, ℱ::Derivative, space::TensorSpace, A) =
-    @inbounds _apply!(C, Derivative(order(ℱ)[1]), space[1], _apply(Derivative(Base.tail(order(ℱ))), Base.tail(space), A))
+    @inbounds _apply!(C, Derivative(order(ℱ)[1]), space[1], Val(1), _apply(Derivative(Base.tail(order(ℱ))), Base.tail(space), A))
 _apply!(C, ℱ::Derivative, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply!(C, Derivative(order(ℱ)[1]), space[1], A)
+    @inbounds _apply!(C, Derivative(order(ℱ)[1]), space[1], Val(1), A)
 
 _apply(ℱ::Derivative{NTuple{N₁,Int}}, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
     @inbounds _apply(Derivative(order(ℱ)[1]), space[1], Val(N₂-N₁+1), _apply(Derivative(Base.tail(order(ℱ))), Base.tail(space), A))
 _apply(ℱ::Derivative{Tuple{Int}}, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
     @inbounds _apply(Derivative(order(ℱ)[1]), space[1], Val(N), A)
+
+# along a direction other than the first, the result is allocated
+function _apply(𝒟::Derivative, space::BaseSpace, d::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    CoefType = _coeftype(𝒟, space, T)
+    iszero(order(𝒟)) && return convert(Array{CoefType,N}, A)
+    C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, dimension(codomain(𝒟, space)), size(A, i)), Val(N)))
+    return _apply!(C, 𝒟, space, d, A)
+end
 
 # Taylor
 
@@ -235,7 +243,7 @@ function _apply!(c::Sequence{Taylor}, 𝒟::Derivative, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where {T}
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, ::Val{D}, A) where {T,D}
     n = order(𝒟)
     if n == 0
         C .= A
@@ -245,40 +253,15 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Taylor, A) where 
             C .= zero(T)
         elseif n == 1
             @inbounds for i ∈ 1:ord
-                selectdim(C, 1, i) .= exact(i) .* selectdim(A, 1, i+1)
+                selectdim(C, D, i) .= exact(i) .* selectdim(A, D, i+1)
             end
         else
             @inbounds for i ∈ n:ord
-                selectdim(C, 1, i-n+1) .= getcoefficient(𝒟, (space, i-n), (space, i), T) .* selectdim(A, 1, i+1)
+                selectdim(C, D, i-n+1) .= getcoefficient(𝒟, (space, i-n), (space, i), T) .* selectdim(A, D, i+1)
             end
         end
     end
     return C
-end
-
-function _apply(𝒟::Derivative, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(𝒟)
-    CoefType = _coeftype(𝒟, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    else
-        ord = order(space)
-        if ord < n
-            return zeros(CoefType, ntuple(i -> ifelse(i == D, 1, size(A, i)), Val(N)))
-        elseif n == 1
-            C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord, size(A, i)), Val(N)))
-            @inbounds for i ∈ 1:ord
-                selectdim(C, D, i) .= exact(i) .* selectdim(A, D, i+1)
-            end
-            return C
-        else
-            C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord-n+1, size(A, i)), Val(N)))
-            @inbounds for i ∈ n:ord
-                selectdim(C, D, i-n+1) .= getcoefficient(𝒟, (space, i-n), (space, i), CoefType) .* selectdim(A, D, i+1)
-            end
-            return C
-        end
-    end
 end
 
 # Fourier
@@ -321,55 +304,14 @@ function _apply!(c::Sequence{<:Fourier}, 𝒟::Derivative, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, A) where {T}
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Fourier, ::Val{D}, A) where {T,D}
     n = order(𝒟)
     if n == 0
         C .= A
     else
         ord = order(space)
         ω = one(real(eltype(A)))*frequency(space)
-        @inbounds selectdim(C, 1, ord+1) .= zero(T)
-        if n == 1
-            @inbounds for j ∈ 1:ord
-                ωj = ω * exact(j)
-                Aⱼ = selectdim(A, 1, ord+1+j)
-                A₋ⱼ = selectdim(A, 1, ord+1-j)
-                selectdim(C, 1, ord+1+j) .= complex.((-ωj) .* imag.(Aⱼ), ωj .* real.(Aⱼ))
-                selectdim(C, 1, ord+1-j) .= complex.(ωj .* imag.(A₋ⱼ), (-ωj) .* real.(A₋ⱼ))
-            end
-        else
-            if isodd(n)
-                sign_iⁿ = ifelse(n%4 == 1, 1, -1)
-                @inbounds for j ∈ 1:ord
-                    sign_iⁿ_ωⁿjⁿ = exact(sign_iⁿ) * (ω * exact(j)) ^ exact(n)
-                    Aⱼ = selectdim(A, 1, ord+1+j)
-                    A₋ⱼ = selectdim(A, 1, ord+1-j)
-                    selectdim(C, 1, ord+1+j) .= complex.((-sign_iⁿ_ωⁿjⁿ) .* imag.(Aⱼ), sign_iⁿ_ωⁿjⁿ .* real.(Aⱼ))
-                    selectdim(C, 1, ord+1-j) .= complex.(sign_iⁿ_ωⁿjⁿ .* imag.(A₋ⱼ), (-sign_iⁿ_ωⁿjⁿ) .* real.(A₋ⱼ))
-                end
-            else
-                iⁿ_real = ifelse(n%4 == 0, 1, -1)
-                @inbounds for j ∈ 1:ord
-                    iⁿωⁿjⁿ_real = exact(iⁿ_real) * (ω * exact(j)) ^ exact(n)
-                    selectdim(C, 1, ord+1+j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1+j)
-                    selectdim(C, 1, ord+1-j) .= iⁿωⁿjⁿ_real .* selectdim(A, 1, ord+1-j)
-                end
-            end
-        end
-    end
-    return C
-end
-
-function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(𝒟)
-    CoefType = _coeftype(𝒟, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    else
-        C = Array{CoefType,N}(undef, size(A))
-        ord = order(space)
-        ω = one(real(T))*frequency(space)
-        @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
+        @inbounds selectdim(C, D, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
                 ωj = ω * exact(j)
@@ -397,8 +339,8 @@ function _apply(𝒟::Derivative, space::Fourier, ::Val{D}, A::AbstractArray{T,N
                 end
             end
         end
-        return C
     end
+    return C
 end
 
 # Chebyshev
@@ -427,7 +369,7 @@ function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) where {T}
+function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, ::Val{D}, A) where {T,D}
     n = order(𝒟)
     if n == 0
         C .= A
@@ -437,10 +379,10 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) whe
             C .= zero(T)
         else
             @inbounds for i ∈ 0:ord-1
-                Cᵢ = selectdim(C, 1, i+1)
+                Cᵢ = selectdim(C, D, i+1)
                 Cᵢ .= zero(T)
                 @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= exact(2j) .* selectdim(A, 1, j+1)
+                    Cᵢ .+= exact(2j) .* selectdim(A, D, j+1)
                 end
             end
         end
@@ -449,34 +391,6 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, A) whe
     end
     return C
 end
-
-function _apply(𝒟::Derivative, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(𝒟)
-    CoefType = _coeftype(𝒟, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    elseif n == 1
-        ord = order(space)
-        if ord < n
-            return zeros(CoefType, ntuple(i -> i == D ? 1 : size(A, i), Val(N)))
-        else
-            C = zeros(CoefType, ntuple(i -> i == D ? ord : size(A, i), Val(N)))
-            @inbounds for i ∈ 0:ord-1
-                Cᵢ = selectdim(C, D, i+1)
-                @inbounds for j ∈ i+1:2:ord
-                    Cᵢ .+= exact(2j) .* selectdim(A, D, j+1)
-                end
-            end
-            return C
-        end
-    else # TODO: lift restriction
-        return throw(DomainError(n, "Derivative is only implemented for order ≤ 1 on Chebyshev"))
-    end
-end
-
-
-
-
 
 #
 

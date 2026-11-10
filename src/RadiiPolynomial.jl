@@ -49,11 +49,18 @@ import LinearAlgebra: rmul!, lmul!, rdiv!, ldiv!
 include("sequence_spaces/sequences/arithmetic.jl")
     export codomain, add!, radd!, ladd!, sub!, rsub!, lsub!, rmul!, lmul!,
         rdiv!, ldiv!
-include("sequence_spaces/sequences/convolution.jl")
-    export set_conv_algorithm, mul_bar, pow_bar
 include("sequence_spaces/sequences/refinement.jl")
     export polish!
-include("sequence_spaces/sequences/elementary.jl")
+#- nonlinearities
+include("sequence_spaces/sequences/nonlinearities/grid.jl")
+include("sequence_spaces/sequences/nonlinearities/noise.jl")
+include("sequence_spaces/sequences/nonlinearities/convolution.jl")
+    export set_conv_algorithm, mul_bar, pow_bar
+include("sequence_spaces/sequences/nonlinearities/roots.jl")
+include("sequence_spaces/sequences/nonlinearities/nonlinearity.jl")
+include("sequence_spaces/sequences/nonlinearities/analyticity.jl")
+include("sequence_spaces/sequences/nonlinearities/radius_search.jl")
+include("sequence_spaces/sequences/nonlinearities/error_bound.jl")
 
 
 

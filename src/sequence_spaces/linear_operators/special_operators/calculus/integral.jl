@@ -238,14 +238,22 @@ function _apply!(c::Sequence{<:TensorSpace}, ℱ::Integral, a)
 end
 
 _apply!(C, ℱ::Integral, space::TensorSpace, A) =
-    @inbounds _apply!(C, Integral(order(ℱ)[1]), space[1], _apply(Integral(Base.tail(order(ℱ))), Base.tail(space), A))
+    @inbounds _apply!(C, Integral(order(ℱ)[1]), space[1], Val(1), _apply(Integral(Base.tail(order(ℱ))), Base.tail(space), A))
 _apply!(C, ℱ::Integral, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply!(C, Integral(order(ℱ)[1]), space[1], A)
+    @inbounds _apply!(C, Integral(order(ℱ)[1]), space[1], Val(1), A)
 
 _apply(ℱ::Integral, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
     @inbounds _apply(Integral(order(ℱ)[1]), space[1], Val(N₂-N₁+1), _apply(Integral(Base.tail(order(ℱ))), Base.tail(space), A))
 _apply(ℱ::Integral, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
     @inbounds _apply(Integral(order(ℱ)[1]), space[1], Val(N), A)
+
+# along a direction other than the first, the result is allocated
+function _apply(ℐ::Integral, space::BaseSpace, d::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    CoefType = _coeftype(ℐ, space, T)
+    iszero(order(ℐ)) && return convert(Array{CoefType,N}, A)
+    C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, dimension(codomain(ℐ, space)), size(A, i)), Val(N)))
+    return _apply!(C, ℐ, space, d, A)
+end
 
 # Taylor
 
@@ -269,48 +277,24 @@ function _apply!(c::Sequence{Taylor}, ℐ::Integral, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, A) where {T}
+function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Taylor, ::Val{D}, A) where {T,D}
     n = order(ℐ)
     if n == 0
         C .= A
     elseif n == 1
         ord = order(space)
-        @inbounds selectdim(C, 1, 1) .= zero(T)
-        @inbounds for i ∈ 0:ord
-            selectdim(C, 1, i+2) .= selectdim(A, 1, i+1) ./ exact(i+1)
-        end
-    else
-        ord = order(space)
-        @inbounds selectdim(C, 1, 1:n) .= zero(T)
-        @inbounds for i ∈ 0:ord
-            selectdim(C, 1, i+n+1) .= getcoefficient(ℐ, (space, i+n), (space, i), T) * selectdim(A, 1, i+1)
-        end
-    end
-    return C
-end
-
-function _apply(ℐ::Integral, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(ℐ)
-    CoefType = _coeftype(ℐ, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    elseif n == 1
-        ord = order(space)
-        C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord+2, size(A, i)), Val(N)))
-        @inbounds selectdim(C, D, 1) .= zero(CoefType)
+        @inbounds selectdim(C, D, 1) .= zero(T)
         @inbounds for i ∈ 0:ord
             selectdim(C, D, i+2) .= selectdim(A, D, i+1) ./ exact(i+1)
         end
-        return C
     else
         ord = order(space)
-        C = Array{CoefType,N}(undef, ntuple(i -> ifelse(i == D, ord+n+1, size(A, i)), Val(N)))
-        @inbounds selectdim(C, D, 1:n) .= zero(CoefType)
+        @inbounds selectdim(C, D, 1:n) .= zero(T)
         @inbounds for i ∈ 0:ord
-            selectdim(C, D, i+n+1) .= getcoefficient(ℐ, (space, i+n), (space, i), CoefType) * selectdim(A, D, i+1)
+            selectdim(C, D, i+n+1) .= getcoefficient(ℐ, (space, i+n), (space, i), T) * selectdim(A, D, i+1)
         end
-        return C
     end
+    return C
 end
 
 # Fourier
@@ -354,57 +338,15 @@ function _apply!(c::Sequence{<:Fourier}, ℐ::Integral, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, A) where {T}
+function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Fourier, ::Val{D}, A) where {T,D}
     n = order(ℐ)
     if n == 0
         C .= A
     else
         ord = order(space)
-        @inbounds all(iszero, selectdim(A, 1, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension 1 must be zero"))
+        @inbounds all(iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficients of order zero along dimension $D must be zero"))
         ω = one(real(eltype(A)))*frequency(space)
-        @inbounds selectdim(C, 1, ord+1) .= zero(T)
-        if n == 1
-            @inbounds for j ∈ 1:ord
-                ω⁻¹j⁻¹ = inv(ω * exact(j))
-                Aⱼ = selectdim(A, 1, ord+1+j)
-                A₋ⱼ = selectdim(A, 1, ord+1-j)
-                selectdim(C, 1, ord+1+j) .= complex.(ω⁻¹j⁻¹ .* imag.(Aⱼ), (-ω⁻¹j⁻¹) .* real.(Aⱼ))
-                selectdim(C, 1, ord+1-j) .= complex.((-ω⁻¹j⁻¹) .* imag.(A₋ⱼ), ω⁻¹j⁻¹ .* real.(A₋ⱼ))
-            end
-        else
-            if isodd(n)
-                sign_i⁻ⁿ = ifelse(n%4 == 1, 1, -1)
-                @inbounds for j ∈ 1:ord
-                    sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ = exact(sign_i⁻ⁿ) * inv(ω * exact(j)) ^ exact(n)
-                    Aⱼ = selectdim(A, 1, ord+1+j)
-                    A₋ⱼ = selectdim(A, 1, ord+1-j)
-                    selectdim(C, 1, ord+1+j) .= complex.(sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* imag.(Aⱼ), (-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* real.(Aⱼ))
-                    selectdim(C, 1, ord+1-j) .= complex.((-sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ) .* imag.(A₋ⱼ), sign_i⁻ⁿ_ω⁻ⁿj⁻ⁿ .* real.(A₋ⱼ))
-                end
-            else
-                i⁻ⁿ_real = ifelse(n%4 == 0, 1, -1)
-                @inbounds for j ∈ 1:ord
-                    i⁻ⁿω⁻ⁿj⁻ⁿ_real = exact(i⁻ⁿ_real) * inv(ω * exact(j)) ^ exact(n)
-                    selectdim(C, 1, ord+1+j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1+j)
-                    selectdim(C, 1, ord+1-j) .= i⁻ⁿω⁻ⁿj⁻ⁿ_real .* selectdim(A, 1, ord+1-j)
-                end
-            end
-        end
-    end
-    return C
-end
-
-function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(ℐ)
-    CoefType = _coeftype(ℐ, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    else
-        ord = order(space)
-        @inbounds all(iszero, selectdim(A, D, ord+1)) || return throw(DomainError("Fourier coefficient of order zero along dimension $D must be zero"))
-        ω = one(real(T))*frequency(space)
-        C = Array{CoefType,N}(undef, size(A))
-        @inbounds selectdim(C, D, ord+1) .= zero(CoefType)
+        @inbounds selectdim(C, D, ord+1) .= zero(T)
         if n == 1
             @inbounds for j ∈ 1:ord
                 ω⁻¹j⁻¹ = inv(ω * exact(j))
@@ -432,8 +374,8 @@ function _apply(ℐ::Integral, space::Fourier, ::Val{D}, A::AbstractArray{T,N}) 
                 end
             end
         end
-        return C
     end
+    return C
 end
 
 # Chebyshev
@@ -473,66 +415,25 @@ function _apply!(c::Sequence{Chebyshev}, ℐ::Integral, a)
     return c
 end
 
-function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, A) where {T}
+function _apply!(C::AbstractArray{T}, ℐ::Integral, space::Chebyshev, ::Val{D}, A) where {T,D}
     n = order(ℐ)
     if n == 0
         C .= A
     elseif n == 1
         ord = order(space)
-        @inbounds C₀ = selectdim(C, 1, 1)
-        @inbounds C₁ = selectdim(C, 1, 2)
-        @inbounds A₀ = selectdim(A, 1, 1)
-        if ord == 0
-            C₀ .= A₀
-            C₁ .= A₀ ./ exact(2)
-        elseif ord == 1
-            @inbounds A₁ = selectdim(A, 1, 2)
-            C₀ .= A₀ .- A₁ ./ exact(2)
-            C₁ .= A₀ ./ exact(2)
-            @inbounds selectdim(C, 1, 3) .= A₁ ./ exact(4)
-        else
-            C₀ .= zero(T)
-            @inbounds for i ∈ 2:2:ord-1
-                C₀ .+= selectdim(A, 1, i+2) ./ exact((i+1)^2-1) .- selectdim(A, 1, i+1) ./ exact(i^2-1)
-            end
-            if iseven(ord)
-                @inbounds C₀ .-= selectdim(A, 1, ord+1) ./ exact(ord^2-1)
-            end
-            @inbounds C₀ .= exact(2) .* C₀ .+ A₀ .- selectdim(A, 1, 2) ./ exact(2)
-            @inbounds C₁ .= (A₀ .- selectdim(A, 1, 3)) ./ exact(2)
-            @inbounds for i ∈ 2:ord-1
-                selectdim(C, 1, i+1) .= (selectdim(A, 1, i) .- selectdim(A, 1, i+2)) ./ exact(2i)
-            end
-            @inbounds selectdim(C, 1, ord+1) .= selectdim(A, 1, ord) ./ exact(2ord)
-            @inbounds selectdim(C, 1, ord+2) .= selectdim(A, 1, ord+1) ./ exact(2(ord+1))
-        end
-    else # TODO: lift restriction
-        return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
-    end
-    return C
-end
-
-function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    n = order(ℐ)
-    CoefType = _coeftype(ℐ, space, T)
-    if n == 0
-        return convert(Array{CoefType,N}, A)
-    elseif n == 1
-        ord = order(space)
-        C = Array{CoefType,N}(undef, ntuple(i -> i == D ? ord+2 : size(A, i), Val(N)))
         @inbounds C₀ = selectdim(C, D, 1)
         @inbounds C₁ = selectdim(C, D, 2)
         @inbounds A₀ = selectdim(A, D, 1)
         if ord == 0
             C₀ .= A₀
-            C₁ .= A ./ exact(2)
+            C₁ .= A₀ ./ exact(2)
         elseif ord == 1
             @inbounds A₁ = selectdim(A, D, 2)
             C₀ .= A₀ .- A₁ ./ exact(2)
             C₁ .= A₀ ./ exact(2)
             @inbounds selectdim(C, D, 3) .= A₁ ./ exact(4)
         else
-            C₀ .= zero(CoefType)
+            C₀ .= zero(T)
             @inbounds for i ∈ 2:2:ord-1
                 C₀ .+= selectdim(A, D, i+2) ./ exact((i+1)^2-1) .- selectdim(A, D, i+1) ./ exact(i^2-1)
             end
@@ -547,15 +448,11 @@ function _apply(ℐ::Integral, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}
             @inbounds selectdim(C, D, ord+1) .= selectdim(A, D, ord) ./ exact(2ord)
             @inbounds selectdim(C, D, ord+2) .= selectdim(A, D, ord+1) ./ exact(2(ord+1))
         end
-        return C
     else # TODO: lift restriction
         return throw(DomainError(n, "Integral is only implemented for order ≤ 1 on Chebyshev"))
     end
+    return C
 end
-
-
-
-
 
 #
 

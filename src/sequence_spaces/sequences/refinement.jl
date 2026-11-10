@@ -15,16 +15,6 @@ _coefficient_bound(::Ell2, err, w) = sqrt(err^exact(2) / w) # ‖a‖² = √(�
 
 # support enforcement
 
-function _zero_outside!(C, sc::BaseSpace, cmin, cmax)
-    z = zero(eltype(C))
-    n = length(C)
-    offset = first(indices(sc)) - 1
-    head_end = clamp(cmin - offset - 1, 0, n)
-    tail_start = clamp(cmax - offset + 1, 1, n + 1)
-    @inbounds view(C, 1:head_end) .= z
-    @inbounds view(C, tail_start:n) .= z
-    return C
-end
 function _zero_outside!(C, sc::BaseSpace, cmin, cmax, ::Val{D}) where {D}
     z = zero(eltype(C))
     n = size(C, D)

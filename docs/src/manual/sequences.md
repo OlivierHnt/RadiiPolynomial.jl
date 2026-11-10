@@ -131,7 +131,8 @@ Modules = [RadiiPolynomial]
 Private = false
 Pages   = ["sequence_spaces/sequences/sequence.jl",
     "sequence_spaces/sequences/infinite_sequence.jl",
-    "sequence_spaces/sequences/convolution.jl",
+    "sequence_spaces/sequences/nonlinearities/convolution.jl",
+    "sequence_spaces/sequences/nonlinearities/nonlinearity.jl",
     "sequence_spaces/sequences/fft.jl"]
 ```
 

@@ -40,11 +40,6 @@
         end
 
         @testset "TensorSpace" begin
-            #= The order of `a` sets the grid size, hence how far the coefficients alias: a
-               grid of m folds k onto k+m. For 1/(2 + x/10) the exact coefficients are
-               0.5(-0.05)^k, so at m = 4 the leading aliased term is 0.5·0.05^4 ≈ 3.1e-6,
-               above the tolerance below; padding `a` to order 4 raises the grid to 8 and
-               the aliasing to 0.5·0.05^8 ≈ 2e-11. =#
             s = Taylor(4) ⊗ Taylor(4)
             a = Sequence(s, zeros(Float64, dimension(s)))
             a[(0,0)] = 2.0
@@ -139,11 +134,12 @@
             @test 1 / b == inv(b)
         end
 
-        @testset "codomain is the union of orders" begin
+        @testset "the order of the quotient is resolved" begin
             a = Sequence(Taylor(2), [1.0, 0.1, 0.0])
             b = Sequence(Taylor(3), [2.0, 0.1, 0.0, 0.0]) # non-constant: goes through the grid path
             q = a / b
-            @test space(q) == Taylor(3)
+            @test order(space(q)) > 3 # a / b is no polynomial: its order exceeds those of a and b
+            @test q(0.3) ≈ a(0.3) / b(0.3)
         end
 
         @testset "Chebyshev: non-constant, eval cross-check a(x)/b(x)" begin
@@ -192,8 +188,7 @@
 
     @testset "entire functions: exp, cos, sin, cosh, sinh" begin
         @testset "Taylor: exp/cos/sin/cosh/sinh of x — hand-computed Maclaurin coefficients" begin
-            # a(x) = x on Taylor(8) samples 32 nodes, so the aliasing error is
-            # O(1/32!) ≈ 4e-36, negligible at Float64 precision
+            # the images are resolved past the nine coefficients compared
             a = Sequence(Taylor(8), vcat([0.0, 1.0], zeros(7)))
 
             expected_exp   = [1 / factorial(k) for k ∈ 0:8]
@@ -202,11 +197,11 @@
             expected_cosh  = [iseven(k) ? 1 / factorial(k) : 0.0 for k ∈ 0:8]
             expected_sinh  = [isodd(k)  ? 1 / factorial(k) : 0.0 for k ∈ 0:8]
 
-            @test coefficients(exp(a))  ≈ expected_exp  atol=1e-10
-            @test coefficients(cos(a))  ≈ expected_cos  atol=1e-10
-            @test coefficients(sin(a))  ≈ expected_sin  atol=1e-10
-            @test coefficients(cosh(a)) ≈ expected_cosh atol=1e-10
-            @test coefficients(sinh(a)) ≈ expected_sinh atol=1e-10
+            @test coefficients(project(exp(a), Taylor(8)))  ≈ expected_exp  atol=1e-10
+            @test coefficients(project(cos(a), Taylor(8)))  ≈ expected_cos  atol=1e-10
+            @test coefficients(project(sin(a), Taylor(8)))  ≈ expected_sin  atol=1e-10
+            @test coefficients(project(cosh(a), Taylor(8))) ≈ expected_cosh atol=1e-10
+            @test coefficients(project(sinh(a), Taylor(8))) ≈ expected_sinh atol=1e-10
         end
 
         @testset "Fourier: eval cross-check f(a(θ)) ≈ f(a)(θ)" begin
@@ -247,12 +242,7 @@
         end
 
         @testset "Interval{Float64}: hand-computed Maclaurin coefficients" begin
-            #= On a grid of m nodes the transform returns the aliased coefficients Σⱼ cₖ₊ⱼₘ,
-               and a plain sequence carries no aliasing bound (only an infinite sequence does),
-               so these match the Maclaurin coefficients only while the aliasing stays below
-               the width of the enclosure. For exp the leading aliased term is 1/m!: ≈ 4.8e-14
-               at m = 16, which already moves b[0] off 1.0, against ≈ 3.8e-36 at m = 32 — hence
-               the padding to order 16, the smallest order whose grid rounds up to 32. =#
+            # a plain sequence carries no error bound: its enclosures hold up to the aliasing, at the rounding level
             a = Sequence(Taylor(16), interval.(vcat([0.0, 1.0], zeros(15))))
             b = exp(a)
             @test all(isguaranteed, coefficients(b))
@@ -263,19 +253,23 @@
             @test all(k -> in_interval(expected_cos[k+1], bc[k]), 0:8)
         end
 
-        @testset "SymmetricSpace: requires an explicit (desymmetrized) codomain" begin
-            # the codomain is derived from the space of `a`, and is undefined for a
-            # symmetric space, so a direct call throws
+        @testset "SymmetricSpace: the full lattice by default, the symmetry on request" begin
+            # by default the image lives on the full lattice, where exp of an even function is even
             seven = evensym(Fourier(4, 1.0))
             ae = Sequence(seven, zeros(Float64, dimension(seven)))
             ae[0] = 1.0
             ae[1] = 0.1
-            @test_throws MethodError exp(ae)
-
-            # supplying the desymmetrized codomain works, and exp of an even function is even
-            b_exp = Nonlinearity(exp)(ae; codomain = desymmetrize(seven))
+            b_exp = exp(ae)
+            @test space(b_exp) isa Fourier
             @test b_exp[1] ≈ b_exp[-1] atol=1e-12
             @test b_exp[2] ≈ b_exp[-2] atol=1e-12
+
+            # the symmetry can be imposed, a codomain fixes the space, and not both at once
+            b_even = Nonlinearity(exp)(ae; symmetry = symmetry(seven))
+            @test space(b_even) isa SymmetricSpace
+            @test b_even[1] ≈ b_exp[1] atol=1e-12
+            @test space(Nonlinearity(exp)(ae; codomain = desymmetrize(seven))) == desymmetrize(seven)
+            @test_throws ArgumentError Nonlinearity(exp)(ae; codomain = seven, symmetry = symmetry(seven))
 
             # sin of an odd function is odd; cos of an odd function is even
             sodd = oddsym(ℱ)
@@ -367,11 +361,7 @@
     end
 
     @testset "cbrt: second-order constant is the sharp ‖ū⁻²‖(2‖ū‖ + R)" begin
-        #= For the cubic map F(u) = u³ - a with A ≈ (3ū²)⁻¹ = ū⁻²/3,
-             ‖A(DF(u) - DF(ū))‖ = ‖ū⁻²(u - ū)(u + ū)‖ ≤ ‖ū⁻²‖‖u-ū‖(2‖ū‖ + ‖u-ū‖),
-           so the sharp second-order constant on B_R(ū) is Z₂ = ‖ū⁻²‖(2‖ū‖ + R), not the
-           weaker (but still valid) ‖ū⁻²‖(2‖ū‖ + 2R). The gap is second order and shows up
-           in the certified radius only once Y is sizeable, hence the large input error. =#
+        # Z₂ = ‖ū⁻²‖(2‖ū‖ + R) on the ball of radius R
         X = Ell1(GeometricWeight(interval(1.2)))
         a = InfiniteSequence(Sequence(Fourier(2, 1.0), interval.([0.0, 0.01, 1.0, 0.01, 0.0])),
                              X; total_error = interval(0.2))
@@ -411,26 +401,28 @@
     end
 
     @testset "InfiniteSequence: the input-error bound sweeps every corner of the polyannulus" begin
-        #= The perturbation term is W·ε with W ≥ max_θ ‖f(ū + r_⋆e^{iθ})‖_ν, and that ℓ¹_ν norm
-           comes from the contour values through the Cauchy transfer ∏(ν̄+ν)/(ν̄−ν), so the
-           contour must be swept at all 2^d corners of the ν̄-polyannulus (radius ν̄ᵢ or 1/ν̄ᵢ
-           per direction). A single corner under-estimates W — by 5.6x in one direction and
-           324x in two — hence the deliberately asymmetric spectra below. =#
-        X = Ell1(GeometricWeight(interval(1.2)))
-        a1 = InfiniteSequence(Sequence(Fourier(2, 1.0), interval.([0.05, 0.3, 1.0, 0.0, 0.0])),
-                              X; total_error = interval(1e-2))
-        # W is 5.6x larger at the 1/ν̄ corner, and ε is large enough for W·ε to dominate
-        # the ε-independent aliasing floor of ≈ 0.558
-        @test sup(total_error(exp(a1))) > 1.0   # one corner stops at ≈ 0.730, the sweep gives ≈ 1.52
+        # the perturbation bound takes the largest of the 2^d corners of the ν̄-polyannulus
+        function corner_bounds(seq, ν, ν̄, ε)
+            ρ = interval(1) + interval(ε)
+            circle = ρ * cispi(interval(-1, 1))
+            transfer = prod((ν̄ .+ ν) ./ (ν̄ .- ν))
+            W = [sup(RadiiPolynomial._contour(exp, seq + circle, μ) * transfer) for μ ∈ RadiiPolynomial._polyannulus_corners(ν̄)]
+            return W, sup(RadiiPolynomial._perturbation_bound(exp, seq, ρ, ν, ν̄))
+        end
 
+        # the negative modes dominate: the corner 1/ν̄ carries the largest bound
+        W, W_all = corner_bounds(Sequence(Fourier(2, 1.0), interval.([0.05, 0.3, 1.0, 0.0, 0.0])), (interval(1.2),), (interval(2.0),), 1e-2)
+        @test W_all == maximum(W)
+        @test W_all > W[1] # W[1] is the corner ν̄
+
+        # the mode (-1, 1) dominates: the corner (1/ν̄, ν̄) carries the largest bound
         sT = Fourier(3, 1.0) ⊗ Fourier(3, 1.0)
-        XT = Ell1(ntuple(_ -> GeometricWeight(interval(1.3)), 2))
         sq = Sequence(sT, zeros(Interval{Float64}, dimension(sT)))
-        sq[(0,0)] = interval(1.0); sq[(1,0)] = interval(0.3)
-        sq[(0,1)] = interval(0.2); sq[(-1,0)] = interval(0.02)
-        aT = InfiniteSequence(sq, XT; total_error = interval(1e-6))
-        # the single corner certifies ≈ 2.3e-5, the 4-corner maximum is ≈ 324x larger
-        @test sup(total_error(exp(aT))) > 1e-3
+        sq[(0,0)] = interval(1.0); sq[(-1,1)] = interval(0.3)
+        sq[(1,0)] = interval(0.02); sq[(0,1)] = interval(0.02)
+        W, W_all = corner_bounds(sq, (interval(1.3), interval(1.3)), (interval(2.0), interval(2.0)), 1e-6)
+        @test W_all == maximum(W)
+        @test W_all > 1.5 * W[1]
     end
 
     @testset "InfiniteSequence: TensorSpace Nonlinearity (custom f = x -> x^3)" begin
@@ -493,11 +485,7 @@
     end
 
     @testset "InfiniteSequence: float coefficients run the whole pipeline, non-rigorously" begin
-        #= The ν̄ the search returns is promoted to intervals only when the coefficients are
-           intervals: certified bounds need interval radii, while a float pipeline cannot even
-           write them into its grids — and certifies nothing to begin with. A float
-           InfiniteSequence therefore runs search, saturation and error bounds entirely in
-           floating point, and must run rather than throw. =#
+        # floating-point coefficients run the same pipeline, without rigor
         Xf = Ell1(GeometricWeight(1.2))
         af = InfiniteSequence(Sequence(Taylor(3), [1.5, 0.1, 0.01, 0.001]), Xf)
         for f ∈ (exp, x -> x^0.7) # entire, and a branch cut
@@ -508,8 +496,7 @@
             @test !RadiiPolynomial._isguaranteed(r)
         end
 
-        # with an input error the perturbation coefficient W is sampled on the circle rather
-        # than enclosed, so the errors stay floats instead of NG intervals
+        # with an input error the perturbation circle is sampled: the errors stay floats
         af_err = InfiniteSequence(Sequence(Taylor(3), [1.5, 0.1, 0.01, 0.001]), Xf; total_error = 1e-8)
         r_err = exp(af_err)
         @test total_error(r_err) isa Float64
@@ -533,11 +520,7 @@
     _throws_argument(f) = try (f(); false) catch e; e isa ArgumentError end
 
     @testset "InfiniteSequence: entire functions validate ν too" begin
-        #= The decay rate is a hypothesis of the Cauchy estimates regardless of where the
-           singularities are, so it is validated even for entire functions, which have neither
-           poles nor branch cuts to sweep. Fourier and Chebyshev need ν > 1 — at ν = 1 their
-           strip/ellipse of analyticity has empty interior — while Taylor admits ν = 1, the
-           open unit disk being as good a disk as any. =#
+        # Fourier and Chebyshev need ν > 1, Taylor admits ν = 1, entire functions included
         X1 = Ell1(GeometricWeight(interval(1.0))) # ν = 1
         for (s, coeffs) ∈ ((Chebyshev(3),   [1.0, 0.1, 0.01, 0.001]),
                            (Fourier(3, 1.0),[0.001, 0.01, 0.1, 1.0, 0.1, 0.01, 0.001]))
@@ -563,10 +546,7 @@
     end
 
     @testset "InfiniteSequence: Nonlinearity requires a geometric weight" begin
-        #= The Cauchy estimates assume ω_k = ν^{|k|} everywhere, so an algebraic or Bessel
-           weight would be unsound rather than merely inaccurate. The identity weight is the
-           ν = 1 geometric weight: admitted on Taylor like any other ν = 1 rate, rejected on
-           Fourier and Chebyshev. =#
+        # the Cauchy estimates need a geometric weight; the identity weight is the rate ν = 1
         seqT = Sequence(Taylor(3), interval.([1.0, 0.1, 0.01, 0.001]))
         a = InfiniteSequence(seqT, Ell1(AlgebraicWeight(interval(2.0))))
         @test _throws_argument(() -> exp(a))
@@ -589,11 +569,7 @@
     end
 
     @testset "InfiniteSequence: the perturbation radius must fit inside the analyticity domain" begin
-        #= The input-error term is W·ε with W ≥ max_θ ‖f(ū + r_⋆e^{iθ})‖_ν, valid only while
-           0 < r_⋆ < dist(ū(S_ν̄), ∂Ω). The radius is taken as r_⋆ = 1 + ε, which makes the
-           quotient ε/(r_⋆ − ε) collapse to ε. Here ū(0) ≈ 0.8 sits closer to the branch
-           point of z^0.7 at the origin than r_⋆ ≈ 1, so the estimate does not apply and
-           must be refused rather than silently degenerate. =#
+        # an input error needs f analytic within 1 + ε of the image: here the branch point is closer
         Xt = Ell1(GeometricWeight(interval(1.2)))
         seq = Sequence(Taylor(2), interval.([0.8, 0.1, 0.01]))
 
@@ -617,11 +593,7 @@
     end
 
     @testset "InfiniteSequence: the ν̄ search returns a point it actually evaluated" begin
-        #= The auxiliary radius ν̄ is chosen by a golden-section search, and feasibility is not
-           an interval property here: the contour of x^p at one ν̄ can straddle the branch cut
-           (infinite bound) while neighbouring radii are fine. Returning the midpoint of the
-           final bracket — a point never evaluated — could therefore land on exactly the ν̄ the
-           search spent its budget avoiding, so the radius returned must be one it evaluated. =#
+        # the radius returned is one the search evaluated
         X = Ell1(GeometricWeight(interval(1.2)))
         seq(a₀) = InfiniteSequence(Sequence(Taylor(2), interval.([a₀, 0.1, 0.01])), X)
         for a₀ ∈ (1.5, 4.0, 6.0)
@@ -634,12 +606,7 @@
     end
 
     @testset "InfiniteSequence: the ν̄ the search settles on is certified, not merely sampled" begin
-        #= The search itself is run in floating point, feasibility included: it splits the
-           polyannulus at finitely many radii and samples the transform there, where the covering
-           sweep encloses it with interval boxes. A sampled test can only ever indicate, so the
-           radius it settles on is put through the covering sweep before it is returned — an
-           uncertified ν̄ would not announce itself, `f` evaluated in interval arithmetic across
-           a branch cut silently returning its intersection with the domain of `f`. =#
+        # the radius returned passes the interval analyticity sweep
         X = Ell1(GeometricWeight(interval(1.3)))
         nl = Nonlinearity(x -> x^0.7, Complex{Interval{Float64}}[], interval(-Inf, 0))
         for a₀ ∈ (0.3, 0.5, 0.8, 1.0, 1.5, 3.0), a₁ ∈ (0.05, 0.2, 0.5)
@@ -657,11 +624,7 @@
     end
 
     @testset "InfiniteSequence: a search with nothing feasible left says so" begin
-        #= Both passes of the search — the float one and the rerun that tests feasibility with
-           the covering sweep — can come back empty handed, and the golden search then returns
-           the midpoint of its final bracket, a radius nothing ever certified. Handing that back
-           would produce a finite-looking bound resting on `f` evaluated across its own branch
-           cut, so the exhausted search must throw instead. =#
+        # no feasible radius: the search throws
         X = Ell1(GeometricWeight(interval(1.3)))
         a = InfiniteSequence(Sequence(Taylor(3), interval.([1.5, 0.1, 0.01, 1e-3])), X)
         # a branch cut swallowing the whole plane leaves no radius feasible, at any sweep
@@ -670,34 +633,25 @@
     end
 
     @testset "the plateau sets the order of the output" begin
-        #= `_error` prices every index inside the box [-N_v, N_v] as the aliasing of a computed
-           coefficient and every index outside as truncated tail. `_saturation_order` places
-           the box just before the first envelope violation — quiet stragglers beyond it are
-           as much tail as the violators — and the caller truncates its output to the box, so
-           the stored sequence is exactly what the finite budget covers. =#
+        # the box of kept indices stops before the first noisy coefficient; the rest is charged to the tail
         a = Sequence(Taylor(3), [1.0, 0.1, 0.01, 0.001])
         ν̄ = (2.0,)
         C = maximum(μ -> RadiiPolynomial._contour(exp, a, μ), RadiiPolynomial._polyannulus_corners(ν̄))
         # a violator at k = 2 and a quiet, envelope-respecting coefficient at k = 3
         c = Sequence(Taylor(3), [1.0, 0.1, 3C / ν̄[1]^2, 1e-20])
-        @test RadiiPolynomial._saturation_order(exp, c, a, ν̄) == 1
+        @test RadiiPolynomial._noise_trim(c, RadiiPolynomial.CauchyCeiling(C, ν̄), RadiiPolynomial.ChargeTail((1.5,) ./ ν̄)) == (1,)
 
-        # a plateau reaching the constant term empties the box; `_error` must still price it
+        # a plateau reaching the constant term empties the box; `_alias_and_tail` must still price it
         c₀ = Sequence(Taylor(3), [2C, 0.0, 0.0, 0.0])
-        N_v₀ = RadiiPolynomial._saturation_order(exp, c₀, a, ν̄)
-        @test N_v₀ == -1
-        Cb, finite_alias, tail_alias = RadiiPolynomial._error(exp, a, c₀, (1.5,), ν̄, N_v₀)
+        N_v₀ = RadiiPolynomial._noise_trim(c₀, RadiiPolynomial.CauchyCeiling(C, ν̄), RadiiPolynomial.ChargeTail((1.5,) ./ ν̄))
+        @test N_v₀ == (-1,)
+        finite_alias, tail_alias = RadiiPolynomial._alias_and_tail(RadiiPolynomial._coef_fft_size(space(c₀), space(c₀)), (1.5,), ν̄, N_v₀)
         @test iszero(finite_alias)
-        @test isfinite(Cb * (finite_alias + tail_alias))
+        @test isfinite(C * (finite_alias + tail_alias))
     end
 
     @testset "InfiniteSequence: the finite/tail split is honest about the plateau" begin
-        #= `InfiniteSequence` splits its error at the order of the stored sequence — `project!`
-           prices indices inside it by `finite_error`, indices beyond by `tail_error`. Fast
-           decay drives the true coefficients below the noise floor well before the codomain
-           order, and those unresolved modes belong to the tail budget: stored as zeros of the
-           full codomain they would claim the (far smaller) finite budget — here ~1e-49 against
-           true band coefficients ~1e-23. The output's order must be the resolved box. =#
+        # coefficients below the noise floor belong to the tail: the result has the order of the resolved box
         K = 50
         a = InfiniteSequence(Sequence(Taylor(K), interval.([5.0^-k for k ∈ 0:K])), Ell1(GeometricWeight(interval(1.0))))
         r = exp(a)
@@ -715,12 +669,7 @@
     end
 
     @testset "InfiniteSequence: every direction gets room above ν" begin
-        #= `_optimize_decay` brackets its search by the *observed* geometric decay of the input
-           and of its image. A tensor direction carrying a single mode has no decay to observe,
-           so that upper bound can land below ν, the bracket [ν, ν̄_max] inverts, and the search
-           returns ν̄ᵢ < νᵢ. The tail factor ∏ ν̄ᵢ/(ν̄ᵢ − νᵢ) then flips sign, and the failure
-           surfaces as "errors must be non-negative" from the constructor rather than as
-           anything diagnosable. The bracket must leave every direction room above ν. =#
+        # a direction carrying a single mode still gets a radius above ν
         sT = Fourier(2, 1.0) ⊗ Fourier(2, 1.0)
         sq = Sequence(sT, zeros(Interval{Float64}, dimension(sT)))
         sq[(0, 0)] = interval(1.0)
@@ -731,7 +680,7 @@
             @test isfinite(sup(total_error(exp(a))))
         end
 
-        # the same function on a space with enough modes per direction was always fine
+        # and with more modes per direction
         sT4 = Fourier(4, 1.0) ⊗ Fourier(4, 1.0)
         sq4 = Sequence(sT4, zeros(Interval{Float64}, dimension(sT4)))
         sq4[(0, 0)] = interval(1.0)
@@ -741,8 +690,7 @@
     end
 
     @testset "InfiniteSequence: output resolved to a noise floor" begin
-        # exp of the interpolant of log(2 + t/2) is the polynomial 2 + t/2: the decay rate fitted on the
-        # output is enormous and must not drive the auxiliary radius past where the contour bound overflows
+        # exp of the interpolant of log(2 + t/2) is the polynomial 2 + t/2, up to noise
         N = 16
         nodes = [-cospi(j / N) for j ∈ 0:N]
         a = interval(real(RadiiPolynomial.to_coef(reverse(log.(2 .+ nodes ./ 2)), Chebyshev(N))))
@@ -753,10 +701,75 @@
         end
     end
 
+    @testset "InfiniteSequence: roots of b xᵖ = a share one proof" begin
+        X = Ell1(GeometricWeight(interval(1.2)))
+        a = InfiniteSequence(Sequence(Taylor(2), interval.([1.0, 0.5, 0.1])), X; total_error = interval(0.01))
+        # an exact constant divisor keeps the error of the numerator
+        b = InfiniteSequence(Sequence(Taylor(2), interval.([2.0, 0.0, 0.0])), X)
+        @test sup(total_error(a / b)) ≥ 0.005
+        # p exactly 1/q is a q-th root, whatever q
+        x = InfiniteSequence(Sequence(Chebyshev(1), interval.([2.0, 0.25])), X)
+        for p ∈ (0.25, 1//5)
+            r = x ^ p
+            @test sup(total_error(r)) < 1e-10
+            @test sup(norm(sequence(r) ^ Int(inv(p)) - sequence(x), X)) < 1e-10
+        end
+        # the error is only as guaranteed as the input
+        ng = InfiniteSequence(Sequence(Chebyshev(1), [interval(2.0) * 1.0, interval(0.25)]), X) # a Float64 factor drops the flag
+        for F ∈ (inv, sqrt, cbrt, y -> y / (y + interval(1.0)), y -> x / y)
+            @test RadiiPolynomial._isguaranteed(F(x))
+            @test !RadiiPolynomial._isguaranteed(F(ng))
+            @test !isguaranteed(total_error(F(ng)))
+        end
+        # a quotient far smoother than 1 / b
+        bs = Sequence(Fourier(120, 1.0), [(k == 0) + 0.5 * 0.6^abs(k) for k ∈ -120:120])
+        Bs = InfiniteSequence(interval.(bs), Ell1(GeometricWeight(interval(1.05))))
+        @test sup(total_error(Bs / Bs)) < 1e-10
+        # an exponent that is no 1/q for a small q goes through the general power
+        @test isfinite(sup(total_error(x ^ 1e-20)))
+        @test isfinite(sup(total_error(x ^ (1 // 40))))
+        # a constant input gives the constant f(a₀) in the requested space
+        c = InfiniteSequence(Sequence(Taylor(2), interval.([4.0, 0.0, 0.0])), X)
+        @test space(sequence(sqrt(c; codomain = Taylor(5)))) == Taylor(5)
+        @test in_interval(2.0, sequence(sqrt(c; codomain = Taylor(5)))[0])
+        @test space(Nonlinearity(exp)(sequence(c); codomain = Taylor(7))) == Taylor(7)
+    end
+
+    @testset "a slow decay is not mistaken for a plateau" begin
+        # 1 / (1 + 0.99t) decays like 1.15^-k
+        a = Sequence(Chebyshev(1), [1.0, 0.495])
+        x = inv(a)
+        @test order(space(x)) > 100
+        @test maximum(abs, coefficients(x * a - 1)) < 1e-10
+        X = Ell1(GeometricWeight(interval(1.001)))
+        @test sup(total_error(inv(InfiniteSequence(interval.(a), X)))) < 1e-8
+        # a failed proof says so
+        @test_throws ArgumentError inv(InfiniteSequence(interval.(a), X); codomain = Chebyshev(8))
+    end
+
+    @testset "the plateau of a tensor space is cut in one direction" begin
+        # a noisy corner coefficient is left out along one direction only
+        s = Chebyshev(16) ⊗ Chebyshev(4)
+        c = Sequence(s, [1e-3 * 0.1^(k + l) for (k, l) ∈ indices(s)])
+        c[(16, 4)] = 1.0
+        N = RadiiPolynomial._noise_trim(c, RadiiPolynomial.CauchyCeiling(1.0, (4.0, 4.0)), RadiiPolynomial.ChargeTail((0.3, 0.3)))
+        @test N[1] < 16 || N[2] < 4
+        @test N ∈ ((15, 4), (16, 3))
+    end
+
+    @testset "InfiniteSequence: a function not real on the real axis keeps its imaginary part" begin
+        nl = Nonlinearity(x -> exp(im * x), Complex{Interval{Float64}}[], emptyinterval())
+        X = Ell1(GeometricWeight(interval(1.2)))
+        r = nl(InfiniteSequence(Sequence(Chebyshev(1), interval.([0.0, 0.25])), X); codomain = Chebyshev(12))
+        @test eltype(sequence(r)) == Complex{Interval{Float64}}
+        @test abs(mid.(sequence(r))(0.3) - exp(0.15im)) ≤ sup(total_error(r)) + 1e-12 # a(0.3) = 0.15
+        # the constant shortcut too
+        r₀ = nl(InfiniteSequence(Sequence(Chebyshev(1), interval.([0.5, 0.0])), X); codomain = Chebyshev(1))
+        @test mid(sequence(r₀)[0]) ≈ exp(0.5im)
+    end
+
     @testset "InfiniteSequence: tensor space tail and aliasing cover the slabs" begin
-        # exp(2z₁ + 0.01z₂) has the closed-form coefficients 2^k/k! 0.01^l/l!: the tail outside the
-        # box |k| ≤ N, |l| ≤ N lives in the slab k > N, l ≤ N, which a product of one-dimensional tails
-        # does not see
+        # exp(2z₁ + 0.01z₂) has the coefficients 2^k/k! 0.01^l/l!: its tail lies in the slab k > N, l ≤ N
         s = Taylor(5) ⊗ Taylor(5)
         a = Sequence(s, zeros(Interval{Float64}, dimension(s)))
         a[(1,0)] = interval(2.0)
@@ -766,8 +779,8 @@
         N = order(space(sequence(r)))
         c(k, l) = 2.0^k / factorial(big(k)) * 0.01^l / factorial(big(l)) * 1.2^(k+l)
         true_tail = Float64(sum(c(k, l) for k ∈ 0:60, l ∈ 0:60 if k > N[1] || l > N[2]))
-        @test inf(tail_error(r)) ≥ true_tail
-        @test inf(total_error(r)) ≥ true_tail
+        @test sup(tail_error(r)) ≥ true_tail
+        @test sup(total_error(r)) ≥ true_tail
     end
 
     @testset "InfiniteSequence: Taylor disk vs. branch cut" begin

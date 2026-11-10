@@ -230,16 +230,22 @@ _effective_dimensions(ℰ::Evaluation, space::TensorSpace) =
 _effective_dimensions(::Evaluation{<:Tuple{Number}}, ::TensorSpace) = ()
 
 _apply!(C, ℰ::Evaluation, space::TensorSpace, A) =
-    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], _apply(Evaluation(Base.tail(value(ℰ))), Base.tail(space), A))
+    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], Val(1), _apply(Evaluation(Base.tail(value(ℰ))), Base.tail(space), A))
 
 _apply!(C, ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A) =
-    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], A)
+    @inbounds _apply!(C, Evaluation(value(ℰ)[1]), space[1], Val(1), A)
 
 _apply(ℰ::Evaluation, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
     @inbounds _apply(Evaluation(value(ℰ)[1]), space[1], Val(N₂-N₁+1), _apply(Evaluation(Base.tail(value(ℰ))), Base.tail(space), A))
 
 _apply(ℰ::Evaluation, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
     @inbounds _apply(Evaluation(value(ℰ)[1]), space[1], Val(N), A)
+
+# along a direction other than the first, the result is allocated, without the direction evaluated
+function _apply(ℰ::Evaluation, space::BaseSpace, d::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
+    C = Array{_coeftype(ℰ, space, T),N-1}(undef, ntuple(i -> size(A, ifelse(i < D, i, i+1)), Val(N-1)))
+    return _apply!(C, ℰ, space, d, A)
+end
 
 # Taylor
 
@@ -261,39 +267,25 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{Taylor})
     return c
 end
 
-function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Taylor, A)
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Taylor, ::Val, A)
     C .= A
     return C
 end
-function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Taylor, A) where {T}
+function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Taylor, ::Val{D}, A) where {T,D}
     x = value(ℰ)
     if _safe_iszero(x)
-        @inbounds C .= selectdim(A, 1, 1)
+        @inbounds C .= selectdim(A, D, 1)
     else
         ord = order(space)
-        @inbounds C .= selectdim(A, 1, ord+1)
-        @inbounds for i ∈ ord-1:-1:0
-            C .= C .* x .+ selectdim(A, 1, i+1)
-        end
-    end
-    return C
-end
-
-_apply(::Evaluation{Nothing}, ::Taylor, ::Val, A::AbstractArray) = A
-function _apply(ℰ::Evaluation, space::Taylor, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    x = value(ℰ)
-    CoefType = _coeftype(ℰ, space, T)
-    if _safe_iszero(x)
-        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
-    else
-        ord = order(space)
-        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
+        @inbounds C .= selectdim(A, D, ord+1)
         @inbounds for i ∈ ord-1:-1:0
             C .= C .* x .+ selectdim(A, D, i+1)
         end
     end
     return C
 end
+
+_apply(::Evaluation{Nothing}, ::Taylor, ::Val, A::AbstractArray) = A
 
 # Fourier
 
@@ -320,35 +312,15 @@ function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
     return c
 end
 
-function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Fourier, A)
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Fourier, ::Val, A)
     C .= A
     return C
 end
-_apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A) = __apply!(C, ℰ, space, A)
-function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, A)
+_apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, d::Val, A) = __apply!(C, ℰ, space, d, A)
+function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, ::Val{D}, A) where {D}
     x = value(ℰ)
     ord = order(space)
-    @inbounds C .= selectdim(A, 1, ord+1)
-    if _safe_iszero(x)
-        @inbounds for j ∈ 1:ord
-            C .+= selectdim(A, 1, ord+1+j) .+ selectdim(A, 1, ord+1-j)
-        end
-    elseif ord > 0
-        ωx = frequency(space)*x
-        @inbounds for j ∈ 1:ord
-            eiωxj = cis(ωx * exact(j))
-            C .+= selectdim(A, 1, ord+1+j) .* eiωxj .+ selectdim(A, 1, ord+1-j) ./ eiωxj
-        end
-    end
-    return C
-end
-
-_apply(::Evaluation{Nothing}, ::Fourier, ::Val, A::AbstractArray) = A
-_apply(ℰ::Evaluation, space::Fourier, d::Val, A::AbstractArray) = __apply(ℰ, space, d, A, _coeftype(ℰ, space, eltype(A)))
-function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N}, ::Type{CoefType}) where {D,T,N,CoefType}
-    x = value(ℰ)
-    ord = order(space)
-    @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, ord+1))
+    @inbounds C .= selectdim(A, D, ord+1)
     if _safe_iszero(x)
         @inbounds for j ∈ 1:ord
             C .+= selectdim(A, D, ord+1+j) .+ selectdim(A, D, ord+1-j)
@@ -362,6 +334,8 @@ function __apply(ℰ::Evaluation, space::Fourier, ::Val{D}, A::AbstractArray{T,N
     end
     return C
 end
+
+_apply(::Evaluation{Nothing}, ::Fourier, ::Val, A::AbstractArray) = A
 
 # Chebyshev
 
@@ -409,97 +383,52 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{Chebyshev})
     return c
 end
 
-function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Chebyshev, A)
+function _apply!(C::AbstractArray, ::Evaluation{Nothing}, ::Chebyshev, ::Val, A)
     C .= A
     return C
 end
-function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, A) where {T}
+function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, ::Val{D}, A) where {T,D}
     x = value(ℰ)
     ord = order(space)
     if _safe_iszero(x)
-        @inbounds C .= selectdim(A, 1, 1)
+        @inbounds C .= selectdim(A, D, 1)
         @inbounds for i ∈ 2:2:ord
-            C .+= exact(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, 1, i+1)
+            C .+= exact(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, D, i+1)
         end
     elseif _safe_isone(-x)
-        @inbounds C .= selectdim(A, 1, 1)
+        @inbounds C .= selectdim(A, D, 1)
         @inbounds for i ∈ 1:ord
-            C .+= exact(ifelse(isodd(i), -2, 2)) .* selectdim(A, 1, i+1)
+            C .+= exact(ifelse(isodd(i), -2, 2)) .* selectdim(A, D, i+1)
         end
     elseif _safe_isone(x)
-        @inbounds C .= selectdim(A, 1, 1)
+        @inbounds C .= selectdim(A, D, 1)
         @inbounds for i ∈ 1:ord
-            C .+= exact(2) .* selectdim(A, 1, i+1)
+            C .+= exact(2) .* selectdim(A, D, i+1)
         end
     else
         if ord == 0
-            @inbounds C .= selectdim(A, 1, 1)
+            @inbounds C .= selectdim(A, D, 1)
         elseif ord == 1
-            @inbounds C .= selectdim(A, 1, 1) .+ (exact(2) * x) .* selectdim(A, 1, 2)
+            @inbounds C .= selectdim(A, D, 1) .+ (exact(2) * x) .* selectdim(A, D, 2)
         else
             x2 = exact(2) * x
-            @inbounds Aᵢ = selectdim(A, 1, ord+1)
+            @inbounds Aᵢ = selectdim(A, D, ord+1)
             sz = size(Aᵢ)
             s = zeros(T, sz)
             t = Array{T}(undef, sz)
             t .= exact(2) .* Aᵢ
             @inbounds for i ∈ ord-1:-1:1
                 C .= t
-                t .= x2 .* t .- s .+ exact(2) .* selectdim(A, 1, i+1)
+                t .= x2 .* t .- s .+ exact(2) .* selectdim(A, D, i+1)
                 s .= C
             end
-            @inbounds C .= x .* t .- s .+ selectdim(A, 1, 1)
+            @inbounds C .= x .* t .- s .+ selectdim(A, D, 1)
         end
     end
     return C
 end
 
 _apply(::Evaluation{Nothing}, ::Chebyshev, ::Val, A::AbstractArray) = A
-function _apply(ℰ::Evaluation, space::Chebyshev, ::Val{D}, A::AbstractArray{T,N}) where {D,T,N}
-    x = value(ℰ)
-    CoefType = _coeftype(ℰ, space, T)
-    ord = order(space)
-    if _safe_iszero(x)
-        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
-        @inbounds for i ∈ 2:2:ord
-            C .+= exact(ifelse(i%4 == 0, 2, -2)) .* selectdim(A, D, i+1)
-        end
-        return C
-    elseif _safe_isone(-x)
-        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
-        @inbounds for i ∈ 1:ord
-            C .+= exact(ifelse(isodd(i), -2, 2)) .* selectdim(A, D, i+1)
-        end
-        return C
-    elseif _safe_isone(x)
-        @inbounds C = convert(Array{CoefType,N-1}, selectdim(A, D, 1))
-        @inbounds for i ∈ 1:ord
-            C .+= exact(2) .* selectdim(A, D, i+1)
-        end
-        return C
-    else
-        if ord == 0
-            return @inbounds convert(Array{CoefType,N-1}, selectdim(A, D, 1))
-        elseif ord == 1
-            return @inbounds convert(Array{CoefType,N-1}, selectdim(A, D, 1) .+ (exact(2) * x) .* selectdim(A, D, 2))
-        else
-            x2 = exact(2) * x
-            @inbounds Aᵢ = selectdim(A, D, ord+1)
-            sz = size(Aᵢ)
-            s = zeros(CoefType, sz)
-            t = Array{CoefType,N-1}(undef, sz)
-            t .= exact(2) .* Aᵢ
-            C = Array{CoefType,N-1}(undef, sz)
-            @inbounds for i ∈ ord-1:-1:1
-                C .= t
-                t .= x2 .* t .- s .+ exact(2) .* selectdim(A, D, i+1)
-                s .= C
-            end
-            @inbounds C .= x .* t .- s .+ selectdim(A, D, 1)
-            return C
-        end
-    end
-end
 
 # # ScalarSpace
 

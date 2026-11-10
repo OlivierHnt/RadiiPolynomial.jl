@@ -190,11 +190,12 @@ function _apply!(c::Sequence{<:TensorSpace}, 𝒮::Shift, a)
     return c
 end
 
+# a shift is diagonal: the coefficients are copied once, then scaled in place direction by direction
 _apply!(C, 𝒮::Shift, space::TensorSpace{<:NTuple{N₁,BaseSpace}}, A::AbstractArray{T,N₂}) where {N₁,T,N₂} =
-    @inbounds _apply!(C, Shift(value(𝒮)[1]), space[1], Val(N₂-N₁+1), _apply!(C, Shift(Base.tail(value(𝒮))), Base.tail(space), A))
+    @inbounds _apply!(_apply!(C, Shift(Base.tail(value(𝒮))), Base.tail(space), A), Shift(value(𝒮)[1]), space[1], Val(N₂-N₁+1))
 
-_apply!(C, 𝒮::Shift, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray) =
-    @inbounds _apply!(C, Shift(value(𝒮)[1]), space[1], A)
+_apply!(C, 𝒮::Shift, space::TensorSpace{<:Tuple{BaseSpace}}, A::AbstractArray{T,N}) where {T,N} =
+    @inbounds _apply!(C .= A, Shift(value(𝒮)[1]), space[1], Val(N))
 
 # Taylor
 
@@ -208,19 +209,9 @@ function _apply!(c::Sequence{Taylor}, 𝒮::Shift, a)
     return c
 end
 
-function _apply!(C, 𝒮::Shift, ::Taylor, ::Val{D}, A) where {D}
+function _apply!(C::AbstractArray, 𝒮::Shift, ::Taylor, ::Val)
     τ = value(𝒮)
     iszero(τ) || return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces")) # TODO: lift restriction
-    return C
-end
-
-function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Taylor, A) where {T,N}
-    τ = value(𝒮)
-    if iszero(τ)
-        C .= A
-    else # TODO: lift restriction
-        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Taylor spaces"))
-    end
     return C
 end
 
@@ -234,20 +225,11 @@ function _apply!(c::Sequence{<:Fourier}, 𝒮::Shift, a)
     return c
 end
 
-function _apply!(C, 𝒮::Shift, space::Fourier, ::Val{D}, A) where {D}
+function _apply!(C::AbstractArray, 𝒮::Shift, space::Fourier, ::Val{D}) where {D}
     τ = value(𝒮)
     ord = order(space)
     @inbounds for k ∈ -ord:ord
         selectdim(C, D, ord+1+k) .*= _period_factor(eltype(C), τ, k)
-    end
-    return C
-end
-
-function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, space::Fourier, A) where {T,N}
-    τ = value(𝒮)
-    ord = order(space)
-    @inbounds for k ∈ -ord:ord
-        selectdim(C, N, ord+1+k) .= _period_factor(T, τ, k) .* selectdim(A, N, ord+1+k)
     end
     return C
 end
@@ -264,18 +246,8 @@ function _apply!(c::Sequence{Chebyshev}, 𝒮::Shift, a)
     return c
 end
 
-function _apply!(C, 𝒮::Shift, ::Chebyshev, ::Val{D}, A) where {D}
+function _apply!(C::AbstractArray, 𝒮::Shift, ::Chebyshev, ::Val)
     τ = value(𝒮)
     iszero(τ) || return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces")) # TODO: lift restriction
-    return C
-end
-
-function _apply!(C::AbstractArray{T,N}, 𝒮::Shift, ::Chebyshev, A) where {T,N}
-    τ = value(𝒮)
-    if iszero(τ)
-        C .= A
-    else # TODO: lift restriction
-        return throw(DomainError(𝒮, "Shift is only defined for τ = 0 for Chebyshev spaces"))
-    end
     return C
 end

@@ -382,4 +382,27 @@
         end
     end
 
+
+    @testset "TensorSpace: one kernel per space, whatever the direction" begin
+        # a middle direction, with an order-0 Chebyshev factor
+        s = Taylor(0) ⊗ Chebyshev(0) ⊗ Fourier(2, 1.0)
+        a = Sequence(s, [1.0, 2.0, 3.0, 4.0, 5.0])
+        r = Integral((0, 1, 0)) * a
+        @test space(r) == Taylor(0) ⊗ Chebyshev(1) ⊗ Fourier(2, 1.0)
+        for k ∈ -2:2
+            r₁ = Integral(1) * Sequence(Chebyshev(0), [a[(0, 0, k)]])
+            @test r[(0, 0, k)] == r₁[0] && r[(0, 1, k)] == r₁[1]
+        end
+        # the error names the direction at fault
+        err = try integrate(Sequence(Taylor(2) ⊗ Fourier(2, 1.0), ones(ComplexF64, 15)), (0, 1)) catch e; e end
+        @test err isa DomainError && occursin("dimension 2", sprint(showerror, err))
+        # each direction of a tensor product agrees with the same operator on a base space
+        b = Sequence(Chebyshev(3) ⊗ Chebyshev(3) ⊗ Chebyshev(3), [sin(1.7i) for i ∈ 1:64])
+        for α ∈ ((1, 0, 0), (0, 1, 0), (0, 0, 1))
+            d = findfirst(==(1), α)
+            r = Integral(α) * b
+            line = Sequence(Chebyshev(3), [b[ntuple(i -> i == d ? j : 2, 3)] for j ∈ 0:3])
+            @test [r[ntuple(i -> i == d ? j : 2, 3)] for j ∈ 0:4] ≈ coefficients(Integral(1) * line)
+        end
+    end
 end

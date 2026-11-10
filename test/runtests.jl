@@ -13,6 +13,7 @@ using RadiiPolynomial
     include("sequence_spaces/sequences/convolution.jl")
     include("sequence_spaces/sequences/refinement.jl")
     include("sequence_spaces/sequences/elementary.jl")
+    include("sequence_spaces/sequences/nonlinearity_soundness.jl")
 
     include("sequence_spaces/linear_operators/linear_operator.jl")
     include("sequence_spaces/linear_operators/projection.jl")

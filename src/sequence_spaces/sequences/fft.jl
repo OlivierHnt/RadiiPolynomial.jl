@@ -10,7 +10,7 @@ _apply!(f!, C::AbstractArray{T,N₁}, space::TensorSpace{<:NTuple{N₂,BaseSpace
     @inbounds f!(_apply!(f!, C, Base.tail(space)), space[1], Val(N₁-N₂+1))
 _apply!(f!, C::AbstractArray{T,N}, space::TensorSpace{<:Tuple{BaseSpace}}) where {T,N} =
     @inbounds f!(C, space[1], Val(N))
-_apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space)
+_apply!(f!, C::AbstractVector, space::BaseSpace) = f!(C, space, Val(1))
 
 
 
@@ -195,12 +195,13 @@ function to_grid!(C::AbstractArray{<:Number}, a::Sequence{<:NoSymSpace})
     C .= view(_to_grid!(zeros(eltype(C), full_sz), a), map(n -> 1:n, sz)...)
     return C
 end
-function _to_grid!(C::AbstractArray, a::Sequence)
-    # `C` is sized as the transform, not as the grid
+function _to_grid!(C::AbstractArray, a::Sequence, μ = nothing)
+    # `C` is sized as the transform, not as the grid; `μ` are the radii of the polycircle
     C .= zero(eltype(C))
     A = _no_alloc_reshape(a)
     @inbounds view(C, axes(A)...) .= A
     _apply!(_preprocess_to_grid!, C, space(a))
+    μ === nothing || _apply_boxes!(C, μ)
     return _bfft!(C)
 end
 
@@ -261,15 +262,9 @@ end
 
 # Taylor: coefficients already in standard DFT order
 
-_preprocess_to_grid!(C::AbstractVector, ::Taylor) = C
 _preprocess_to_grid!(C::AbstractArray, ::Taylor, ::Val) = C
 
 # Fourier: move zero-frequency from center to position 1
-
-function _preprocess_to_grid!(C::AbstractVector, space::Fourier)
-    circshift!(C, copy(C), -order(space))
-    return C
-end
 
 function _preprocess_to_grid!(C::AbstractArray{T,N}, space::Fourier, ::Val{D}) where {T,N,D}
     circshift!(C, copy(C), ntuple(i -> ifelse(i == D, -order(space), 0), Val(N)))
@@ -278,19 +273,11 @@ end
 
 # Chebyshev: mirror
 
-function _preprocess_to_grid!(C::AbstractVector, space::Chebyshev)
-    len = length(C)
-    ord = order(space)
-    @inbounds view(C, len:-1:len+1-ord) .= view(C, 2:ord+1)
-    # on the tightest grid the top mode is its own mirror image
-    2ord == len && @inbounds C[ord+1] *= exact(2)
-    return C
-end
-
 function _preprocess_to_grid!(C::AbstractArray, space::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)
     ord = order(space)
     @inbounds selectdim(C, D, len:-1:len+1-ord) .= selectdim(C, D, 2:ord+1)
+    # on the tightest grid the top mode is its own mirror image
     2ord == len && @inbounds selectdim(C, D, ord+1) .*= exact(2)
     return C
 end
@@ -436,7 +423,6 @@ _combine(s::SequenceSpace, inner::CartesianProduct) = CartesianProduct(map(sᵢ 
 
 # Taylor: DFT output already in coefficient order
 
-_postprocess_to_coef!(C::AbstractVector, ::Taylor) = C
 _postprocess_to_coef!(C::AbstractArray, ::Taylor, ::Val) = C
 
 # Fourier: move zero-frequency from position 1 to center
@@ -448,11 +434,6 @@ function _fft_get_index(n::Integer, space::Fourier)
     return 1:2ord_C+1, ord_A+1-ord_C:ord_A+1+ord_C
 end
 
-function _postprocess_to_coef!(C::AbstractVector, ::Fourier)
-    circshift!(C, copy(C), length(C)÷2)
-    return C
-end
-
 function _postprocess_to_coef!(C::AbstractArray{T,N}, ::Fourier, ::Val{D}) where {T,N,D}
     circshift!(C, copy(C), ntuple(i -> ifelse(i == D, size(C, D)÷2, 0), Val(N)))
     return C
@@ -461,12 +442,6 @@ end
 # Chebyshev: halve the Nyquist frequency, which carries both mirror images
 
 _fft_get_index(n::Integer, space::Chebyshev) = 1:min(n÷2+1, dimension(space)), 1:min(n÷2+1, dimension(space))
-
-function _postprocess_to_coef!(C::AbstractVector, ::Chebyshev)
-    len = length(C)
-    iseven(len) && @inbounds C[len÷2+1] /= exact(2)
-    return C
-end
 
 function _postprocess_to_coef!(C::AbstractArray, ::Chebyshev, ::Val{D}) where {D}
     len = size(C, D)

@@ -249,6 +249,11 @@
         @test all(ib[:] .=== coefficients(c))
         @test_throws BoundsError ia[3]
 
+        # an error which contains zero without being zero is charged in full
+        ic = InfiniteSequence(c, X; finite_error = interval(0.0, 0.5))
+        @test isequal_interval(project(ic, 𝒯)[1], interval(1.75, 2.25))
+        @test isequal_interval(ic[1], interval(1.75, 2.25))
+
         # floating-point coefficients cannot enclose an error
         i_f = InfiniteSequence(a, 0.5, 0.1, 0.6, Ell1())
         @test i_f[1] == 2.0

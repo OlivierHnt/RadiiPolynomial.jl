@@ -405,7 +405,7 @@ function project!(c::Sequence, a::InfiniteSequence)
     @inbounds for (k, w_k) ∈ zip(indices(space_c), _weights(X, space_c))
         if any(abs.(k) .> ord_a)
             c[k] = _envelope_box(CoefType, _coefficient_bound(X, in_tail_bound, w_k))
-        elseif !iszero(in_finite_bound)
+        elseif !_safe_iszero(in_finite_bound)
             c[k] += _envelope_box(CoefType, _coefficient_bound(X, in_finite_bound, w_k))
         end
     end

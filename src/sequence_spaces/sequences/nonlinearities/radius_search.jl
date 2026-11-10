@@ -1,8 +1,6 @@
 # auxiliary radius ν̄ of the Cauchy estimate
 
-function _optimize_decay(nl::Nonlinearity, c, aa, ρ)
-    a, ε = sequence(aa), total_error(aa)
-    ν = _analyticity_rate(banachspace(aa))
+function _optimize_decay(nl::Nonlinearity, c, a, ν, ε, ρ)
     T = eltype(a)
     function total(args...)
         finite_err, tail_err, pert, _ = _grid_error(nl.f, args...)

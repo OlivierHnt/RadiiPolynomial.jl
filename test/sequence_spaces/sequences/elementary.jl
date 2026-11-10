@@ -618,7 +618,7 @@
                 continue
             end
             @test isfinite(sup(total_error(r)))
-            ν̄ = RadiiPolynomial._optimize_decay(nl, sequence(r), a, total_error(a))
+            ν̄ = RadiiPolynomial._optimize_decay(nl, sequence(r), sequence(a), (interval(1.3),), total_error(a), total_error(a))
             @test RadiiPolynomial._check_branch_cut_poles(nl, sequence(a), interval.(ν̄), total_error(a))
         end
     end
@@ -629,7 +629,7 @@
         a = InfiniteSequence(Sequence(Taylor(3), interval.([1.5, 0.1, 0.01, 1e-3])), X)
         # a branch cut swallowing the whole plane leaves no radius feasible, at any sweep
         nl = Nonlinearity(x -> x^0.7, Complex{Interval{Float64}}[], interval(-Inf, Inf))
-        @test_throws ArgumentError RadiiPolynomial._optimize_decay(nl, sequence(a), a, total_error(a))
+        @test_throws ArgumentError RadiiPolynomial._optimize_decay(nl, sequence(a), sequence(a), (interval(1.3),), total_error(a), total_error(a))
     end
 
     @testset "the plateau sets the order of the output" begin
@@ -745,6 +745,27 @@
         @test sup(total_error(inv(InfiniteSequence(interval.(a), X)))) < 1e-8
         # a failed proof says so
         @test_throws ArgumentError inv(InfiniteSequence(interval.(a), X); codomain = Chebyshev(8))
+    end
+
+    @testset "InfiniteSequence: a symmetric input is read on the full lattice" begin
+        ℱ = Fourier(4, 1.0)
+        X = Ell1(GeometricWeight(interval(1.2)))
+        pow = Nonlinearity(x -> x ^ 1.5, Complex{Interval{Float64}}[], interval(-Inf, 0))
+        for (s, coeffs, F) ∈ ((evensym(ℱ), [1.0, 0.1, 0.02, 0.0, 0.0], exp), (oddsym(ℱ), [0.1, 0.02, 0.0, 0.0], sin), (evensym(ℱ), [2.0, 0.1, 0.02, 0.0, 0.0], pow))
+            for ε ∈ (0.0, 1e-8)
+                a = Sequence(s, interval.(coeffs))
+                r = F(InfiniteSequence(a, X; total_error = interval(ε)))
+                r_full = F(InfiniteSequence(Projection(ℱ) * a, X; total_error = interval(ε)))
+                @test space(sequence(r)) == space(sequence(r_full))
+                @test all(isequal_interval.(coefficients(sequence(r)), coefficients(sequence(r_full))))
+                @test isequal_interval(total_error(r), total_error(r_full))
+            end
+        end
+        𝒯² = Fourier(1, 1.0) ⊗ Fourier(1, 1.0)
+        a = Sequence(d4sym(𝒯²), interval.([1.0, 0.05, 0.02]))
+        X² = Ell1((GeometricWeight(interval(1.2)), GeometricWeight(interval(1.2))))
+        r = exp(InfiniteSequence(a, X²))
+        @test isequal_interval(total_error(r), total_error(exp(InfiniteSequence(Projection(𝒯²) * a, X²))))
     end
 
     @testset "the plateau of a tensor space is cut in one direction" begin

@@ -42,12 +42,12 @@ end
 (nl::Nonlinearity)(a::Sequence{<:SequenceSpace}; codomain = nothing, symmetry = nothing) = _apply(nl.f, a, codomain, symmetry)
 
 function (nl::Nonlinearity)(a::InfiniteSequence; codomain::Union{Nothing,SequenceSpace} = nothing)
-    seq_a = sequence(a)
-    ε = total_error(a)
     _isexactconstant(a) && return _at_value(nl.f, a, codomain)
+    seq_a = _maybe_desym(sequence(a)) # the bound is computed on the full lattice
+    ε = total_error(a)
 
     ν = _analyticity_rate(banachspace(a))
-    _validate_rate(desymmetrize(space(a)), ν)
+    _validate_rate(space(seq_a), ν)
 
     ρ = _safe_iszero(ε) ? ε : exact(1) + ε
 
@@ -58,9 +58,9 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::Union{Nothing,Sequenc
 
     T = _image_eltype(nl.f, eltype(a))
     evaluate(s) = _grid_coefficients(nl.f, s, T, seq_a)
-    c = codomain === nothing ? _resolve(evaluate, desymmetrize(space(seq_a))) : evaluate(codomain)
+    c = codomain === nothing ? _resolve(evaluate, space(seq_a)) : evaluate(codomain)
 
-    ν̄ = _maybe_interval.(eltype(a), _optimize_decay(nl, c, a, ρ))
+    ν̄ = _maybe_interval.(eltype(a), _optimize_decay(nl, c, seq_a, ν, ε, ρ))
 
     finite_err, tail_err, pert, N_v = _grid_error(nl.f, seq_a, c, ν, ε, ρ, ν̄)
     total_err = finite_err + tail_err + pert

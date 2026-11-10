@@ -224,6 +224,50 @@
         @test total_error(b) == 0.1
     end
 
+    @testset "getindex, view, iterate" begin
+        X = Ell1(GeometricWeight(interval(2.0)))
+        c = Sequence(𝒯, interval.([1.0, 2.0, 3.0]))
+        ia = InfiniteSequence(c, interval(0.5), interval(0.1), interval(0.6), X)
+
+        # a coefficient carries the finite error over its weight: 0.5 / 2ᵏ
+        @test isequal_interval(ia[0], interval(0.5, 1.5))
+        @test isequal_interval(ia[1], interval(1.75, 2.25))
+        @test isequal_interval(ia[2], interval(2.875, 3.125))
+        @test all(isequal_interval.(ia[0:1], [interval(0.5, 1.5), interval(1.75, 2.25)]))
+        @test all(isequal_interval.(ia[:], coefficients(project(ia, 𝒯))))
+        @test isequal_interval(ia[end], ia[2])
+        @test all(isequal_interval.(collect(ia), ia[:]))
+        @test isequal_interval(first(ia), ia[0])
+        @test isguaranteed(ia[1])
+
+        # the stored coefficients are those of `sequence`
+        @test isequal_interval(sequence(ia)[1], interval(2.0))
+
+        # the tail error bears on the indices which are not stored
+        ib = InfiniteSequence(c, X; tail_error = interval(0.1))
+        @test ib[1] === c[1]
+        @test all(ib[:] .=== coefficients(c))
+        @test_throws BoundsError ia[3]
+
+        # floating-point coefficients cannot enclose an error
+        i_f = InfiniteSequence(a, 0.5, 0.1, 0.6, Ell1())
+        @test i_f[1] == 2.0
+        @test collect(i_f) == [1.0, 2.0, 1.0]
+
+        @test_throws ArgumentError view(ia, 1)
+
+        # tensor and symmetric spaces
+        s = 𝒯 ⊗ Fourier(1, 1.0)
+        it = InfiniteSequence(Sequence(s, interval.(collect(1.0:dimension(s)))),
+            Ell1((GeometricWeight(interval(2.0)), IdentityWeight())); finite_error = interval(0.5))
+        @test isequal_interval(it[(1,-1)], interval(1.75, 2.25))
+        @test all(isequal_interval.(it[(0:2,0)], project(it, s)[(0:2,0)]))
+        s = evensym(Fourier(2, 1.0))
+        ie = InfiniteSequence(Sequence(s, interval.([1.0, 2.0, 3.0])), X; finite_error = interval(0.5))
+        @test isequal_interval(ie[1], interval(1.875, 2.125)) # the weight of the orbit {-1, 1} is 2 + 2
+        @test all(isequal_interval.(ie[:], coefficients(project(ie, s))))
+    end
+
     @testset "copy" begin
         ia = InfiniteSequence(a, 0.0, 0.1, 0.1, Ell1())
         ib = copy(ia)

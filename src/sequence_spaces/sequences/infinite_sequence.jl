@@ -109,6 +109,25 @@ space(a::InfiniteSequence) = space(sequence(a)) # needed for general methods
 
 coefficients(a::InfiniteSequence) = coefficients(sequence(a)) # needed for general methods
 
+# getindex, view, iterate
+
+# a coefficient is read with its share of the finite error, as `project` does; the stored
+# coefficients, without any error, are those of `sequence(a)`
+_enclosure(a::InfiniteSequence) = _safe_iszero(finite_error(a)) ? sequence(a) : project(a, space(a))
+
+Base.@propagate_inbounds Base.getindex(a::InfiniteSequence, α) = getindex(_enclosure(a), α)
+Base.@propagate_inbounds Base.getindex(a::InfiniteSequence, u::Union{AbstractVector,TensorIndices}) = getindex(_enclosure(a), u)
+
+Base.view(::InfiniteSequence, α) =
+    throw(ArgumentError("a view cannot carry the error of an InfiniteSequence: take the view of its `sequence`"))
+
+Base.iterate(a::InfiniteSequence) = _iterate(coefficients(_enclosure(a)))
+Base.iterate(::InfiniteSequence, (A, i)) = _iterate(A, i)
+function _iterate(A, i...)
+    x = iterate(A, i...)
+    return isnothing(x) ? nothing : (x[1], (A, x[2]))
+end
+
 # utilities
 
 Base.eltype(a::InfiniteSequence) = eltype(coefficients(a))

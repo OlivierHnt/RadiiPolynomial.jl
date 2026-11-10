@@ -26,9 +26,11 @@ function _ref_coefficients(f, xs::Tuple, ν::NTuple{D}, K::NTuple{D,Int}, M::NTu
                 A[(ℓ .+ L .+ 1)...] += c
             end
         end
-        θ = map(m -> [2 * BigFloat(π) * j / m for j ∈ 0:m-1], M)
-        E = map((Lᵢ, θᵢ) -> [cis(ℓ * t) for ℓ ∈ -Lᵢ:Lᵢ, t ∈ θᵢ], L, θ)
-        Ē = map((Kᵢ, θᵢ) -> [cis(-k * t) for k ∈ -Kᵢ:Kᵢ, t ∈ θᵢ], K, θ)
+        # the samples e^{iℓθⱼ} are read off the M roots of unity
+        ω = map(m -> [cispi(2 * big(j) / m) for j ∈ 0:m-1], M)
+        samples(n, ωᵢ) = [ωᵢ[mod(ℓ * j, length(ωᵢ)) + 1] for ℓ ∈ -n:n, j ∈ 0:length(ωᵢ)-1]
+        E = map(samples, L, ω)
+        Ē = map(conj ∘ samples, K, ω)
         if D == 1
             return Ē[1] * f.(transpose(E[1]) * A) / M[1]
         else
@@ -167,13 +169,11 @@ _ref_chebyshev_interpolant(f, N) =
         X = Ell1(GeometricWeight(interval(1.2)))
         operations = ((inv, inv), (sqrt, sqrt), (cbrt, z -> z ^ (big(1) / 3)), (x -> x / (x + interval(1.0)), z -> z / (z + 1)))
         inputs = (Sequence(Chebyshev(1), [2.0, 0.25]), Sequence(Taylor(3), [3.0, 0.5, 0.1, 0.0]), Sequence(Fourier(1, 1.0), [0.2, 2.0, 0.2]))
-        for (F, ref) ∈ operations, x ∈ inputs
+        for (i, (F, ref)) ∈ enumerate(operations), x ∈ inputs
             C = _ref_coefficients(ref, (x,), (1.2,), (150,), (600,))
             _ref_check(F(InfiniteSequence(interval.(x), X)), C, (1.2,))
-        end
-        for (F, ref) ∈ operations[1:3], x ∈ inputs # a fixed codomain
-            C = _ref_coefficients(ref, (x,), (1.2,), (150,), (600,))
-            _ref_check(F(InfiniteSequence(interval.(x), X); codomain = _oforder_like(space(x), 6)), C, (1.2,))
+            # the division takes no codomain
+            i ≤ 3 && _ref_check(F(InfiniteSequence(interval.(x), X); codomain = _oforder_like(space(x), 6)), C, (1.2,))
         end
     end
 

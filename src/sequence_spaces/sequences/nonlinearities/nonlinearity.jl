@@ -1,19 +1,4 @@
 """
-    AnalyticityError(msg)
-
-The exception thrown when the analyticity of a `Nonlinearity` cannot be
-verified: the image of a contour, or the disc of the input error around it,
-meets one of its `poles` or its `branch_cut`.
-"""
-struct AnalyticityError <: Exception
-    msg :: String
-end
-
-    export AnalyticityError
-
-Base.showerror(io::IO, e::AnalyticityError) = print(io, "AnalyticityError: ", e.msg)
-
-"""
     Nonlinearity(f, poles, branch_cut)
 
 A function `f`, together with the set where it fails to be analytic: the `poles`

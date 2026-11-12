@@ -15,6 +15,9 @@ import LinearAlgebra, StaticArrays
 
 
 
+include("errors.jl")
+    export VerificationFailure, AnalyticityError, ProofError
+
 # Sequence spaces
 
 import LinearAlgebra: ×

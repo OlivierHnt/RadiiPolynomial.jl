@@ -17,7 +17,7 @@ function _newton_root(x̄_seq::Sequence, A_seq::Sequence, a, b, p::Int, X::Banac
         Z₂ += exact(binomial(p - 1, j)) * norm(term(p - 1 - j)) * Rʲ⁻¹
     end
     r, success = interval_of_existence(Y, Z₁, Z₂, R; verbose = false)
-    success || return throw(ArgumentError("the solution of b xᵖ = a could not be proven around its approximation of order $(order(x̄)): Y = $(Y), Z₁ = $(Z₁), Z₂ = $(Z₂)"))
+    success || return throw(ProofError("the solution of b xᵖ = a could not be proven around its approximation of order $(order(x̄)): Y = $(Y), Z₁ = $(Z₁), Z₂ = $(Z₂)"))
 
     # the radius is as guaranteed as its bounds, which carry the flags of a and b
     return InfiniteSequence(sequence(x̄), X; total_error = _guaranteed_as(_maybe_interval(T, inf(r)), Y, Z₁, Z₂))

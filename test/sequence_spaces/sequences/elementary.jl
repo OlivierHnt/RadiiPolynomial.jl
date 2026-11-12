@@ -483,7 +483,7 @@ end
         @test maximum(abs, coefficients(x * a - 1)) < 1e-10
         @test sup(total_error(inv(InfiniteSequence(interval.(a), ℓ¹ν(1.001))))) < 1e-8
         # an order too low for the proof to succeed
-        @test_throws ArgumentError inv(InfiniteSequence(interval.(a), ℓ¹ν(1.001)); codomain = Chebyshev(8))
+        @test_throws ProofError inv(InfiniteSequence(interval.(a), ℓ¹ν(1.001)); codomain = Chebyshev(8))
     end
 
     @testset "InfiniteSequence: a symmetric input is read on the full lattice" begin
@@ -512,5 +512,14 @@ end
         # the constant shortcut too
         r₀ = nl(InfiniteSequence(Sequence(Chebyshev(1), interval.([0.5, 0.0])), ℓ¹ν(1.2)); codomain = Chebyshev(1))
         @test mid(sequence(r₀)[0]) ≈ exp(0.5im)
+    end
+
+    @testset "a failed verification is a VerificationFailure" begin
+        @test AnalyticityError <: VerificationFailure
+        @test ProofError <: VerificationFailure
+        @test sprint(showerror, AnalyticityError("pole met")) == "AnalyticityError: pole met"
+        @test sprint(showerror, ProofError("Z₁ ≥ 1")) == "ProofError: Z₁ ≥ 1"
+        a = InfiniteSequence(interval.(Sequence(Taylor(1), [0.0, 0.01])), ℓ¹ν(1.5))
+        @test_throws VerificationFailure a^0.7
     end
 end

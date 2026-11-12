@@ -250,7 +250,7 @@ end
 
         # a pole at the value a(0) = 1 lies on the image of the contour
         nl_hit = Nonlinearity(x -> 1/(x - interval(1.0)), Complex{Interval{Float64}}[interval(1.0)+0im], emptyinterval(Float64))
-        @test_throws ArgumentError nl_hit(InfiniteSequence(seq, ℓ¹ν(1.5)); codomain = 𝒯)
+        @test_throws AnalyticityError nl_hit(InfiniteSequence(seq, ℓ¹ν(1.5)); codomain = 𝒯)
 
         # a pole far away from the image, and from the disc of the input error around it
         for ε ∈ (0.0, 1e-8)
@@ -263,16 +263,16 @@ end
         r = InfiniteSequence(seq, ℓ¹ν(1.5))^0.7
         @test isfinite(sup(total_error(r)))
         @test inf(total_error(r)) ≥ 0
-        @test_throws ArgumentError InfiniteSequence(interval.(_el_seq(𝒯, 1 => 0.01)), ℓ¹ν(1.5))^0.7
+        @test_throws AnalyticityError InfiniteSequence(interval.(_el_seq(𝒯, 1 => 0.01)), ℓ¹ν(1.5))^0.7
 
         # f(z) = 2 - 3z⁻¹ is positive on |z| = ν but hits (-∞, 0] on |z| = 1/ν, so both radii must be swept
         coeffs = complex.(interval.([0.0, -3.0, 2.0, 0.0, 0.0]))
-        @test_throws ArgumentError InfiniteSequence(Sequence(ℱ, coeffs), ℓ¹ν(1.5))^0.7
+        @test_throws AnalyticityError InfiniteSequence(Sequence(ℱ, coeffs), ℓ¹ν(1.5))^0.7
 
         # an input error needs f analytic within 1 + ε of the image: here the branch point is closer
         near = Sequence(Taylor(2), interval.([0.8, 0.1, 0.01]))
         @test isfinite(sup(total_error(InfiniteSequence(near, ℓ¹ν(1.2))^0.7)))
-        @test_throws ArgumentError InfiniteSequence(near, ℓ¹ν(1.2); total_error = interval(1e-8))^0.7
+        @test_throws AnalyticityError InfiniteSequence(near, ℓ¹ν(1.2); total_error = interval(1e-8))^0.7
 
         # an entire function is analytic within any radius
         e = InfiniteSequence(Sequence(ℱ, interval.([0.0, 0.05, 1.0, 0.05, 0.0])), ℓ¹ν(1.2); total_error = interval(1e-8))
@@ -367,7 +367,7 @@ end
             r = try
                 a^0.7
             catch e
-                @test e isa ArgumentError # refused outright, which is a certified answer too
+                @test e isa AnalyticityError # refused outright, which is a certified answer too
                 continue
             end
             @test isfinite(sup(total_error(r)))
@@ -378,7 +378,7 @@ end
         # a branch cut swallowing the whole plane leaves no radius feasible
         a = InfiniteSequence(Sequence(Taylor(3), interval.([1.5, 0.1, 0.01, 1e-3])), ℓ¹ν(1.3))
         nl = Nonlinearity(x -> x^0.7, Complex{Interval{Float64}}[], interval(-Inf, Inf))
-        @test_throws ArgumentError RadiiPolynomial._optimize_decay(nl, sequence(a), sequence(a), (interval(1.3),), total_error(a), total_error(a))
+        @test_throws AnalyticityError RadiiPolynomial._optimize_decay(nl, sequence(a), sequence(a), (interval(1.3),), total_error(a), total_error(a))
     end
 
     @testset "the plateau sets the order of the output" begin

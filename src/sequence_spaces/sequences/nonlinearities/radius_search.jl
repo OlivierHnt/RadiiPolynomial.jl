@@ -18,7 +18,7 @@ function _optimize_decay(nl::Nonlinearity, c, a, ν, ε, ρ)
 
     ν̄ = _search_radius(score, ν_mag)
     ν̄ === nothing || (ν̄ = _refine_radius(bound, verified, ν_mag, ν̄))
-    ν̄ === nothing && return throw(ArgumentError("no auxiliary radius ν̄ > ν = $(ν_mag) keeps `f` analytic within $(ρ) of the contour: analyticity violated"))
+    ν̄ === nothing && return throw(AnalyticityError("no auxiliary radius ν̄ > ν = $(ν_mag) keeps `f` analytic within $(ρ) of the contour: analyticity violated"))
     return ν̄
 end
 

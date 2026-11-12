@@ -1,4 +1,19 @@
 """
+    AnalyticityError(msg)
+
+The exception thrown when the analyticity of a `Nonlinearity` cannot be
+verified: the image of a contour, or the disc of the input error around it,
+meets one of its `poles` or its `branch_cut`.
+"""
+struct AnalyticityError <: Exception
+    msg :: String
+end
+
+    export AnalyticityError
+
+Base.showerror(io::IO, e::AnalyticityError) = print(io, "AnalyticityError: ", e.msg)
+
+"""
     Nonlinearity(f, poles, branch_cut)
 
 A function `f`, together with the set where it fails to be analytic: the `poles`
@@ -52,7 +67,7 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::Union{Nothing,Sequenc
     ρ = _safe_iszero(ε) ? ε : exact(1) + ε
 
     _check_branch_cut_poles(nl, seq_a, ν, ρ) ||
-        return throw(ArgumentError(_safe_iszero(ε) ?
+        return throw(AnalyticityError(_safe_iszero(ε) ?
             "the image of the ν = $(ν) contour intersects a branch cut or contains at least one pole: analyticity violated" :
             "the input error cannot be propagated: the Cauchy estimate needs f analytic on the disc of radius r⋆ = 1 + total_error(a) = $(ρ) around the image of the ν = $(ν) contour, and that disc meets a branch cut or a pole"))
 

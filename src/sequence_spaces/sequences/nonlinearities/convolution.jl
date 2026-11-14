@@ -357,25 +357,40 @@ end
 #
 
 function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
-    full_c = sequence(a) * sequence(b)
-    space_c = space(full_c) ∩ (desymmetrize(space(a)) ∪ desymmetrize(space(b)))
-    c = project(full_c, space_c)
-
-    @inbounds view(full_c, indices(space_c)) .= zero(eltype(full_c)) # keep the tail
+    c = sequence(a) * sequence(b)
 
     X = banachspace(a) ∩ banachspace(b)
     cross_bound = norm(sequence(a), X) * total_error(b) +
                   norm(sequence(b), X) * total_error(a) +
                   total_error(a) * total_error(b)
-    spillover = norm(full_c, X)
-    new_finite = cross_bound
-    new_tail = spillover + cross_bound
-    new_total = spillover + cross_bound
 
     new_full_norm = norm(a, X) * norm(b, X) # Banach algebra
 
-    return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_total, new_full_norm, X)
+    return _unsafe_infinite_sequence(c, norm(c, X), cross_bound, cross_bound, cross_bound, new_full_norm, X)
 end
+
+# truncated version: the product is cut back to the union of the spaces of the factors,
+# and the cut-off coefficients (`spillover`) go into the tail error
+# function Base.:*(a::InfiniteSequence, b::InfiniteSequence)
+#     full_c = sequence(a) * sequence(b)
+#     space_c = space(full_c) ∩ (desymmetrize(space(a)) ∪ desymmetrize(space(b)))
+#     c = project(full_c, space_c)
+#
+#     @inbounds view(full_c, indices(space_c)) .= zero(eltype(full_c)) # keep the tail
+#
+#     X = banachspace(a) ∩ banachspace(b)
+#     cross_bound = norm(sequence(a), X) * total_error(b) +
+#                   norm(sequence(b), X) * total_error(a) +
+#                   total_error(a) * total_error(b)
+#     spillover = norm(full_c, X)
+#     new_finite = cross_bound
+#     new_tail = spillover + cross_bound
+#     new_total = spillover + cross_bound
+#
+#     new_full_norm = norm(a, X) * norm(b, X) # Banach algebra
+#
+#     return _unsafe_infinite_sequence(c, norm(c, X), new_finite, new_tail, new_total, new_full_norm, X)
+# end
 
 Base.:*(a::InfiniteSequence, b::Sequence) = a * InfiniteSequence(b, banachspace(a))
 Base.:*(a::Sequence, b::InfiniteSequence) = InfiniteSequence(a, banachspace(b)) * b

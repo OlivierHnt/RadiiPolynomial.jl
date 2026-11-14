@@ -211,14 +211,14 @@ _conv_seq(f, s) = Sequence(s, [f(k) for k ∈ indices(s)])
     end
 
     @testset "InfiniteSequence: product of symmetric sequences" begin
-        # the finite part carries the symmetry of the product, truncated like the factors: odd times odd is even
+        # the finite part carries the symmetry of the product, with the order of the full product: odd times odd is even
         F = Fourier(4, 1.0)
         X = Ell1(GeometricWeight(interval(11) / interval(10)))
         ao = InfiniteSequence(interval(Sequence(oddsym(F), [0.5, 0.3, 0.2, 0.1])), X; total_error = interval(1e-6))
         ap = InfiniteSequence(project(sequence(ao), interval(F)), X; total_error = interval(1e-6))
         co, cp = ao * ao, ap * ap
-        @test space(co) == evensym(interval(F))
-        @test all(k -> mid(real(project(sequence(co), interval(F))[k])) ≈ mid(sequence(cp)[k]), -4:4)
+        @test space(co) == evensym(interval(Fourier(8, 1.0)))
+        @test all(k -> mid(real(project(sequence(co), interval(Fourier(8, 1.0)))[k])) ≈ mid(sequence(cp)[k]), -8:8)
         @test mid(total_error(co)) ≈ mid(total_error(cp))
         # factors with different symmetries whose product is representable on neither
         σ = GroupElement(LatticeAut([-1;;]), Cocycle(0//1, Rational{Int}[0//1]))
@@ -226,7 +226,7 @@ _conv_seq(f, s) = Sequence(s, [f(k) for k ∈ indices(s)])
         s⁻ = SymmetricSpace(F, Group(σ, GroupElement(LatticeAut([1;;]), Cocycle(1//1, Rational{Int}[1//1])))) # odd modes
         a = InfiniteSequence(interval(Sequence(s⁺, [1.0, 0.5, 0.2])), X; total_error = interval(1e-6))
         b = InfiniteSequence(interval(Sequence(s⁻, [0.4, 0.1])), X; total_error = interval(1e-6))
-        @test collect(indices(space(a * b))) == [1, 3]
+        @test collect(indices(space(a * b))) == [1, 3, 5, 7]
     end
 
     @testset "InfiniteSequence: power by squaring" begin
@@ -236,7 +236,7 @@ _conv_seq(f, s) = Sequence(s, [f(k) for k ∈ indices(s)])
         a² = a * a
         for (n, ref) ∈ ((3, a * a²), (6, a² * (a² * a²)))
             r = a^n
-            @test sequence(r) == sequence(ref) == Sequence(Taylor(1), [1.0, 2.0n]) # (1+2x)ⁿ = 1 + 2nx + ⋯
+            @test sequence(r) == sequence(ref) == Sequence(Taylor(n), [binomial(n, k) * 2.0^k for k ∈ 0:n]) # (1+2x)ⁿ
             @test finite_error(r) == finite_error(ref)
             @test tail_error(r) == tail_error(ref)
             @test total_error(r) == total_error(ref)

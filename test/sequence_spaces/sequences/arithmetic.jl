@@ -255,4 +255,24 @@
         @test all(isequal_interval.(real.(coefficients(cci)), interval.([4.0, 6.0])))
         @test all(isequal_interval.(imag.(coefficients(cci)), interval.([1.0, 0.0])))
     end
+
+    @testset "InfiniteSequence ± of different orders" begin
+        # the tail error of the lower-order operand partly sits on finite modes of the sum
+        a = InfiniteSequence(Sequence(Taylor(3), zeros(4)), 0.0, 1.0, 1.0, Ell1())
+        b = InfiniteSequence(Sequence(Taylor(10), zeros(11)), Ell1())
+        for c ∈ (a + b, b + a, a - b, b - a, a + sequence(b), sequence(b) - a)
+            @test space(c) == Taylor(10)
+            @test finite_error(c) == 1.0
+            @test tail_error(c) == 1.0
+            @test total_error(c) == 1.0
+        end
+        # same order: the split is unchanged
+        c = a + a
+        @test (finite_error(c), tail_error(c), total_error(c)) == (0.0, 2.0, 2.0)
+        # tensor spaces: growing in one dimension is enough
+        a₂ = InfiniteSequence(Sequence(Taylor(3) ⊗ Taylor(5), zeros(24)), 0.5, 1.0, 1.5, Ell1())
+        b₂ = InfiniteSequence(Sequence(Taylor(3) ⊗ Taylor(6), zeros(28)), Ell1())
+        c₂ = a₂ + b₂
+        @test (finite_error(c₂), tail_error(c₂), total_error(c₂)) == (1.5, 1.0, 1.5)
+    end
 end

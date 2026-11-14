@@ -89,12 +89,14 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
             $_f!(c, Sequence(psa, coefficients(a)), Sequence(psb, coefficients(b)))
             return c
         end
-        $f(a::InfiniteSequence, b::InfiniteSequence) =
-            InfiniteSequence($f(sequence(a), sequence(b)), finite_error(a) + finite_error(b), tail_error(a) + tail_error(b), total_error(a) + total_error(b), banachspace(a) ∩ banachspace(b))
-        $f(a::InfiniteSequence, b::Sequence) =
-            InfiniteSequence($f(sequence(a), b), finite_error(a), tail_error(a), total_error(a), banachspace(a))
-        $f(a::Sequence, b::InfiniteSequence) =
-            InfiniteSequence($f(a, sequence(b)), finite_error(b), tail_error(b), total_error(b), banachspace(b))
+        function $f(a::InfiniteSequence, b::InfiniteSequence)
+            c = $f(sequence(a), sequence(b))
+            fe_a, te_a = _errors_on(a, space(c))
+            fe_b, te_b = _errors_on(b, space(c))
+            return InfiniteSequence(c, fe_a + fe_b, te_a + te_b, total_error(a) + total_error(b), banachspace(a) ∩ banachspace(b))
+        end
+        $f(a::InfiniteSequence, b::Sequence) = $f(a, InfiniteSequence(b, banachspace(a)))
+        $f(a::Sequence, b::InfiniteSequence) = $f(InfiniteSequence(a, banachspace(b)), b)
 
         function $f!(c::Sequence, a::Sequence, b::Sequence)
             op = $f
@@ -120,6 +122,13 @@ for (f, f!, rf!, lf!, _f!, _rf!, _lf!) ∈ ((:(Base.:+), :add!, :radd!, :ladd!, 
             return b
         end
     end
+end
+
+# errors of `a` on the larger space `s` of a sum: the tail of `a` partly sits on finite modes of `s`
+function _errors_on(a::InfiniteSequence, s::SequenceSpace)
+    fe, te = finite_error(a), tail_error(a)
+    issubset(desymmetrize(s), desymmetrize(space(a))) && return fe, te
+    return fe + te, te
 end
 
 function _add!(c::Sequence, a::Sequence, b::Sequence)

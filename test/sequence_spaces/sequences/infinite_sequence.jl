@@ -25,9 +25,10 @@ _infseq_errors(a) = (finite_error(a), tail_error(a), total_error(a))
         i_g = InfiniteSequence(𝒯, [1.0, 2.0, 1.0], 0.0, 0.1, 0.1, Ell1())
         @test sequence_norm(i_g) == 4.0 && total_error(i_g) == 0.1
 
-        # the total error is min(finite + tail, total), and a zero total error resets the parts
+        # the total error is min(finite + tail, total), and it caps the parts
         @test _infseq_errors(InfiniteSequence(a, 0.1, 0.2, 0.0, Ell1())) == (0.0, 0.0, 0.0)
-        @test _infseq_errors(InfiniteSequence(a, 0.1, 0.2, 0.15, Ell1())) == (0.1, 0.2, 0.15)
+        @test _infseq_errors(InfiniteSequence(a, 0.1, 0.2, 0.15, Ell1())) == (0.1, 0.15, 0.15)
+        @test _infseq_errors(InfiniteSequence(a, 0.3, 0.2, 0.15, Ell1())) == (0.15, 0.15, 0.15)
         @test _infseq_errors(InfiniteSequence(a, 0.1, 0.2, 0.5, Ell1())) == (0.1, 0.2, 0.1 + 0.2)
 
         # a plain Sequence is its own finite part and carries no error

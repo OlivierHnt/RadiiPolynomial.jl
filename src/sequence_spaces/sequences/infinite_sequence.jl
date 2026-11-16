@@ -54,7 +54,7 @@ function InfiniteSequence{T,S,R,U}(sequence::Sequence{T,S}, finite_error::R, tai
     _iscompatbanachspace(space(sequence), banachspace) || return throw(ArgumentError("invalid norm for the sequence space"))
     (inf(finite_error) ≥ 0) & (inf(tail_error) ≥ 0) & (inf(total_error) ≥ 0) || return throw(ArgumentError("errors must be non-negative"))
     total_ = min(finite_error + tail_error, total_error)
-    finite_, tail_ = ifelse(_safe_iszero(total_), (zero(R), zero(R)), (finite_error, tail_error))
+    finite_, tail_ = min(finite_error, total_), min(tail_error, total_)
     seq_norm = convert(R, norm(sequence, banachspace))
     return _unsafe_infinite_sequence(sequence, seq_norm, finite_, tail_, total_, seq_norm + total_, banachspace)
 end

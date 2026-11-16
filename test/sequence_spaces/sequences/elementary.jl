@@ -465,6 +465,13 @@ end
         bs = Sequence(Fourier(120, 1.0), [(k == 0) + 0.5 * 0.6^abs(k) for k ∈ -120:120])
         Bs = InfiniteSequence(interval.(bs), ℓ¹ν(1.05))
         @test sup(total_error(Bs / Bs)) < 1e-10
+        # a frequency that is not a thin interval is kept
+        aπ = InfiniteSequence(Sequence(Fourier(2, interval(π)), interval.([0.1, 0.0, 2.0, 0.0, 0.1])), ℓ¹ν(1.5))
+        for F ∈ (inv, sqrt, cbrt, y -> y / (y + interval(1.0)))
+            r = F(aπ)
+            @test isequal_interval(frequency(space(r)), interval(π))
+            @test sup(total_error(r)) < 1e-9
+        end
         # an exponent that is no 1/q for a small q goes through the general power
         @test isfinite(sup(total_error(x ^ 1e-20)))
         @test isfinite(sup(total_error(x ^ (1 // 40))))

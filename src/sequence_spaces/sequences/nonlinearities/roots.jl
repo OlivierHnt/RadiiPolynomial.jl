@@ -27,6 +27,9 @@ _guaranteed_as(x::Interval, bounds::Interval...) =
     IntervalArithmetic._unsafe_interval(bareinterval(x), decoration(x), all(isguaranteed, bounds))
 _guaranteed_as(x, bounds...) = x
 
+# midpoints of the coefficients only: the space keeps its frequency, so that x̄ and A multiply with a and b
+_mid_coefficients(a::Sequence) = Sequence(space(a), mid.(coefficients(a)))
+
 
 
 # division
@@ -35,7 +38,7 @@ Base.inv(a::Sequence{<:SequenceSpace}; codomain = nothing, symmetry = nothing) =
 
 function Base.inv(a::InfiniteSequence; codomain = nothing)
     _isexactconstant(a) && return _at_value(inv, a, codomain)
-    x̄ = _apply(inv, mid.(sequence(a)), codomain, nothing)
+    x̄ = _apply(inv, _mid_coefficients(sequence(a)), codomain, nothing)
     return _newton_root(x̄, x̄, exact(1), a, 1, banachspace(a), eltype(a))
 end
 
@@ -48,8 +51,8 @@ Base.:/(a::Number, b::Sequence{<:SequenceSpace}) = lmul!(a, inv(b))
 
 function Base.:/(a::InfiniteSequence, b::InfiniteSequence)
     _isexactconstant(b) && return a / sequence(b)[_findindex_constant(space(b))]
-    b_mid = mid.(sequence(b))
-    x̄ = mid.(sequence(a)) / b_mid
+    b_mid = _mid_coefficients(sequence(b))
+    x̄ = _mid_coefficients(sequence(a)) / b_mid
     A = inv(b_mid)
     return _newton_root(x̄, A, a, b, 1, banachspace(a) ∩ banachspace(b), promote_type(eltype(a), eltype(b)))
 end
@@ -78,7 +81,7 @@ _nthroot(a::Sequence{<:SequenceSpace}, q::Int; codomain = nothing, symmetry = no
 function _nthroot(a::InfiniteSequence, q::Int; codomain = nothing)
     root = Base.Fix1(_root, q)
     _isexactconstant(a) && return _at_value(root, a, codomain)
-    a_mid = mid.(sequence(a))
+    a_mid = _mid_coefficients(sequence(a))
     x̄ = _apply(root, a_mid, codomain, nothing)
     A = _grid_coefficients(x -> inv(q * root(x) ^ (q - 1)), space(x̄), eltype(x̄), a_mid)
     return _newton_root(x̄, A, a, exact(1), q, banachspace(a), eltype(a))

@@ -187,6 +187,21 @@ end
             end
         end
 
+        @testset "contraction seen on the upper bounds, down to tiny components of the test vector" begin
+            # a row of error bounds [0, ε] has its midpoint at half its upper bound
+            Y = [interval(1e-10), interval(1e-20)]
+            Z = [interval(0.5) interval(0, 1e-12); interval(0, 1e-12) interval(0, 1e-12)]
+            _, η, success = RadiiPolynomial.set_of_radii(Y, Z, W₀, [1.0, 1.0])
+            @test success
+            @test sup(maximum(Z * η ./ η)) ≈ 0.5
+
+            # spectral radius 0.7, with components of the Perron vector below the absolute accuracy of `eigen`
+            Z = interval.([0.7 0.0 2.7e-14 0.0; 1e-12 7.9e-15 1.8e-13 7.6e-4; 0.0 9.2e-17 5.8e-30 0.0; 0.0 1.5e-23 0.0 4.4e-4])
+            _, η, success = RadiiPolynomial.set_of_radii(fill(interval(1e-10), 4), Z, zeros(Interval{Float64}, 4, 4, 4), fill(1.0, 4))
+            @test success
+            @test sup(maximum(Z * η ./ η)) ≈ 0.7
+        end
+
         #= With Z = 0 and only W[1,1,2] = 8 nonzero,
                P₁(r) = Y₁ + 4 r₁ r₂ - r₁,   P₂(r) = Y₂ - r₂,
            whose positive root for Y = (0.01, 0.2) is r = (0.05, 0.2). There the contraction matrix

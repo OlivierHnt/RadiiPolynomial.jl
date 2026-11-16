@@ -144,11 +144,16 @@ function _search_radii(Pf, DPf, r₀, tol, nonpositive)
     return nothing
 end
 
-# Perron eigenvector of the midpoint matrix, kept positive, as test vector for the contraction
+# Perron eigenvector of the upper bound matrix, the one the contraction bound uses, kept positive, as test vector for the contraction
 function _perron_vector(A)
-    F = LinearAlgebra.eigen(max.(Float64.(mid.(A)), 10eps(Float64)))
-    v = abs.(F.vectors[:, argmax(abs.(F.values))])
-    return max.(v, eps(Float64))
+    S = max.(Float64.(sup.(A)), 10eps(Float64))
+    F = LinearAlgebra.eigen(S)
+    v = max.(abs.(F.vectors[:, argmax(abs.(F.values))]), eps(Float64))
+    for _ ∈ 1:10 # eigen is accurate to about eps in absolute terms only; each step can only lower the bound
+        v = S * v
+        v ./= maximum(v)
+    end
+    return v
 end
 
 function _rpa_failure(msg::AbstractString, ::Type{T}, verbose::Bool) where {T}

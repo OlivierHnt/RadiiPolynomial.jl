@@ -46,6 +46,12 @@ _infseq_errors(a) = (finite_error(a), tail_error(a), total_error(a))
         w = (GeometricWeight(1.0), GeometricWeight(1.0))
         @test_throws ArgumentError InfiniteSequence(d, 0.0, 0.0, 0.0, Ell1((GeometricWeight(1.0),)))
         @test InfiniteSequence(d, 0.0, 0.0, 0.0, Ell1(w)) isa InfiniteSequence
+        # the only single weights are the identity weight, and the Bessel weight on Fourier spaces
+        @test InfiniteSequence(d, 0.0, 0.0, 0.0, Ell1()) isa InfiniteSequence
+        @test_throws ArgumentError InfiniteSequence(d, 0.0, 0.0, 0.0, Ell1(GeometricWeight(1.0)))
+        @test_throws ArgumentError InfiniteSequence(d, 0.0, 0.0, 0.0, Ell1(BesselWeight(1.0)))
+        @test InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Fourier(1, 1.0), zeros(9)), 0.0, 0.0, 0.0, Ell1(BesselWeight(1.0))) isa InfiniteSequence
+        @test_throws ArgumentError InfiniteSequence(Sequence(evensym(Fourier(1, 1.0)) ⊗ Fourier(1, 1.0), zeros(6)), 0.0, 0.0, 0.0, Ell1(GeometricWeight(1.0)))
 
         @testset "only ℓ¹ norms are accepted, ℓ² and ℓ^∞ not being Banach algebras" begin
             # the error of a product is bounded by ‖a‖ ‖b‖ in the norm the sequences carry

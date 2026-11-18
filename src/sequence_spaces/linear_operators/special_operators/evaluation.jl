@@ -465,6 +465,8 @@ function _check_domain(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,Ba
     foreach((wᵢ, sᵢ, xᵢ) -> _check_domain(Ell1(wᵢ), sᵢ, xᵢ), weight(X), spaces(s), x)
     return nothing
 end
+_check_domain(::Ell1{IdentityWeight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, x::NTuple{N,Union{Nothing,Number}}) where {N} =
+    _check_domain(Ell1(ntuple(_ -> IdentityWeight(), Val(N))), s, x)
 
 # Taylor: closed disk of radius ν (ν ≥ 1)
 _check_domain(X::Ell1{<:GeometricWeight}, ::Taylor, x::Number) =

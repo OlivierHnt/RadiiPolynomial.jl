@@ -17,9 +17,6 @@ _getindex(weight::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::N
 _getindex(weight::Tuple{Weight}, s::TensorSpace{<:Tuple{BaseSpace}}, α::Tuple{Int}) =
     @inbounds _getindex(weight[1], s[1], α[1])
 
-_getindex(weight::Weight, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
-    _getindex(ntuple(_ -> weight, Val(N)), s, α)
-
 # the coefficients of an orbit share their modulus, so a representative carries the sum of the weight over
 # its orbit, i.e. the sum over the group divided by |Stab(k)| (see `_weights` for the norms)
 _getindex(weight::Union{Weight,Tuple{Vararg{Weight}}}, s::SymmetricSpace, k) =
@@ -39,6 +36,8 @@ Base.min(::Weight, ::IdentityWeight) = IdentityWeight()
 
 _getindex(::IdentityWeight, ::BaseSpace, k) = exact(true)
 _getindex(::IdentityWeight, ::Chebyshev, k::Int) = exact(ifelse(k == 0, 1, 2))
+_getindex(weight::IdentityWeight, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
+    _getindex(ntuple(_ -> weight, Val(N)), s, α)
 
 IntervalArithmetic.interval(::Type{T}, ::IdentityWeight) where {T<:IntervalArithmetic.NumTypes} = IdentityWeight()
 IntervalArithmetic.interval(::IdentityWeight) = IdentityWeight()

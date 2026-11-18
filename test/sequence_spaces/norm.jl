@@ -93,12 +93,13 @@ _norm_desymmetrized(a, X) = norm(Projection(desymmetrize(space(a))) * a, X)
         @test norm(a, Ell2(w)) == sqrt(153.0)
         @test norm(a, EllInf(w)) == 32.0   # 2 · 1 · 16
 
-        # a lone weight applies to every dimension, so the Chebyshev doubling is kept
+        # the identity weight is the only lone weight applied to every dimension, and the Chebyshev doubling is kept
         b = ones(Chebyshev(2) ⊗ Chebyshev(2))
         @test norm(b, Ell1()) == norm(b, Ell1((IdentityWeight(), IdentityWeight()))) == 25.0   # (1+2+2)²
         @test norm(b, Ell2()) == 5.0
         @test norm(b, EllInf()) == 4.0
-        @test norm(b, Ell1(GeometricWeight(2.0))) == norm(b, Ell1((GeometricWeight(2.0), GeometricWeight(2.0)))) == 13.0^2
+        @test norm(b, Ell1((GeometricWeight(2.0), GeometricWeight(2.0)))) == 13.0^2
+        @test_throws MethodError norm(b, Ell1(GeometricWeight(2.0)))
     end
 
     @testset "SymmetricSpace" begin

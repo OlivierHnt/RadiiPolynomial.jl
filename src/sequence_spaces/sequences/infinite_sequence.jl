@@ -88,10 +88,11 @@ InfiniteSequence(space::SequenceSpace, coefficients::AbstractVector, finite_erro
 
 # requires X to be a Banach algebra under convolution: ℓ¹-type norms only
 _iscompatbanachspace(::SequenceSpace, ::BanachSpace) = false
-_iscompatbanachspace(::SequenceSpace, ::Ell1{<:Weight}) = true
+_iscompatbanachspace(::BaseSpace, ::Ell1{<:Weight}) = true
+_iscompatbanachspace(::TensorSpace, ::Ell1{IdentityWeight}) = true
+_iscompatbanachspace(::TensorSpace{<:NTuple{N,Fourier}}, ::Ell1{<:BesselWeight}) where {N} = true
 _iscompatbanachspace(::TensorSpace{<:NTuple{N,BaseSpace}}, ::Ell1{<:NTuple{N,Weight}}) where {N} = true
 _iscompatbanachspace(s::SymmetricSpace, X::BanachSpace) = _iscompatbanachspace(desymmetrize(s), X)
-_iscompatbanachspace(s::SymmetricSpace, X::Ell1{<:Weight}) = _iscompatbanachspace(desymmetrize(s), X) # needed to resolve method ambiguity
 
 sequence(a::InfiniteSequence) = a.sequence
 sequence_norm(a::InfiniteSequence) = a.sequence_norm

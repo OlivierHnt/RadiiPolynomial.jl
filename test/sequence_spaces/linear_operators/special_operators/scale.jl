@@ -189,15 +189,16 @@
         @test_throws DomainError scale(t, 5.0)
         @test banachspace(scale(t, -1)) == X
 
-        # tensor: one weight per axis, a single weight being applied to each axis
+        # tensor: one weight per axis
         m = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Chebyshev(1), ComplexF64.(1:12)), 0.1, 0.2, 0.3, geo(4.0, 2.0, 3.0))
         mb = scale(m, (2, 0.5, 1))
         @test sequence(mb) == scale(sequence(m), (2, 0.5, 1))
         @test rates(mb) == (2.0, 4.0, 3.0)
         @test isometry(m, mb)
         @test total_error(mb) == 0.3
-        ms = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Fourier(1, 1.0), ComplexF64.(1:9)), 0.1, 0.2, 0.3, X)
-        @test rates(scale(ms, (2, -1))) == (2.0, 4.0)
+        # the identity weight is the only single weight of a tensor space
+        ms = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Fourier(1, 1.0), ComplexF64.(1:9)), 0.1, 0.2, 0.3, Ell1())
+        @test banachspace(scale(ms, (2, -1))) == Ell1()
 
         # interval rates stay rigorous
         ai = InfiniteSequence(interval(sequence(a)), interval(0.1), interval(0.2), interval(0.3), geo(interval(4.0)))

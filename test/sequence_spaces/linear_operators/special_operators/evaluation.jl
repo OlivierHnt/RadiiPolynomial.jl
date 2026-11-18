@@ -267,6 +267,11 @@ end
         @test space(evaluate(t, (0.5, nothing))) == Taylor(0) ⊗ Taylor(1)
         @test_throws DomainError evaluate(t, (3.0, 0.5))
 
+        # the derivative of a ball is a ball of ℓ¹ (one identity weight), evaluated on the closed unit polydisk
+        Dt = differentiate(InfiniteSequence(interval(sequence(t)), Ell1((GeometricWeight(interval(2.0)), GeometricWeight(interval(2.0))))), (1, 0))
+        @test in_interval(1.5, evaluate(Dt, (interval(0.5), interval(0.5))))
+        @test_throws DomainError evaluate(Dt, (interval(1.5), interval(0.5)))
+
         # an algebraic weight defines no evaluation domain
         g = InfiniteSequence(𝒯, Ell1(AlgebraicWeight(2.0)))
         @test_throws DomainError evaluate(g, 0.5)

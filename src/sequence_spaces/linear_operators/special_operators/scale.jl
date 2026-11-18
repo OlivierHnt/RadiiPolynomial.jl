@@ -204,11 +204,6 @@ function scale!(c::Sequence, a::Sequence, γ::Union{Number,Tuple{Vararg{Number}}
     return c
 end
 
-# the scale is an isometry onto the space whose weight is the pulled back one, and it maps the finite part
-# onto the finite part of the codomain, so the three errors are carried over unchanged:
-# - Fourier dilates the indices, k ↦ γk, and ν^{|γk|} = (ν^{|γ|})^{|k|} gives the rate ν^{1/|γ|}
-# - Taylor multiplies the k-th coefficient by γ^k, which gives the rate ν/|γ|, only a weight when ≥ 1
-# - Chebyshev only admits γ = 1
 function scale(a::InfiniteSequence, γ::Union{Number,Tuple{Vararg{Number}}})
     c = scale(sequence(a), γ)
     X = Ell1(_scale_weight(weight(banachspace(a)), space(a), γ))
@@ -217,27 +212,29 @@ end
 
 _scale_weight(w::NTuple{N,Weight}, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NTuple{N,Number}) where {N} =
     map(_scale_weight, w, spaces(s), γ)
-_scale_weight(w::IdentityWeight, ::TensorSpace{<:NTuple{N,BaseSpace}}, ::NTuple{N,Number}) where {N} = w
+function _scale_weight(w::IdentityWeight, s::TensorSpace{<:NTuple{N,BaseSpace}}, γ::NTuple{N,Number}) where {N}
+    v = _scale_weight(ntuple(_ -> w, Val(N)), s, γ)
+    return all(vᵢ -> vᵢ isa IdentityWeight, v) ? w : v
+end
 _scale_weight(w::Union{Weight,Tuple{Vararg{Weight}}}, s::SymmetricSpace, γ::Union{Number,Tuple{Vararg{Number}}}) =
     _scale_weight(w, desymmetrize(s), γ)
 
-_scale_weight(w::IdentityWeight, ::BaseSpace, ::Number) = w
 _scale_weight(w::Weight, ::BaseSpace, ::Number) =
     throw(DomainError(w, "Scale of an InfiniteSequence is only implemented for IdentityWeight and GeometricWeight"))
 
+# Taylor: multiplies the k-th coefficient by γᵏ, which gives the rate ν/|γ|
+_scale_weight(w::GeometricWeight, ::Taylor, γ::Number) = GeometricWeight(rate(w) / abs(γ))
+_scale_weight(::IdentityWeight, s::Taylor, γ::Number) = _scale_weight(GeometricWeight(one(abs(γ))), s, γ)
+
+# Fourier: k ↦ γk, and ν^{|γk|} = (ν^{|γ|})^{|k|} gives the rate ν^{1/|γ|}
 function _scale_weight(w::GeometricWeight, ::Fourier, γ::Number)
     isone(abs(γ)) && return w
-    return GeometricWeight(exp(log(rate(w)) / abs(γ)))
+    return GeometricWeight(rate(w) ^ inv(abs(γ)))
 end
+_scale_weight(w::IdentityWeight, ::Fourier, ::Number) = w
 
-function _scale_weight(w::GeometricWeight, ::Taylor, γ::Number)
-    isone(abs(γ)) && return w
-    ν = rate(w) / abs(γ)
-    inf(ν) ≥ 1 || return throw(DomainError(γ, "Scale by γ maps the geometric rate ν onto ν/|γ| on a Taylor space, which must be at least one"))
-    return GeometricWeight(ν)
-end
-
-_scale_weight(w::GeometricWeight, ::Chebyshev, ::Number) = w
+# Chebyshev: only admits γ = 1
+_scale_weight(w::Union{IdentityWeight,GeometricWeight}, ::Chebyshev, ::Number) = w
 
 # Tensor space
 

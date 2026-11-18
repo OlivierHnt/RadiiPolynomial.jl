@@ -188,6 +188,13 @@
         @test rate(weight(banachspace(scale(t, 4.0)))) == 1.0
         @test_throws DomainError scale(t, 5.0)
         @test banachspace(scale(t, -1)) == X
+        # the identity weight is the rate 1: the scale changes the Banach space, and |γ| > 1 leaves no weight
+        t₁ = InfiniteSequence(sequence(t), 0.1, 0.2, 0.3, Ell1())
+        @test banachspace(scale(t₁, 0.5)) == geo(2.0)
+        @test isometry(t₁, scale(t₁, 0.5))
+        @test banachspace(scale(t₁, -1)) == geo(1.0)
+        @test_throws DomainError scale(t₁, 2.0)
+        @test_throws DomainError Scale(2.0) * t₁
 
         # tensor: one weight per axis
         m = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Chebyshev(1), ComplexF64.(1:12)), 0.1, 0.2, 0.3, geo(4.0, 2.0, 3.0))
@@ -199,6 +206,10 @@
         # the identity weight is the only single weight of a tensor space
         ms = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Fourier(1, 1.0), ComplexF64.(1:9)), 0.1, 0.2, 0.3, Ell1())
         @test banachspace(scale(ms, (2, -1))) == Ell1()
+        mt = InfiniteSequence(Sequence(Fourier(1, 1.0) ⊗ Taylor(1), ComplexF64.(1:6)), 0.1, 0.2, 0.3, Ell1())
+        @test banachspace(scale(mt, (2, 0.5))) == Ell1((IdentityWeight(), GeometricWeight(2.0)))
+        @test isometry(mt, scale(mt, (2, 0.5)))
+        @test_throws DomainError scale(mt, (2, 2.0))
 
         # interval rates stay rigorous
         ai = InfiniteSequence(interval(sequence(a)), interval(0.1), interval(0.2), interval(0.3), geo(interval(4.0)))

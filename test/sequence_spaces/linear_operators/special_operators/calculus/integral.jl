@@ -168,7 +168,8 @@
         @test codomain(∫₋₁, Chebyshev(3)) == Chebyshev(4)
         test_action(∫₋₁, Sequence(Chebyshev(0), [2.0]), Sequence(Chebyshev(1), [2.0, 1.0]); inplace! = inplace!)
         test_action(∫₋₁, Sequence(Chebyshev(1), [1.0, 3.0]), Sequence(Chebyshev(2), [-0.5, 0.5, 0.75]); inplace! = inplace!)
-        test_action(∫₋₁, Sequence(Chebyshev(3), [1.0, 2.0, 3.0, 4.0]), Sequence(Chebyshev(4), [-1.0, -1.0, -0.5, 0.5, 0.5]); inplace! = inplace!)
+        # the row of the constants holds 2/3, which is not a floating-point number: the sum is only approximate
+        test_action(∫₋₁, Sequence(Chebyshev(3), [1.0, 2.0, 3.0, 4.0]), Sequence(Chebyshev(4), [-1.0, -1.0, -0.5, 0.5, 0.5]); inplace! = inplace!, cmp = ≈)
         @test ∫₋₁(Sequence(Chebyshev(1), ComplexF64[2 + 2im, 4.0])) == Sequence(Chebyshev(2), ComplexF64[0 + 2im, 1 + 1im, 1.0])
         @test integrate(Sequence(Chebyshev(1), interval.([1.0, 3.0])), Evaluation(interval(-1.0))) == Sequence(Chebyshev(2), interval.([-0.5, 0.5, 0.75]))
 

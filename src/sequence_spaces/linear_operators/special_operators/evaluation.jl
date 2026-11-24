@@ -89,7 +89,7 @@ function getcoefficient(ℰ::Evaluation{<:Number}, (codom, i)::Tuple{Taylor,Inte
     j == 0 && return one(T)
     x = value(ℰ)
     _safe_iszero(x) && return zero(T)
-    return convert(T, x ^ exact(j))
+    return convert(T, (x * one(real(T))) ^ exact(j)) # `x ^ exact(j)` is a plain float when `x` is an exact float
 end
 
 # Fourier
@@ -110,7 +110,7 @@ function getcoefficient(ℰ::Evaluation{<:Number}, (codom, i)::Tuple{Fourier,Int
     i == 0 || return zero(T)
     x = value(ℰ)
     (j == 0) | _safe_iszero(x) && return one(T)
-    return convert(T, cis(frequency(dom) * x * exact(j)))
+    return convert(T, cis(frequency(dom) * (x * one(real(T))) * exact(j)))
 end
 
 # Chebyshev
@@ -141,7 +141,7 @@ function getcoefficient(ℰ::Evaluation{<:Number}, (codom, i)::Tuple{Chebyshev,I
     elseif _safe_isone(x)
         return convert(T, exact(2))
     else
-        return convert(T, exact(2) * cos(exact(j) * acos(x)))
+        return convert(T, exact(2) * cos(exact(j) * acos(x * one(real(T)))))
     end
 end
 
@@ -308,7 +308,7 @@ function __apply!(c, ℰ::Evaluation, a::Sequence{<:Fourier})
             c[0] += a[j] + a[-j]
         end
     elseif ord > 0
-        ωx = frequency(a)*x
+        ωx = frequency(a) * (x * one(real(eltype(c)))) # `frequency(a) * x` is a plain float when both are exact floats
         @inbounds for j ∈ 1:ord
             eiωxj = cis(ωx * exact(j))
             c[0] += a[j] * eiωxj + a[-j] / eiωxj
@@ -331,7 +331,7 @@ function __apply!(C::AbstractArray, ℰ::Evaluation, space::Fourier, ::Val{D}, A
             C .+= selectdim(A, D, ord+1+j) .+ selectdim(A, D, ord+1-j)
         end
     elseif ord > 0
-        ωx = frequency(space)*x
+        ωx = frequency(space) * (x * one(real(eltype(C)))) # `frequency(space) * x` is a plain float when both are exact floats
         @inbounds for j ∈ 1:ord
             eiωxj = cis(ωx * exact(j))
             C .+= selectdim(A, D, ord+1+j) .* eiωxj .+ selectdim(A, D, ord+1-j) ./ eiωxj
@@ -370,10 +370,10 @@ function _apply!(c, ℰ::Evaluation, a::Sequence{Chebyshev})
         if ord == 0
             @inbounds c[0] = a[0]
         elseif ord == 1
-            @inbounds c[0] = a[0] + exact(2) * x * a[1]
+            @inbounds c[0] = a[0] + exact(2) * (x * a[1])
         else
             CoefType = eltype(c)
-            x2 = exact(2) * x
+            x2 = exact(2) * (x * one(CoefType)) # `exact(2) * x` is a plain float when `x` is an exact float
             s = zero(CoefType)
             @inbounds t = convert(CoefType, exact(2) * a[ord])
             @inbounds c[0] = zero(CoefType)
@@ -414,9 +414,9 @@ function _apply!(C::AbstractArray{T}, ℰ::Evaluation, space::Chebyshev, ::Val{D
         if ord == 0
             @inbounds C .= selectdim(A, D, 1)
         elseif ord == 1
-            @inbounds C .= selectdim(A, D, 1) .+ (exact(2) * x) .* selectdim(A, D, 2)
+            @inbounds C .= selectdim(A, D, 1) .+ exact(2) .* (x .* selectdim(A, D, 2))
         else
-            x2 = exact(2) * x
+            x2 = exact(2) * (x * one(T)) # `exact(2) * x` is a plain float when `x` is an exact float
             @inbounds Aᵢ = selectdim(A, D, ord+1)
             sz = size(Aᵢ)
             s = zeros(T, sz)

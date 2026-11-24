@@ -28,8 +28,8 @@
 
     @testset "logistic initial value problem (Taylor, second order)" begin
         # u' = u (1 - u), u(0) = 1/2 as the zero of F(u) = u - 1/2 - ∫₀ᵗ u(s) (1 - u(s)) ds
-        F(u) = u - exact(0.5) - Integral(1) * (u * (exact(1) - u))
-        DF(u) = exact(I) - Integral(1) * Multiplication(exact(1) - exact(2) * u)
+        F(u) = u - exact(0.5) - Integral() * (u * (exact(1) - u))
+        DF(u) = exact(I) - Integral() * Multiplication(exact(1) - exact(2) * u)
 
         K = 10
         ū, newton_success = newton(u -> (F(u), DF(u)), zeros(Taylor(K)))

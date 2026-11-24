@@ -55,17 +55,17 @@ end
 
 # The four error factors on Chebyshev(N) are restricted column norms: the head columns j ≤ N give the
 # finite factor, the tail columns give the cross (head rows) and tail (other rows) factors
-function _calculus_test_chebyshev_factors((finite, cross, tail, total), X, N, cols)
+function _calculus_test_chebyshev_factors((finite, cross, tail, total), X, N, cols, α = 1)
     s = Chebyshev(N)
-    @test finite(X, s, 1) ≈ maximum(c[1] for c ∈ cols[1:N+1])   rtol=1e-12
-    @test cross(X, s, 1)  ≈ maximum(c[1] for c ∈ cols[N+2:end]) rtol=1e-12
-    @test tail(X, s, 1)   ≈ maximum(c[2] for c ∈ cols[N+2:end]) rtol=1e-12
-    @test total(X, s, 1)  ≈ maximum(c[3] for c ∈ cols)          rtol=1e-12
+    @test finite(X, s, α) ≈ maximum(c[1] for c ∈ cols[1:N+1])   rtol=1e-12
+    @test cross(X, s, α)  ≈ maximum(c[1] for c ∈ cols[N+2:end]) rtol=1e-12
+    @test tail(X, s, α)   ≈ maximum(c[2] for c ∈ cols[N+2:end]) rtol=1e-12
+    @test total(X, s, α)  ≈ maximum(c[3] for c ∈ cols)          rtol=1e-12
 end
 
 # an image error combines the input errors (0.5, 0.25, 0.75) through the four factors
-function _calculus_test_triangular(r, (finite, cross, tail, total), X, s)
-    κf, κc, κt, κo = finite(X, s, 1), cross(X, s, 1), tail(X, s, 1), total(X, s, 1)
+function _calculus_test_triangular(r, (finite, cross, tail, total), X, s, α = 1)
+    κf, κc, κt, κo = finite(X, s, α), cross(X, s, α), tail(X, s, α), total(X, s, α)
     @test finite_error(r) == κf * 0.5 + κc * 0.25
     @test tail_error(r) == κt * 0.25
     @test total_error(r) == min(κo * 0.75, κf * 0.5 + κc * 0.25 + κt * 0.25)

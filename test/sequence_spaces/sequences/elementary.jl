@@ -220,7 +220,7 @@ end
             ρ = interval(1) + interval(ε)
             circle = ρ * cispi(interval(-1, 1))
             transfer = prod((ν̄ .+ ν) ./ (ν̄ .- ν))
-            W = [sup(RadiiPolynomial._contour(exp, seq + circle, μ) * transfer) for μ ∈ RadiiPolynomial._polyannulus_corners(ν̄)]
+            W = [sup(RadiiPolynomial._contour(exp, seq + circle, μ) * transfer) for μ ∈ RadiiPolynomial._polyannulus_corners(space(seq), ν̄)]
             return W, sup(RadiiPolynomial._perturbation_bound(exp, seq, ρ, ν, ν̄))
         end
 
@@ -234,6 +234,16 @@ end
         W, W_all = corner_bounds(sq, (interval(1.3), interval(1.3)), (interval(2.0), interval(2.0)), 1e-6)
         @test W_all == maximum(W)
         @test W_all > 1.5 * W[1]
+
+        # one contour per Taylor or Chebyshev direction, two per Fourier direction
+        corners(s, ν̄) = Set(RadiiPolynomial._polyannulus_corners(s, ν̄))
+        @test corners(Taylor(2), (2.0,)) == corners(Chebyshev(2), (2.0,)) == Set([(2.0,)])
+        @test corners(Fourier(2, 1.0), (2.0,)) == Set([(2.0,), (0.5,)])
+        @test corners(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), (2.0, 4.0, 8.0)) == Set([(2.0, 4.0, 8.0), (2.0, 0.25, 8.0)])
+        # the contour left out does not carry a larger mean: smaller for Taylor, equal for Chebyshev
+        co = [1.0, 0.4, -0.3, 0.2]
+        @test RadiiPolynomial._contour(exp, Sequence(Taylor(3), co), (0.5,)) ≤ RadiiPolynomial._contour(exp, Sequence(Taylor(3), co), (2.0,))
+        @test RadiiPolynomial._contour(exp, Sequence(Chebyshev(3), co), (0.5,)) ≈ RadiiPolynomial._contour(exp, Sequence(Chebyshev(3), co), (2.0,))
     end
 
     @testset "InfiniteSequence: custom Nonlinearity on a TensorSpace" begin
@@ -279,28 +289,51 @@ end
         @test isfinite(sup(total_error(exp(e))))
     end
 
-    @testset "InfiniteSequence: Fourier and Chebyshev need ν > 1, Taylor admits ν = 1" begin
-        for s ∈ (Chebyshev(4), Fourier(4, 1.0)), f ∈ (entire..., x -> x^0.7)
-            a = InfiniteSequence(interval.(_el_seq(s, 0 => 1.0, 1 => 0.01)), ℓ¹ν(1.0))
-            @test_throws ArgumentError f(a)
+    @testset "InfiniteSequence: ν = 1 is admissible in every basis" begin
+        # the input need not be analytic: only f ∘ ā is read on contours of radii ν̄ > ν
+        for s ∈ (Taylor(4), Chebyshev(4), Fourier(4, 1.0)), X ∈ (ℓ¹ν(1.0), Ell1(GeometricWeight(1.0)), Ell1())
+            # the constant 4 keeps the image further than 1 + ε from the branch cut of x^0.7
+            a = InfiniteSequence(interval.(_el_seq(s, 0 => 4.0, 1 => 0.01)), X; total_error = interval(1e-6))
+            for f ∈ (entire..., x -> x^0.7)
+                r = f(a)
+                @test isfinite(sup(total_error(r)))
+                @test inf(total_error(r)) ≥ 0
+                @test banachspace(r) == X
+            end
         end
-
-        # the disk keeps its interior, and the strict inequalities of the bounds involve only ν̄ > ν
         aT = InfiniteSequence(Sequence(Taylor(3), interval.([1.0, 0.1, 0.01, 0.001])), ℓ¹ν(1.0))
         for f ∈ entire
-            r = f(aT)
-            @test isfinite(sup(total_error(r)))
-            @test RadiiPolynomial._isguaranteed(r)
+            @test RadiiPolynomial._isguaranteed(f(aT))
         end
-        r = InfiniteSequence(interval.(_el_seq(𝒯, 0 => 1.0, 1 => 0.01)), ℓ¹ν(1.0))^0.7
-        @test isfinite(sup(total_error(r)))
-        @test inf(total_error(r)) ≥ 0
 
-        # ν = 1 on a single TensorSpace factor is enough to reject
+        # the bounds hold for inputs that are far from analytic: the error h has slowly decaying
+        # coefficients, of norm ε in the unweighted space. The reference is computed on a large space
+        for s ∈ (Fourier(3, 1.0), Chebyshev(3)), (f, shift) ∈ ((exp, 0.0), (sin, 0.0), (x -> x^0.7, 4.0)), ε ∈ (1e-8, 1e-2, 0.2)
+            big = s isa Fourier ? Fourier(1024, 1.0) : Chebyshev(1024)
+            ā = _el_seq(s, 0 => shift + 0.4, 1 => 0.3, 2 => -0.2, 3 => 0.1)
+            s isa Fourier && (ā[-1] = 0.3; ā[-2] = -0.2; ā[-3] = 0.1)
+            h = zeros(big)
+            for k ∈ 1:120
+                h[k] = (-1)^k / k^2
+                s isa Fourier && (h[-k] = h[k])
+            end
+            h = (ε * (1 - 1e-12) / norm(h, Ell1())) * h
+            r = f(InfiniteSequence(interval.(ā), Ell1(); total_error = interval(ε)))
+            c = mid.(sequence(r))
+            ref = RadiiPolynomial._grid_coefficients(f, big, Float64, project(ā, big) + h)
+            d = ref - project(c, big)
+            fin = norm(project(d, space(c)), Ell1())
+            slack = 1e-11 + norm(Sequence(space(c), radius.(coefficients(sequence(r)))), Ell1())
+            @test fin ≤ sup(finite_error(r)) + slack
+            @test norm(d, Ell1()) - fin ≤ sup(tail_error(r)) + slack
+            @test norm(d, Ell1()) ≤ sup(total_error(r)) + slack
+        end
+
+        # a rate below 1 is still refused, on any factor
         sT = Fourier(4, 1.0) ⊗ Fourier(4, 1.0)
-        aT_bad = InfiniteSequence(interval.(_el_seq(sT, (0, 0) => 1.0, (1, 0) => 0.01)), ℓ¹ν(1.3, 1.0))
-        @test_throws ArgumentError exp(aT_bad)
-        @test_throws ArgumentError pow(aT_bad; codomain = sT)
+        aT_ok = InfiniteSequence(interval.(_el_seq(sT, (0, 0) => 1.0, (1, 0) => 0.01)), ℓ¹ν(1.3, 1.0))
+        @test isfinite(sup(total_error(exp(aT_ok))))
+        @test isfinite(sup(total_error(pow(aT_ok; codomain = sT))))
     end
 
     @testset "InfiniteSequence: Nonlinearity requires a geometric weight" begin
@@ -308,7 +341,7 @@ end
         @test_throws ArgumentError exp(InfiniteSequence(seqT, Ell1(AlgebraicWeight(interval(2.0)))))
         # the identity weight is the rate ν = 1
         @test isfinite(sup(total_error(exp(InfiniteSequence(seqT, Ell1())))))
-        @test_throws ArgumentError exp(InfiniteSequence(Sequence(Chebyshev(3), coefficients(seqT)), Ell1()))
+        @test isfinite(sup(total_error(exp(InfiniteSequence(Sequence(Chebyshev(3), coefficients(seqT)), Ell1())))))
 
         seqF = Sequence(Fourier(3, 1.0), interval.([0.001, 0.01, 0.1, 1.0, 0.1, 0.01, 0.001]))
         @test_throws ArgumentError exp(InfiniteSequence(seqF, Ell1(BesselWeight(interval(2.0)))))
@@ -385,7 +418,7 @@ end
         # the box of kept indices stops before the first noisy coefficient, the rest is charged to the tail
         a = Sequence(Taylor(3), [1.0, 0.1, 0.01, 0.001])
         ν̄ = (2.0,)
-        C = maximum(μ -> RadiiPolynomial._contour(exp, a, μ), RadiiPolynomial._polyannulus_corners(ν̄))
+        C = maximum(μ -> RadiiPolynomial._contour(exp, a, μ), RadiiPolynomial._polyannulus_corners(space(a), ν̄))
         trim(c) = RadiiPolynomial._noise_trim(c, RadiiPolynomial.CauchyCeiling(C, ν̄), RadiiPolynomial.ChargeTail((1.5,) ./ ν̄))
         # a violator at k = 2 and a quiet coefficient below the envelope at k = 3
         @test trim(Sequence(Taylor(3), [1.0, 0.1, 3C / ν̄[1]^2, 1e-20])) == (1,)

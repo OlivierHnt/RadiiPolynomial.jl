@@ -53,7 +53,7 @@ project(ℳ, Taylor(2), codomain(*, Taylor(1), Taylor(2)))
 
 ## Derivation and integration
 
-Both [`Derivative`](@ref) and [`Integral`](@ref) have a field `order::Union{Int,Tuple{Vararg{Int}}}` to specify how many times the operator is composed with itself. No derivation or integration is performed whenever a value of `0` is given.
+The derivative operator [`Derivative`](@ref) has a field `order::Union{Int,Tuple{Vararg{Int}}}` to specify how many times the operator is composed with itself. No derivation is performed whenever a value of `0` is given.
 
 ```@repl special_operators
 a = Sequence(Taylor(2), [1, 1, 1]); # 1 + x + x^2
@@ -62,11 +62,25 @@ differentiate(a)
 𝒟 * a # 𝒟(a)
 ```
 
+The integral operator [`Integral`](@ref) integrates once and has a field `condition::Union{Nothing,Evaluation,Tuple{Vararg{Union{Nothing,Evaluation}}}}`. The integration sets the coefficient of the constants to zero, unless the condition has a value in which case the integral then vanishes at this value.
+No integration is performed whenever a condition of `nothing` is given.
+
+```@repl special_operators
+b = Sequence(Chebyshev(1), [1, 3]); # 1 + 6x
+integrate(b) # Integral() * b
+ℐ = Integral(Evaluation(-1))
+ℐ * b # integrate(b, Evaluation(-1))
+(ℐ * b)(-1)
+ℐ * (ℐ * b) # (ℐ * ℐ) * b
+c = Sequence(Taylor(1) ⊗ Chebyshev(1), [1, 1, 1, 1]);
+Integral(nothing, Evaluation(-1)) * c # integrate along the second dimension only
+```
+
 A finite dimensional truncation of [`Derivative`](@ref) and [`Integral`](@ref) may be obtained via [`project`](@ref) or [`project!`](@ref):
 
 ```@repl special_operators
 project(Derivative(1), Taylor(2), codomain(Derivative(1), Taylor(2)), Float64)
-project(Integral(1), Taylor(2), codomain(Integral(1), Taylor(2)), Float64)
+project(Integral(), Taylor(2), codomain(Integral(), Taylor(2)), Float64)
 ```
 
 ## Evaluation

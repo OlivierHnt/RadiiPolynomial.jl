@@ -52,9 +52,9 @@ The mapping ``F`` and its Fréchet derivative are implemented as follows:
 ```@example logistic_ivp
 using RadiiPolynomial
 
-F(u) = u - exact(0.5) - Integral(1) * (u*(exact(1) - u))
+F(u) = u - exact(0.5) - Integral() * (u*(exact(1) - u))
 
-DF(u) = exact(I) - Integral(1) * Multiplication(exact(1) - exact(2) * u)
+DF(u) = exact(I) - Integral() * Multiplication(exact(1) - exact(2) * u)
 nothing # hide
 ```
 

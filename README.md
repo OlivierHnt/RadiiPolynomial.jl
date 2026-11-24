@@ -6,17 +6,29 @@ RadiiPolynomial
 [![Build Status](https://github.com/OlivierHnt/RadiiPolynomial.jl/workflows/CI/badge.svg)](https://github.com/OlivierHnt/RadiiPolynomial.jl/actions/workflows/ci.yml)
 </h1>
 
-**RadiiPolynomial.jl** is a Julia package for computer-assisted proofs in dynamical systems: it validates a numerical approximation by computing rigorously a radius $r$ such that a exact solution of the equation exists, and is the only one, within a distance $r$ of the approximation.
+**RadiiPolynomial.jl** is a Julia package for computer-assisted proofs in dynamical systems.
+Given a numerical approximation of a solution, it computes a rigorous radius $r$ such that an exact solution exists, and is unique, within distance $r$ of the approximation.
 
-Built on top of [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl), RadiiPolynomial provides the sequences, operators and norms needed to carry out this argument.
+The package provides the sequence spaces, operators and norms the validation argument requires.
+It also relies on [IntervalArithmetic.jl](https://github.com/JuliaIntervals/IntervalArithmetic.jl) to control rounding errors.
 
-Applications to dynamical systems include:
+Typical applications include:
 
-⚡ Fixed points, steady states, and periodic orbits
+⚡ Steady states, periodic orbits
 
-⚡ Invariant manifolds and connecting orbits
+⚡ Invariant manifolds, connecting orbits
 
-⚡ Bifurcation diagrams and parameter-dependent solution branches
+⚡ Bifurcation, branches of solutions
+
+### 📦 Installation
+
+RadiiPolynomial requires Julia v1.10 or above ([julialang.org/downloads](https://julialang.org/downloads)).
+
+```julia
+julia> using Pkg
+
+julia> Pkg.add("RadiiPolynomial")
+```
 
 ### 🔎 A complete validation
 
@@ -33,8 +45,8 @@ u(0) = 1/2.
 using RadiiPolynomial, LinearAlgebra
 
 # IVP as a zero-finding problem
-F(u)  = u - exact(0.5) - Integral(1) * (u * (exact(1) - u))
-DF(u) = exact(I) - Integral(1) * Multiplication(exact(1) - exact(2) * u)
+F(u)  = u - exact(0.5) - Integral() * (u * (exact(1) - u))
+DF(u) = exact(I) - Integral() * Multiplication(exact(1) - exact(2) * u)
 
 # approximate solution, with floating-point arithmetic
 K = 27
@@ -61,32 +73,20 @@ inf(ie), proved
 (2.232051998824705e-6, true)
 ```
 
-That `proved == true` is what distinguishes this from a standard numerical ODE solver: it is now a theorem that a genuine analytic solution of the initial value problem lies within `inf(ie)` of the polynomial `u_bar`, and that it is the only one within `sup(ie)`.
-A complete walkthrough of this validation is given in [The logistic equation](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/logistic_equation).
+This proves that an analytic solution of the initial value problem lies within `inf(ie)` of the polynomial `u_bar`, and that it is the only solution within `sup(ie)`.
+The example is explained step by step in [The logistic equation](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/logistic_equation).
 
 ### 🧭 Documentation
 
-**[The radii polynomial approach](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/radii_polynomial_approach)** -- The Radii Polynomial Theorem, and the five steps every validation follows. Start here if the method is new to you.
+- [The radii polynomial approach](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/radii_polynomial_approach): the theorem and the steps of a validation.
+- [Getting started](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/first_validation): four short pages, from a cube root to an infinite-dimensional problem.
+- [Examples](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/examples/index_examples): steady states, periodic orbits, branches through folds, regions of parameter space.
+- [Manual](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/manual/vector_spaces): reference for spaces, sequences, operators and norms.
 
-**[Getting started](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/getting_started/first_validation)** -- Four short pages, from a cube root to an infinite-dimensional problem. Look here if you have never done a computer-assisted proof.
-
-**[Examples](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/examples/index_examples)** -- Worked validations of steady states, periodic orbits, branches through folds and whole regions of parameter space. Look here for a problem shaped like yours.
-
-**[Manual](https://OlivierHnt.github.io/RadiiPolynomial.jl/stable/manual/vector_spaces)** -- The reference for spaces, sequences, operators and norms. Look here when you need a particular tool.
-
-### 📦 Installation
-
-RadiiPolynomial requires Julia v1.10 or above ([julialang.org/downloads](https://julialang.org/downloads)).
-
-```julia
-julia> using Pkg
-
-julia> Pkg.add("RadiiPolynomial")
-```
 
 ### 📚 Citation
 
-If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please use the BibTeX template [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib) ([more information](https://doi.org/10.5281/zenodo.5705258)).
+If you use the RadiiPolynomial library in your publication, research, teaching, or other activities, please cite it using [CITATION.bib](https://github.com/OlivierHnt/RadiiPolynomial.jl/blob/main/CITATION.bib).
 
 ### ⚖️ License
 

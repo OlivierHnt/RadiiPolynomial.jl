@@ -2,7 +2,7 @@
 
 # finite error, tail error, input error, and the order of the coefficients kept
 function _grid_error(f, a, c, ν, ε, ρ, μ, circle_points = 2^5)
-    C = maximum(μᵢ -> _contour(f, a, μᵢ), _polyannulus_corners(μ))
+    C = maximum(μᵢ -> _contour(f, a, μᵢ), _polyannulus_corners(space(a), μ))
     N_v = _noise_trim(c, CauchyCeiling(C, μ), ChargeTail(mid.(ν) ./ mid.(μ)))
     finite_alias, tail_alias = _alias_and_tail(_coef_fft_size(space(c), space(a)), ν, μ, N_v)
     pert = _safe_iszero(ε) ? zero(C * tail_alias) : _perturbation_bound(f, a, ρ, ν, μ, circle_points) * ε
@@ -34,15 +34,22 @@ end
 
 # contour constant of f within ρ of the image of a, carried from ν̄ to the norm at ν
 _perturbation_bound(f, a::Sequence, ρ, ν, ν̄, circle_points = 2^5) =
-    maximum(z -> maximum(μ -> _contour(f, a + z, μ), _polyannulus_corners(ν̄)), _circle(eltype(a), ρ, circle_points)) *
+    maximum(z -> maximum(μ -> _contour(f, a + z, μ), _polyannulus_corners(space(a), ν̄)), _circle(eltype(a), ρ, circle_points)) *
         prod((ν̄ .+ ν) ./ (ν̄ .- ν))
 
 # circle of radius ρ: enclosed in intervals, sampled in floating point
 _circle(::Type{<:RealOrComplexI}, ρ, _) = (ρ * cispi(interval(IntervalArithmetic.numtype(ρ), -1, 1)),)
 _circle(::Type, ρ, n) = (_mag(ρ) * cispi(2j / n) for j ∈ 0:n-1)
 
-_polyannulus_corners(ν::NTuple{N}) where {N} =
-    @inbounds Iterators.product(ntuple(i -> (ν[i], inv(ν[i])), Val(N))...)
+# radii of the contours: ν and 1/ν in a Fourier direction, bounding the positive and the negative modes.
+# In a Taylor direction there is no negative mode, and in a Chebyshev direction the function is
+# unchanged by z ↦ 1/z: the contour of radius ν suffices
+_polyannulus_corners(s::BaseSpace, ν::Tuple{Any}) = Iterators.product(_contour_radii(s, ν[1]))
+_polyannulus_corners(s::TensorSpace{<:NTuple{N,BaseSpace}}, ν::NTuple{N,Any}) where {N} =
+    Iterators.product(map(_contour_radii, spaces(s), ν)...)
+
+_contour_radii(::Fourier, ν) = (ν, inv(ν))
+_contour_radii(::BaseSpace, ν) = (ν,)
 
 # mean of |f ∘ a| over the polycircle of radii μ
 function _contour(f, a, μ::Tuple)

@@ -1,61 +1,69 @@
 @testset "Integral" begin
 
-    @testset "Constructors and algebra" begin
-        _calculus_test_algebra(Integral)
+    # no condition: the coefficient of the constants is zero
+    E₀ = Evaluation(nothing)
+    # one condition per dimension, `nothing` along the dimensions that are not integrated
+    conditions(α) = map(n -> n == 0 ? nothing : E₀, α)
+
+    @testset "Constructors" begin
+        @test Integral() == Integral(E₀)
+        @test RadiiPolynomial.condition(Integral()) == E₀
+        @test RadiiPolynomial.condition(Integral(Evaluation(-1.0))) == Evaluation(-1.0)
+        @test Integral(Evaluation(-1.0), nothing) == Integral((Evaluation(-1.0), nothing))
+        @test RadiiPolynomial.condition(Integral(Evaluation(-1.0), nothing)) == (Evaluation(-1.0), nothing)
+
+        # the order of integration: 1 along the dimensions with a condition, 0 along the other ones
+        @test order(Integral()) == order(Integral(Evaluation(-1.0))) == 1
+        @test order(Integral(nothing)) == 0
+        @test order(Integral(Evaluation(-1.0), nothing, E₀)) == (1, 0, 1)
+
+        @test_throws ArgumentError Integral(())
+        # one evaluation per dimension
+        @test_throws MethodError Integral(Evaluation(1.0, 2.0))
     end
 
     @testset "Taylor" begin
-        ∫¹, ∫² = Integral(1), Integral(2)
-        @test domain(∫², Taylor(3)) == Taylor(1)
-        @test codomain(∫², Taylor(3)) == Taylor(5)
+        ∫ = Integral()
+        @test domain(∫, Taylor(3)) == Taylor(2)
+        @test codomain(∫, Taylor(3)) == Taylor(4)
 
-        # the order 0 still promotes the coefficient type to floating point
-        c_int = integrate(Sequence(Taylor(2), [1, 2, 3]), 0)
-        @test eltype(c_int) == Float64
-        @test c_int == Sequence(Taylor(2), [1.0, 2.0, 3.0])
+        # the coefficient type is promoted to floating point
+        @test eltype(integrate(Sequence(Taylor(2), [1, 2, 3]))) == Float64
 
         # cᵢ₊₁ = aᵢ/(i+1), c₀ = 0
-        test_action(∫¹, Sequence(Taylor(1), [2.0, 4.0]), Sequence(Taylor(2), [0.0, 2.0, 2.0]); inplace! = integrate!)
+        test_action(∫, Sequence(Taylor(1), [2.0, 4.0]), Sequence(Taylor(2), [0.0, 2.0, 2.0]); inplace! = integrate!)
         a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
-        test_action(∫¹, a, Sequence(Taylor(3), [0.0, 1.0, -1/2, 1/3]); inplace! = integrate!)
-        test_action(∫², a, Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12]); inplace! = (c, a) -> integrate!(c, a, 2))
-        @test ∫¹(∫¹(a)) == ∫²(a)
-        @test differentiate(∫¹(a)) == a
+        test_action(∫, a, Sequence(Taylor(3), [0.0, 1.0, -1/2, 1/3]); inplace! = integrate!)
+        @test ∫(∫(a)) == Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12])
+        @test differentiate(∫(a)) == a
         @test_throws ArgumentError integrate!(fill(Inf, Taylor(1)), a)
 
-        @test ∫¹(Sequence(Taylor(2), ComplexF64[2 + 2im, -4.0, 6im])) == Sequence(Taylor(3), ComplexF64[0.0, 2 + 2im, -2.0, 2im])
+        @test ∫(Sequence(Taylor(2), ComplexF64[2 + 2im, -4.0, 6im])) == Sequence(Taylor(3), ComplexF64[0.0, 2 + 2im, -2.0, 2im])
         @test integrate(Sequence(Taylor(1), interval.([2.0, 4.0]))) == Sequence(Taylor(2), interval.([0.0, 2.0, 2.0]))
         # 1/3 is not representable, so that coefficient is checked as an enclosure
-        c = ∫¹(interval.(a))
+        c = ∫(interval.(a))
         @test all(isequal_interval.(coefficients(c)[1:3], interval.([0.0, 1.0, -0.5])))
         @test in_interval(1//3, c[3])
     end
 
     @testset "Fourier" begin
         s = Fourier(1, 1.0)
-        ∫¹, ∫², ∫³, ∫⁴ = Integral(1), Integral(2), Integral(3), Integral(4)
+        ∫ = Integral()
 
-        # the mean-free antiderivative is diagonal, the zero mode of the input being checked by the action
-        @test domain(∫¹, Fourier(3, 1.0)) == codomain(∫¹, Fourier(3, 1.0)) == Fourier(3, 1.0)
-        @test domain(Integral(0), Fourier(3, 1.0)) == Fourier(3, 1.0)
+        # the mean-free antiderivative is diagonal, and it sends the zero mode of the input to zero
+        @test domain(∫, Fourier(3, 1.0)) == codomain(∫, Fourier(3, 1.0)) == Fourier(3, 1.0)
 
-        # a nonzero mean is accepted by the order 0 only
-        a_bad = Sequence(s, [0.5, 1.0, 0.5])
-        @test integrate(a_bad, 0) == Sequence(s, ComplexF64[0.5, 1.0, 0.5])
-        @test_throws DomainError integrate(a_bad)
-        @test_throws DomainError ∫¹(a_bad)
+        a_mean = Sequence(s, [0.5, 1.0, 0.5])
+        @test integrate(a_mean) == ∫(a_mean) == integrate(Sequence(s, [0.5, 0.0, 0.5]))
+        @test ∫(a_mean) == project(∫, s, s, ComplexF64) * a_mean
+        @test differentiate(∫(a_mean)) == a_mean - 1
 
-        # the antiderivatives of cos are sin, -cos, -sin, cos
+        # the antiderivatives of cos are sin and -cos
         a = Sequence(s, [0.5, 0.0, 0.5])
-        cos_, sin_ = Sequence(s, ComplexF64[0.5, 0.0, 0.5]), Sequence(s, [0.5im, 0.0, -0.5im])
-        test_action(∫¹, a, sin_; inplace! = integrate!)
-        for (∫ⁿ, expected) ∈ ((Integral(0), cos_), (∫², -cos_), (∫³, -sin_), (∫⁴, cos_))
-            test_action(∫ⁿ, a, expected)
-        end
-        @test ∫¹(∫¹(a)) == project(∫¹, s, s, ComplexF64)^2 * a == integrate!(fill(complex(Inf), s), integrate(a, 1)) == -a
-        @test ∫³(a) == ∫¹(∫²(a))
-        @test ∫⁴(a) == ∫²(∫²(a))
-        @test differentiate(∫¹(a)) == a
+        sin_ = Sequence(s, [0.5im, 0.0, -0.5im])
+        test_action(∫, a, sin_; inplace! = integrate!)
+        @test ∫(∫(a)) == project(∫, s, s, ComplexF64)^2 * a == -a
+        @test differentiate(∫(a)) == a
         @test_throws ArgumentError integrate!(fill(complex(Inf), Fourier(2, 1.0)), a)
 
         c = integrate(interval.(a))
@@ -64,35 +72,41 @@
     end
 
     @testset "Chebyshev" begin
-        ∫¹ = Integral(1)
+        ∫ = Integral()
 
-        # the T₀ row of the antiderivative is dense, so no finite domain exists
-        @test domain(∫¹, Chebyshev(3)) == UndefSpace()
-        @test domain(Integral(0), Chebyshev(3)) == Chebyshev(3)
-        @test codomain(∫¹, Chebyshev(3)) == Chebyshev(4)
+        # the row i reads the columns i-1 and i+1: the rows of Chebyshev(3) are exact on that domain
+        @test domain(∫, Chebyshev(3)) == Chebyshev(4)
+        b = Sequence(Chebyshev(7), collect(1.0:8.0))
+        @test (Projection(Chebyshev(3)) * ∫) * b ≈ project(∫(b), Chebyshev(3))
+        @test codomain(∫, Chebyshev(3)) == Chebyshev(4)
 
-        a_int = Sequence(Chebyshev(2), [1, 2, 3])
-        @test eltype(integrate(a_int, 0)) == Float64
-        @test integrate(a_int, 0) == a_int
-        @test project(Integral(0), Chebyshev(2), Chebyshev(2), Float64)(a_int) == Sequence(Chebyshev(2), [1.0, 2.0, 3.0])
+        @test eltype(integrate(Sequence(Chebyshev(2), [1, 2, 3]))) == Float64
 
-        test_action(∫¹, Sequence(Chebyshev(0), [2.0]), Sequence(Chebyshev(1), [2.0, 1.0]); inplace! = integrate!)
-        test_action(∫¹, Sequence(Chebyshev(1), [1.0, 3.0]), Sequence(Chebyshev(2), [-0.5, 0.5, 0.75]); inplace! = integrate!)
-
-        # the row 0 of the materialized matrix holds the inexact entries 2/(1-j²), so its product with
-        # a sequence only approximates the recursion
-        a = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
-        @test project(∫¹, Chebyshev(2), Chebyshev(3), Float64)(a) ≈ mul!(fill(Inf, Chebyshev(3)), ∫¹, a) ==
-            ∫¹(a) == integrate!(fill(Inf, Chebyshev(3)), a)
+        # cᵢ = (aᵢ₋₁ - aᵢ₊₁)/(2i), c₀ = 0
+        test_action(∫, Sequence(Chebyshev(0), [2.0]), Sequence(Chebyshev(1), [0.0, 1.0]); inplace! = integrate!)
+        test_action(∫, Sequence(Chebyshev(1), [1.0, 3.0]), Sequence(Chebyshev(2), [0.0, 0.5, 0.75]); inplace! = integrate!)
         a3 = Sequence(Chebyshev(3), [1.0, 2.0, 3.0, 4.0])
-        @test project(∫¹, Chebyshev(3), Chebyshev(4), Float64)(a3) ≈ ∫¹(a3) == integrate!(fill(Inf, Chebyshev(4)), a3) ==
-            mul!(fill(Inf, Chebyshev(4)), ∫¹, a3) == Sequence(Chebyshev(4), [-1.0, -1.0, -0.5, 0.5, 0.5])
-        @test differentiate(∫¹(a3)) == a3
+        test_action(∫, a3, Sequence(Chebyshev(4), [0.0, -1.0, -0.5, 0.5, 0.5]); inplace! = integrate!)
+        @test differentiate(∫(a3)) == a3
 
-        @test_throws DomainError integrate(a, 2)
+        # each integration sets the coefficient of T₀ to zero, and writes on T₁
+        a = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
+        @test ∫(∫(a))[0] == 0.0 && ∫(∫(a))[1] != 0.0
+        @test differentiate(∫(∫(a3)), 2) ≈ a3
 
-        @test ∫¹(Sequence(Chebyshev(1), ComplexF64[2 + 2im, 4.0])) == Sequence(Chebyshev(2), ComplexF64[0 + 2im, 1 + 1im, 1.0])
-        @test integrate(Sequence(Chebyshev(1), interval.([1.0, 3.0]))) == Sequence(Chebyshev(2), interval.([-0.5, 0.5, 0.75]))
+        @test ∫(Sequence(Chebyshev(1), ComplexF64[2 + 2im, 4.0])) == Sequence(Chebyshev(2), ComplexF64[0.0, 1 + 1im, 1.0])
+        @test integrate(Sequence(Chebyshev(1), interval.([1.0, 3.0]))) == Sequence(Chebyshev(2), interval.([0.0, 0.5, 0.75]))
+    end
+
+    @testset "No integration" begin
+        ∫⁰ = Integral(nothing)
+        for s ∈ (Taylor(2), Fourier(1, 1.0), Chebyshev(2))
+            a = Sequence(s, [0.5, 1.0, 0.5])
+            @test domain(∫⁰, s) == codomain(∫⁰, s) == s
+            test_action(∫⁰, a, a; inplace! = (c, a) -> integrate!(c, a, nothing))
+        end
+        # the coefficient type is kept
+        @test eltype(integrate(Sequence(Taylor(2), [1, 2, 3]), nothing)) == Int
     end
 
     @testset "Tensor space" begin
@@ -101,81 +115,234 @@
             a = Sequence(s, collect(1.0:dimension(s)))
             selectdim(a, dim, 0) .= 0.0
             for α ∈ orders
-                ℐ = Integral(α)
-                @test project(ℐ, s, codomain(ℐ, s), ComplexF64) * a ≈ integrate(a, α) == ℐ(a)
+                ℐ = Integral(conditions(α))
+                @test order(ℐ) == α
+                @test project(ℐ, s, codomain(ℐ, s), ComplexF64) * a ≈ integrate(a, conditions(α)) == ℐ(a)
+                @test differentiate(ℐ(a), α) ≈ a
             end
             return a
         end
 
-        a = check(Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), 2, ((1, 1, 1),))
-        @test differentiate(integrate(a, (1, 1, 1)), (1, 1, 1)) ≈ a
-
-        # each base space as a first and as a later factor, over the orders 0, 1, odd ≥ 3 and even ≥ 2,
-        # with Chebyshev factors of order 0, 1 and 3
-        check(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), 2, ((0, 1, 1), (2, 1, 1), (1, 0, 1), (1, 3, 1), (1, 2, 1)))
-        check(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Chebyshev(3), 1, ((0, 2, 1), (1, 0, 0), (3, 0, 0), (2, 0, 0)))
+        # each base space as a first and as a later factor, integrated or not, with Chebyshev factors
+        # of order 0, 1, 2 and 3
+        check(Taylor(2) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), 2, ((1, 1, 1), (0, 0, 0)))
+        check(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(1), 2, ((0, 1, 1), (1, 0, 1), (1, 1, 0), (0, 0, 1)))
+        check(Fourier(1, 1.0) ⊗ Taylor(1) ⊗ Chebyshev(3), 1, ((0, 1, 1), (1, 0, 0), (1, 1, 0)))
         check(Taylor(1) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(0), 2, ((1, 1, 1),))
+        check(Chebyshev(3) ⊗ Fourier(1, 1.0) ⊗ Chebyshev(2), 2, ((1, 0, 0), (0, 0, 1), (1, 1, 1)))
 
-        # a nonzero Fourier mean throws in any direction, and the error names the direction at fault
-        @test_throws DomainError integrate(Sequence(Taylor(1) ⊗ Fourier(1, 1.0), collect(1.0:6.0)), (0, 1))
-        @test_throws DomainError integrate(Sequence(Fourier(1, 1.0) ⊗ Taylor(1), collect(1.0:6.0)), (1, 0))
-        err = try integrate(Sequence(Taylor(2) ⊗ Fourier(2, 1.0), ones(ComplexF64, 15)), (0, 1)) catch e; e end
-        @test err isa DomainError && occursin("dimension 2", sprint(showerror, err))
+        # a nonzero Fourier mean is sent to zero in any direction, as by the materialized operator
+        for (s, dim, ℰ) ∈ ((Taylor(1) ⊗ Fourier(1, 1.0), 2, (nothing, E₀)), (Fourier(1, 1.0) ⊗ Taylor(1), 1, (E₀, nothing)),
+                           (Taylor(2) ⊗ Fourier(2, 1.0), 2, (nothing, E₀)))
+            a = Sequence(s, collect(1.0:dimension(s)))
+            a₀ = copy(a)
+            selectdim(a₀, dim, 0) .= 0.0
+            @test integrate(a, ℰ) == integrate(a₀, ℰ)
+            @test integrate(a, ℰ) ≈ project(Integral(ℰ), s, codomain(Integral(ℰ), s), ComplexF64) * a
+        end
 
         # a middle direction with a Chebyshev factor of order 0 agrees with the base space operator
         s = Taylor(0) ⊗ Chebyshev(0) ⊗ Fourier(2, 1.0)
         a = Sequence(s, [1.0, 2.0, 3.0, 4.0, 5.0])
-        r = Integral((0, 1, 0)) * a
+        r = Integral(nothing, E₀, nothing) * a
         @test space(r) == Taylor(0) ⊗ Chebyshev(1) ⊗ Fourier(2, 1.0)
         for k ∈ -2:2
-            r₁ = Integral(1) * Sequence(Chebyshev(0), [a[(0, 0, k)]])
+            r₁ = Integral() * Sequence(Chebyshev(0), [a[(0, 0, k)]])
             @test r[(0, 0, k)] == r₁[0] && r[(0, 1, k)] == r₁[1]
         end
 
         # each direction agrees with the base space operator on a line of coefficients
         b = Sequence(Chebyshev(3) ⊗ Chebyshev(3) ⊗ Chebyshev(3), [sin(1.7i) for i ∈ 1:64])
         for d ∈ 1:3
-            r = Integral(ntuple(i -> Int(i == d), 3)) * b
+            r = Integral(ntuple(i -> i == d ? E₀ : nothing, 3)) * b
             line = Sequence(Chebyshev(3), [b[ntuple(i -> i == d ? j : 2, 3)] for j ∈ 0:3])
-            @test [r[ntuple(i -> i == d ? j : 2, 3)] for j ∈ 0:4] ≈ coefficients(Integral(1) * line)
+            @test [r[ntuple(i -> i == d ? j : 2, 3)] for j ∈ 0:4] ≈ coefficients(Integral() * line)
+        end
+    end
+
+    @testset "Condition" begin
+        # the integral from -1 on Chebyshev
+        ∫₋₁ = Integral(Evaluation(-1.0))
+        inplace!(c, a) = integrate!(c, a, Evaluation(-1.0))
+        @test domain(∫₋₁, Chebyshev(3)) == UndefSpace() # the T₀ row is dense, so no finite domain exists
+        @test codomain(∫₋₁, Chebyshev(3)) == Chebyshev(4)
+        test_action(∫₋₁, Sequence(Chebyshev(0), [2.0]), Sequence(Chebyshev(1), [2.0, 1.0]); inplace! = inplace!)
+        test_action(∫₋₁, Sequence(Chebyshev(1), [1.0, 3.0]), Sequence(Chebyshev(2), [-0.5, 0.5, 0.75]); inplace! = inplace!)
+        test_action(∫₋₁, Sequence(Chebyshev(3), [1.0, 2.0, 3.0, 4.0]), Sequence(Chebyshev(4), [-1.0, -1.0, -0.5, 0.5, 0.5]); inplace! = inplace!)
+        @test ∫₋₁(Sequence(Chebyshev(1), ComplexF64[2 + 2im, 4.0])) == Sequence(Chebyshev(2), ComplexF64[0 + 2im, 1 + 1im, 1.0])
+        @test integrate(Sequence(Chebyshev(1), interval.([1.0, 3.0])), Evaluation(interval(-1.0))) == Sequence(Chebyshev(2), interval.([-0.5, 0.5, 0.75]))
+
+        # only the coefficient of the constants differs from the integral without condition: the
+        # integral vanishes at the value of the condition, and the materialized operator agrees
+        for x ∈ (-1.0, 0.3, 1.0), s ∈ (Taylor(4), Fourier(3, 1.0), Chebyshev(4))
+            ℐ = Integral(Evaluation(x))
+            a = Sequence(s, collect(1.0:dimension(s)))
+            s isa Fourier && (a[0] = 0.0)
+            c, c₀ = ℐ(a), Integral()(a)
+            @test all(c[k] == c₀[k] for k ∈ indices(space(c)) if k != 0)
+            @test abs(c(x)) ≤ 1e-13
+            @test differentiate(c) ≈ a
+            @test project(ℐ, s, space(c), eltype(c)) * a ≈ c == mul!(fill(eltype(c)(Inf), space(c)), ℐ, a)
+        end
+        @test Integral(Evaluation(0.0))(Sequence(Taylor(2), [1.0, -1.0, 1.0])) == Integral()(Sequence(Taylor(2), [1.0, -1.0, 1.0]))
+
+        # the iterated integral from -1 vanishes at -1 with its derivative
+        u = Sequence(Chebyshev(2), [1.0, 0.5, 0.25])
+        W = ∫₋₁(∫₋₁(u))
+        @test (∫₋₁ * ∫₋₁) * u == W
+        @test abs(W(-1.0)) ≤ 1e-13 && abs(differentiate(W)(-1.0)) ≤ 1e-13
+        @test differentiate(W, 2) ≈ u
+
+        # one condition per dimension: a value, none, or no integration
+        s = Taylor(2) ⊗ Chebyshev(2) ⊗ Fourier(1, 1.0)
+        a = Sequence(s, ComplexF64.(1.0:dimension(s)))
+        selectdim(a, 3, 0) .= 0.0
+        for ℰ ∈ ((Evaluation(0.5), Evaluation(-1.0), Evaluation(0.2)), (E₀, Evaluation(1.0), nothing),
+                 (nothing, E₀, Evaluation(0.7)), (Evaluation(0.25), nothing, nothing))
+            ℐ = Integral(ℰ)
+            c = ℐ(a)
+            @test project(ℐ, s, codomain(ℐ, s), ComplexF64) * a ≈ c == integrate(a, ℰ)
+            @test differentiate(c, order(ℐ)) ≈ a
+            for (d, xᵢ) ∈ enumerate(RadiiPolynomial._integral_value(ℰ))
+                isnothing(xᵢ) || @test maximum(abs, coefficients(evaluate(c, ntuple(i -> i == d ? xᵢ : nothing, 3)))) ≤ 1e-12
+            end
+        end
+
+        # on a symmetric space, the constant added by the condition keeps the symmetries of the constants:
+        # the integral of an odd series stays even, the integral of an even series loses its symmetry
+        sE, sO = evensym(Fourier(3, 1.0)), oddsym(Fourier(3, 1.0))
+        full(x) = Sequence(desymmetrize(space(x)), [RadiiPolynomial.getcoefficient(x, (desymmetrize(space(x)), j)) for j ∈ -3:3])
+        for (s, codom) ∈ ((sO, sE), (sE, RadiiPolynomial._compatible_space_with_constant_index(sO)))
+            ℐ = Integral(Evaluation(0.3))
+            a = Sequence(s, ComplexF64[0.0, 2.0, 0.0, 3.0][1:dimension(s)])
+            @test domain(ℐ, s) == UndefSpace()
+            @test codomain(ℐ, s) == codom
+            @test full(ℐ(a)) ≈ ℐ(full(a))
+            @test abs(ℐ(a)(0.3)) ≤ 1e-13
+        end
+
+        @testset "InfiniteSequence error propagation" begin
+            finite, tail = RadiiPolynomial._integral_condition_finite_error, RadiiPolynomial._integral_condition_tail_error
+            X = Ell1(GeometricWeight(2.0))
+
+            # the factors bound the column norms |(∫ eⱼ)(x)| / wⱼ of the row filled by the condition, over
+            # the head columns j ≤ N and over the tail columns; on Chebyshev at ±1 they are attained
+            for s ∈ (Taylor(3), Fourier(3, 0.5), Chebyshev(0), Chebyshev(1), Chebyshev(3)), x ∈ (-1.0, 0.3, 1.0, 0.5im)
+                s₊ = s isa Fourier ? Fourier(40, 0.5) : typeof(s)(40)
+                col = map(indices(s₊)) do j
+                    e = zeros(ComplexF64, s₊)
+                    e[j] = 1.0
+                    abs(Integral(Evaluation(x))(e)[0]) / norm(e, X)
+                end
+                head = [c for (j, c) ∈ zip(indices(s₊), col) if abs(j) ≤ order(s)]
+                rest = [c for (j, c) ∈ zip(indices(s₊), col) if abs(j) > order(s)]
+                @test maximum(head) ≤ finite(X, s, x) * (1 + 1e-12)
+                @test maximum(rest) ≤ tail(X, s, x) * (1 + 1e-12)
+                if s isa Chebyshev && isreal(x) && abs(x) == 1
+                    @test maximum(head) ≈ finite(X, s, x)
+                    @test maximum(rest) ≈ tail(X, s, x)
+                end
+            end
+
+            # on Chebyshev, the condition at -1 gives the factors of the integral from -1: finite and
+            # total 1 + ν, cross 1/(2ν(j-1)) + 1/(νʲ(j²-1)) at j = N+1
+            a = InfiniteSequence(Sequence(Chebyshev(3), [1.0, 0.5, 0.2, 0.05]), 0.5, 0.25, 0.75, X)
+            r₀, r = integrate(a), integrate(a, Evaluation(-1.0))
+            @test sequence(r) == integrate(sequence(a), Evaluation(-1.0))
+            @test finite_error(r) ≈ (1 + 2.0) * 0.5 + (1 / (2 * 2.0 * 3) + 1 / (2.0^4 * 15)) * 0.25
+            @test tail_error(r) == tail_error(r₀)
+            @test total_error(r) ≈ min(finite_error(r) + tail_error(r), (1 + 2.0) * 0.75)
+            @test banachspace(r) == X
+
+            @test_throws DomainError integrate(a, Evaluation(3.0)) # outside the Bernstein ellipse
+            # a sequence without error is integrated without error
+            b = InfiniteSequence(Sequence(Chebyshev(1), [1.0, 3.0]), Ell1(IdentityWeight()))
+            @test iszero(total_error(integrate(b, Evaluation(-1.0))))
+
+            # in one dimension, the condition adds its head columns to the finite factor and its tail
+            # columns to the cross factor
+            factors = (RadiiPolynomial._integral_finite_error, RadiiPolynomial._integral_cross_error,
+                       RadiiPolynomial._integral_tail_error, RadiiPolynomial._integral_total_error)
+            κf, κc, κt, κo = factors
+            for s ∈ (Taylor(3), Fourier(3, 0.5), Chebyshev(3)), x ∈ (-1.0, 0.3)
+                ℰ = Evaluation(x)
+                @test κf(X, s, ℰ) == κf(X, s, E₀) + finite(X, s, x)
+                @test κc(X, s, ℰ) == κc(X, s, E₀) + tail(X, s, x)
+                @test κt(X, s, ℰ) == κt(X, s, E₀)
+                @test κo(X, s, ℰ) == κo(X, s, E₀) + max(finite(X, s, x), tail(X, s, x))
+            end
+
+            # on a tensor space the factors are those of the product of the integrals along each dimension:
+            # they bound the column norms, restricted to the head rows and to the other rows
+            X² = Ell1((GeometricWeight(2.0), GeometricWeight(1.5)))
+            for (s, big) ∈ ((Taylor(2) ⊗ Chebyshev(2), Taylor(9) ⊗ Chebyshev(9)), (Fourier(1, 1.0) ⊗ Taylor(2), Fourier(6, 1.0) ⊗ Taylor(9))),
+                ℰ ∈ ((Evaluation(0.5), E₀), (E₀, Evaluation(-1.0)), (Evaluation(0.25), Evaluation(1.0)), (nothing, Evaluation(0.5)), (Evaluation(-0.5), nothing))
+                head = codomain(Integral(ℰ), s)
+                fin = cr = tl = tot = 0.0
+                for j ∈ indices(big)
+                    all(abs.(j) .≤ Tuple(order(big)) .- 2) || continue
+                    e = zeros(ComplexF64, big)
+                    e[j] = 1.0
+                    img = Integral(ℰ)(e)
+                    w = norm(e, X²)
+                    h, t = norm(project(img, head), X²) / w, norm(img, X²) / w
+                    if all(abs.(j) .≤ Tuple(order(s)))
+                        fin = max(fin, t)
+                    else
+                        cr, tl = max(cr, h), max(tl, t - h)
+                    end
+                    tot = max(tot, t)
+                end
+                @test fin ≤ κf(X², s, ℰ) * (1 + 1e-12)
+                @test cr ≤ κc(X², s, ℰ) * (1 + 1e-12)
+                @test tl ≤ κt(X², s, ℰ) * (1 + 1e-12)
+                @test tot ≤ κo(X², s, ℰ) * (1 + 1e-12)
+            end
+            Y² = Ell1((GeometricWeight(2.0), GeometricWeight(2.0)))
+            c = InfiniteSequence(Sequence(Taylor(2) ⊗ Taylor(2), ones(9)), 0.5, 0.25, 0.75, Y²)
+            t = integrate(c, (Evaluation(0.5), E₀))
+            @test finite_error(t) == (2.0 + 0.5) * 2.0 * 0.5 + 0.5 * 0.25^3 / 4 * 2.0 * 0.25
+            @test total_error(t) == min(finite_error(t) + tail_error(t), (2.0 + 0.5) * 2.0 * 0.75)
         end
     end
 
     @testset "Cartesian space" begin
         a = Sequence(Taylor(2)^2 × Fourier(1, 1.0) × Chebyshev(2), collect(1.0:12.0))
         component(a, 2)[0] = 0.0 # mean-free Fourier component
-        ∫¹ = Integral(1)
-        c = ∫¹(a)
+        ∫ = Integral()
+        c = ∫(a)
         codom = Taylor(3)^2 × Fourier(1, 1.0) × Chebyshev(3)
-        @test c == integrate!(fill(complex(Inf), codom), a) == mul!(fill(complex(Inf), codom), ∫¹, a)
+        @test c == integrate!(fill(complex(Inf), codom), a) == mul!(fill(complex(Inf), codom), ∫, a)
         @test component(c, 1) == integrate(component(a, 1))
         @test component(c, 3) == integrate(component(a, 3))
     end
 
     @testset "Symmetric space" begin
         sE, sO = evensym(Fourier(3, 1.0)), oddsym(Fourier(3, 1.0))
-        ∫¹ = Integral(1)
+        ∫ = Integral()
 
-        # an odd order swaps the even and odd symmetries, an even order preserves them
-        @test codomain(∫¹, sE) == domain(∫¹, sE) == sO
-        @test domain(∫¹, sO) == sE
-        @test codomain(Integral(2), sE) == domain(Integral(2), sE) == sE
-        @test domain(Integral(2), sO) == sO
+        # the integral swaps the even and odd symmetries
+        @test codomain(∫, sE) == domain(∫, sE) == sO
+        @test codomain(∫, sO) == domain(∫, sO) == sE
 
         # aₖ/(iωk) on the representatives k = 1, 2, 3
         a = Sequence(sE, ComplexF64[0.0, 2.0, 0.0, 3.0])
         expected = Sequence(sO, ComplexF64[-2.0im, 0.0, -1.0im])
-        test_action(∫¹, a, expected; inplace! = integrate!)
+        test_action(∫, a, expected; inplace! = integrate!)
 
         # the same computation on the full Fourier space
         full(x) = Sequence(desymmetrize(space(x)), [RadiiPolynomial.getcoefficient(x, (desymmetrize(space(x)), j)) for j ∈ -3:3])
         @test integrate(full(a)) == full(expected)
 
-        @test differentiate(∫¹(a)) == a
+        @test differentiate(∫(a)) == a
 
-        a_bad = Sequence(sE, ComplexF64[1.0, 2.0, 0.0, 3.0])
-        @test_throws DomainError integrate(a_bad)
-        @test_throws DomainError ∫¹(a_bad)
+        # no integration
+        @test domain(Integral(nothing), sE) == codomain(Integral(nothing), sE) == sE
+        @test Integral(nothing) * a == integrate(a, nothing) == a
+
+        # the mean is sent to zero
+        a_mean = Sequence(sE, ComplexF64[1.0, 2.0, 0.0, 3.0])
+        @test integrate(a_mean) == ∫(a_mean) == expected
     end
 
     @testset "InfiniteSequence error propagation" begin
@@ -185,7 +352,7 @@
         X = Ell1(GeometricWeight(2.0))
         X² = Ell1((GeometricWeight(2.0), GeometricWeight(2.0)))
 
-        # Taylor: finite and total νᵅ/α!, tail νᵅ (N+1)!/(N+α+1)!
+        # Taylor: finite and total ν, tail ν/(N+2)
         ∫a = integrate(InfiniteSequence(Sequence(Taylor(2), [1.0, 1.0, 1.0]), 0.5, 0.25, 0.75, X))
         @test finite_error(∫a) == 2.0 * 0.5
         @test tail_error(∫a) == 0.5 * 0.25
@@ -201,47 +368,83 @@
             @test banachspace(integrate(b)) == Y
         end
 
+        # no integration, no error
+        d = InfiniteSequence(Sequence(Taylor(2), [1.0, 1.0, 1.0]), 0.5, 0.25, 0.75, X)
+        ∫⁰d = integrate(d, nothing)
+        @test sequence(∫⁰d) == sequence(d)
+        @test (finite_error(∫⁰d), tail_error(∫⁰d), total_error(∫⁰d)) == (0.5, 0.25, 0.75)
+
         # the tensor tail factor covers the complement of the box: max_i tailᵢ ∏_{l≠i} totalₗ
         s² = Taylor(2) ⊗ Taylor(2)
-        @test finite(X², s², (1, 1)) == total(X², s², (1, 1)) == 2.0 * 2.0
-        @test tail(X², s², (1, 1)) == 0.5 * 2.0
-        @test tail_error(integrate(InfiniteSequence(Sequence(s², ones(9)), 0.0, 1.0, 1.0, X²), (1, 1))) == 1.0
+        @test finite(X², s², (E₀, E₀)) == total(X², s², (E₀, E₀)) == 2.0 * 2.0
+        @test tail(X², s², (E₀, E₀)) == 0.5 * 2.0
+        @test tail_error(integrate(InfiniteSequence(Sequence(s², ones(9)), 0.0, 1.0, 1.0, X²), (E₀, E₀))) == 1.0
+        # along one dimension only
+        @test finite(X², s², (E₀, nothing)) == total(X², s², (E₀, nothing)) == 2.0
+        @test finite_error(integrate(InfiniteSequence(Sequence(s², ones(9)), 0.5, 0.0, 0.5, X²), (E₀, nothing))) == 2.0 * 0.5
 
-        # Fourier: finite ω⁻ᵅ (0 when N = 0), tail (ω(N+1))⁻ᵅ, total ω⁻ᵅ
+        # Fourier: finite 1/ω (0 when N = 0), tail 1/(ω(N+1)), total 1/ω
         f = InfiniteSequence(Sequence(Fourier(3, 0.5), [0, 0, 0.5im, 0, -0.5im, 0, 0]), 0.25, 1.0, 1.25, X)
         ∫f = integrate(f)
         @test sequence(∫f) == integrate(sequence(f))
         @test finite_error(∫f) == 2.0 * 0.25
         @test tail_error(∫f) == 0.5 * 1.0
         @test total_error(∫f) == min(2.0 * 0.25 + 0.5 * 1.0, 2.0 * 1.25)
-        @test tail(X, Fourier(3, 0.5), 2) == 0.25
-        @test finite(X, Fourier(0, 0.5), 1) == 0.0
-        @test total(X, Fourier(0, 0.5), 1) == inv(0.5)
+        @test finite(X, Fourier(0, 0.5), E₀) == 0.0
+        @test total(X, Fourier(0, 0.5), E₀) == inv(0.5)
 
         # the Taylor and Fourier integrals separate supports, so the cross factor vanishes
-        @test cross(X, Taylor(2), 1) == cross(X, Fourier(3, 1.0), 1) == 0.0
+        @test cross(X, Taylor(2), E₀) == cross(X, Fourier(3, 1.0), E₀) == 0.0
 
         @testset "Chebyshev: triangular propagation" begin
-            # The row 0 of the antiderivative normalized at t = -1 is dense, so a tail column reaches
-            # that head row. Both norms carry the weight and the head of the image is Chebyshev(N+1).
+            # A tail column j reaches the head row j-1. Both norms carry the weight and the head of
+            # the image is Chebyshev(N+1).
             for ν ∈ (1.0, 1.5, 2.0), N ∈ (0, 1, 3, 8)
                 Xν = Ell1(GeometricWeight(ν))
                 cols = _calculus_chebyshev_columns(integrate, Chebyshev(N+1), Xν, Xν)
-                _calculus_test_chebyshev_factors(factors, Xν, N, cols)
+                _calculus_test_chebyshev_factors(factors, Xν, N, cols, E₀)
                 # the finite and total factors are attained at j = 0
-                @test finite(Xν, Chebyshev(N), 1) == total(Xν, Chebyshev(N), 1) == 1.0 + ν
+                @test finite(Xν, Chebyshev(N), E₀) == total(Xν, Chebyshev(N), E₀) == ν
             end
 
             a = InfiniteSequence(Sequence(Chebyshev(3), [1.0, 0.5, 0.2, 0.05]), 0.5, 0.25, 0.75, X)
-            _calculus_test_triangular(integrate(a), factors, X, Chebyshev(3))
+            _calculus_test_triangular(integrate(a), factors, X, Chebyshev(3), E₀)
             @test banachspace(integrate(a)) == X
 
             # ν = 1 is admissible
-            @test finite(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1) == 2.0
-            @test cross(X, Chebyshev(2), 0) == 0.0
-            @test finite(X, Chebyshev(2), 0) == tail(X, Chebyshev(2), 0) == 1.0
-            @test_throws DomainError integrate(a, 2)
+            @test finite(Ell1(GeometricWeight(1.0)), Chebyshev(2), E₀) == 1.0
+            @test cross(X, Chebyshev(2), nothing) == 0.0
+            @test finite(X, Chebyshev(2), nothing) == tail(X, Chebyshev(2), nothing) == 1.0
         end
+    end
+
+    @testset "Composition" begin
+        ∫ = Integral()
+        a = Sequence(Taylor(2), [1.0, -1.0, 1.0])
+
+        # higher orders are compositions
+        ∫² = ∫ * ∫
+        @test ∫²(a) == ∫(∫(a)) == Sequence(Taylor(4), [0.0, 0.0, 1/2, -1/6, 1/12])
+        @test codomain(∫², Taylor(3)) == Taylor(5)
+        @test project(∫², Taylor(2), Taylor(4), Float64) * a == ∫²(a)
+
+        # the power is the repeated composition
+        @test ∫^1 == ∫
+        @test ∫^2 == ∫²
+        @test (∫^3)(a) == ∫(∫(∫(a)))
+        @test (∫^0)(a) == a
+        @test_throws DomainError ∫^(-1)
+        n = -1
+        @test_throws DomainError ∫^n
+        ∫₋₁ = Integral(Evaluation(-1))
+        b = Sequence(Chebyshev(2), [1.0, 0.5, 0.5])
+        @test (∫₋₁^2)(b) == ∫₋₁(∫₋₁(b))
+
+        # there is no integer order
+        @test_throws MethodError Integral(1)
+        @test_throws MethodError Integral((1, 0))
+        @test_throws MethodError integrate(a, 1)
+        @test_throws MethodError integrate!(fill(Inf, Taylor(4)), a, 2)
     end
 
 end

@@ -331,6 +331,10 @@ _lo_test_enclosure(A, B) = @test all(issubset_interval.(coefficients(A), real.(c
 
         @testset "UniformScalingOperator" begin
             J = UniformScalingOperator(2.0)
+            @test J^2 == UniformScalingOperator(4.0)
+            @test J^0 == UniformScalingOperator(1.0)
+            @test J^-1 == UniformScalingOperator(0.5)
+            @test J * UniformScalingOperator(3.0) == UniformScalingOperator(6.0)
             @test domain(J, 𝒯₂) == 𝒯₂ && codomain(J, 𝒯₂) == 𝒯₂
             @test undefined(J)
             @test eltype(J) == Float64

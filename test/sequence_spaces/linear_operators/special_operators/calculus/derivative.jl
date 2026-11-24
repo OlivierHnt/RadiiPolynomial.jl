@@ -8,7 +8,7 @@
         ∂¹ = Derivative(1)
         @test codomain(∂¹, Taylor(3)) == Taylor(2)
         @test codomain(Derivative(4), Taylor(3)) == Taylor(0)
-        @test domain(Derivative(2), Taylor(3)) == Taylor(5) == codomain(Integral(2), Taylor(3))
+        @test domain(Derivative(2), Taylor(3)) == Taylor(5)
         @test domain(Derivative(0), Taylor(3)) == codomain(Derivative(0), Taylor(3)) == Taylor(3)
 
         # the order 0 keeps the coefficient type
@@ -59,7 +59,7 @@
 
     @testset "Chebyshev" begin
         ∂¹ = Derivative(1)
-        # only the order 0 has a well-defined domain
+        # the row i reads every column j > i with j - i odd: only the order 0 has a well-defined domain
         @test domain(∂¹, Chebyshev(3)) == UndefSpace()
         @test domain(Derivative(0), Chebyshev(3)) == Chebyshev(3)
         @test codomain(∂¹, Chebyshev(3)) == Chebyshev(2)
@@ -81,9 +81,28 @@
         @test ∂¹(Sequence(Chebyshev(3), ComplexF64[1 + 1im, 2.0, 3.0, 4im])) == Sequence(Chebyshev(2), ComplexF64[4 + 24im, 12.0, 24.0im])
         @test differentiate(Sequence(Chebyshev(0), [5.0]), 1) == Sequence(Chebyshev(0), [0.0])
 
-        # orders ≥ 2 are not supported, for the action and for the materialized operator
-        @test_throws DomainError differentiate(a2, 2)
-        @test_throws DomainError project(Derivative(2), Chebyshev(3), Chebyshev(1), Float64)
+        # the order n is the order 1 applied n times: for the order 2, cᵢ = Σ j(j² - i²) aⱼ over j > i
+        # with j - i even
+        ∂², ∂³ = Derivative(2), Derivative(3)
+        @test domain(∂², Chebyshev(3)) == UndefSpace()
+        test_action(∂², a, Sequence(Chebyshev(1), [24.0, 96.0]); inplace! = (c, a) -> differentiate!(c, a, 2))
+        a5 = Sequence(Chebyshev(5), [1.0, -2.0, 0.5, 3.0, -1.0, 2.0])
+        test_action(∂², a5, ∂¹(∂¹(a5)); inplace! = (c, a) -> differentiate!(c, a, 2))
+        test_action(∂³, a5, ∂¹(∂¹(∂¹(a5))); inplace! = (c, a) -> differentiate!(c, a, 3))
+        @test project(∂², Chebyshev(5), Chebyshev(3), Float64) ==
+            project(∂¹, Chebyshev(4), Chebyshev(3), Float64) * project(∂¹, Chebyshev(5), Chebyshev(4), Float64)
+        @test ∂²(interval.(a5)) == interval.(∂²(a5))
+        # the closed form of the coefficients agrees with the order 1 applied n times
+        a9 = Sequence(Chebyshev(9), [sin(1.7i) for i ∈ 1:10])
+        for n ∈ 2:6
+            @test differentiate(a9, n) ≈ foldl((b, _) -> ∂¹(b), 1:n; init = a9)
+            @test project(Derivative(n), Chebyshev(9), Chebyshev(9-n), Float64) ≈
+                foldl((M, k) -> project(∂¹, Chebyshev(9-k), Chebyshev(8-k), Float64) * M, 1:n-1; init = project(∂¹, Chebyshev(9), Chebyshev(8), Float64))
+        end
+        @test differentiate(Sequence(Chebyshev(4), [1, 2, 3, 4, 5]), 2) == Sequence(Chebyshev(2), [344, 96, 240])
+        # an order larger than the order of the sequence gives zero
+        @test differentiate(a2, 3) == Sequence(Chebyshev(0), [0.0])
+        @test ∂²(integrate(integrate(a5))) ≈ a5
     end
 
     @testset "Tensor space" begin
@@ -136,7 +155,14 @@
             test_action(Derivative((0, 2)), aT₂,
                 Sequence(codomain(Derivative((0, 2)), sT₂), ComplexF64[14.0, 16.0, 18.0, 60.0, 66.0, 72.0]))
 
-            @test_throws DomainError differentiate(Sequence(Taylor(0) ⊗ Chebyshev(3), collect(1.0:4.0)), (0, 2))
+            # a Chebyshev factor of order 2 agrees with the base space operator
+            @test coefficients(differentiate(Sequence(Taylor(0) ⊗ Chebyshev(3), collect(1.0:4.0)), (0, 2))) ==
+                coefficients(differentiate(Sequence(Chebyshev(3), collect(1.0:4.0)), 2)) == [24.0, 96.0]
+            sC₂ = Chebyshev(4) ⊗ Taylor(2) ⊗ Chebyshev(3)
+            aC₂ = Sequence(sC₂, collect(1.0:dimension(sC₂)))
+            for α ∈ ((2, 0, 0), (0, 0, 2), (3, 1, 2))
+                @test project(Derivative(α), sC₂, codomain(Derivative(α), sC₂), Float64) * aC₂ == differentiate(aC₂, α)
+            end
         end
     end
 
@@ -195,7 +221,23 @@
         @test finite(X, Fourier(3, 1.0), 1) == 0.5
         @test tail(X, Fourier(3, 1.0), 1) == 0.25
         @test total(X, Fourier(3, 1.0), 1) == 0.5
-        @test_throws DomainError tail(X, Fourier(3, 1.0), 2)
+        # order α: |ω|ᵅ times a sup of kᵅ ν⁻ᵏ, against the diagonal of the operator
+        for α ∈ 2:4, N ∈ (0, 3, 12), (ν, ω) ∈ ((2.0, 1.0), (1.1, 0.5))
+            col = [(ω * j)^α / ν^j for j ∈ 1:2000]
+            Y = Ell1(GeometricWeight(ν))
+            @test finite(Y, Fourier(N, ω), α) ≈ maximum(view(col, 1:N); init = 0.0) rtol=1e-12
+            @test tail(Y, Fourier(N, ω), α) ≈ maximum(view(col, N+1:2000)) rtol=1e-12
+            @test total(Y, Fourier(N, ω), α) ≈ maximum(col) rtol=1e-12
+        end
+        @test_throws DomainError tail(Ell1(GeometricWeight(1.0)), Fourier(3, 1.0), 2)
+        # jᵅ is beyond the range of the integers
+        @test finite(Ell1(GeometricWeight(1.5)), Fourier(100, 1.0), 10) ≈ maximum(float(j)^10 / 1.5^j for j ∈ 1:100) rtol=1e-12
+        @test tail(X, Fourier(10000, 1.0), 5) == 10001.0^5 / 2.0^10001
+        @test total(Ell1(GeometricWeight(1.02)), Fourier(3, 1.0), 8) ≈ maximum(float(j)^8 / 1.02^j for j ∈ 1:5000) rtol=1e-12
+        D²f = differentiate(InfiniteSequence(Sequence(Fourier(3, 1.0), [0, 0, 0.5im, 0, -0.5im, 0, 0]), 0.5, 0.3, 0.9, X), 2)
+        @test sequence(D²f) == differentiate(Sequence(Fourier(3, 1.0), [0, 0, 0.5im, 0, -0.5im, 0, 0]), 2)
+        @test finite_error(D²f) == 1.125 * 0.5 # 3²/2³
+        @test tail_error(D²f) == 1.0 * 0.3     # 4²/2⁴
 
         f = InfiniteSequence(Sequence(Fourier(3, 1.0), [0, 0, 0.5im, 0, -0.5im, 0, 0]), 0.5, 0.3, 0.9, X)
         Df = differentiate(f)
@@ -242,7 +284,28 @@
             @test finite(X, Chebyshev(2), 0) == tail(X, Chebyshev(2), 0) == 1.0
             # at ν = 1 the columns are unbounded
             @test_throws DomainError total(Ell1(GeometricWeight(1.0)), Chebyshev(2), 1)
-            @test_throws DomainError differentiate(a, 2)
+
+            # order α ≥ 2: the full column norm is Tⱼ⁽ᵅ⁾(1)/νʲ and the head of the image is
+            # Chebyshev(max(0, N-α))
+            for α ∈ 2:4, N ∈ (0, 1, 3, 8)
+                cols = _calculus_chebyshev_columns(u -> differentiate(u, α), Chebyshev(max(0, N-α)), X, Ell1())
+                _calculus_test_chebyshev_factors(factors, X, N, cols, α)
+            end
+            @test total(X, Chebyshev(2), 2) == 420/2.0^6 # Tⱼ″(1) = j²(j²-1)/3, and the sup is at j = 6
+            @test RadiiPolynomial._cheb_derivative_column(1.0, 3, 5) == 5^2 * (5^2-1) * (5^2-4) / 15
+            _calculus_test_triangular(differentiate(a, 2), factors, X, Chebyshev(3), 2)
+            @test_throws DomainError total(Ell1(GeometricWeight(1.0)), Chebyshev(2), 2)
+            # close to ν = 1 the scan stops before the supremum is certified and returns a bound
+            for α ∈ 1:3, N ∈ (2, 50)
+                Y = Ell1(GeometricWeight(1.01))
+                h = max(0, N-α)
+                cols = [RadiiPolynomial._cheb_derivative_column(1.01, α, j, r) for j ∈ N+1:4000, r ∈ (0:h, h+1:4000)]
+                @test cross(Y, Chebyshev(N), α) ≥ maximum(view(cols, :, 1))
+                @test tail(Y, Chebyshev(N), α) ≥ maximum(view(cols, :, 2))
+                @test total(Y, Chebyshev(N), α) ≈ maximum(RadiiPolynomial._cheb_derivative_column(1.01, α, j) for j ∈ α:4000) rtol=1e-12
+            end
+            # rigorous rate: the factor encloses the one of the midpoint
+            @test in_interval(total(X, Chebyshev(2), 3), total(Ell1(GeometricWeight(interval(2.0))), Chebyshev(2), 3))
 
             # tensor rule: κ_cross = max_i κ_crossⁱ ∏_{l≠i} max(κ_finˡ, κ_crossˡ), against the measured
             # products of head column norms over the columns outside the box

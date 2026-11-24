@@ -36,6 +36,18 @@ end
         @test Evaluation(1.0, nothing, 2.0) == Evaluation((1.0, nothing, 2.0))
         @test value(Evaluation(1.0, nothing, 2.0)) == (1.0, nothing, 2.0)
         @test_throws ArgumentError Evaluation()
+
+        # an evaluation leaves a constant, so the inner value wins and the power is trivial
+        @test Evaluation(0.5) * Evaluation(0.25) == Evaluation(0.25)
+        @test Evaluation(0.5) * Evaluation(nothing) == Evaluation(nothing) * Evaluation(0.5) == Evaluation(0.5)
+        @test Evaluation(0.5)^2 == Evaluation(0.5)^3 == Evaluation(0.5)
+        @test Evaluation(0.5, nothing) * Evaluation(nothing, 0.25) == Evaluation(0.5, 0.25)
+        @test Evaluation(0.5, 1.0) * Evaluation(nothing, 0.25) == Evaluation(0.5, 0.25)
+        a = Sequence(Taylor(2), [1.0, 1.0, 1.0])
+        @test (Evaluation(0.5)^2) * a == Evaluation(0.5) * a == 1.75
+        b = Sequence(Taylor(1) ⊗ Chebyshev(1), [1.0, 2.0, 3.0, 4.0])
+        # evaluating every variable at once returns the value, one after the other a constant sequence
+        @test (Evaluation(0.5, nothing) * Evaluation(nothing, 0.25)) * b == (Evaluation(0.5, nothing) * (Evaluation(nothing, 0.25) * b))[(0, 0)]
     end
 
     @testset "domain, codomain and identity on $s" for (s, s₀, x) ∈ (

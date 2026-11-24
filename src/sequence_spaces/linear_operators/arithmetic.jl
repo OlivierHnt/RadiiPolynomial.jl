@@ -13,6 +13,16 @@ Base.:-(A::AbstractLinearOperator, J::UniformScaling) = A - UniformScalingOperat
 Base.:-(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) - A
 
 Base.:*(A::AbstractLinearOperator, B::AbstractLinearOperator) = A ∘ B
+
+function Base.:^(A::AbstractLinearOperator, n::Integer)
+    n < 0 && return throw(DomainError(n, "^ is only defined for positive integers"))
+    n == 0 && return UniformScalingOperator()
+    return n == 1 ? A : A * A ^ (n-1)
+end
+Base.literal_pow(::typeof(^), A::AbstractLinearOperator, ::Val{n}) where {n} = A ^ n # bypasses `inv` for a negative literal
+
+Base.:*(J₁::UniformScalingOperator, J₂::UniformScalingOperator) = UniformScalingOperator(J₁.λ * J₂.λ)
+Base.:^(J::UniformScalingOperator, n::Integer) = UniformScalingOperator(J.λ ^ exact(n))
 Base.:*(J::UniformScalingOperator, A::LinearOperator) = J.λ * A
 Base.:*(A::LinearOperator, J::UniformScalingOperator) = A * J.λ
 Base.:*(J::UniformScaling, A::AbstractLinearOperator) = UniformScalingOperator(J) * A

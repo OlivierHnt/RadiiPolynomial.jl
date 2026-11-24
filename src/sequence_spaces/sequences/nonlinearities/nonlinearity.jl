@@ -49,7 +49,7 @@ function (nl::Nonlinearity)(a::InfiniteSequence; codomain::Union{Nothing,Sequenc
     ν = _analyticity_rate(banachspace(a))
     _validate_rate(space(seq_a), ν)
 
-    ρ = _safe_iszero(ε) ? ε : exact(1) + ε
+    ρ = _safe_iszero(ε) ? ε : exact(1) + ε # any ρ > ε is valid, with the bound ε M / (ρ - ε); here ρ - ε = 1
 
     _check_branch_cut_poles(nl, seq_a, ν, ρ) ||
         return throw(AnalyticityError(_safe_iszero(ε) ?
@@ -82,5 +82,5 @@ end
 _analyticity_rate(X::BanachSpace) = Tuple(_analyticity_rate(weight(X)))
 _analyticity_rate(w::Tuple{Vararg{Weight}}) = map(_analyticity_rate, w)
 _analyticity_rate(w::GeometricWeight) = rate(w)
-_analyticity_rate(::IdentityWeight) = exact(1) # valid only for Taylor
+_analyticity_rate(::IdentityWeight) = exact(1)
 _analyticity_rate(w::Weight) = throw(ArgumentError("analyticity check requires a geometric weight, i.e. ω_k = ν^{|k|}; got $(_prettystring(w))"))

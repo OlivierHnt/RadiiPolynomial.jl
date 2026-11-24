@@ -50,9 +50,12 @@ _isfinite_grid_value(x) = isfinite(x)
 
 _isentire(nl::Nonlinearity) = isempty_interval(nl.branch_cut) & isempty(nl.poles)
 
+# ν = 1 is admissible: the input need not be analytic. The Cauchy estimate is applied on contours of
+# radii ν̄ > ν to f ∘ ā, where ā has finitely many coefficients, and the input error is propagated in
+# the Banach algebra ℓ¹_ν, which only uses |h| ≤ ‖h‖ on the contour of radius ν
 _validate_rate(::Taylor,    ν::Real) = inf(ν) ≥ 1 || throw(ArgumentError("Taylor analyticity check requires ν ≥ 1; got ν = $ν"))
-_validate_rate(::Fourier,   ν::Real) = inf(ν) > 1 || throw(ArgumentError("Fourier analyticity check requires ν > 1; got ν = $ν"))
-_validate_rate(::Chebyshev, ν::Real) = inf(ν) > 1 || throw(ArgumentError("Chebyshev analyticity check requires ν > 1; got ν = $ν"))
+_validate_rate(::Fourier,   ν::Real) = inf(ν) ≥ 1 || throw(ArgumentError("Fourier analyticity check requires ν ≥ 1; got ν = $ν"))
+_validate_rate(::Chebyshev, ν::Real) = inf(ν) ≥ 1 || throw(ArgumentError("Chebyshev analyticity check requires ν ≥ 1; got ν = $ν"))
 _validate_rate(s::BaseSpace, ν::Tuple{Any}) = _validate_rate(s, ν[1])
 _validate_rate(s::TensorSpace, ν::Tuple) = foreach(_validate_rate, spaces(s), ν)
 

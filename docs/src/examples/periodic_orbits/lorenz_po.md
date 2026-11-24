@@ -135,7 +135,7 @@ DF_interval = DF(x_bar_interval, params_interval, ξ_interval)
 Π = Projection(space(x_bar_interval))
 A_K_interval = interval(inv(mid(Π * DF_interval * Π)))
 
-A_tail_11 = (interval(I) - Projection(space(x_bar_interval)[1])) * Integral(1)
+A_tail_11 = (interval(I) - Projection(space(x_bar_interval)[1])) * Integral()
 A_tail_12 = interval(zeros(ScalarSpace()^1,  Fourier(0, 1.)^3))
 A_tail_21 = interval(zeros(Fourier(0, 1.)^3, ScalarSpace()^1))
 A_tail_22 = interval(zeros(ScalarSpace()^1,  ScalarSpace()^1))

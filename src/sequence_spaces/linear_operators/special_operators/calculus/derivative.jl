@@ -70,7 +70,7 @@ getcoefficient(ℱ::Derivative{Tuple{Int}}, (codom, i)::Tuple{TensorSpace{<:Tupl
 
 # Taylor
 
-domain(D::Derivative, s::Taylor) = codomain(Integral(order(D)), s)
+domain(D::Derivative, s::Taylor) = Taylor(order(s)+order(D))
 
 codomain(𝒟::Derivative, s::Taylor) = Taylor(max(0, order(s)-order(𝒟)))
 
@@ -128,8 +128,14 @@ function getcoefficient(𝒟::Derivative, (codom, i)::Tuple{Chebyshev,Integer}, 
         return ifelse(i == j, one(T), zero(T))
     elseif n == 1
         return ifelse(i ∈ (0+iseven(j)):2:(j-1), convert(T, exact(2j)), zero(T))
-    else # TODO: lift restriction
-        return throw(DomainError(n, "Derivative is only implemented for order ≤ 1 on Chebyshev"))
+    else # 2ⁿ j binomial(p+n-1, n-1) (i+p+1)⋯(i+p+n-1) for j = i+n+2p, p ≥ 0
+        (j ≥ i+n) & iseven(j-i-n) || return zero(T)
+        p = (j-i-n) ÷ 2
+        x = convert(T, exact(2j * binomial(p+n-1, n-1)))
+        for l ∈ 1:n-1
+            x *= exact(2(i+p+l))
+        end
+        return x
     end
 end
 
@@ -363,8 +369,20 @@ function _apply!(c::Sequence{Chebyshev}, 𝒟::Derivative, a)
                 c[i] *= exact(2)
             end
         end
-    else # TODO: lift restriction
-        return throw(DomainError(n, "Derivative is only implemented for order ≤ 1 on Chebyshev"))
+    else
+        CoefType = eltype(c)
+        space_a = space(a)
+        order_a = order(a)
+        if order_a < n
+            @inbounds c[0] = zero(CoefType)
+        else
+            @inbounds for i ∈ 0:order_a-n
+                c[i] = zero(CoefType)
+                for j ∈ i+n:2:order_a
+                    c[i] += getcoefficient(𝒟, (space_a, i), (space_a, j), CoefType) * a[j]
+                end
+            end
+        end
     end
     return c
 end
@@ -386,8 +404,19 @@ function _apply!(C::AbstractArray{T}, 𝒟::Derivative, space::Chebyshev, ::Val{
                 end
             end
         end
-    else # TODO: lift restriction
-        return throw(DomainError(n, "Derivative is only implemented for order ≤ 1 on Chebyshev"))
+    else
+        ord = order(space)
+        if ord < n
+            C .= zero(T)
+        else
+            @inbounds for i ∈ 0:ord-n
+                Cᵢ = selectdim(C, D, i+1)
+                Cᵢ .= zero(T)
+                for j ∈ i+n:2:ord
+                    Cᵢ .+= getcoefficient(𝒟, (space, i), (space, j), T) .* selectdim(A, D, j+1)
+                end
+            end
+        end
     end
     return C
 end
@@ -431,10 +460,22 @@ end
 
 function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
-    α == 1 || return throw(DomainError(α, "derivative error on Fourier is only implemented for α ≤ 1"))
     ν = rate(X)
     ω = abs(frequency(s)) * one(ν)
-    return ω * _geom_kfact_sup(ν, 1, order(s))
+    return _geom_pow_sup(ν, ω, α, order(s) + 1)
+end
+
+# sup_{j ≥ j₀} (ωj)ᵅ ν^{-j}: from j to j+1 the term is multiplied by (1+1/j)ᵅ/ν ≤ exp(α/j)/ν, so it
+# decreases past j = αν/(ν-1) and the supremum is attained before
+function _geom_pow_sup(ν, ω, α::Int, j₀::Int)
+    inf(ν) > 1 || return throw(DomainError(ν,
+        "_geom_pow_sup requires the geometric rate to satisfy ν > 1"))
+    cur = (ω * exact(j₀)) ^ exact(α) / ν ^ exact(j₀)
+    jmax = max(j₀, ceil(Int, sup(α * ν / (ν - one(ν)))))
+    for j ∈ j₀+1:jmax
+        cur = max(cur, (ω * exact(j)) ^ exact(α) / ν ^ exact(j))
+    end
+    return cur
 end
 
 function _geom_kfact_sup(ν, α::Int, N::Int)
@@ -459,15 +500,11 @@ function _geom_kfact_sup(ν, α::Int, N::Int)
     # +100 is a buffer to allow for some interval widening before the decrease can be certified
     k_peak_upper = ceil(Int, sup((ν * α - ν + 1) / (ν - 1)))
     safety = max(k, k_peak_upper) + 100
-    decreased = false
     while k < safety
         k_next = k + 1
         new_term = term_coef * exact(k_next) / exact(k_next - α)
         f_next = new_term / ν ^ exact(k_next)
-        if sup(f_next) < inf(f_prev)
-            decreased = true
-            break
-        end
+        sup(f_next) < inf(f_prev) && break
         if sup(f_next) > sup(cur_max)
             cur_max = f_next
         end
@@ -475,8 +512,7 @@ function _geom_kfact_sup(ν, α::Int, N::Int)
         term_coef = new_term
         f_prev = f_next
     end
-    decreased || return throw(DomainError(ν,
-        "could not certify the supremum of k!/(k-α)! · ν^{-k}: no strict decrease observed up to k = $safety"))
+    # without an observed decrease, k is past the peak, so the largest term so far still bounds the supremum
     return cur_max
 end
 
@@ -491,8 +527,45 @@ function _derivative_tail_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::In
     α == 0 && return one(rate(X))
     ν = rate(X)
     N = order(s)
+    α == 1 || return _cheb_geom_sup(j -> _cheb_derivative_column(ν, α, j, max(0, N-α)+1:j-α),
+                                    j -> _cheb_derivative_column(ν, α, j), N + 1, _cheb_env_peak(ν, α))
     return _cheb_geom_sup(j -> exact(j * (j - _cheb_b(N, j))) / ν ^ exact(j),
                           j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
+end
+
+#= For α ≥ 2, the entry (i, j) of Dᵅ is 2ᵅ j binomial(p+α-1, α-1) (i+p+1)⋯(i+p+α-1) for j = i+α+2p,
+   p ≥ 0. The entries are non-negative and the unweighted norm is the value at 1, so the full column
+   norm is ‖Dᵅ e_j‖_{Ell1()} / w(j) = Tⱼ⁽ᵅ⁾(1)/νʲ with Tⱼ⁽ᵅ⁾(1) = ∏_{k=0}^{α-1} (j²-k²)/(2k+1). The
+   codomain Chebyshev(N') with N' = max(0, N-α) splits a tail column j > N into its head rows
+   i ≤ N' and its tail rows i > N', whose restricted column norms are summed entry by entry. =#
+function _cheb_derivative_column(ν, α::Int, j::Int)
+    x = one(ν)
+    for k ∈ 0:α-1
+        x = x * exact(j * j - k * k) / exact(2k + 1)
+    end
+    return x / ν ^ exact(j)
+end
+
+function _cheb_derivative_column(ν, α::Int, j::Int, rows::UnitRange{Int})
+    x = zero(ν)
+    for i ∈ rows
+        (j ≥ i + α) & iseven(j - i - α) || continue
+        p = (j - i - α) ÷ 2
+        y = exact(j) * one(ν) # halves the entry, as w(j) = 2νʲ
+        for l ∈ 1:α-1
+            y = y * exact(2 * (i + p + l) * (p + l)) / exact(l)
+        end
+        x += ifelse(i == 0, y, exact(2) * y)
+    end
+    return x / ν ^ exact(j)
+end
+
+# Tⱼ⁽ᵅ⁾(1)ν^{-j} is multiplied by (j+α)(j+1)/(ν j (j+1-α)) ≤ ((j+α)/(j+1-α))²/ν from j to j+1, so it
+# strictly decreases past j = (α + √ν (α-1))/(√ν - 1)
+function _cheb_env_peak(ν, α::Int)
+    inf(ν) > 1 || return throw(DomainError(ν,
+        "_cheb_env_peak requires the geometric rate to satisfy ν > 1"))
+    return max(α, ceil(Int, sup((exact(α) + sqrt(ν) * exact(α - 1)) / (sqrt(ν) - exact(1)))))
 end
 
 function _cheb_geom_sup(f, env, j₀::Int, peak_upper::Int)
@@ -509,7 +582,8 @@ function _cheb_geom_sup(f, env, j₀::Int, peak_upper::Int)
             return cur
         end
     end
-    return throw(DomainError(j₀, "could not certify the supremum of the Chebyshev derivative column norms up to j = $safety"))
+    # past the peak the envelope decreases, so it bounds every remaining column
+    return max(cur, env(j))
 end
 
 # j²ν^{-j} strictly decreases past j = 1/(√ν - 1); as for `_geom_kfact_sup`, an unbounded
@@ -546,17 +620,13 @@ end
 
 function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
-    α == 1 || return throw(DomainError(α, "derivative error on Fourier is only implemented for α ≤ 1"))
     ν = rate(X)
     ω = abs(frequency(s)) * one(ν)
     N = order(s)
     N == 0 && return zero(ν)
-    cur = ω / ν # j = 1
-    j = 1
-    while j < N
-        j += 1
-        candidate = ω * exact(j) / ν ^ exact(j)
-        cur = max(cur, candidate)
+    cur = ω ^ exact(α) / ν # j = 1
+    for j ∈ 2:N
+        cur = max(cur, (ω * exact(j)) ^ exact(α) / ν ^ exact(j))
     end
     return cur
 end
@@ -565,15 +635,33 @@ function _derivative_finite_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::
     α == 0 && return one(rate(X))
     ν = rate(X)
     N = order(s)
-    N == 0 && return zero(ν) # the only head column is j = 0 and D e_0 = 0
-    cur = exact(1) / ν # j = 1
-    for j ∈ 2:N
-        cur = max(cur, exact(j * j) / ν ^ exact(j))
+    N < α && return zero(ν) # the head columns are j < α and Dᵅ e_j = 0
+    cur = _cheb_derivative_column(ν, α, α) # j = α
+    for j ∈ α+1:N
+        cur = max(cur, _cheb_derivative_column(ν, α, j))
     end
     return cur
 end
 
 #-
+
+#= The head rows i ≤ N' of a column j = i+α+2p satisfy i+p+l ≤ (j+N'-α+2l)/2 and p+l ≤ (j-α+2l)/2,
+   and their weights sum to at most 2(N'+1), which gives the envelope
+   (N'+1) j ∏_{l=1}^{α-1} (j+N'-α+2l)(j-α+2l)/(2l) / νʲ. From j to j+1 it is multiplied by at most
+   ((j+3-α)/(j+2-α))^{2α-1}/ν, so it strictly decreases past j = α-2 + (2α-1)ν/(ν-1). =#
+function _cheb_derivative_cross_envelope(ν, α::Int, N′::Int, j::Int)
+    x = exact((N′ + 1) * j) * one(ν)
+    for l ∈ 1:α-1
+        x = x * exact((j + N′ - α + 2l) * (j - α + 2l)) / exact(2l)
+    end
+    return x / ν ^ exact(j)
+end
+
+function _cheb_cross_env_peak(ν, α::Int)
+    inf(ν) > 1 || return throw(DomainError(ν,
+        "_cheb_cross_env_peak requires the geometric rate to satisfy ν > 1"))
+    return max(α, ceil(Int, sup(exact(α - 2) + exact(2α - 1) * ν / (ν - exact(1)))))
+end
 
 _derivative_cross_error(X::Ell1{<:GeometricWeight}, ::Taylor, ::Int) = zero(rate(X))
 _derivative_cross_error(X::Ell1{<:GeometricWeight}, ::Fourier, ::Int) = zero(rate(X))
@@ -582,8 +670,12 @@ function _derivative_cross_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::I
     α == 0 && return zero(rate(X))
     ν = rate(X)
     N = order(s)
+    α == 1 || return _cheb_geom_sup(j -> _cheb_derivative_column(ν, α, j, 0:max(0, N-α)),
+                                    j -> _cheb_derivative_cross_envelope(ν, α, max(0, N-α), j), N + 1,
+                                    _cheb_cross_env_peak(ν, α))
+    # b_N(j) ≤ max(1, N), and j ν^{-j} strictly decreases past j = 1/(ν - 1) ≤ 1/(√ν - 1)
     return _cheb_geom_sup(j -> exact(j * _cheb_b(N, j)) / ν ^ exact(j),
-                          j -> exact(j * j) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
+                          j -> exact(j * max(1, N)) / ν ^ exact(j), N + 1, _cheb_env_peak(ν))
 end
 
 _derivative_cross_error(X::Ell1{<:NTuple{N,Weight}}, s::TensorSpace{<:NTuple{N,BaseSpace}}, α::NTuple{N,Int}) where {N} =
@@ -601,15 +693,14 @@ _derivative_total_error(X::Ell1{<:GeometricWeight}, ::Taylor, α::Int) =
 
 function _derivative_total_error(X::Ell1{<:GeometricWeight}, s::Fourier, α::Int)
     α == 0 && return one(rate(X))
-    α == 1 || return throw(DomainError(α, "derivative error on Fourier is only implemented for α ≤ 1"))
     ν = rate(X)
     ω = abs(frequency(s)) * one(ν)
-    return ω * _geom_kfact_sup(ν, 1, 0)
+    return _geom_pow_sup(ν, ω, α, 1)
 end
 
 function _derivative_total_error(X::Ell1{<:GeometricWeight}, s::Chebyshev, α::Int)
     α == 0 && return one(rate(X))
     ν = rate(X)
-    return _cheb_geom_sup(j -> exact(j * j) / ν ^ exact(j),
-                          j -> exact(j * j) / ν ^ exact(j), 1, _cheb_env_peak(ν))
+    return _cheb_geom_sup(j -> _cheb_derivative_column(ν, α, j),
+                          j -> _cheb_derivative_column(ν, α, j), α, _cheb_env_peak(ν, α))
 end

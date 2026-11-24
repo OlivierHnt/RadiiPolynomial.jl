@@ -34,6 +34,11 @@ Evaluation(value::Union{Number,Nothing}...) = Evaluation(value)
 
 value(ℰ::Evaluation) = ℰ.value
 
+Base.:*(ℰ₁::Evaluation{<:Union{Nothing,Number}}, ℰ₂::Evaluation{<:Union{Nothing,Number}}) = Evaluation(_compose_value(value(ℰ₁), value(ℰ₂)))
+Base.:*(ℰ₁::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, ℰ₂::Evaluation{<:NTuple{N,Union{Nothing,Number}}}) where {N} = Evaluation(map(_compose_value, value(ℰ₁), value(ℰ₂)))
+_compose_value(x, ::Nothing) = x
+_compose_value(_, y) = y
+
 # Tensor space
 
 domain(::Evaluation{<:NTuple{N,Union{Nothing,Number}}}, ::TensorSpace{<:NTuple{N,BaseSpace}}) where {N} = UndefSpace()

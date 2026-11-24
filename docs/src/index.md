@@ -17,8 +17,8 @@ It proves that an analytic solution lies within `inf(ie)` of a polynomial approx
 using RadiiPolynomial, LinearAlgebra
 
 # IVP as a zero-finding problem
-F(u)  = u - exact(0.5) - Integral(1) * (u * (exact(1) - u))
-DF(u) = exact(I) - Integral(1) * Multiplication(exact(1) - exact(2) * u)
+F(u)  = u - exact(0.5) - Integral() * (u * (exact(1) - u))
+DF(u) = exact(I) - Integral() * Multiplication(exact(1) - exact(2) * u)
 
 # approximate solution, with floating-point arithmetic
 K = 27
@@ -50,17 +50,10 @@ A complete walkthrough of this example is given in [The logistic equation](@ref)
 <div class="boxintro-container">
 ```
 
-**[Understand the method](radii_polynomial_approach.md)** -- The Radii Polynomial Theorem, and the five steps every validation on this site follows.
-Start here if the method is new to you.
-
-**[Get started](getting_started/first_validation.md)** -- Four short pages, from a cube root to an infinite-dimensional problem.
-Look here if you have never done a computer-assisted proof.
-
-**[See what can be validated](examples/index_examples.md)** -- Worked validation of steady states, periodic orbits, branches through folds and whole regions of parameter space.
-Look here for a problem shaped like yours.
-
-**[Look something up](manual/vector_spaces.md)** -- The reference for spaces, sequences, operators and norms.
-Look here when you need a particular tool.
+- [The radii polynomial approach](radii_polynomial_approach.md): the theorem and the five steps every validation follows. Start here if the method is new to you.
+- [Getting started](getting_started/first_validation.md): four short pages, from a cube root to an infinite-dimensional problem.
+- [Examples](examples/index_examples.md): steady states, periodic orbits, branches through folds, regions of parameter space.
+- [Manual](manual/vector_spaces.md): reference for spaces, sequences, operators and norms.
 
 ```@raw html
 </div>

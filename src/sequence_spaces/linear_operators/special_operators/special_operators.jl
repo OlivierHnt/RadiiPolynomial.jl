@@ -1,13 +1,13 @@
 include("multiplication.jl")
     export Multiplication, sequence
+include("evaluation.jl")
+    export Evaluation, evaluate, evaluate!, value
 include("calculus/derivative.jl")
     export Derivative, differentiate, differentiate!
 include("calculus/integral.jl")
     export Integral, integrate, integrate!
 include("calculus/laplacian.jl")
     export Laplacian, laplacian, laplacian!
-include("evaluation.jl")
-    export Evaluation, evaluate, evaluate!, value
 include("scale.jl")
     export Scale, scale, scale!
 include("shift.jl")

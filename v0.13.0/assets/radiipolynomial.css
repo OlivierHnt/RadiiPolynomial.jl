@@ -1,0 +1,101 @@
+/* KaTeX */
+
+.katex {
+  font-size: 1em !important; }
+
+.katex-display .katex {
+  /* allow display equations to wrap on small screens */
+  white-space: normal; }
+
+/* Code */
+
+.content pre {
+  border: 1px solid whitesmoke;
+  border-radius: 15px; }
+
+html.theme--documenter-dark .content pre {
+  border: 1px solid #282f2f;
+  border-radius: 15px; }
+
+/* Landing page
+
+   Colour is declared once, as tokens on `:root`, and overridden for the four dark themes that
+   Documenter ships. Documenter resolves the system preference in `themeswap.js` rather than in
+   CSS, so a `prefers-color-scheme` query would fire even for a reader who explicitly chose the
+   light theme — the theme class is the correct hook. */
+
+:root {
+  --rp-card-border: #dfe3e8;
+  --rp-card-shadow: rgba(0, 0, 0, 0.11);
+  --rp-card-hover: rgba(31, 131, 255, 0.5); }
+
+html.theme--documenter-dark,
+html.theme--catppuccin-frappe,
+html.theme--catppuccin-macchiato,
+html.theme--catppuccin-mocha {
+  --rp-card-border: rgba(127, 127, 127, 0.35);
+  --rp-card-shadow: rgba(0, 0, 0, 0.4);
+  --rp-card-hover: rgba(31, 131, 255, 0.7); }
+
+.boxintro-container {
+  display: grid;
+  gap: 1em;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin: 1.5em 0; }
+
+/* each `**[Title](page)** — description` paragraph becomes a card */
+.boxintro-container > p {
+  margin: 0;
+  padding: 1em 1.1em;
+  border: 1px solid var(--rp-card-border);
+  border-radius: 0.5em;
+  box-shadow: 0 2px 4px 1px var(--rp-card-shadow);
+  transition: border-color 0.2s ease-in-out, transform 0.2s ease-in-out; }
+
+.boxintro-container > p:hover {
+  border-color: var(--rp-card-hover);
+  transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boxintro-container > p {
+    transition: none; }
+  .boxintro-container > p:hover {
+    transform: none; } }
+
+/* Theorem admonition
+
+   `!!! theorem "..."` makes Documenter emit `.admonition.is-category-theorem`; styling it here
+   replaces the former hand-rolled `<div class="theorem">` shim, so the block stays searchable,
+   keeps its heading, and follows the theme. */
+
+.admonition.is-category-theorem {
+  background-color: #f6f8fb; }
+
+.admonition.is-category-theorem > .admonition-header {
+  background-color: #1f83ff;
+  color: #fff; }
+
+html.theme--documenter-dark .admonition.is-category-theorem,
+html.theme--catppuccin-frappe .admonition.is-category-theorem,
+html.theme--catppuccin-macchiato .admonition.is-category-theorem,
+html.theme--catppuccin-mocha .admonition.is-category-theorem {
+  background-color: rgba(127, 127, 127, 0.1); }
+
+/* "About this example" admonition
+
+   `!!! about "..."` gives every example a machine-readable header: what it proves, what it adds
+   over the previous rung, what it assumes, and its position on the ladder. Deliberately quieter
+   than a note, since it is metadata rather than a warning. */
+
+.admonition.is-category-about {
+  background-color: #f7f7f9; }
+
+.admonition.is-category-about > .admonition-header {
+  background-color: #6b7280;
+  color: #fff; }
+
+html.theme--documenter-dark .admonition.is-category-about,
+html.theme--catppuccin-frappe .admonition.is-category-about,
+html.theme--catppuccin-macchiato .admonition.is-category-about,
+html.theme--catppuccin-mocha .admonition.is-category-about {
+  background-color: rgba(127, 127, 127, 0.08); }
